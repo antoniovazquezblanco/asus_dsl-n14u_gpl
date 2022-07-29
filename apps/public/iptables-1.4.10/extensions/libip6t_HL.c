@@ -1,158 +1,144 @@
 /*
- * IPv6 Hop Limit Target module
+ * IPv6 Hop Limit matching module
  * Maciej Soltysiak <solt@dns.toxicfilms.tv>
- * Based on HW's ttl target
- * This program is distributed under the terms of GNU GPL
+ * Based on HW's ttl match
+ * This program is released under the terms of GNU GPL
+ * Cleanups by Stephane Ouellette <ouellettes@videotron.ca>
  */
-
-#include <getopt.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
+#include <getopt.h>
 #include <xtables.h>
 
-#include <linux/netfilter_ipv6/ip6t_HL.h>
+#include <linux/netfilter_ipv6/ip6t_hl.h>
 
-#define IP6T_HL_USED	1
-
-static void HL_help(void)
+static void hl_help(void)
 {
 	printf(
-"HL target options\n"
-"  --hl-set value		Set HL to <value 0-255>\n"
-"  --hl-dec value		Decrement HL by <value 1-255>\n"
-"  --hl-inc value		Increment HL by <value 1-255>\n");
+"hl match options:\n"
+"[!] --hl-eq value	Match hop limit value\n"
+"  --hl-lt value	Match HL < value\n"
+"  --hl-gt value	Match HL > value\n");
 }
 
-static int HL_parse(int c, char **argv, int invert, unsigned int *flags,
-                    const void *entry, struct xt_entry_target **target)
+static int hl_parse(int c, char **argv, int invert, unsigned int *flags,
+                    const void *entry, struct xt_entry_match **match)
 {
-	struct ip6t_HL_info *info = (struct ip6t_HL_info *) (*target)->data;
-	unsigned int value;
+	struct ip6t_hl_info *info = (struct ip6t_hl_info *) (*match)->data;
+	u_int8_t value;
 
-	if (*flags & IP6T_HL_USED) {
+	xtables_check_inverse(optarg, &invert, &optind, 0, argv);
+	value = atoi(optarg);
+
+	if (*flags) 
 		xtables_error(PARAMETER_PROBLEM,
 				"Can't specify HL option twice");
-	}
 
-	if (!optarg) 
+	if (!optarg)
 		xtables_error(PARAMETER_PROBLEM,
-				"HL: You must specify a value");
-
-	if (xtables_check_inverse(optarg, &invert, NULL, 0, argv))
-		xtables_error(PARAMETER_PROBLEM,
-				"HL: unexpected `!'");
-	
-	if (!xtables_strtoui(optarg, NULL, &value, 0, UINT8_MAX))
-		xtables_error(PARAMETER_PROBLEM,
-		           "HL: Expected value between 0 and 255");
-
+				"hl: You must specify a value");
 	switch (c) {
-
-		case '1':
-			info->mode = IP6T_HL_SET;
-			break;
-
 		case '2':
-			if (value == 0) {
-				xtables_error(PARAMETER_PROBLEM,
-					"HL: decreasing by 0?");
-			}
+			if (invert)
+				info->mode = IP6T_HL_NE;
+			else
+				info->mode = IP6T_HL_EQ;
 
-			info->mode = IP6T_HL_DEC;
+			/* is 0 allowed? */
+			info->hop_limit = value;
+			*flags = 1;
+
 			break;
-
 		case '3':
-			if (value == 0) {
+			if (invert) 
 				xtables_error(PARAMETER_PROBLEM,
-					"HL: increasing by 0?");
-			}
+						"hl: unexpected `!'");
 
-			info->mode = IP6T_HL_INC;
+			info->mode = IP6T_HL_LT;
+			info->hop_limit = value;
+			*flags = 1;
+
 			break;
+		case '4':
+			if (invert)
+				xtables_error(PARAMETER_PROBLEM,
+						"hl: unexpected `!'");
 
+			info->mode = IP6T_HL_GT;
+			info->hop_limit = value;
+			*flags = 1;
+
+			break;
 		default:
 			return 0;
-
 	}
-	
-	info->hop_limit = value;
-	*flags |= IP6T_HL_USED;
 
 	return 1;
 }
 
-static void HL_check(unsigned int flags)
+static void hl_check(unsigned int flags)
 {
-	if (!(flags & IP6T_HL_USED))
+	if (!flags) 
 		xtables_error(PARAMETER_PROBLEM,
-				"HL: You must specify an action");
+			"HL match: You must specify one of "
+			"`--hl-eq', `--hl-lt', `--hl-gt'");
 }
 
-static void HL_save(const void *ip, const struct xt_entry_target *target)
-{
-	const struct ip6t_HL_info *info = 
-		(struct ip6t_HL_info *) target->data;
-
-	switch (info->mode) {
-		case IP6T_HL_SET:
-			printf("--hl-set ");
-			break;
-		case IP6T_HL_DEC:
-			printf("--hl-dec ");
-			break;
-
-		case IP6T_HL_INC:
-			printf("--hl-inc ");
-			break;
-	}
-	printf("%u ", info->hop_limit);
-}
-
-static void HL_print(const void *ip, const struct xt_entry_target *target,
+static void hl_print(const void *ip, const struct xt_entry_match *match,
                      int numeric)
 {
-	const struct ip6t_HL_info *info =
-		(struct ip6t_HL_info *) target->data;
+	static const char *const op[] = {
+		[IP6T_HL_EQ] = "==",
+		[IP6T_HL_NE] = "!=",
+		[IP6T_HL_LT] = "<",
+		[IP6T_HL_GT] = ">" };
 
-	printf("HL ");
-	switch (info->mode) {
-		case IP6T_HL_SET:
-			printf("set to ");
-			break;
-		case IP6T_HL_DEC:
-			printf("decrement by ");
-			break;
-		case IP6T_HL_INC:
-			printf("increment by ");
-			break;
-	}
-	printf("%u ", info->hop_limit);
+	const struct ip6t_hl_info *info = 
+		(struct ip6t_hl_info *) match->data;
+
+	printf("HL match HL %s %u ", op[info->mode], info->hop_limit);
 }
 
-static const struct option HL_opts[] = {
-	{.name = "hl-set", .has_arg = true, .val = '1'},
-	{.name = "hl-dec", .has_arg = true, .val = '2'},
-	{.name = "hl-inc", .has_arg = true, .val = '3'},
+static void hl_save(const void *ip, const struct xt_entry_match *match)
+{
+	static const char *const op[] = {
+		[IP6T_HL_EQ] = "--hl-eq",
+		[IP6T_HL_NE] = "! --hl-eq",
+		[IP6T_HL_LT] = "--hl-lt",
+		[IP6T_HL_GT] = "--hl-gt" };
+
+	const struct ip6t_hl_info *info =
+		(struct ip6t_hl_info *) match->data;
+
+	printf("%s %u ", op[info->mode], info->hop_limit);
+}
+
+static const struct option hl_opts[] = {
+	{.name = "hl",    .has_arg = true, .val = '2'},
+	{.name = "hl-eq", .has_arg = true, .val = '2'},
+	{.name = "hl-lt", .has_arg = true, .val = '3'},
+	{.name = "hl-gt", .has_arg = true, .val = '4'},
 	XT_GETOPT_TABLEEND,
 };
 
-static struct xtables_target hl_tg6_reg = {
-	.name 		= "HL",
-	.version	= XTABLES_VERSION,
-	.family		= NFPROTO_IPV6,
-	.size		= XT_ALIGN(sizeof(struct ip6t_HL_info)),
-	.userspacesize	= XT_ALIGN(sizeof(struct ip6t_HL_info)),
-	.help		= HL_help,
-	.parse		= HL_parse,
-	.final_check	= HL_check,
-	.print		= HL_print,
-	.save		= HL_save,
-	.extra_opts	= HL_opts,
+static struct xtables_match hl_mt6_reg = {
+	.name          = "hl",
+	.version       = XTABLES_VERSION,
+	.family        = NFPROTO_IPV6,
+	.size          = XT_ALIGN(sizeof(struct ip6t_hl_info)),
+	.userspacesize = XT_ALIGN(sizeof(struct ip6t_hl_info)),
+	.help          = hl_help,
+	.parse         = hl_parse,
+	.final_check   = hl_check,
+	.print         = hl_print,
+	.save          = hl_save,
+	.extra_opts    = hl_opts,
 };
 
-void _init(void)
+
+void _init(void) 
 {
-	xtables_register_target(&hl_tg6_reg);
+	xtables_register_match(&hl_mt6_reg);
 }

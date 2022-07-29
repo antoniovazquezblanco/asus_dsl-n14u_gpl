@@ -1,11 +1,12 @@
-/* Shared library add-on to iptables for ECN matching
+/* Shared library add-on to iptables for ECN, $Version$
  *
  * (C) 2002 by Harald Welte <laforge@gnumonks.org>
  *
  * This program is distributed under the terms of GNU GPL v2, 1991
  *
- * libipt_ecn.c borrowed heavily from libipt_dscp.c
+ * libipt_ECN.c borrowed heavily from libipt_DSCP.c
  *
+ * $Id$
  */
 #include <stdbool.h>
 #include <stdio.h>
@@ -14,67 +15,80 @@
 #include <getopt.h>
 
 #include <xtables.h>
-#include <linux/netfilter_ipv4/ipt_ecn.h>
+#include <linux/netfilter_ipv4/ipt_ECN.h>
 
-static void ecn_help(void)
+static void ECN_help(void)
 {
 	printf(
-"ECN match options\n"
-"[!] --ecn-tcp-cwr 		Match CWR bit of TCP header\n"
-"[!] --ecn-tcp-ece		Match ECE bit of TCP header\n"
-"[!] --ecn-ip-ect [0..3]	Match ECN codepoint in IPv4 header\n");
+"ECN target options\n"
+"  --ecn-tcp-remove		Remove all ECN bits from TCP header\n");
 }
 
-static const struct option ecn_opts[] = {
-	{.name = "ecn-tcp-cwr", .has_arg = false, .val = 'F'},
-	{.name = "ecn-tcp-ece", .has_arg = false, .val = 'G'},
-	{.name = "ecn-ip-ect",  .has_arg = true,  .val = 'H'},
+#if 0
+"ECN target v%s EXPERIMENTAL options (use with extreme care!)\n"
+"  --ecn-ip-ect			Set the IPv4 ECT codepoint (0 to 3)\n"
+"  --ecn-tcp-cwr		Set the IPv4 CWR bit (0 or 1)\n"
+"  --ecn-tcp-ece		Set the IPv4 ECE bit (0 or 1)\n",
+#endif
+
+
+static const struct option ECN_opts[] = {
+	{.name = "ecn-tcp-remove", .has_arg = false, .val = 'F'},
+	{.name = "ecn-tcp-cwr",    .has_arg = true,  .val = 'G'},
+	{.name = "ecn-tcp-ece",    .has_arg = true,  .val = 'H'},
+	{.name = "ecn-ip-ect",     .has_arg = true,  .val = '9'},
 	XT_GETOPT_TABLEEND,
 };
 
-static int ecn_parse(int c, char **argv, int invert, unsigned int *flags,
-                     const void *entry, struct xt_entry_match **match)
+static int ECN_parse(int c, char **argv, int invert, unsigned int *flags,
+                     const void *entry, struct xt_entry_target **target)
 {
 	unsigned int result;
-	struct ipt_ecn_info *einfo
-		= (struct ipt_ecn_info *)(*match)->data;
+	struct ipt_ECN_info *einfo
+		= (struct ipt_ECN_info *)(*target)->data;
 
 	switch (c) {
 	case 'F':
-		if (*flags & IPT_ECN_OP_MATCH_CWR)
+		if (*flags)
 			xtables_error(PARAMETER_PROBLEM,
-			           "ECN match: can only use parameter ONCE!");
-		xtables_check_inverse(optarg, &invert, &optind, 0, argv);
-		einfo->operation |= IPT_ECN_OP_MATCH_CWR;
-		if (invert)
-			einfo->invert |= IPT_ECN_OP_MATCH_CWR;
-		*flags |= IPT_ECN_OP_MATCH_CWR;
+			        "ECN target: Only use --ecn-tcp-remove ONCE!");
+		einfo->operation = IPT_ECN_OP_SET_ECE | IPT_ECN_OP_SET_CWR;
+		einfo->proto.tcp.ece = 0;
+		einfo->proto.tcp.cwr = 0;
+		*flags = 1;
 		break;
-
 	case 'G':
-		if (*flags & IPT_ECN_OP_MATCH_ECE)
+		if (*flags & IPT_ECN_OP_SET_CWR)
 			xtables_error(PARAMETER_PROBLEM,
-				   "ECN match: can only use parameter ONCE!");
-		xtables_check_inverse(optarg, &invert, &optind, 0, argv);
-		einfo->operation |= IPT_ECN_OP_MATCH_ECE;
-		if (invert)
-			einfo->invert |= IPT_ECN_OP_MATCH_ECE;
-		*flags |= IPT_ECN_OP_MATCH_ECE;
+				"ECN target: Only use --ecn-tcp-cwr ONCE!");
+		if (!xtables_strtoui(optarg, NULL, &result, 0, 1))
+			xtables_error(PARAMETER_PROBLEM,
+				   "ECN target: Value out of range");
+		einfo->operation |= IPT_ECN_OP_SET_CWR;
+		einfo->proto.tcp.cwr = result;
+		*flags |= IPT_ECN_OP_SET_CWR;
 		break;
-
 	case 'H':
-		if (*flags & IPT_ECN_OP_MATCH_IP)
+		if (*flags & IPT_ECN_OP_SET_ECE)
 			xtables_error(PARAMETER_PROBLEM,
-				   "ECN match: can only use parameter ONCE!");
-		xtables_check_inverse(optarg, &invert, &optind, 0, argv);
-		if (invert)
-			einfo->invert |= IPT_ECN_OP_MATCH_IP;
-		*flags |= IPT_ECN_OP_MATCH_IP;
-		einfo->operation |= IPT_ECN_OP_MATCH_IP;
+				"ECN target: Only use --ecn-tcp-ece ONCE!");
+		if (!xtables_strtoui(optarg, NULL, &result, 0, 1))
+			xtables_error(PARAMETER_PROBLEM,
+				   "ECN target: Value out of range");
+		einfo->operation |= IPT_ECN_OP_SET_ECE;
+		einfo->proto.tcp.ece = result;
+		*flags |= IPT_ECN_OP_SET_ECE;
+		break;
+	case '9':
+		if (*flags & IPT_ECN_OP_SET_IP)
+			xtables_error(PARAMETER_PROBLEM,
+				"ECN target: Only use --ecn-ip-ect ONCE!");
 		if (!xtables_strtoui(optarg, NULL, &result, 0, 3))
 			xtables_error(PARAMETER_PROBLEM,
-				   "ECN match: Value out of range");
+				   "ECN target: Value out of range");
+		einfo->operation |= IPT_ECN_OP_SET_IP;
 		einfo->ip_ect = result;
+		*flags |= IPT_ECN_OP_SET_IP;
 		break;
 	default:
 		return 0;
@@ -83,79 +97,74 @@ static int ecn_parse(int c, char **argv, int invert, unsigned int *flags,
 	return 1;
 }
 
-static void ecn_check(unsigned int flags)
+static void ECN_check(unsigned int flags)
 {
 	if (!flags)
 		xtables_error(PARAMETER_PROBLEM,
-		           "ECN match: some option required");
+		           "ECN target: Parameter --ecn-tcp-remove is required");
 }
 
-static void ecn_print(const void *ip, const struct xt_entry_match *match,
+static void ECN_print(const void *ip, const struct xt_entry_target *target,
                       int numeric)
 {
-	const struct ipt_ecn_info *einfo =
-		(const struct ipt_ecn_info *)match->data;
+	const struct ipt_ECN_info *einfo =
+		(const struct ipt_ECN_info *)target->data;
 
-	printf("ECN match ");
+	printf("ECN ");
 
-	if (einfo->operation & IPT_ECN_OP_MATCH_ECE) {
-		if (einfo->invert & IPT_ECN_OP_MATCH_ECE)
-			fputc('!', stdout);
-		printf("ECE ");
-	}
+	if (einfo->operation == (IPT_ECN_OP_SET_ECE|IPT_ECN_OP_SET_CWR)
+	    && einfo->proto.tcp.ece == 0
+	    && einfo->proto.tcp.cwr == 0)
+		printf("TCP remove ");
+	else {
+		if (einfo->operation & IPT_ECN_OP_SET_ECE)
+			printf("ECE=%u ", einfo->proto.tcp.ece);
 
-	if (einfo->operation & IPT_ECN_OP_MATCH_CWR) {
-		if (einfo->invert & IPT_ECN_OP_MATCH_CWR)
-			fputc('!', stdout);
-		printf("CWR ");
-	}
+		if (einfo->operation & IPT_ECN_OP_SET_CWR)
+			printf("CWR=%u ", einfo->proto.tcp.cwr);
 
-	if (einfo->operation & IPT_ECN_OP_MATCH_IP) {
-		if (einfo->invert & IPT_ECN_OP_MATCH_IP)
-			fputc('!', stdout);
-		printf("ECT=%d ", einfo->ip_ect);
+		if (einfo->operation & IPT_ECN_OP_SET_IP)
+			printf("ECT codepoint=%u ", einfo->ip_ect);
 	}
 }
 
-static void ecn_save(const void *ip, const struct xt_entry_match *match)
+static void ECN_save(const void *ip, const struct xt_entry_target *target)
 {
-	const struct ipt_ecn_info *einfo =
-		(const struct ipt_ecn_info *)match->data;
-	
-	if (einfo->operation & IPT_ECN_OP_MATCH_ECE) {
-		if (einfo->invert & IPT_ECN_OP_MATCH_ECE)
-			printf("! ");
-		printf("--ecn-tcp-ece ");
-	}
+	const struct ipt_ECN_info *einfo =
+		(const struct ipt_ECN_info *)target->data;
 
-	if (einfo->operation & IPT_ECN_OP_MATCH_CWR) {
-		if (einfo->invert & IPT_ECN_OP_MATCH_CWR)
-			printf("! ");
-		printf("--ecn-tcp-cwr ");
-	}
+	if (einfo->operation == (IPT_ECN_OP_SET_ECE|IPT_ECN_OP_SET_CWR)
+	    && einfo->proto.tcp.ece == 0
+	    && einfo->proto.tcp.cwr == 0)
+		printf("--ecn-tcp-remove ");
+	else {
 
-	if (einfo->operation & IPT_ECN_OP_MATCH_IP) {
-		if (einfo->invert & IPT_ECN_OP_MATCH_IP)
-			printf("! ");
-		printf("--ecn-ip-ect %d", einfo->ip_ect);
+		if (einfo->operation & IPT_ECN_OP_SET_ECE)
+			printf("--ecn-tcp-ece %d ", einfo->proto.tcp.ece);
+
+		if (einfo->operation & IPT_ECN_OP_SET_CWR)
+			printf("--ecn-tcp-cwr %d ", einfo->proto.tcp.cwr);
+
+		if (einfo->operation & IPT_ECN_OP_SET_IP)
+			printf("--ecn-ip-ect %d ", einfo->ip_ect);
 	}
 }
 
-static struct xtables_match ecn_mt_reg = {
-    .name          = "ecn",
-    .version       = XTABLES_VERSION,
-    .family        = NFPROTO_IPV4,
-    .size          = XT_ALIGN(sizeof(struct ipt_ecn_info)),
-    .userspacesize = XT_ALIGN(sizeof(struct ipt_ecn_info)),
-    .help          = ecn_help,
-    .parse         = ecn_parse,
-    .final_check   = ecn_check,
-    .print         = ecn_print,
-    .save          = ecn_save,
-    .extra_opts    = ecn_opts,
+static struct xtables_target ecn_tg_reg = {
+	.name		= "ECN",
+	.version	= XTABLES_VERSION,
+	.family		= NFPROTO_IPV4,
+	.size		= XT_ALIGN(sizeof(struct ipt_ECN_info)),
+	.userspacesize	= XT_ALIGN(sizeof(struct ipt_ECN_info)),
+	.help		= ECN_help,
+	.parse		= ECN_parse,
+	.final_check	= ECN_check,
+	.print		= ECN_print,
+	.save		= ECN_save,
+	.extra_opts	= ECN_opts,
 };
 
 void _init(void)
 {
-	xtables_register_match(&ecn_mt_reg);
+	xtables_register_target(&ecn_tg_reg);
 }
