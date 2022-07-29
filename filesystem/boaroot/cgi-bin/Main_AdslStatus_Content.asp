@@ -110,6 +110,10 @@ var log_PowerDown;
 var log_PowerUp;
 var log_INPDown;
 var log_INPUp;
+var log_INPSHINEDown;
+var log_INPSHINEUp;
+var log_INPREINDown;
+var log_INPREINUp;
 var log_CRCDown;
 var log_CRCUp;
 var log_VDSL_CurrentProfile;
@@ -190,6 +194,10 @@ function update_log(){
 					document.getElementById("div_PowerUp").innerHTML = log_PowerUp;
 					document.getElementById("div_INPDown").innerHTML = log_INPDown;
 					document.getElementById("div_INPUp").innerHTML = log_INPUp;
+					document.getElementById("div_INPSHINEDown").innerHTML = log_INPSHINEDown;
+					document.getElementById("div_INPSHINEUp").innerHTML = log_INPSHINEUp;
+					document.getElementById("div_INPREINDown").innerHTML = log_INPREINDown;
+					document.getElementById("div_INPREINUp").innerHTML = log_INPREINUp;
 					document.getElementById("div_CRCDown").innerHTML = log_CRCDown;
 					document.getElementById("div_CRCUp").innerHTML = log_CRCUp;
 				}
@@ -238,6 +246,10 @@ function update_log(){
 	});
 }
 
+var SystemVendorID_orig = "<%tcWebApi_get("SysInfo_Entry","SystemVendorID","s")%>";
+var SystemVendorModelID_orig = "<%tcWebApi_get("SysInfo_Entry","SystemVendorModelID","s")%>";
+var ModemVendorID_orig = "<%tcWebApi_get("SysInfo_Entry","ModemVendorID","s")%>";
+
 function initial(){
 	show_menu();
 	load_body();
@@ -245,6 +257,11 @@ function initial(){
 	display_vdsl_band_status();
 	showadslbootTime();
 	document.getElementById("div_AdslType").innerHTML = dsl_type;
+
+	document.getElementById("tr_SystemVendorID").style.display = (SystemVendorID_orig != "")? "":"none";
+	document.getElementById("tr_SystemVendorModelID").style.display = (SystemVendorModelID_orig != "")? "":"none";
+	document.getElementById("tr_ModemVendorID").style.display = (ModemVendorID_orig != "")? "":"none";
+
 	setTimeout("update_log();", 5000);
 }
 
@@ -361,6 +378,26 @@ function showadslbootTime(){
 	<div id="div_VDSL_CurrentProfile"><% if tcWebApi_get("Info_Adsl","CurrentProfiles","h") <> "" then tcWebApi_get("Info_Adsl","CurrentProfiles","s") end if%></div>
 </td>
 </tr>
+
+<tr id="tr_SystemVendorID" style="display:none;">
+<th>System Vendor ID</th>
+<td colspan="2">
+	<div><%tcWebApi_get("SysInfo_Entry","SystemVendorID","s")%></div>
+</td>
+</tr>
+<tr id="tr_SystemVendorModelID" style="display:none;">
+<th>System Vendor Model ID</th>
+<td colspan="2">
+	<div><%tcWebApi_get("SysInfo_Entry","SystemVendorModelID","s")%></div>
+</td>
+</tr>
+<tr id="tr_ModemVendorID" style="display:none;">
+<th>Modem Vendor ID</th>
+<td colspan="2">
+	<div><%tcWebApi_get("SysInfo_Entry","ModemVendorID","s")%></div>
+</td>
+</tr>
+
 </table>
 </td>
 </tr>
@@ -459,6 +496,24 @@ function showadslbootTime(){
 </td>
 <td>
 	<div id="div_INPUp"><% if tcWebApi_get("Info_Adsl","INPUp","h") <> "" then tcWebApi_get("Info_Adsl","INPUp","s") end if%></div>
+</td>
+</tr>
+<tr>
+<th>INP-SHINE</th>
+<td>
+	<div id="div_INPSHINEDown"><% if tcWebApi_get("Info_Adsl","INPSHINEDown","h") <> "" then tcWebApi_get("Info_Adsl","INPSHINEDown","s") end if%></div>
+</td>
+<td>
+	<div id="div_INPSHINEUp"><% if tcWebApi_get("Info_Adsl","INPSHINEUp","h") <> "" then tcWebApi_get("Info_Adsl","INPSHINEUp","s") end if%></div>
+</td>
+</tr>
+<tr>
+<th>INP-REIN</th>
+<td>
+	<div id="div_INPREINDown"><% if tcWebApi_get("Info_Adsl","INPREINDown","h") <> "" then tcWebApi_get("Info_Adsl","INPREINDown","s") end if%></div>
+</td>
+<td>
+	<div id="div_INPREINUp"><% if tcWebApi_get("Info_Adsl","INPREINUp","h") <> "" then tcWebApi_get("Info_Adsl","INPREINUp","s") end if%></div>
 </td>
 </tr>
 <tr>

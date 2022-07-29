@@ -39,13 +39,18 @@
 #define DUALWAN_DATA "Dualwan_Entry"
 
 #include "asp_handler.h"	//javi
-#include "../../../networkmap/networkmap.h"
+#include <networkmap.h>
+#ifdef TCSUPPORT_ACCESSLOG
+#include <access_log.h>
+#endif
 #include <libutils.h>
 #ifdef RTCONFIG_OPENVPN
 #include "openvpn_options.h"
+#include "openvpn_config.h"
 #endif
 #include <math.h> /*for ceil(), ASUS Router (AiHome) APP */
-#include <misc.h>
+
+#include <dpi_config.h>
 
 char SystemCmd[128];
 
@@ -62,6 +67,9 @@ char SystemCmd[128];
 #ifdef RTCONFIG_NOTIFICATION_CENTER
 #include <libnt.h>
 #endif
+
+extern asus_token_t* add_asus_token(const CLIENT_TYPE cli_type, const char *token, const char *ipaddr);
+extern int inet_deconflict(const char *addr1, const char *mask1, const char *addr2, const char *mask2, struct in_addr *result);
 
 //Andy Chiu, 2015/01/23.
 //use it as printf, such as dbgprintf("test %s %d\n", "string", 123);
@@ -164,7 +172,7 @@ static void do_upload_cgi (asp_reent* reent, const asp_text* params, asp_text* r
 static void get_post_multipart(request *req);
 static void get_post(request *req);
 static void get_query(request *req);
-static int http_header();
+static int http_header(request *req);
 
 void init_asp_funcs(void);
 #ifndef TRENDCHIP
@@ -242,7 +250,7 @@ static void _save_openvpn_client_cert();
 static void _save_openvpn_server_tls();
 static void _save_openvpn_server_static();
 #endif
-
+static void _save_igmpproxy_param();
 static void qis_do_dsl_iptv (asp_reent* reent, const asp_text* params, asp_text* ret);
 static void do_apply_cgi (asp_reent* reent, const asp_text* params, asp_text* ret); /* modify for ASUS Router (AiHome) APP */
 static void wanstate (asp_reent* reent, const asp_text* params, asp_text* ret);
@@ -252,6 +260,7 @@ static void disable_other_wan (asp_reent* reent, const asp_text* params, asp_tex
 static void wanlink (asp_reent* reent, const asp_text* params, asp_text* ret);
 static void first_wanlink (asp_reent* reent, const asp_text* params, asp_text* ret);
 static void secondary_wanlink (asp_reent* reent, const asp_text* params, asp_text* ret);
+static void get_ssh_first_init (asp_reent* reent, const asp_text* params, asp_text* ret);
 static void get_wan_unit_hook (asp_reent* reent, const asp_text* params, asp_text* ret);
 static void get_wan_primary_pvcunit_hook (asp_reent* reent, const asp_text* params, asp_text* ret);
 static void get_wan_secondary_pvcunit_hook (asp_reent* reent, const asp_text* params, asp_text* ret);
@@ -271,6 +280,7 @@ static void ClientList_Update(asp_reent* reent, const asp_text* params, asp_text
 static void set_primary_pvc(asp_reent* reent, const asp_text* params, asp_text* ret);
 static void wl_sta_list_2g(asp_reent* reent, const asp_text* params, asp_text* ret);	//Andy Chiu, 2014/12/02
 static void wl_sta_list_5g(asp_reent* reent, const asp_text* params, asp_text* ret);	//Andy Chiu, 2014/12/02
+static void wl_support_region(asp_reent* reent, const asp_text* params, asp_text* ret);	//Andy Chiu, 2017/07/17
 static void get_client_list(asp_reent* reent, const asp_text* params, asp_text* ret);	//Andy Chiu, 2014/12/03
 static void get_client_list_cache(asp_reent* reent, const asp_text* params, asp_text* ret);	//Andy Chiu, 2015/03/26
 static void get_asus_dev_list(asp_reent* reent, const asp_text* params, asp_text* ret);	//Andy Chiu, 2014/12/03
@@ -285,8 +295,18 @@ static void disk_scan(asp_reent* reent, const asp_text* params, asp_text* ret);	
 static void disk_scan_result(asp_reent* reent, const asp_text* params, asp_text* ret);	//Andy Chiu, 2015/07/23
 #endif
 static int get_nat_vserver_table(char *wp);	//Andy Chiu, 2016/03/08
+
+#if defined(TCSUPPORT_WEBMON) || defined(TCSUPPORT_ACCESSLOG)
+#define ROUTER_TMP_DIR  "router_temp"
+#define WEBMON_DIR      "web_history_backup"
+#define ACCESSLOG_DIR   "access_log_backup"
+static void check_log_path(asp_reent* reent, const asp_text* params, asp_text* ret);
+#endif
 #ifdef TCSUPPORT_WEBMON
 static void get_web_history_table(char *wp);
+#endif
+#ifdef TCSUPPORT_ACCESSLOG
+static void get_access_log_table(void);
 #endif
 
 static void load_parameters_to_generic(asp_reent* reent, const asp_text* params, asp_text* ret);
@@ -304,6 +324,8 @@ static void ej_wl_scan_2g(asp_reent* reent, const asp_text* params, asp_text* re
 static void ej_wl_scan_5g(asp_reent* reent, const asp_text* params, asp_text* ret);
 static void tcWebApi_get_arp_list(asp_reent* reent, const asp_text* params, asp_text* ret); /* Paul add 2013/6/17 */
 static void get_DSL_WAN_list(asp_reent* reent, const asp_text* params, asp_text* ret);
+static void ej_get_next_lanip(asp_reent* reent, const asp_text* params, asp_text* ret);		//Andy Chiu, 2017/1/12.
+static void ej_get_header_info(asp_reent* reent, const asp_text* params, asp_text* ret);	//Andy Chiu, 2017/1/12.
 
 //Ren.B
 static void tcWebApi_UpdateNetdev(asp_reent* reent, const asp_text* params, asp_text* ret);
@@ -335,7 +357,7 @@ void not_ej_initial_folder_var_file();
 int dump_file(char *wp, char *filename);
 int clean_dump_file(char *wp, char *filename);
 void sys_script(char *name);
-int gen_modemlog(void);
+static void gen_modemlog(asp_reent* reent, const asp_text* params,  asp_text* ret);
 
 #ifdef TCSUPPORT_SYSLOG_ENHANCE
 void logmessage(char *logheader, char *fmt, ...);
@@ -377,20 +399,31 @@ static void get_isp_dhcp_opt_list(asp_reent* reent, const asp_text* params, asp_
 #endif
 #ifdef ASUS_LOGIN_SESSION
 static void do_login(asp_reent* reent, const asp_text* params, asp_text* ret);
-static int login_try;
-static int MAX_login;
 #endif
-
 static void get_iptv_wan_list_ad(asp_reent* reent, const asp_text* params, asp_text* ret);
 #if defined(TCSUPPORT_WAN_PTM) && defined(TCSUPPORT_MULTISERVICE_ON_WAN)
 static void get_iptv_wan_list_vd(asp_reent* reent, const asp_text* params, asp_text* ret);
 #endif
-#if defined(TCSUPPORT_WAN_ETHER) && defined(TCSUPPORT_MULTISERVICE_ON_WAN)
+#if defined(TCSUPPORT_WAN_ETHER)
 static void get_iptv_wan_list_eth(asp_reent* reent, const asp_text* params, asp_text* ret);
 #endif
 #ifdef TCSUPPORT_WAN_ETHER_LAN
 static void available_eth_lan_wan_port(asp_reent* reent, const asp_text* params, asp_text* ret);
 #endif
+static void ej_check_acorpw(asp_reent* reent, const asp_text* params, asp_text* ret);
+static void ej_check_passwd_strength(asp_reent* reent, const asp_text* params, asp_text* ret);
+static void ej_check_wireless_encryption(asp_reent* reent, const asp_text* params, asp_text* ret);
+#ifdef RTCONFIG_BWDPI
+static void do_HomeProtection (asp_reent* reent, const asp_text* params, asp_text* ret);
+static void do_WebProtector (asp_reent* reent, const asp_text* params, asp_text* ret);
+static void ej_get_wrs_web_rulslist(asp_reent* reent, const asp_text* params, asp_text* ret);
+static void ej_get_wrs_app_rulslist(asp_reent* reent, const asp_text* params, asp_text* ret);
+static void ej_get_wrs_web_maxrule(asp_reent* reent, const asp_text* params, asp_text* ret);
+static void bwdpi_redirect_info(asp_reent* reent, const asp_text* params, asp_text* ret);
+#endif
+static void ej_bwdpi_engine_status(asp_reent* reent, const asp_text* params, asp_text* ret);
+static void ej_login_error_info(asp_reent* reent, const asp_text* params, asp_text* ret);
+static void ej_get_productid(asp_reent* reent, const asp_text* params, asp_text* ret);
 
 #define MAX_IF_NUM 4
 
@@ -427,13 +460,14 @@ wifiIfName_t Wifi2Gifname;
 wifiIfName_t Wifi5Gifname;
 //Ren.E
 
-/* for web history */
+#ifdef TCSUPPORT_WEBMON
 typedef struct clientInfo_s
 {
 	char ipaddr[64];
 	char mac[32];
 }clientInfo_t;
 clientInfo_t landev[512];
+#endif
 
 int asp_handler(request * req)
 {
@@ -444,14 +478,14 @@ int asp_handler(request * req)
 	//fprintf(stderr,"%s mothed:%d %s \n",__FUNCTION__,req->method,req->pathname);
 	//dbgprintf("**req->pathname: %s\n", req->pathname);
 	for(i = 0 ; i < 1; i++){
-		sprintf(nodename, "Account_Entry%d", i);
+		snprintf(nodename, sizeof(nodename), "Account_Entry%d", i);
 		ret = tcapi_get(nodename, "username", username);
 		if(ret < 0){ //Fail to acquire username from romfile
 			fprintf(stderr, "Fail to acquire username from romfile: ret = %d\r\n", ret);
 			return -1;
 		}
 		if(!strcmp(cur_username, username)){
-			sprintf(nodename, "%d", i);
+			snprintf(nodename, sizeof(nodename), "%d", i);
 			ret = tcapi_set("WebCurSet_Entry", "CurrentAccess", nodename);
 			if(ret < 0){ //Fail to set current username
 				fprintf(stderr, "Fail to set current username: ret = %d\r\n", ret);
@@ -467,7 +501,7 @@ int asp_handler(request * req)
 	{
 #ifdef ASUS_LOGIN_SESSION		
 		//Andy Chiu, 2015/12/14. remove token
-		dbgprintf("[%s, %d]reset data for logout.\n", __FUNCTION__, __LINE__);
+		//dbgprintf("[%s, %d]reset data for logout.\n", __FUNCTION__, __LINE__);
 		RM_TOKEN_ITEM_BY_IP(req->remote_ip_addr);
 #endif
 	}
@@ -482,7 +516,7 @@ int asp_handler(request * req)
 	if(!strstr(req->pathname, "login.asp"))
 	{
 #endif
-	if(http_header() == -1)
+	if(http_header(req) == -1)
 	{
 		close(fd_out);
 		req->status = DEAD;
@@ -559,7 +593,7 @@ static void get_post_multipart(request *req){
 					break;
 				}
 			}
-			strcpy(boundary,c_ret+i);
+			snprintf(boundary, sizeof(boundary), "%s",c_ret+i);
 			//dbgprintf("bound = %s\n",boundary);
 		}else{
 			dbgprintf("boundary too long!!!upgrade fail\n");
@@ -643,36 +677,79 @@ static void get_query(request *req)
 	g_var_post = parse_param_line (req->query_string);
 }
 
-static int http_header()
+static int http_header(request *req)
 {
-	char buf[512] = {0};
+	char buf[2048] = {0}, tmp[256] = {0};
 	char *p = buf;
 	char HTTP_OK[] = "HTTP/1.0 200 OK\r\n";
-	strcat(p, HTTP_OK);
-	p += strlen(HTTP_OK);
 
+	if(!req)
+	{
+		_dprintf("[%s, %d] no req!\n", __FUNCTION__, __LINE__);
+		return -1;
+	}
+	
+	snprintf(p, sizeof(buf) - (p - buf), "%s", HTTP_OK);
+	p += strlen(HTTP_OK);
+	
 	char DATA[] = "Date: "
 		"                             "
 		"\r\n";
 	rfc822_time_buf(DATA + 6, 0);
-	strcat(p, DATA);
+	snprintf(p, sizeof(buf) - (p - buf), "%s", DATA);
 	p += strlen(DATA);
 
+	int cli_type = check_client_type(req->header_user_agent);
+
+	if(cli_type != CLI_TYPE_BROWSER)
+	{
+		//req_write(req, "Cache-Control: no-store\r\n");
+		//req_write(req, "Pragma: no-cache\r\n");
+		if(CLI_TYPE_APP == cli_type)
+		{
+			//Add AiHOMEAPILevel
+			memset(tmp, 0, sizeof(tmp));
+			snprintf(tmp, sizeof(tmp), "AiHOMEAPILevel: %d\r\n", EXTEND_AIHOME_API_LEVEL);
+			snprintf(p, sizeof(buf) - (p - buf), "%s", tmp);
+			p += strlen(tmp);
+
+			//Add Httpd_AiHome_Ver
+			memset(tmp, 0, sizeof(tmp));
+			snprintf(tmp, sizeof(tmp), "Httpd_AiHome_Ver: %d\r\n", EXTEND_HTTPD_AIHOME_VER);
+			snprintf(p, sizeof(buf) - (p - buf), "%s", tmp);
+			p += strlen(tmp);
+
+			//Add Model_Name
+			memset(tmp, 0, sizeof(tmp));
+			snprintf(tmp, sizeof(tmp), "Model_Name: %s\r\n", get_productid());
+			snprintf(p, sizeof(buf) - (p - buf), "%s", tmp);
+			p += strlen(tmp);	
+		}
+		else if(CLI_TYPE_ASSIA == cli_type)
+		{
+			//Add Httpd_AiHome_Ver
+			memset(tmp, 0, sizeof(tmp));
+			snprintf(tmp, sizeof(tmp), "ASSIA_API_Level: %d\r\n", EXTEND_ASSIA_API_LEVEL);
+			snprintf(p, sizeof(buf) - (p - buf), "%s", tmp);
+			p += strlen(tmp);
+		}
+	}
+	
 /*pork 20090309 added*/
 #if 0
 	char CONTENT_TYPE[] = "Content-type: text/html;charset=GB2312\r\n\r\n";
 #else
 	char CONTENT_TYPE[64];
 	if(charset){
-		sprintf(CONTENT_TYPE,"Content-type: text/html;charset=%s\r\n\r\n",charset);
+		snprintf(CONTENT_TYPE, sizeof(CONTENT_TYPE),"Content-type: %s;charset=%s\r\n\r\n", get_mime_type(req->request_uri), charset);
 	}
 	else{
 		/*default char set: ISO-8859-1*/
-		sprintf(CONTENT_TYPE,"Content-type: text/html;charset=ISO-8859-1\r\n\r\n");
+		snprintf(CONTENT_TYPE, sizeof(CONTENT_TYPE),"Content-type: %s;charset=ISO-8859-1\r\n\r\n", get_mime_type(req->request_uri));
 	}
 #endif
 /*pork 20090309 added over*/
-	strcat(p, CONTENT_TYPE);
+	snprintf(p, sizeof(buf) - (p - buf), "%s", CONTENT_TYPE);
 	p += strlen(CONTENT_TYPE);
 
 	//if(asp_send_response (NULL, HTTP_OK, strlen(HTTP_OK)) == -1)
@@ -882,6 +959,7 @@ qis_dsl_early_restart  (asp_reent* reent, const asp_text* params,  asp_text* ret
 	char DSLMode[32] = {0};
 	int do_restart = 0;
 	int r_val = 0;
+	char *dsltmp_cfg_ginp_try_enable = get_param(g_var_post, "dsltmp_cfg_ginp_try_enable");
 
 	tcapi_get("Info_Adsl", "lineState", lineState);
 	tcapi_get("Wan_Common", "DSLMode", DSLMode);
@@ -902,11 +980,6 @@ qis_dsl_early_restart  (asp_reent* reent, const asp_text* params,  asp_text* ret
 			do_restart = 1;
 		}
 	}
-	//enable g.inp case
-	if(tcapi_match("GUITemp_Entry0", "dsltmp_set_ginp", "1")) {
-		do_restart = 1;
-		tcapi_set("GUITemp_Entry0", "dsltmp_set_ginp", "0");
-	}
 	//Thailand 3BB case
 	if(tcapi_match("GUITemp_Entry0", "dsltmp_cfg_th3bb", "1")) {
 		do_restart = 1;
@@ -916,6 +989,35 @@ qis_dsl_early_restart  (asp_reent* reent, const asp_text* params,  asp_text* ret
 	if(tcapi_match("GUITemp_Entry0", "dsltmp_cfg_de17a", "1")) {
 		do_restart = 1;
 		tcapi_set("GUITemp_Entry0", "dsltmp_cfg_de17a", "0");
+	}
+	//UK Sky try enable g.inp
+	if(tcapi_match("GUITemp_Entry0", "dsltmp_cfg_uksky", "1")) {
+		tcapi_set("GUITemp_Entry0", "dsltmp_cfg_uksky", "2");
+		tcapi_set("Adsl_Entry", "dslx_ginp_try_enable_disp", "1");
+		if(dsltmp_cfg_ginp_try_enable && !strcmp(dsltmp_cfg_ginp_try_enable, "1")) {
+			if(!tcapi_match("Adsl_Entry", "dslx_ginp_try_enable", "1")) {	//disabled
+				do_restart = 1;
+				tcapi_set("Adsl_Entry", "dslx_ginp_try_enable", "1");
+			}
+		}
+		else {
+			if(tcapi_match("Adsl_Entry", "dslx_ginp_try_enable", "1")) {	//enabled
+				do_restart = 1;
+				tcapi_set("Adsl_Entry", "dslx_ginp_try_enable", "0");
+			}
+			if(tcapi_match("Adsl_Entry", "dslx_ginp", "on")) {	//enabled
+				do_restart = 1;
+				tcapi_set("Adsl_Entry", "dslx_ginp", "off"); //disable g.inp
+			}
+		}
+	}
+	else if(tcapi_match("GUITemp_Entry0", "dsltmp_cfg_uksky", "2")) {	//done
+	}
+	else {	//not uk sky
+		if(tcapi_match("Adsl_Entry", "dslx_ginp_try_enable", "1"))	//enabled
+			do_restart = 1;
+		tcapi_set("Adsl_Entry", "dslx_ginp_try_enable_disp", "0");
+		tcapi_set("Adsl_Entry", "dslx_ginp_try_enable", "0");
 	}
 
 	if (do_restart == 1)
@@ -1183,6 +1285,7 @@ void init_asp_funcs(void)
 	append_asp_func("wanlink", wanlink);
 	append_asp_func("first_wanlink", first_wanlink);
 	append_asp_func("secondary_wanlink", secondary_wanlink);
+	append_asp_func("get_ssh_first_init", get_ssh_first_init);
 	append_asp_func("get_wan_unit", get_wan_unit_hook);
 	append_asp_func("get_wan_primary_pvcunit", get_wan_primary_pvcunit_hook);
 	append_asp_func("get_wan_secondary_pvcunit", get_wan_secondary_pvcunit_hook);
@@ -1204,6 +1307,7 @@ void init_asp_funcs(void)
 	append_asp_func("set_primary_pvc", set_primary_pvc);
 	append_asp_func("wl_sta_list_2g", wl_sta_list_2g);	//Andy Chiu, 2014/12/02
 	append_asp_func("wl_sta_list_5g", wl_sta_list_5g);	//Andy Chiu, 2014/12/02
+	append_asp_func("wl_support_region", wl_support_region);	//Andy Chiu, 2017/07/17	
 	append_asp_func("get_client_list", get_client_list);	//Andy Chiu, 2014/12/03
 	append_asp_func("get_client_list_cache", get_client_list_cache);	//Andy Chiu, 2015/03/26
 	append_asp_func("get_asus_dev_list", get_asus_dev_list);	//Andy Chiu, 2014/12/03
@@ -1271,17 +1375,36 @@ void init_asp_funcs(void)
 #endif
 #ifdef ASUS_LOGIN_SESSION
     append_asp_func ("do_login", do_login);
+    append_asp_func ("login_error_info", ej_login_error_info);
 #endif
     append_asp_func ("get_iptv_wan_list_ad", get_iptv_wan_list_ad);
 #if defined(TCSUPPORT_WAN_PTM) && defined(TCSUPPORT_MULTISERVICE_ON_WAN)
     append_asp_func ("get_iptv_wan_list_vd", get_iptv_wan_list_vd);
 #endif
-#if defined(TCSUPPORT_WAN_ETHER) && defined(TCSUPPORT_MULTISERVICE_ON_WAN)
+#if defined(TCSUPPORT_WAN_ETHER)
     append_asp_func ("get_iptv_wan_list_eth", get_iptv_wan_list_eth);
 #endif
 #ifdef TCSUPPORT_WAN_ETHER_LAN
     append_asp_func ("available_eth_lan_wan_port", available_eth_lan_wan_port);
 #endif
+    append_asp_func ("check_acorpw", ej_check_acorpw);
+    append_asp_func ("check_passwd_strength", ej_check_passwd_strength);
+    append_asp_func ("check_wireless_encryption", ej_check_wireless_encryption);
+#ifdef RTCONFIG_BWDPI
+	append_asp_func ("do_HomeProtection", do_HomeProtection);
+	append_asp_func ("do_WebProtector", do_WebProtector);
+	append_asp_func ("get_wrs_web_rulslist", ej_get_wrs_web_rulslist);
+	append_asp_func ("get_wrs_app_rulslist", ej_get_wrs_app_rulslist);
+	append_asp_func ("get_wrs_web_maxrule", ej_get_wrs_web_maxrule);
+	append_asp_func ("bwdpi_redirect_info", bwdpi_redirect_info);
+#endif
+	append_asp_func ("bwdpi_engine_status", ej_bwdpi_engine_status);
+	append_asp_func ("get_next_lanip", ej_get_next_lanip);
+	append_asp_func ("get_header_info", ej_get_header_info);
+#if defined(TCSUPPORT_WEBMON) || defined(TCSUPPORT_ACCESSLOG)
+	append_asp_func ("check_log_path", check_log_path);
+#endif
+	append_asp_func ("ej_get_productid", ej_get_productid);
 }
 
 static void wait_fd (int fd)
@@ -1367,7 +1490,7 @@ loop_write:
 	else{
 		if(len <=0)
 			return 0;
-		res = boa_sslWrite(temp_req->ssl, buffer,len);
+		res = boa_sslWrite(temp_req->ssl, (char*)buffer,len);
 		if(res<0)
 		{
 			dontDoAsp = 1;
@@ -1528,11 +1651,18 @@ tcWebApi_Set (asp_reent* reent, const asp_text* params,  asp_text* ret)
 			|| !strcmp(value, "qos_bw_rulelist")
 			|| !strcmp(value, "MULTIFILTER_DEVICENAME")
 			|| !strcmp(value, "MULTIFILTER_MACFILTER_DAYTIME")
+			|| !strcmp(value, "vpn_server_ccd_val")
 		) {
 			r_val = tcapi_set_list(value, v_tmp);
 		}
-		else if(!strcmp(value, "vpn_server_clientlist")) {
+		else if(!strcmp(value, "vpn_server_clientlist")
+			|| !strcmp(value, "vpn_server_custom")
+		) {
 			r_val = tcapi_set_multiattr(node, attr, v_tmp, strlen(v_tmp));
+		} 
+		else if(!strcmp(value, "sshd_authkeys")
+		) {
+			r_val = tcapi_set_multiattr(node, "Authkeys", v_tmp, strlen(v_tmp));
 		}
 		else {
 			r_val=tcapi_set(node, attr,v_tmp);
@@ -1544,12 +1674,12 @@ tcWebApi_Set (asp_reent* reent, const asp_text* params,  asp_text* ret)
 				r_val=tcapi_set(node, attr, value);
 	}
 }
-void strQuotConvertHTML(char *oriStr,char *desStr)  {
+void strQuotConvertHTML(char *oriStr,char *desStr, const int desStr_len)  {
     int i;
     int j = 0;
     for(i = 0;i < strlen(oriStr);i++){
     	if(oriStr[i] == '"'){
-    		strcpy(&(desStr[j]),"&quot;");
+    		snprintf(&(desStr[j]), desStr_len -j,"&quot;");
     		j+=6;
     	}
     	else{
@@ -1578,16 +1708,16 @@ load_parameters_to_generic(asp_reent* reent, const asp_text* params, asp_text* r
 		memcpy(freq,tmp, sizeof(freq));
 		tcapi_set("WLan_Common", "wl_unit", freq);	//After selecting the freq, save it.
 	}
-	sprintf(unitprefix, "wl%d_",atoi(freq));
+	snprintf(unitprefix, sizeof(unitprefix), "wl%d_",atoi(freq));
 
 	for (t = wlan_system_router_defaults; t->node; t++)
 	{
 		memset(buf, 0, sizeof(buf));
 		memset(name, 0, sizeof(name));
-		sprintf(name, "%s%s", unitprefix, t->attribute);
+		snprintf(name, sizeof(name), "%s%s", unitprefix, t->attribute);
 		tcapi_get(t->node, name, buf);	//get the value from the individual parameters.
 		if(strlen(buf)<1){	//Can not get the attribute correctly so use the default value.
-			sprintf(buf,"%s", t->value);
+			snprintf(buf, sizeof(buf),"%s", t->value);
 		}
 		tcapi_set(t->node, t->attribute, buf);	//save the value to the generic parameters.
 	}
@@ -1599,10 +1729,10 @@ load_parameters_to_generic(asp_reent* reent, const asp_text* params, asp_text* r
 		}
 		memset(buf, 0, sizeof(buf));
 		memset(name, 0, sizeof(name));
-		sprintf(name, "%s%s", unitprefix, t->attribute);
+		snprintf(name, sizeof(name), "%s%s", unitprefix, t->attribute);
 		tcapi_get(t->node, name, buf);	//get the value from the individual parameters.
 		if(strlen(buf)<1){	//Can not get the attribute correctly so use the default value.
-			sprintf(buf,"%s", t->value);
+			snprintf(buf, sizeof(buf),"%s", t->value);
 		}
 		tcapi_set(t->node, t->attribute, buf);	//save the value to the generic parameters.
 	}
@@ -1616,7 +1746,7 @@ load_parameters_from_generic(asp_reent* reent, const asp_text* params, asp_text*
 
 	memset(freq, 0, sizeof(freq));
 	tcapi_get("WLan_Common", "wl_unit", freq);
-	sprintf(unitprefix, "wl%d_",atoi(freq));
+	snprintf(unitprefix, sizeof(unitprefix), "wl%d_",atoi(freq));
 
 	for (t = wlan_system_router_defaults; t->node; t++)
 	{
@@ -1624,9 +1754,9 @@ load_parameters_from_generic(asp_reent* reent, const asp_text* params, asp_text*
 		memset(name, 0, sizeof(name));
 		tcapi_get(t->node, t->attribute, buf);	//get the value from the generic parameters.
 		if(strlen(buf)<1){	//Can not get the attribute correctly so use the default value.
-			sprintf(buf,"%s", t->value);
+			snprintf(buf, sizeof(buf),"%s", t->value);
 		}
-		sprintf(name, "%s%s", unitprefix, t->attribute);
+		snprintf(name, sizeof(name), "%s%s", unitprefix, t->attribute);
 		tcapi_set(t->node, name, buf);	//save the value to the individual parameters.
 	}
 
@@ -1635,23 +1765,21 @@ load_parameters_from_generic(asp_reent* reent, const asp_text* params, asp_text*
 		if(strcmp( t->attribute, "BssidNum")==0){
 			continue;
 		}
-
 		memset(buf, 0, sizeof(buf));
 		memset(name, 0, sizeof(name));
 		tcapi_get(t->node, t->attribute, buf);	//get the value from the generic parameters.
 		if(strlen(buf)<1){	//Can not get the attribute correctly so use the default value.
-			sprintf(buf,"%s", t->value);
+			snprintf(buf, sizeof(buf),"%s", t->value);
 		}
-		sprintf(name, "%s%s", unitprefix, t->attribute);
+		snprintf(name, sizeof(name), "%s%s", unitprefix, t->attribute);
 		tcapi_set(t->node, name, buf);	//save the value to the individual parameters.
 	}
 }
 
-
 void
 load_MBSSID_parameters_to_generic(asp_reent* reent, const asp_text* params, asp_text* ret) {	//javi
 	struct tcapi_tuple *t;
-	char buf[160], freq[2], sub_unit[4], prefix[32], name[64];
+	char buf[640], freq[2], sub_unit[4], prefix[32], name[64];
 	char *tmp;
 
 	memset(freq, 0, sizeof(freq));
@@ -1680,17 +1808,17 @@ load_MBSSID_parameters_to_generic(asp_reent* reent, const asp_text* params, asp_
 		//wait to
 	}
 	else{
-		sprintf(prefix, "wl%s.%s_", freq, sub_unit);
+		snprintf(prefix, sizeof(prefix), "wl%s.%s_", freq, sub_unit);
 	}
 
 	for (t = wlan_MBSSID_system_defaults; t->node; t++)
 	{
 		memset(buf, 0, sizeof(buf));
 		memset(name, 0, sizeof(name));
-		sprintf(name, "%s%s", prefix, t->attribute);
+		snprintf(name, sizeof(name), "%s%s", prefix, t->attribute);
 		tcapi_get(t->node, name, buf);	//get the value from the individual parameters.
 		if(strlen(buf)<1){	//Can not get the attribute correctly so use the default value.
-			sprintf(buf,"%s", t->value);
+			snprintf(buf, sizeof(buf),"%s", t->value);
 		}
 		tcapi_set(t->node, t->attribute, buf);	//save the value to the generic parameters.
 	}
@@ -1699,13 +1827,13 @@ load_MBSSID_parameters_to_generic(asp_reent* reent, const asp_text* params, asp_
 void
 load_MBSSID_parameters_from_generic(asp_reent* reent, const asp_text* params, asp_text* ret) {	//javi
 	struct tcapi_tuple *t;
-	char buf[160], freq[2], sub_unit[4], prefix[32], name[64];
+	char buf[640], freq[2], sub_unit[4], prefix[32], name[64];
 
 	memset(sub_unit, 0, sizeof(sub_unit));
 	memset(freq, 0, sizeof(freq));
 	tcapi_get("WLan_Common", "wl_unit", freq);
 	tcapi_get("WLan_Common", "wl_subunit", sub_unit);
-	sprintf(prefix, "wl%s.%s_", freq, sub_unit);
+	snprintf(prefix, sizeof(prefix), "wl%s.%s_", freq, sub_unit);
 
 	for (t = wlan_MBSSID_system_defaults; t->node; t++)
 	{
@@ -1720,9 +1848,9 @@ load_MBSSID_parameters_from_generic(asp_reent* reent, const asp_text* params, as
 		memset(name, 0, sizeof(name));
 		tcapi_get(t->node, t->attribute, buf);	//get the value from the generic parameters.
 		if(strlen(buf)<1){	//Can not get the attribute correctly so use the default value.
-			sprintf(buf,"%s", t->value);
+			snprintf(buf, sizeof(buf),"%s", t->value);
 		}
-		sprintf(name, "%s%s", prefix, t->attribute);
+		snprintf(name, sizeof(name), "%s%s", prefix, t->attribute);
 		tcapi_set(t->node, name, buf);	//save the value to the individual parameters.
 	}
 }
@@ -1788,7 +1916,7 @@ rfctime(const time_t *timep)
 	//time_zone_x_mapping();
 	//setenv("TZ", nvram_safe_get_x("", "time_zone_x"), 1);
 	tcapi_get("Timezone_Entry", "TZ", tmp);
-	sprintf(cmd, "echo %s > /etc/TZ", tmp);
+	snprintf(cmd, sizeof(cmd), "echo %s > /etc/TZ", tmp);
 	system(cmd);
 	memcpy(&tm, localtime(timep), sizeof(struct tm));
 	strftime(rfct, 200, "%a, %d %b %Y %H:%M:%S %z", &tm);
@@ -1796,7 +1924,7 @@ rfctime(const time_t *timep)
 }
 
 void
-reltime(unsigned int seconds, char *cs)
+reltime(unsigned int seconds, char *cs, const int cs_len)
 {
 #ifdef SHOWALL
 	int days=0, hours=0, minutes=0;
@@ -1813,9 +1941,9 @@ reltime(unsigned int seconds, char *cs)
 		minutes = seconds / 60;
 		seconds %= 60;
 	}
-	sprintf(cs, "%d days, %d hours, %d minutes, %d seconds", days, hours, minutes, seconds);
+	snprintf(cs, cs_len, "%d days, %d hours, %d minutes, %d seconds", days, hours, minutes, seconds);
 #else
-	sprintf(cs, "%d secs", seconds);
+	snprintf(cs, cs_len, "%d secs", seconds);
 #endif
 }
 
@@ -1826,15 +1954,15 @@ void ej_uptime(asp_reent* reent, const asp_text* params, asp_text* ret) {
 	time_t tm;
 
 	time(&tm);
-	sprintf(buf, rfctime(&tm));
+	snprintf(buf, sizeof(buf), rfctime(&tm));
 
 	if (str) {
 		unsigned int up = atoi(str);
 		free(str);
 		char lease_buf[128];
 		memset(lease_buf, 0, sizeof(lease_buf));
-		reltime(up, lease_buf);
-		sprintf(buf, "%s(%s since boot)", buf, lease_buf);
+		reltime(up, lease_buf, sizeof(lease_buf));
+		snprintf(buf, sizeof(buf), "%s(%s since boot)", buf, lease_buf);
 	}
 
 	asp_send_response (NULL,buf,strlen(buf));
@@ -1852,41 +1980,41 @@ wl_get_2G_guestnetwork(asp_reent* reent, const asp_text* params, asp_text* ret) 
 	char ascii_tmp[256];
 
 	memset(buf, 0, sizeof(buf));
-	sprintf(buf, "[");
+	snprintf(buf, sizeof(buf), "[");
 
 	unit = 0;	// 2.4G
 	//set wlX_vifnames .B
 	memset(word1, 0, sizeof(word1));
 	for(i = 1; i < MAX_NO_MSSID;i++)	{
-		sprintf(tmp, "wl%d.%d", unit, i);
+		snprintf(tmp, sizeof(tmp), "wl%d.%d", unit, i);
 		if(i > 1)
-			strcat(word1, " ");
-		strcat(word1, tmp);
+			snprintf(word1 + strlen(word1), sizeof(word1) - strlen(word1), " ");
+		snprintf(word1 + strlen(word1), sizeof(word1) - strlen(word1), "%s", tmp);
 	}
 	snprintf(unitprefix, sizeof(unitprefix), "wl%d_", unit);
-	sprintf(name, "%s%s", unitprefix, "vifnames");
+	snprintf(name, sizeof(name), "%s%s", unitprefix, "vifnames");
 	tcapi_set("WLan_Common", name, word1);
 	//set wlX_vifnames .E
 
 	for(i = 1; i < MAX_NO_MSSID;i++)	{
 		if(i > 1)
-			strcat(buf, ", ");
+			snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  ", ");
 
-		strcat(buf, "[\"");
+		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "[\"");
 		j=0;
 
 		for (t = wlan_MBSSID_system_defaults; t->node; t++)
 		{
 			if(j)
-				strcat(buf, "\", \"");
+				snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "\", \"");
 			j++;
 			memset(subunitprefix, 0, sizeof(subunitprefix));
-			sprintf(subunitprefix, "wl%d.%d_", unit, i);
-			sprintf(name, "%s%s", subunitprefix,  t->attribute);
+			snprintf(subunitprefix, sizeof(subunitprefix), "wl%d.%d_", unit, i);
+			snprintf(name, sizeof(name), "%s%s", subunitprefix,  t->attribute);
 			tcapi_get("WLan_Entry0", name, tmp);
 
 			if(strlen(tmp)<1){	//Can not get the attribute correctly so use the default value.
-				sprintf(tmp,"%s", t->value);
+				snprintf(tmp, sizeof(tmp),"%s", t->value);
 			}
 
 			/* translate the values of ssid, wpa_psk, key1, key2, key3, key4 to ASCII */
@@ -1901,23 +2029,23 @@ wl_get_2G_guestnetwork(asp_reent* reent, const asp_text* params, asp_text* ret) 
 				str_length = strlen(tmp) * sizeof(char)*3 + sizeof(char);
 				char_all_to_ascii(ascii_tmp, tmp, str_length);
 
-				strcat(buf, ascii_tmp);
+				snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "%s", ascii_tmp);
 			}
 			else{
-				strcat(buf, tmp);
+				snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "%s", tmp);
 			}
 
 		}
-
-		strcat(buf, "\"]");
+		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "\"]");
 	}
 
-	strcat(buf, "]");
+	snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "]");
+
 	asp_send_response (NULL,buf,strlen(buf));
 	/* The example as the following:
-	       [["0", "ASUS_Guest1", "open", "aes", "", "0", "1", "", "", "", "", "0", "off", "", "disabled", "", "", "", "", "", ""]
-		["0", "ASUS_Guest2", "open", "aes", "", "0", "1", "", "", "", "", "0", "off", "", "disabled", "", "", "", "", "", ""]
-		["0", "ASUS_Guest3", "open", "aes", "", "0", "1", "", "", "", "", "0", "off", "", "disabled", "", "", "", "", "", ""]]  */
+	       [["0", "ASUS_Guest1", "open", "aes", "", "0", "1", "", "", "", "", "0", "off", "", "disabled", "", "", "", "", "", "", "0", "0", ""]
+		["0", "ASUS_Guest2", "open", "aes", "", "0", "1", "", "", "", "", "0", "off", "", "disabled", "", "", "", "", "", "", "0", "0", ""]
+		["0", "ASUS_Guest3", "open", "aes", "", "0", "1", "", "", "", "", "0", "off", "", "disabled", "", "", "", "", "", "", "0", "0", ""]]  */
 }
 
 void
@@ -1932,41 +2060,42 @@ wl_get_5G_guestnetwork(asp_reent* reent, const asp_text* params, asp_text* ret) 
 	char ascii_tmp[256];
 
 	memset(buf, 0, sizeof(buf));
-	sprintf(buf, "[");
+	snprintf(buf, sizeof(buf), "[");
 
 	unit = 1;	// 5G
 	//set wlX_vifnames .B
 	memset(word1, 0, sizeof(word1));
 	for(i = 1; i < MAX_NO_MSSID;i++)	{
-		sprintf(tmp, "wl%d.%d", unit, i);
+		snprintf(tmp, sizeof(tmp), "wl%d.%d", unit, i);
 		if(i > 1)
-			strcat(word1, " ");
-		strcat(word1, tmp);
+			snprintf(word1 + strlen(word1), sizeof(word1) - strlen(word1),  " ");
+
+		snprintf(word1 + strlen(word1), sizeof(word1) - strlen(word1),  "%s", tmp);
 	}
 	snprintf(unitprefix, sizeof(unitprefix), "wl%d_", unit);
-	sprintf(name, "%s%s", unitprefix, "vifnames");
+	snprintf(name, sizeof(name), "%s%s", unitprefix, "vifnames");
 	tcapi_set("WLan_Common", name, word1);
 	//set wlX_vifnames .E
 
 	for(i = 1; i < MAX_NO_MSSID;i++)	{
 		if(i > 1)
-			strcat(buf, ", ");
+			snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  ", ");
 
-		strcat(buf, "[\"");
+		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "[\"");
 		j=0;
 
 		for (t = wlan_MBSSID_system_defaults; t->node; t++)
 		{
 			if(j)
-				strcat(buf, "\", \"");
+				snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "\", \"");
 			j++;
 			memset(subunitprefix, 0, sizeof(subunitprefix));
-			sprintf(subunitprefix, "wl%d.%d_", unit, i);
-			sprintf(name, "%s%s", subunitprefix,  t->attribute);
+			snprintf(subunitprefix, sizeof(subunitprefix), "wl%d.%d_", unit, i);
+			snprintf(name, sizeof(name), "%s%s", subunitprefix,  t->attribute);
 			tcapi_get("WLan_Entry0", name, tmp);
 
 			if(strlen(tmp)<1){	//Can not get the attribute correctly so use the default value.
-				sprintf(tmp,"%s", t->value);
+				snprintf(tmp, sizeof(tmp),"%s", t->value);
 			}
 
 			/* translate the values of ssid, wpa_psk, key1, key2, key3, key4 to ASCII */
@@ -1981,23 +2110,23 @@ wl_get_5G_guestnetwork(asp_reent* reent, const asp_text* params, asp_text* ret) 
 				str_length = strlen(tmp) * sizeof(char)*3 + sizeof(char);
 				char_all_to_ascii(ascii_tmp, tmp, str_length);
 
-				strcat(buf, ascii_tmp);
+				snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "%s", ascii_tmp);
 			}
 			else{
-				strcat(buf, tmp);
+				snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "%s", tmp);
 			}
 
 		}
 
-		strcat(buf, "\"]");
+		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "\"]");
 	}
 
-	strcat(buf, "]");
+	snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "]");
 	asp_send_response (NULL,buf,strlen(buf));
 	/* The example as the following:
-		       [["0", "ASUS_5G_Guest1", "open", "aes", "", "0", "1", "", "", "", "", "0", "off", "", "disabled", "", "", "", "", "", ""]
-			["0", "ASUS_5G_Guest2", "open", "aes", "", "0", "1", "", "", "", "", "0", "off", "", "disabled", "", "", "", "", "", ""]
-			["0", "ASUS_5G_Guest3", "open", "aes", "", "0", "1", "", "", "", "", "0", "off", "", "disabled", "", "", "", "", "", ""]]  */
+		       [["0", "ASUS_5G_Guest1", "open", "aes", "", "0", "1", "", "", "", "", "0", "off", "", "disabled", "", "", "", "", "", "", "0", "0", ""]
+			["0", "ASUS_5G_Guest2", "open", "aes", "", "0", "1", "", "", "", "", "0", "off", "", "disabled", "", "", "", "", "", "", "0", "0", ""]
+			["0", "ASUS_5G_Guest3", "open", "aes", "", "0", "1", "", "", "", "", "0", "off", "", "disabled", "", "", "", "", "", "", "0", "0", ""]]  */
 }
 
 void
@@ -2021,95 +2150,103 @@ wps_info(asp_reent* reent, const asp_text* params, asp_text* ret) {
 	memset(prefix, 0, sizeof(prefix));
 
 	memset(buf, 0, sizeof(buf));
-	sprintf(buf, "<wps>\n");
+	snprintf(buf, sizeof(buf), "<wps>\n");
 
 	//0. WSC Status
 	tcapi_get("Info_WLan", "wlanWPSStatus", value);
-	sprintf(tmp, "<wps_info>%s</wps_info>\n", value);
-	strcat(buf, tmp);
+	snprintf(tmp, sizeof(tmp), "<wps_info>%s</wps_info>\n", value);
+	snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "%s", tmp);
 
 	// 1. WPSConfigured
 	/* Wlan_Entry0, WPSConfStatus ==> 1:unconfigured 2:configured 	*/
-	sprintf(attri, "%s%s", prefix, "WPSConfStatus");
+	snprintf(attri, sizeof(attri), "%s%s", prefix, "WPSConfStatus");
 	tcapi_get("WLan_Entry0", attri, value);
 	if ( strcmp(value, "2") ==0){
-		sprintf(tmp, "<wps_info>%s</wps_info>\n", "Yes");
+		snprintf(tmp, sizeof(tmp), "<wps_info>%s</wps_info>\n", "Yes");
 	}
 	else{
-		sprintf(tmp, "<wps_info>%s</wps_info>\n", "No");
+		snprintf(tmp, sizeof(tmp), "<wps_info>%s</wps_info>\n", "No");
 	}
-	strcat(buf, tmp);
+	snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "%s", tmp);
 
 	// 2. WPSSSID
-	sprintf(attri, "%s%s", prefix, "ssid");
+	snprintf(attri, sizeof(attri), "%s%s", prefix, "ssid");
 	tcapi_get("WLan_Entry0", attri, value);
 	memset(tmpstr, 0, sizeof(tmpstr));
 	char_to_ascii(tmpstr, value);
-	sprintf(tmp, "<wps_info>%s</wps_info>\n", tmpstr);
-	strcat(buf, tmp);
+	snprintf(tmp, sizeof(tmp), "<wps_info>%s</wps_info>\n", tmpstr);
+	snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "%s", tmp);
 
 	// 3. WPSAuthMode
-	sprintf(attri, "%s%s", prefix, "auth_mode_x");
+	snprintf(attri, sizeof(attri), "%s%s", prefix, "auth_mode_x");
 	tcapi_get("WLan_Entry0", attri, value);
-	sprintf(tmp, "<wps_info>%s</wps_info>\n", value);
-	strcat(buf, tmp);
+	snprintf(tmp, sizeof(tmp), "<wps_info>%s</wps_info>\n", value);
+	snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "%s", tmp);
 
 	// 4. EncrypType
-	sprintf(attri, "%s%s", prefix, "crypto");
+	snprintf(attri, sizeof(attri), "%s%s", prefix, "crypto");
 	tcapi_get("WLan_Entry0", attri, value);
-	sprintf(tmp, "<wps_info>%s</wps_info>\n", value);
-	strcat(buf, tmp);
+	snprintf(tmp, sizeof(tmp), "<wps_info>%s</wps_info>\n", value);
+	snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "%s", tmp);
 
 	//5. DefaultKeyIdx
-	sprintf(attri, "%s%s", prefix, "key");
+	snprintf(attri, sizeof(attri), "%s%s", prefix, "key");
 	tcapi_get("WLan_Entry0", attri, value);
-	sprintf(tmp, "<wps_info>%s</wps_info>\n", value);
-	strcat(buf, tmp);
+	snprintf(tmp, sizeof(tmp), "<wps_info>%s</wps_info>\n", value);
+	snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "%s", tmp);
 
 	//6. WPAKey
-	sprintf(attri, "%s%s", prefix, "wpa_psk");
+#if 0 //hide for security	
+	snprintf(attri, sizeof(attri), "%s%s", prefix, "wpa_psk");
 	tcapi_get("WLan_Entry0", attri, value);
 	memset(tmpstr, 0, sizeof(tmpstr));
 	char_to_ascii(tmpstr, value);
-	sprintf(tmp, "<wps_info>%s</wps_info>\n", tmpstr);
-	strcat(buf, tmp);
+	snprintf(tmp, sizeof(tmp), "<wps_info>%s</wps_info>\n", tmpstr);
+	snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "%s", tmp);
+#else
+	snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), "%s", "<wps_info></wps_info>\n");
+#endif
 
 	//7. AP PIN Code
 	tcapi_get("WLan_Entry0", "WscVendorPinCode", value);
-	sprintf(tmp, "<wps_info>%s</wps_info>\n", value);
-	strcat(buf, tmp);
+	snprintf(tmp, sizeof(tmp), "<wps_info>%s</wps_info>\n", value);
+	snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "%s", tmp);
 
 	//8. Saved WPAKey
-	sprintf(attri, "%s%s", prefix, "wpa_psk");
+#if 0 //hide for security	
+	snprintf(attri, sizeof(attri), "%s%s", prefix, "wpa_psk");
 	tcapi_get("WLan_Entry0", attri, value);
 	memset(tmpstr, 0, sizeof(tmpstr));
 	char_to_ascii(tmpstr, value);
-	sprintf(tmp, "<wps_info>%s</wps_info>\n", tmpstr);
-	strcat(buf, tmp);
+	snprintf(tmp, sizeof(tmp), "<wps_info>%s</wps_info>\n", tmpstr);
+	snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "%s", tmp);
+#else
+	snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), "%s", "<wps_info></wps_info>\n");
+#endif
 
 	//9. WPS enable?
 	tcapi_get("WLan_Common","wps_enable", value);
-	sprintf(tmp, "<wps_info>%s</wps_info>\n", value);
-	strcat(buf, tmp);
+	snprintf(tmp, sizeof(tmp), "<wps_info>%s</wps_info>\n", value);
+	snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "%s", tmp);
 
 	//A. WPS mode
-	sprintf(attri, "%s%s", prefix, "WPSMode");
+	snprintf(attri, sizeof(attri), "%s%s", prefix, "WPSMode");
 	tcapi_get("WLan_Entry0", attri, value);
-	sprintf(tmp, "<wps_info>%s</wps_info>\n", value);
-	strcat(buf, tmp);
+	snprintf(tmp, sizeof(tmp), "<wps_info>%s</wps_info>\n", value);
+	snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "%s", tmp);
 
 	//B. current auth mode
-	sprintf(attri, "%s%s", prefix, "auth_mode_x");
+	snprintf(attri, sizeof(attri), "%s%s", prefix, "auth_mode_x");
 	tcapi_get("WLan_Entry0", attri, value);
-	sprintf(tmp, "<wps_info>%s</wps_info>\n", value);
-	strcat(buf, tmp);
+	snprintf(tmp, sizeof(tmp), "<wps_info>%s</wps_info>\n", value);
+	snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "%s", tmp);
 
 	//C. WPS band
 	tcapi_get("WLan_Common", "wl_unit", value);
-	sprintf(tmp, "<wps_info>%s</wps_info>\n", value);
-	strcat(buf, tmp);
+	snprintf(tmp, sizeof(tmp), "<wps_info>%s</wps_info>\n", value);
+	snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "%s", tmp);
 
-	strcat(buf, "</wps>");
+	snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "</wps>");
 
 	asp_send_response (NULL,buf,strlen(buf));
 	//return 0;
@@ -2127,7 +2264,7 @@ wl_auth_list(asp_reent* reent, const asp_text* params, asp_text* ret) {
 	if (fp != NULL){
 		while(fgets(tmp, 512, fp)){
 			if (tmp != NULL){
-				strcat(buf, tmp);
+				snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "%s", tmp);
 			}
 		}
 		asp_send_response (NULL, buf, strlen(buf));
@@ -2203,11 +2340,17 @@ tcWebApi_char_to_ascii(asp_reent* reent, const asp_text* params, asp_text* ret) 
 	else if(!strcmp(attr, "MULTIFILTER_MACFILTER_DAYTIME")) {
 		r_val = tcapi_get_list(attr, val, sizeof(val));
 	}
+	else if(!strcmp(node, "OpenVPN_Entry") && !strcmp(attr, "ccd_val")) {
+		r_val = tcapi_get_list("vpn_server_ccd_val", val, sizeof(val));
+	}
+	else if(!strcmp(node, "OpenVPN_Entry") && !strcmp(attr, "custom")) {
+		r_val = tcapi_get_multiattr(node, attr, val, sizeof(val));
+	}
 	else {
 		r_val = tcapi_get(node, attr, val);
 	}
 	if(r_val < 0){
-		strcpy(val,"");
+		memset(val, 0, sizeof(val));
 	}
 
 	/* each char expands to %XX at max */
@@ -2249,7 +2392,7 @@ ej_wl_scan_2g(asp_reent* reent, const asp_text* params, asp_text* ret)
 	if (fp != NULL){
 		while(fgets(tmp, 512, fp)){
 			if (tmp != NULL){
-				strcat(buf, tmp);
+				snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "%s", tmp);
 			}
 		}
 		asp_send_response (NULL, buf, strlen(buf));
@@ -2271,7 +2414,7 @@ ej_wl_scan_5g(asp_reent* reent, const asp_text* params, asp_text* ret)
 	if (fp != NULL){
 		while(fgets(tmp, 512, fp)){
 			if (tmp != NULL){
-				strcat(buf, tmp);
+				snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "%s", tmp);
 			}
 		}
 		asp_send_response (NULL, buf, strlen(buf));
@@ -2323,7 +2466,7 @@ static void init_wifiIfname()
 			pch = strtok (buffer, " ");
 			while(pch!=NULL)
 			{
-				strcpy(Wifi2Gifname.ifnames[num], pch);
+				snprintf(Wifi2Gifname.ifnames[num], sizeof(Wifi2Gifname.ifnames[num]), "%s", pch);
 				pch = strtok (NULL, " ");
 				num++;
 				if(num == MAX_IF_NUM)
@@ -2349,7 +2492,7 @@ static void init_wifiIfname()
 			pch = strtok (buffer, " ");
 			while(pch!=NULL)
 			{
-				strcpy(Wifi5Gifname.ifnames[num], pch);
+				snprintf(Wifi5Gifname.ifnames[num], sizeof(Wifi5Gifname.ifnames[num]), "%s", pch);
 				pch = strtok (NULL, " ");
 				num++;
 				if(num == MAX_IF_NUM)
@@ -2489,7 +2632,7 @@ void readWiFiData_RT6856(void)
 	char cmd[128] = {0};
 	char *ptr = NULL;
 
-	sprintf(cmd, "/userfs/bin/iwpriv show traffic > /dev/null" ); //must use its absolute path
+	snprintf(cmd, sizeof(cmd), "/userfs/bin/iwpriv show traffic > /dev/null" ); //must use its absolute path
 	system(cmd);
 	sleep(1);
 
@@ -2578,12 +2721,12 @@ void readWiFiData_MTK(void)
 	for (i=0; i<1; i++)
 	{
 		//2.4G
-		sprintf(cmd, "/userfs/bin/iwpriv ra%d stat > /tmp/wifi_traffic", i);
+		snprintf(cmd, sizeof(cmd), "/userfs/bin/iwpriv ra%d stat > /tmp/wifi_traffic", i);
 		system(cmd);
 		parseWiFiData_MTK(&Wireless2GData[i]);
 
 		//5G
-		sprintf(cmd, "/userfs/bin/iwpriv rai%d stat > /tmp/wifi_traffic", i);
+		snprintf(cmd, sizeof(cmd), "/userfs/bin/iwpriv rai%d stat > /tmp/wifi_traffic", i);
 		system(cmd);
 		parseWiFiData_MTK(&Wireless5GData[i]);
 	}
@@ -2619,7 +2762,7 @@ void readWiredData_MTK_mt7510(void)
 	{
 		while (fgets(buf, sizeof(buf), fp))
 		{
-			sprintf(tmp, "[ Port %d ]", port_no);
+			snprintf(tmp, sizeof(tmp), "[ Port %d ]", port_no);
 			if (!strncmp(buf, tmp, 10))
 			{
 				while (fgets(buf, sizeof(buf), fp))
@@ -2676,7 +2819,7 @@ void readWiredData_MTK(void)
 	{
 		while (fgets(buf, sizeof(buf), fp))
 		{
-			sprintf(tmp, "[ Port %d ]", port_no);
+			snprintf(tmp, sizeof(tmp), "[ Port %d ]", port_no);
 			if (!strncmp(buf, tmp, 10))
 			{
 				while (fgets(buf, sizeof(buf), fp))
@@ -2850,12 +2993,12 @@ static void tcWebApi_UpdateBandwidth(asp_reent* reent, const asp_text* params, a
 	if(strcmp(msg, "daily") == 0)
 	{
 		sig =  SIGUSR2;
-		strcpy(name, "/var/tmp/rstats-history.js" );
+		snprintf(name, sizeof(name), "/var/tmp/rstats-history.js" );
 	}
 	else
 	{
 		sig =  SIGUSR1;
-		strcpy(name, "/var/tmp/rstats-speed.js" );
+		snprintf(name, sizeof(name), "/var/tmp/rstats-speed.js" );
 	}
 
 	unlink(name);
@@ -2890,14 +3033,22 @@ static void tcWebApi_UpdateBandwidth(asp_reent* reent, const asp_text* params, a
 
 static void update_variables(asp_reent* reent, const asp_text* params, asp_text* ret)
 {
+	int pid;
 	char cmd[256] = {0};
+	char ActScript[256] = {0};
 	char *action_mode = get_param(g_var_post, "action_mode");
 	char *action_script = get_param(g_var_post, "action_script");	//TODO: currently not support multiple service
 	char *argv_service[] = {"service", action_script, NULL};
-	int pid;
 
 	if(!action_mode || !action_script)
 		return;
+
+	snprintf(ActScript, sizeof(ActScript), "%s", action_script);
+	if(strstr(action_script, "%3B")) {
+		replce_str(ActScript, "%3B", ";");
+		_dprintf("###[Do]:\n", ActScript);
+		*(argv_service+1) = &ActScript;
+	}
 
 	if(!strcmp(action_mode, "apply"))
 	{
@@ -2906,14 +3057,22 @@ static void update_variables(asp_reent* reent, const asp_text* params, asp_text*
 			if( strstr(action_script, "webs_"))
 			{
 				//webs_update.sh or webs_upgrade.sh in "/usr/script"
-				sprintf(cmd, "/usr/script/%s.sh", action_script+strlen("start_") );
+				snprintf(cmd, sizeof(cmd), "/usr/script/%s.sh", action_script+strlen("start_") );
 				//Andy Chiu, 2015/02/13. use eval to launch script for https
 				//system(cmd);
 				eval(cmd);
 			}
 			else
 			{
-				_eval(argv_service, NULL, 0, &pid);
+				if(strstr(action_script, "boa")
+					|| strstr(action_script, "openvpnd")
+				) {
+					_dprintf("### Background Execution\n");
+					_eval(argv_service, NULL, 0, &pid);
+				} else {
+					_dprintf("### Foreground Execution\n");
+					_eval(argv_service, NULL, 0, NULL);
+				}
 			}
 		}
 	}
@@ -3128,11 +3287,11 @@ static void ej_check_acpw(asp_reent* reent, const asp_text* params, asp_text* re
 	char result[2];
 	char default_acpw[] = "admin"; //hardcode
 
-	strcpy(result, "0");
+	snprintf(result, sizeof(result), "0");
 	if(tcapi_match("Account_Entry0", "username", default_acpw) && tcapi_match("Account_Entry0", "web_passwd", default_acpw))
-		strcpy(result, "1");
+		snprintf(result, sizeof(result), "1");
 	else
-		strcpy(result, "0");
+		snprintf(result, sizeof(result), "0");
 
 	asp_send_response( NULL, result, strlen(result));
 }
@@ -3208,7 +3367,7 @@ tcWebApi_Get (asp_reent* reent, const asp_text* params,  asp_text* ret)
 		if (!strcmp(node, "String_Entry"))
 		{
 			if(0 == getString(attr, val))
-				strcpy(val, "N/A");
+				snprintf(val, sizeof(val), "N/A");
 		}
 		else
 #endif
@@ -3234,11 +3393,26 @@ tcWebApi_Get (asp_reent* reent, const asp_text* params,  asp_text* ret)
 			else if(!strcmp(attr, "MULTIFILTER_MACFILTER_DAYTIME")) {
 				r_val = tcapi_get_list(attr, val, sizeof(val));
 			}
+			else if(!strcmp(attr, "vpn_server_ccd_val")) {
+				r_val = tcapi_get_list(attr, val, sizeof(val));
+			}
+			else if(!strcmp(node, "SSH_Entry") && !strcmp(attr, "Authkeys")) {
+				r_val = tcapi_get_multiattr(node, attr, val, sizeof(val));
+			}
+			else if(!strcmp(node, "Samba_Entry") && !strcmp(attr, "NetBiosName")) {
+				r_val = tcapi_get(node, attr, val);
+				if(!strlen(val)) {
+					snprintf(val, sizeof(val), "%s", get_productid());
+					if(strlen(val)) {
+						r_val = 0;
+					}
+				}
+			}
 			else {
 				r_val = tcapi_get(node, attr, val);
 			}
 			if(r_val < 0){
-				strcpy(val,""); /* Paul modify 2013/2/7 */
+				memset(val, 0, sizeof(val)); /* Paul modify 2013/2/7 */
 			}
 		}
 
@@ -3246,12 +3420,12 @@ tcWebApi_Get (asp_reent* reent, const asp_text* params,  asp_text* ret)
 #if defined(TCSUPPORT_GUI_STRING_CONFIG) || defined(TCSUPPORT_GENERAL_MULTILANGUAGE)
 			if(strcmp(node,"String_Entry"))          //not from String_Entry
 		    	{
-		    		strQuotConvertHTML(val,retVal);
+		    		strQuotConvertHTML(val,retVal, sizeof(retVal));
 		    	}
 			else
 			{
-				memset(retVal, 0, sizeof(retVal));
-				strcpy(retVal, val);
+				//memset(retVal, 0, sizeof(retVal));
+				snprintf(retVal, sizeof(retVal), "%s", val);
 			}
 #endif
 			asp_send_response (NULL, retVal, strlen(retVal));
@@ -3544,7 +3718,7 @@ tcWebApi_CurrentDefaultRoute(asp_reent* reent, const asp_text* params,  asp_text
 	char wanPvc[16]={0};
 
 	for(i=0; i<MAX_PVC_NUMBER; i++){
-		sprintf(wanPvc,"%s%d",WAN_PVC,i);
+		snprintf(wanPvc, sizeof(wanPvc),"%s%d",WAN_PVC,i);
 		r_val=tcapi_get(wanPvc, DEFAULT_RT, val);
 		if(r_val<0){
 			continue;
@@ -3663,13 +3837,13 @@ tcWebApi_staticGet (asp_reent* reent, const asp_text* params,  asp_text* ret)
         r_val = tcapi_staticGet(node, attr, val);
         if(r_val < 0)
         {
-                strcpy(val,""); /* Paul modify 2013/2/7 */
+                memset(val, 0, sizeof(val)); /* Paul modify 2013/2/7 */
         }
 
         //show -> s
         if(!strcmp(show,"s"))
         {
-                strQuotConvertHTML(val,retVal);
+                strQuotConvertHTML(val,retVal, sizeof(retVal));
                 asp_send_response (NULL,retVal,strlen(retVal));
         }
         //hide -> h
@@ -3720,8 +3894,8 @@ getClientMacAddr (char * ip_addr) {
 		fgets(buf, 80, fp);
 		while(fscanf(fp, "%s %s %s %s %s %s %s\n", ipaddr, hwtype, flags, hwaddr, mask, device, state) == 7) {
 			if(strcmp(ipaddr, ip_addr) == 0) {
-				strcpy(val, hwaddr);
-				strQuotConvertHTML(val, retVal);
+				snprintf(val, sizeof(val), "%s", hwaddr);
+				strQuotConvertHTML(val, retVal, sizeof(retVal));
 				asp_send_response (NULL, retVal, strlen(retVal));
 			}
 		}
@@ -3774,7 +3948,7 @@ get_all_accounts (asp_reent* reent, const asp_text* params, asp_text* ret) {
 			asp_send_response(NULL, ", ", 2);//websWrite(wp, ", ");
 
 		//websWrite(wp, "\"%s\"", account_list[i]);
-		sprintf(tmp, "\"%s\"", account_list[i]);
+		snprintf(tmp, sizeof(tmp), "\"%s\"", account_list[i]);
 		asp_send_response(NULL, tmp, strlen(tmp));
 	}
 
@@ -3783,13 +3957,13 @@ get_all_accounts (asp_reent* reent, const asp_text* params, asp_text* ret) {
 
 #ifdef RTCONFIG_OPENVPN
 	do {
-		openvpn_accnt_info_t account_info;
+		ovpn_accnt_info_t account_info;
 
-		get_openvpn_account(&account_info);
+		get_ovpn_accnt(&account_info);
 
 		for (i=0; i<account_info.count; i++)
 		{
-			sprintf(tmp, ", \"%s\"", account_info.account[i].name);
+			snprintf(tmp, sizeof(tmp), ", \"%s\"", account_info.account[i].username);
 			asp_send_response(NULL, tmp, strlen(tmp));
 		}
 	} while(0);
@@ -3893,7 +4067,7 @@ static void get_folder_tree(asp_reent* reent, const asp_text* params, asp_text* 
 							asp_send_response(NULL, ", ", 2);	//websWrite(wp, ", ");
 
 						//websWrite(wp, "\"%s#%u#0\"", folder_list[i], i);
-						sprintf(tmp, "\"%s#%u#0\"", folder_list[i], i);
+						snprintf(tmp, sizeof(tmp), "\"%s#%u#0\"", folder_list[i], i);
 						asp_send_response(NULL, tmp, strlen(tmp));
 					}
 				}
@@ -3905,7 +4079,7 @@ static void get_folder_tree(asp_reent* reent, const asp_text* params, asp_text* 
 
 					follow_info = rindex(follow_partition->mount_point, '/');
 					//websWrite(wp, "\"%s#%u#%u\"", follow_info+1, partition_count, folder_count);
-					sprintf(tmp, "\"%s#%u#%u\"", follow_info+1, partition_count, folder_count);
+					snprintf(tmp, sizeof(tmp), "\"%s#%u#%u\"", follow_info+1, partition_count, folder_count);
 					asp_send_response(NULL, tmp, strlen(tmp));
 				}
 
@@ -3919,7 +4093,7 @@ static void get_folder_tree(asp_reent* reent, const asp_text* params, asp_text* 
 				asp_send_response(NULL, ", ", 2);	//websWrite(wp, ", ");
 
 			//websWrite(wp, "\"%s#%u#%u\"", follow_disk->tag, disk_count, partition_count);
-			sprintf(tmp, "\"%s#%u#%u\"", follow_disk->tag, disk_count, partition_count);
+			snprintf(tmp, sizeof(tmp), "\"%s#%u#%u\"", follow_disk->tag, disk_count, partition_count);
 			asp_send_response(NULL, tmp, strlen(tmp));
 		}
 
@@ -3942,7 +4116,7 @@ static void disk_pool_mapping_info (asp_reent* reent, const asp_text* params, as
 	disks_info = read_disk_data();
 	if (disks_info == NULL){
 		//websWrite(wp, "%s", initial_disk_pool_mapping_info());
-		sprintf(tmp, "function total_disk_sizes() { return [];}\n\
+		snprintf(tmp, sizeof(tmp), "function total_disk_sizes() { return [];}\n\
 			function disk_interface_names() { return []; }\n\
 			function pool_names() { return [];}\n\
 			function pool_types() { return [];}\n\
@@ -3960,7 +4134,7 @@ static void disk_pool_mapping_info (asp_reent* reent, const asp_text* params, as
 
 	// websWrite(wp, "function total_disk_sizes(){\n");
 	// websWrite(wp, "    return [");
-	sprintf(tmp, "function total_disk_sizes(){\n\treturn [");
+	snprintf(tmp, sizeof(tmp), "function total_disk_sizes(){\n\treturn [");
 	asp_send_response(NULL, tmp, strlen(tmp));
 	first = 1;
 	for (follow_disk = disks_info; follow_disk != NULL; follow_disk = follow_disk->next){
@@ -3970,17 +4144,17 @@ static void disk_pool_mapping_info (asp_reent* reent, const asp_text* params, as
 			asp_send_response(NULL, ", ", 2);	//websWrite(wp, ", ");
 
 		//websWrite(wp, "\"%llu\"", follow_disk->size_in_kilobytes);
-		sprintf(tmp, "\"%llu\"", follow_disk->size_in_kilobytes);
+		snprintf(tmp, sizeof(tmp), "\"%llu\"", follow_disk->size_in_kilobytes);
 		asp_send_response(NULL, tmp, strlen(tmp));
 	}
 	// websWrite(wp, "];\n");
 	// websWrite(wp, "}\n\n");
-	sprintf(tmp, "];\n}\n\n");
+	snprintf(tmp, sizeof(tmp), "];\n}\n\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 
 	// websWrite(wp, "function disk_interface_names(){\n");
 	// websWrite(wp, "    return [");
-	sprintf(tmp, "function disk_interface_names(){\n\treturn [");
+	snprintf(tmp, sizeof(tmp), "function disk_interface_names(){\n\treturn [");
 	asp_send_response(NULL, tmp, strlen(tmp));
 	first = 1;
 	for (follow_disk = disks_info; follow_disk != NULL; follow_disk = follow_disk->next){
@@ -3994,12 +4168,12 @@ static void disk_pool_mapping_info (asp_reent* reent, const asp_text* params, as
 	}
 	// websWrite(wp, "];\n");
 	// websWrite(wp, "}\n\n");
-	sprintf(tmp, "];\n}\n\n");
+	snprintf(tmp, sizeof(tmp), "];\n}\n\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 
 	// websWrite(wp, "function pool_names(){\n");
 	// websWrite(wp, "    return [");
-	sprintf(tmp, "function pool_names(){\n\treturn [");
+	snprintf(tmp, sizeof(tmp), "function pool_names(){\n\treturn [");
 	asp_send_response(NULL, tmp, strlen(tmp));
 
 	first = 1;
@@ -4012,7 +4186,7 @@ static void disk_pool_mapping_info (asp_reent* reent, const asp_text* params, as
 
 			if (follow_partition->mount_point == NULL){
 				//websWrite(wp, "\"%s\"", follow_partition->device);
-				sprintf(tmp, "\"%s\"", follow_partition->device);
+				snprintf(tmp, sizeof(tmp), "\"%s\"", follow_partition->device);
 				asp_send_response(NULL, tmp, strlen(tmp));
 				continue;
 			}
@@ -4025,17 +4199,17 @@ static void disk_pool_mapping_info (asp_reent* reent, const asp_text* params, as
 
 			++Ptr;
 			//websWrite(wp, "\"%s\"", Ptr);
-			sprintf(tmp, "\"%s\"", Ptr);
+			snprintf(tmp, sizeof(tmp), "\"%s\"", Ptr);
 			asp_send_response(NULL, tmp, strlen(tmp));
 		}
 	// websWrite(wp, "];\n");
 	// websWrite(wp, "}\n\n");
-	sprintf(tmp, "];\n}\n\n");
+	snprintf(tmp, sizeof(tmp), "];\n}\n\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 
 	// websWrite(wp, "function pool_devices(){\n");
 	// websWrite(wp, "    return [");
-	sprintf(tmp, "function pool_devices(){\n\treturn [");
+	snprintf(tmp, sizeof(tmp), "function pool_devices(){\n\treturn [");
 	asp_send_response(NULL, tmp, strlen(tmp));
 
 	first = 1;
@@ -4047,18 +4221,18 @@ static void disk_pool_mapping_info (asp_reent* reent, const asp_text* params, as
 				asp_send_response(NULL, ", ", 2);	//websWrite(wp, ", ");
 
 			//websWrite(wp, "\"%s\"", follow_partition->device);
-			sprintf(tmp, "\"%s\"", follow_partition->device);
+			snprintf(tmp, sizeof(tmp), "\"%s\"", follow_partition->device);
 			asp_send_response(NULL, tmp, strlen(tmp));
 		}
 	// websWrite(wp, "];\n");
 	// websWrite(wp, "}\n\n");
-	sprintf(tmp, "];\n\
+	snprintf(tmp, sizeof(tmp), "];\n\
 			}\n\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 
 	// websWrite(wp, "function pool_types(){\n");
 	// websWrite(wp, "    return [");
-	sprintf(tmp, "function pool_types(){\n\treturn [");
+	snprintf(tmp, sizeof(tmp), "function pool_types(){\n\treturn [");
 	asp_send_response(NULL, tmp, strlen(tmp));
 	first = 1;
 	for (follow_disk = disks_info; follow_disk != NULL; follow_disk = follow_disk->next)
@@ -4070,24 +4244,24 @@ static void disk_pool_mapping_info (asp_reent* reent, const asp_text* params, as
 
 			if (follow_partition->mount_point == NULL){
 				//websWrite(wp, "\"unknown\"");
-				sprintf(tmp, "\"unknown\"");
+				snprintf(tmp, sizeof(tmp), "\"unknown\"");
 				asp_send_response(NULL, tmp, strlen(tmp));
 				continue;
 			}
 
 			//websWrite(wp, "\"%s\"", follow_partition->file_system);
-			sprintf(tmp, "\"%s\"", follow_partition->file_system);
+			snprintf(tmp, sizeof(tmp), "\"%s\"", follow_partition->file_system);
 			asp_send_response(NULL, tmp, strlen(tmp));
 		}
 	// websWrite(wp, "];\n");
 	// websWrite(wp, "}\n\n");
-	sprintf(tmp, "];\n\
+	snprintf(tmp, sizeof(tmp), "];\n\
 			}\n\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 
 	// websWrite(wp, "function pool_mirror_counts(){\n");
 	// websWrite(wp, "    return [");
-	sprintf(tmp, "function pool_mirror_counts(){\n\treturn [");
+	snprintf(tmp, sizeof(tmp), "function pool_mirror_counts(){\n\treturn [");
 	asp_send_response(NULL, tmp, strlen(tmp));
 	first = 1;
 	for (follow_disk = disks_info; follow_disk != NULL; follow_disk = follow_disk->next)
@@ -4101,12 +4275,12 @@ static void disk_pool_mapping_info (asp_reent* reent, const asp_text* params, as
 		}
 	// websWrite(wp, "];\n");
 	// websWrite(wp, "}\n\n");
-	sprintf(tmp, "];\n}\n\n");
+	snprintf(tmp, sizeof(tmp), "];\n}\n\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 
 	// websWrite(wp, "function pool_status(){\n");
 	// websWrite(wp, "    return [");
-	sprintf(tmp, "function pool_status(){\n\treturn [");
+	snprintf(tmp, sizeof(tmp), "function pool_status(){\n\treturn [");
 	asp_send_response(NULL, tmp, strlen(tmp));
 	first = 1;
 	for (follow_disk = disks_info; follow_disk != NULL; follow_disk = follow_disk->next)
@@ -4118,7 +4292,7 @@ static void disk_pool_mapping_info (asp_reent* reent, const asp_text* params, as
 
 			if (follow_partition->mount_point == NULL){
 				//websWrite(wp, "\"unmounted\"");
-				sprintf(tmp, "\"unmounted\"");
+				snprintf(tmp, sizeof(tmp), "\"unmounted\"");
 				asp_send_response(NULL, tmp, strlen(tmp));
 				continue;
 			}
@@ -4130,12 +4304,12 @@ static void disk_pool_mapping_info (asp_reent* reent, const asp_text* params, as
 		}
 	// websWrite(wp, "];\n");
 	// websWrite(wp, "}\n\n");
-	sprintf(tmp, "];\n}\n\n");
+	snprintf(tmp, sizeof(tmp), "];\n}\n\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 
 	// websWrite(wp, "function pool_kilobytes(){\n");
 	// websWrite(wp, "    return [");
-	sprintf(tmp, "function pool_kilobytes(){\n\treturn [");
+	snprintf(tmp, sizeof(tmp), "function pool_kilobytes(){\n\treturn [");
 	asp_send_response(NULL, tmp, strlen(tmp));
 	first = 1;
 	for (follow_disk = disks_info; follow_disk != NULL; follow_disk = follow_disk->next)
@@ -4146,18 +4320,18 @@ static void disk_pool_mapping_info (asp_reent* reent, const asp_text* params, as
 				asp_send_response(NULL, ", ", 2);	//websWrite(wp, ", ");
 
 			//websWrite(wp, "%llu", follow_partition->size_in_kilobytes);
-			sprintf(tmp, "%llu", follow_partition->size_in_kilobytes);
+			snprintf(tmp, sizeof(tmp), "%llu", follow_partition->size_in_kilobytes);
 			asp_send_response(NULL, tmp, strlen(tmp));
 		}
 	// websWrite(wp, "];\n");
 	// websWrite(wp, "}\n\n");
-	sprintf(tmp, "];\n\
+	snprintf(tmp, sizeof(tmp), "];\n\
 			}\n\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 
 	// websWrite(wp, "function pool_encryption_password_is_missing(){\n");
 	// websWrite(wp, "    return [");
-	sprintf(tmp, "function pool_encryption_password_is_missing(){\n\treturn [");
+	snprintf(tmp, sizeof(tmp), "function pool_encryption_password_is_missing(){\n\treturn [");
 	asp_send_response(NULL, tmp, strlen(tmp));
 	first = 1;
 	for (follow_disk = disks_info; follow_disk != NULL; follow_disk = follow_disk->next)
@@ -4171,12 +4345,12 @@ static void disk_pool_mapping_info (asp_reent* reent, const asp_text* params, as
 		}
 	// websWrite(wp, "];\n");
 	// websWrite(wp, "}\n\n");
-	sprintf(tmp, "];\n}\n\n");
+	snprintf(tmp, sizeof(tmp), "];\n}\n\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 
 	// websWrite(wp, "function pool_kilobytes_in_use(){\n");
 	// websWrite(wp, "    return [");
-	sprintf(tmp, "function pool_kilobytes_in_use(){\n\treturn [");
+	snprintf(tmp, sizeof(tmp), "function pool_kilobytes_in_use(){\n\treturn [");
 	asp_send_response(NULL, tmp, strlen(tmp));
 	first = 1;
 	for (follow_disk = disks_info; follow_disk != NULL; follow_disk = follow_disk->next)
@@ -4187,20 +4361,20 @@ static void disk_pool_mapping_info (asp_reent* reent, const asp_text* params, as
 				asp_send_response(NULL, ", ", 2);	//websWrite(wp, ", ");
 
 			//websWrite(wp, "%llu", follow_partition->used_kilobytes);
-			sprintf(tmp, "%llu", follow_partition->used_kilobytes);
+			snprintf(tmp, sizeof(tmp), "%llu", follow_partition->used_kilobytes);
 			asp_send_response(NULL, tmp, strlen(tmp));
 		}
 
 	// websWrite(wp, "];\n");
 	// websWrite(wp, "}\n\n");
-	sprintf(tmp, "];\n}\n\n");
+	snprintf(tmp, sizeof(tmp), "];\n}\n\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 
 	u64 disk_used_kilobytes;
 
 	// websWrite(wp, "function disk_usage(){\n");
 	// websWrite(wp, "    return [");
-	sprintf(tmp, "function disk_usage(){\n\treturn [");
+	snprintf(tmp, sizeof(tmp), "function disk_usage(){\n\treturn [");
 	asp_send_response(NULL, tmp, strlen(tmp));
 	first = 1;
 	for (follow_disk = disks_info; follow_disk != NULL; follow_disk = follow_disk->next){
@@ -4214,39 +4388,39 @@ static void disk_pool_mapping_info (asp_reent* reent, const asp_text* params, as
 			disk_used_kilobytes += follow_partition->size_in_kilobytes;
 
 		//websWrite(wp, "%llu", disk_used_kilobytes);
-		sprintf(tmp, "%llu", disk_used_kilobytes);
+		snprintf(tmp, sizeof(tmp), "%llu", disk_used_kilobytes);
 		asp_send_response(NULL, tmp, strlen(tmp));
 	}
 	// websWrite(wp, "];\n");
 	// websWrite(wp, "}\n\n");
-	sprintf(tmp, "];\n}\n\n");
+	snprintf(tmp, sizeof(tmp), "];\n}\n\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 
 	disk_info_t *follow_disk2;
 	u32 disk_num, pool_num;
 	//websWrite(wp, "function per_pane_pool_usage_kilobytes(pool_num, disk_num){\n");
-	sprintf(tmp, "function per_pane_pool_usage_kilobytes(pool_num, disk_num){\n");
+	snprintf(tmp, sizeof(tmp), "function per_pane_pool_usage_kilobytes(pool_num, disk_num){\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 	for (follow_disk = disks_info, pool_num = 0; follow_disk != NULL; follow_disk = follow_disk->next){
 		for (follow_partition = follow_disk->partitions; follow_partition != NULL; follow_partition = follow_partition->next, ++pool_num){
 			//websWrite(wp, "    if (pool_num == %d){\n", pool_num);
-			sprintf(tmp, "\tif (pool_num == %d){\n", pool_num);
+			snprintf(tmp, sizeof(tmp), "\tif (pool_num == %d){\n", pool_num);
 			asp_send_response(NULL, tmp, strlen(tmp));
 			if (follow_partition->mount_point != NULL){
 				for (follow_disk2 = disks_info, disk_num = 0; follow_disk2 != NULL; follow_disk2 = follow_disk2->next, ++disk_num){
 					//websWrite(wp, "	if (disk_num == %d) {\n", disk_num);
-					sprintf(tmp, "\tif (disk_num == %d) {\n", disk_num);
+					snprintf(tmp, sizeof(tmp), "\tif (disk_num == %d) {\n", disk_num);
 					asp_send_response(NULL, tmp, strlen(tmp));
 
 					//if (strcmp(follow_disk2->tag, follow_disk->tag) == 0)
 					if (follow_disk2->major == follow_disk->major && follow_disk2->minor == follow_disk->minor) {
 						//websWrite(wp, "	    return [%llu];\n", follow_partition->size_in_kilobytes);
-						sprintf(tmp, "\t\treturn [%llu];\n", follow_partition->size_in_kilobytes);
+						snprintf(tmp, sizeof(tmp), "\t\treturn [%llu];\n", follow_partition->size_in_kilobytes);
 						asp_send_response(NULL, tmp, strlen(tmp));
 					}
 					else {
 						//websWrite(wp, "	    return [0];\n");
-						sprintf(tmp, "\t\treturn [0];\n");
+						snprintf(tmp, sizeof(tmp), "\t\treturn [0];\n");
 						asp_send_response(NULL, tmp, strlen(tmp));
 					}
 
@@ -4255,7 +4429,7 @@ static void disk_pool_mapping_info (asp_reent* reent, const asp_text* params, as
 			}
 			else {
 				//websWrite(wp, "	return [0];\n");
-				sprintf(tmp, "\treturn [0];\n");
+				snprintf(tmp, sizeof(tmp), "\treturn [0];\n");
 				asp_send_response(NULL, tmp, strlen(tmp));
 			}
 			asp_send_response(NULL, "\t}\n", 3);	//websWrite(wp, "	}\n");
@@ -4285,7 +4459,7 @@ static void available_disk_names_and_sizes (asp_reent* reent, const asp_text* pa
 	// websWrite(wp, "function blank_disk_model_info(){ return [];}\n\n");
 	// websWrite(wp, "function blank_disk_total_size(){ return [];}\n\n");
 	// websWrite(wp, "function blank_disk_total_mounted_number(){ return [];}\n\n");
-	sprintf(tmp, "function available_disks(){ return [];}\n\n\
+	snprintf(tmp, sizeof(tmp), "function available_disks(){ return [];}\n\n\
 		function available_disk_sizes(){ return [];}\n\n\
 		function claimed_disks(){ return [];}\n\n\
 		function claimed_disk_interface_names(){ return [];}\n\n\
@@ -4302,7 +4476,7 @@ static void available_disk_names_and_sizes (asp_reent* reent, const asp_text* pa
 	disks_info = read_disk_data();
 	if (disks_info == NULL){
 		//websWrite(wp, "%s", initial_available_disk_names_and_sizes());
-		sprintf(tmp, "function foreign_disks() { return [];}\n\
+		snprintf(tmp, sizeof(tmp), "function foreign_disks() { return [];}\n\
 			function foreign_disk_interface_names() { return [];}\n\
 			function foreign_disk_model_info() { return [];}\n\
 			function foreign_disk_total_size() { return [];}\n\
@@ -4314,7 +4488,7 @@ static void available_disk_names_and_sizes (asp_reent* reent, const asp_text* pa
 	/* show name of the foreign disks */
 	// websWrite(wp, "function foreign_disks(){\n");
 	// websWrite(wp, "    return [");
-	sprintf(tmp, "function foreign_disks(){\n\treturn [");
+	snprintf(tmp, sizeof(tmp), "function foreign_disks(){\n\treturn [");
 	asp_send_response(NULL, tmp, strlen(tmp));
 	first = 1;
 	for (follow_disk = disks_info; follow_disk != NULL; follow_disk = follow_disk->next){
@@ -4324,18 +4498,18 @@ static void available_disk_names_and_sizes (asp_reent* reent, const asp_text* pa
 			asp_send_response(NULL, ", ", 2);	//websWrite(wp, ", ");
 
 		//websWrite(wp, "\"%s\"", follow_disk->tag);
-		sprintf(tmp, "\"%s\"", follow_disk->tag);
+		snprintf(tmp, sizeof(tmp), "\"%s\"", follow_disk->tag);
 		asp_send_response(NULL, tmp, strlen(tmp));
 	}
 	// websWrite(wp, "];\n");
 	// websWrite(wp, "}\n\n");
-	sprintf(tmp, "];\n}\n\n");
+	snprintf(tmp, sizeof(tmp), "];\n}\n\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 
 	/* show interface of the foreign disks */
 	// websWrite(wp, "function foreign_disk_interface_names(){\n");
 	// websWrite(wp, "    return [");
-	sprintf(tmp, "function foreign_disk_interface_names(){\n\treturn [");
+	snprintf(tmp, sizeof(tmp), "function foreign_disk_interface_names(){\n\treturn [");
 	asp_send_response(NULL, tmp, strlen(tmp));
 	first = 1;
 	for (follow_disk = disks_info; follow_disk != NULL; follow_disk = follow_disk->next){
@@ -4346,18 +4520,18 @@ static void available_disk_names_and_sizes (asp_reent* reent, const asp_text* pa
 
 //		websWrite(wp, "\"USB\"");
 		//websWrite(wp, "\"%s\"", follow_disk->port);
-		sprintf(tmp, "\"%s\"", follow_disk->port);
+		snprintf(tmp, sizeof(tmp), "\"%s\"", follow_disk->port);
 		asp_send_response(NULL, tmp, strlen(tmp));
 	}
 	// websWrite(wp, "];\n");
 	// websWrite(wp, "}\n\n");
-	sprintf(tmp, "];\n}\n\n");
+	snprintf(tmp, sizeof(tmp), "];\n}\n\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 
 	/* show model info of the foreign disks */
 	// websWrite(wp, "function foreign_disk_model_info(){\n");
 	// websWrite(wp, "    return [");
-	sprintf(tmp, "function foreign_disk_model_info(){\n\treturn [");
+	snprintf(tmp, sizeof(tmp), "function foreign_disk_model_info(){\n\treturn [");
 	asp_send_response(NULL, tmp, strlen(tmp));
 	first = 1;
 	for (follow_disk = disks_info; follow_disk != NULL; follow_disk = follow_disk->next){
@@ -4370,7 +4544,7 @@ static void available_disk_names_and_sizes (asp_reent* reent, const asp_text* pa
 
 		if (follow_disk->vendor != NULL) {
 			//websWrite(wp, "%s", follow_disk->vendor);
-			sprintf(tmp, "%s", follow_disk->vendor);
+			snprintf(tmp, sizeof(tmp), "%s", follow_disk->vendor);
 			asp_send_response(NULL, tmp, strlen(tmp));
 		}
 		if (follow_disk->model != NULL){
@@ -4378,20 +4552,20 @@ static void available_disk_names_and_sizes (asp_reent* reent, const asp_text* pa
 				asp_send_response(NULL, " ", 1);	//websWrite(wp, " ");
 
 			//websWrite(wp, "%s", follow_disk->model);
-			sprintf(tmp, "%s", follow_disk->model);
+			snprintf(tmp, sizeof(tmp), "%s", follow_disk->model);
 			asp_send_response(NULL, tmp, strlen(tmp));
 		}
 		asp_send_response(NULL, "\"", 1);	//websWrite(wp, "\"");
 	}
 	// websWrite(wp, "];\n");
 	// websWrite(wp, "}\n\n");
-	sprintf(tmp, "];\n}\n\n");
+	snprintf(tmp, sizeof(tmp), "];\n}\n\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 
 	/* show total_size of the foreign disks */
 	// websWrite(wp, "function foreign_disk_total_size(){\n");
 	// websWrite(wp, "    return [");
-	sprintf(tmp, "function foreign_disk_total_size(){\n\treturn [");
+	snprintf(tmp, sizeof(tmp), "function foreign_disk_total_size(){\n\treturn [");
 	asp_send_response(NULL, tmp, strlen(tmp));
 	first = 1;
 	for (follow_disk = disks_info; follow_disk != NULL; follow_disk = follow_disk->next){
@@ -4401,19 +4575,19 @@ static void available_disk_names_and_sizes (asp_reent* reent, const asp_text* pa
 			asp_send_response(NULL, ", ", 2);	//websWrite(wp, ", ");
 
 		//websWrite(wp, "\"%llu\"", follow_disk->size_in_kilobytes);
-		sprintf(tmp, "\"%llu\"", follow_disk->size_in_kilobytes);
+		snprintf(tmp, sizeof(tmp), "\"%llu\"", follow_disk->size_in_kilobytes);
 		asp_send_response(NULL, tmp, strlen(tmp));
 	}
 	// websWrite(wp, "];\n");
 	// websWrite(wp, "}\n\n");
-	sprintf(tmp, "];\n\
+	snprintf(tmp, sizeof(tmp), "];\n\
 			}\n\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 
 	/* show total number of the mounted partition in this foreign disk */
 	// websWrite(wp, "function foreign_disk_total_mounted_number(){\n");
 	// websWrite(wp, "    return [");
-	sprintf(tmp, "function foreign_disk_total_mounted_number(){\n\treturn [");
+	snprintf(tmp, sizeof(tmp), "function foreign_disk_total_mounted_number(){\n\treturn [");
 	asp_send_response(NULL, tmp, strlen(tmp));
 	first = 1;
 	for (follow_disk = disks_info; follow_disk != NULL; follow_disk = follow_disk->next){
@@ -4423,12 +4597,12 @@ static void available_disk_names_and_sizes (asp_reent* reent, const asp_text* pa
 			asp_send_response(NULL, ", ", 2);	//websWrite(wp, ", ");
 
 		//websWrite(wp, "\"%u\"", follow_disk->mounted_number);
-		sprintf(tmp, "\"%u\"", follow_disk->mounted_number);
+		snprintf(tmp, sizeof(tmp), "\"%u\"", follow_disk->mounted_number);
 		asp_send_response(NULL, tmp, strlen(tmp));
 	}
 	// websWrite(wp, "];\n");
 	// websWrite(wp, "}\n\n");
-	sprintf(tmp, "];\n}\n\n");
+	snprintf(tmp, sizeof(tmp), "];\n}\n\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 	free_disk_data(&disks_info);
 
@@ -4487,7 +4661,7 @@ static void get_AiDisk_status (asp_reent* reent, const asp_text* params, asp_tex
 	websWrite(wp, "    else\n");
 	websWrite(wp, "	return -1;\n");
 	websWrite(wp, "}\n\n");*/
-	sprintf(tmp, "function get_cifs_status(){\n\
+	snprintf(tmp, sizeof(tmp), "function get_cifs_status(){\n\
 		return %d;\n\
 		}\n\n\
 		function get_ftp_status(){\n\
@@ -4502,12 +4676,12 @@ static void get_AiDisk_status (asp_reent* reent, const asp_text* params, asp_tex
 	// websWrite(wp, "}\n\n");
 #endif
 
-	sprintf(tmp, "function get_dms_status(){\n\
+	snprintf(tmp, sizeof(tmp), "function get_dms_status(){\n\
 		return %d;\n\
 		}\n\n", pids("ushare"));
 	asp_send_response(NULL, tmp, strlen(tmp));
 
-	sprintf(tmp, "function get_share_management_status(protocol){\n\
+	snprintf(tmp, sizeof(tmp), "function get_share_management_status(protocol){\n\
 		if (protocol == \"cifs\")\n\
 		return %d;\n\
 		else if (protocol == \"ftp\")\n\
@@ -4523,13 +4697,13 @@ static void get_AiDisk_status (asp_reent* reent, const asp_text* params, asp_tex
 	disks_info = read_disk_data();
 	if (disks_info == NULL){
 		//websWrite(wp, "function get_sharedfolder_in_pool(poolName){}\n");
-		sprintf(tmp, "function get_sharedfolder_in_pool(poolName){}\n");
+		snprintf(tmp, sizeof(tmp), "function get_sharedfolder_in_pool(poolName){}\n");
 		asp_send_response(NULL, tmp, strlen(tmp));
 		return;// -1;
 	}
 	first_pool = 1;
 	//websWrite(wp, "function get_sharedfolder_in_pool(poolName){\n");
-	sprintf(tmp, "function get_sharedfolder_in_pool(poolName){\n");
+	snprintf(tmp, sizeof(tmp), "function get_sharedfolder_in_pool(poolName){\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 	for (follow_disk = disks_info; follow_disk != NULL; follow_disk = follow_disk->next)
 		for (follow_partition = follow_disk->partitions; follow_partition != NULL; follow_partition = follow_partition->next){
@@ -4543,22 +4717,22 @@ static void get_AiDisk_status (asp_reent* reent, const asp_text* params, asp_tex
 
 #ifdef OLD_AIDISK
 				//websWrite(wp, "if (poolName == \"%s\"){\n", rindex(follow_partition->mount_point, '/')+1);
-				sprintf(tmp, "if (poolName == \"%s\"){\n", rindex(follow_partition->mount_point, '/')+1);
+				snprintf(tmp, sizeof(tmp), "if (poolName == \"%s\"){\n", rindex(follow_partition->mount_point, '/')+1);
 				asp_send_response(NULL, tmp, strlen(tmp));
 #else
 				//websWrite(wp, "if (poolName == \"%s\"){\n", follow_partition->device);
-				sprintf(tmp, "if (poolName == \"%s\"){\n", follow_partition->device);
+				snprintf(tmp, sizeof(tmp), "if (poolName == \"%s\"){\n", follow_partition->device);
 				asp_send_response(NULL, tmp, strlen(tmp));
 #endif
 				//websWrite(wp, "	return [\"\"");
-				sprintf(tmp, "\treturn [\"\"");
+				snprintf(tmp, sizeof(tmp), "\treturn [\"\"");
 				asp_send_response(NULL, tmp, strlen(tmp));
 
 				result = get_all_folder(follow_partition->mount_point, &sh_num, &folder_list);
 				if (result < 0){
 					// websWrite(wp, "];\n");
 					// websWrite(wp, "    }\n");
-					sprintf(tmp, "];\n\t}\n");
+					snprintf(tmp, sizeof(tmp), "];\n\t}\n");
 					asp_send_response(NULL, tmp, strlen(tmp));
 
 					printf("get_AiDisk_status: Can't get the folder list in \"%s\".\n", follow_partition->mount_point);
@@ -4572,7 +4746,7 @@ static void get_AiDisk_status (asp_reent* reent, const asp_text* params, asp_tex
 					asp_send_response(NULL, ", ", 2);//websWrite(wp, ", ");
 
 					//websWrite(wp, "\"%s\"", folder_list[i]);
-					sprintf(tmp, "\"%s\"", folder_list[i]);
+					snprintf(tmp, sizeof(tmp), "\"%s\"", folder_list[i]);
 					asp_send_response(NULL, tmp, strlen(tmp));
 #if 0
 //	tmp test
@@ -4589,7 +4763,7 @@ static void get_AiDisk_status (asp_reent* reent, const asp_text* params, asp_tex
 
 				// websWrite(wp, "];\n");
 				// websWrite(wp, "    }\n");
-				sprintf(tmp, "];\n\t}\n");
+				snprintf(tmp, sizeof(tmp), "];\n\t}\n");
 				asp_send_response(NULL, tmp, strlen(tmp));
 			}
 		}
@@ -4618,7 +4792,7 @@ create_sharedfolder (asp_reent* reent, const asp_text* params, asp_text* ret) {
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "create_sharedfolder_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\ncreate_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\ncreate_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -4630,7 +4804,7 @@ create_sharedfolder (asp_reent* reent, const asp_text* params, asp_text* ret) {
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "create_sharedfolder_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\ncreate_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\ncreate_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -4645,7 +4819,7 @@ create_sharedfolder (asp_reent* reent, const asp_text* params, asp_text* ret) {
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "create_sharedfolder_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\ncreate_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\ncreate_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -4657,7 +4831,7 @@ create_sharedfolder (asp_reent* reent, const asp_text* params, asp_text* ret) {
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "create_sharedfolder_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\ncreate_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\ncreate_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -4679,7 +4853,7 @@ create_sharedfolder (asp_reent* reent, const asp_text* params, asp_text* ret) {
 	// websWrite(wp, "<script>\n");
 	// websWrite(wp, "create_sharedfolder_success();\n");
 	// websWrite(wp, "</script>\n");
-	sprintf(tmp, "<script>\ncreate_sharedfolder_success();\n</script>\n");
+	snprintf(tmp, sizeof(tmp), "<script>\ncreate_sharedfolder_success();\n</script>\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 
 	return;// 0;
@@ -4698,7 +4872,7 @@ delete_sharedfolder (asp_reent* reent, const asp_text* params, asp_text* ret) {
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "delete_sharedfolder_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\ndelete_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\ndelete_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -4710,7 +4884,7 @@ delete_sharedfolder (asp_reent* reent, const asp_text* params, asp_text* ret) {
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "delete_sharedfolder_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\ndelete_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\ndelete_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -4723,16 +4897,15 @@ delete_sharedfolder (asp_reent* reent, const asp_text* params, asp_text* ret) {
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "delete_sharedfolder_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\ndelete_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\ndelete_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
 		return;// -1;
 	}
 	//Andy Chiu, 2015/01/28. decode path form UTF-8.
-	//con_dbgprintf("[%s, %d](%s, %s)\n", __FUNCTION__, __LINE__, mount_path, folder);
 	char path[1024], buf[1024];
-	sprintf(buf, "%s/%s", mount_path, folder);
+	snprintf(buf, sizeof(buf), "%s/%s", mount_path, folder);
 	if(decode(buf, path) > 0)
 		con_dbgprintf("[%s, %d]path:%s\n", __FUNCTION__, __LINE__, path);
 
@@ -4743,7 +4916,7 @@ delete_sharedfolder (asp_reent* reent, const asp_text* params, asp_text* ret) {
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "modify_sharedfolder_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\ndelete_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\ndelete_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
 		con_dbgprintf("[%s, %d]error_msg(%s), errno\n", __FUNCTION__, __LINE__, error_msg, strerror(errno));
 		asp_send_response(NULL, tmp, strlen(tmp));
 
@@ -4757,7 +4930,7 @@ delete_sharedfolder (asp_reent* reent, const asp_text* params, asp_text* ret) {
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "delete_sharedfolder_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\ndelete_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\ndelete_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -4779,7 +4952,7 @@ delete_sharedfolder (asp_reent* reent, const asp_text* params, asp_text* ret) {
 	// websWrite(wp, "<script>\n");
 	// websWrite(wp, "delete_sharedfolder_success();\n");
 	// websWrite(wp, "</script>\n");
-	sprintf(tmp, "<script>\ndelete_sharedfolder_success();\n</script>\n");
+	snprintf(tmp, sizeof(tmp), "<script>\ndelete_sharedfolder_success();\n</script>\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 
 	return;// 0;
@@ -4827,7 +5000,7 @@ modify_sharedfolder (asp_reent* reent, const asp_text* params, asp_text* ret) {
 		// websWrite(wp, "modify_sharedfolder_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
 		con_dbgprintf("[%s, %d]error_msg(%s)\n", __FUNCTION__, __LINE__, error_msg);
-		sprintf(tmp, "<script>\nmodify_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\nmodify_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -4839,7 +5012,7 @@ modify_sharedfolder (asp_reent* reent, const asp_text* params, asp_text* ret) {
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "modify_sharedfolder_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\nmodify_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\nmodify_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
 		con_dbgprintf("[%s, %d]error_msg(%s)\n", __FUNCTION__, __LINE__, error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
@@ -4852,7 +5025,7 @@ modify_sharedfolder (asp_reent* reent, const asp_text* params, asp_text* ret) {
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "modify_sharedfolder_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\nmodify_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\nmodify_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
 		con_dbgprintf("[%s, %d]error_msg(%s)\n", __FUNCTION__, __LINE__, error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
@@ -4865,7 +5038,7 @@ modify_sharedfolder (asp_reent* reent, const asp_text* params, asp_text* ret) {
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "modify_sharedfolder_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\nmodify_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\nmodify_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
 		con_dbgprintf("[%s, %d]error_msg(%s)\n", __FUNCTION__, __LINE__, error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
@@ -4874,18 +5047,16 @@ modify_sharedfolder (asp_reent* reent, const asp_text* params, asp_text* ret) {
 	}
 
 	//Andy Chiu, 2015/01/28. decode path form UTF-8.
-	//con_dbgprintf("[%s, %d](%s, %s, %s)\n", __FUNCTION__, __LINE__, mount_path, folder, new_folder);
-	
 	char new_path[1024], old_path[1024], path[1024], buf[1024];
-	sprintf(buf, "%s", new_folder);
+	snprintf(buf, sizeof(buf), "%s", new_folder);
 	if(decode(buf, new_path) > 0) {
 		con_dbgprintf("[%s, %d]new:%s\n", __FUNCTION__, __LINE__, new_path);
 	}
-	sprintf(buf, "%s", folder);
+	snprintf(buf, sizeof(buf), "%s", folder);
 	if(decode(buf, old_path) > 0) {
 		con_dbgprintf("[%s, %d]old:%s\n", __FUNCTION__, __LINE__, old_path);
 	}
-	sprintf(buf, "%s", mount_path);
+	snprintf(buf, sizeof(buf), "%s", mount_path);
 	if(decode(buf, path) > 0) {
 		con_dbgprintf("[%s, %d]mount_path:%s\n", __FUNCTION__, __LINE__, path);
 	}
@@ -4898,7 +5069,7 @@ modify_sharedfolder (asp_reent* reent, const asp_text* params, asp_text* ret) {
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "modify_sharedfolder_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\nmodify_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\nmodify_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
 		con_dbgprintf("[%s, %d]error_msg(%s), errno\n", __FUNCTION__, __LINE__, error_msg, strerror(errno));
 		asp_send_response(NULL, tmp, strlen(tmp));
 
@@ -4912,7 +5083,7 @@ modify_sharedfolder (asp_reent* reent, const asp_text* params, asp_text* ret) {
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "modify_sharedfolder_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\nmodify_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\nmodify_sharedfolder_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -4935,7 +5106,7 @@ modify_sharedfolder (asp_reent* reent, const asp_text* params, asp_text* ret) {
 	// websWrite(wp, "<script>\n");
 	// websWrite(wp, "modify_sharedfolder_success();\n");
 	// websWrite(wp, "</script>\n");
-	sprintf(tmp, "<script>\nmodify_sharedfolder_success();\n</script>\n");
+	snprintf(tmp, sizeof(tmp), "<script>\nmodify_sharedfolder_success();\n</script>\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 
 	return;// 0;
@@ -4958,7 +5129,7 @@ get_permissions_of_account (asp_reent* reent, const asp_text* params, asp_text* 
 	disks_info = read_disk_data();
 	if (disks_info == NULL){
 		//websWrite(wp, "function get_account_permissions_in_pool(account, pool){return [];}\n");
-		sprintf(tmp, "function get_account_permissions_in_pool(account, pool){return [];}\n");
+		snprintf(tmp, sizeof(tmp), "function get_account_permissions_in_pool(account, pool){return [];}\n");
 		asp_send_response(NULL, tmp, strlen(tmp));
 		return;// -1;
 	}
@@ -4971,7 +5142,7 @@ get_permissions_of_account (asp_reent* reent, const asp_text* params, asp_text* 
 	}
 
 	//websWrite(wp, "function get_account_permissions_in_pool(account, pool){\n");
-	sprintf(tmp, "function get_account_permissions_in_pool(account, pool){\n");
+	snprintf(tmp, sizeof(tmp), "function get_account_permissions_in_pool(account, pool){\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 
 	first_account = 1;
@@ -4986,14 +5157,14 @@ get_permissions_of_account (asp_reent* reent, const asp_text* params, asp_text* 
 			account = NULL;
 
 			//websWrite(wp, "if (account == null){\n");
-			sprintf(tmp, "if (account == null){\n");
+			snprintf(tmp, sizeof(tmp), "if (account == null){\n");
 			asp_send_response(NULL, tmp, strlen(tmp));
 		}
 		else{
 			account = account_list[i];
 
 			//websWrite(wp, "if (account == \"%s\"){\n", account_list[i]);
-			sprintf(tmp, "if (account == \"%s\"){\n", account_list[i]);
+			snprintf(tmp, sizeof(tmp), "if (account == \"%s\"){\n", account_list[i]);
 			asp_send_response(NULL, tmp, strlen(tmp));
 		}
 
@@ -5009,16 +5180,16 @@ get_permissions_of_account (asp_reent* reent, const asp_text* params, asp_text* 
 
 #ifdef OLD_AIDISK
 					//websWrite(wp, "if (pool == \"%s\"){\n", rindex(follow_partition->mount_point, '/')+1);
-					sprintf(tmp, "if (pool == \"%s\"){\n", rindex(follow_partition->mount_point, '/')+1);
+					snprintf(tmp, sizeof(tmp), "if (pool == \"%s\"){\n", rindex(follow_partition->mount_point, '/')+1);
 					asp_send_response(NULL, tmp, strlen(tmp));
 #else
 					//websWrite(wp, "if (pool == \"%s\"){\n", follow_partition->device);
-					sprintf(tmp, "if (pool == \"%s\"){\n", follow_partition->device);
+					snprintf(tmp, sizeof(tmp), "if (pool == \"%s\"){\n", follow_partition->device);
 					asp_send_response(NULL, tmp, strlen(tmp));
 #endif
 
 					//websWrite(wp, "	    return [");
-					sprintf(tmp, "\t\treturn [");
+					snprintf(tmp, sizeof(tmp), "\t\treturn [");
 					asp_send_response(NULL, tmp, strlen(tmp));
 
 					result = get_all_folder(follow_partition->mount_point, &sh_num, &folder_list);
@@ -5058,11 +5229,11 @@ get_permissions_of_account (asp_reent* reent, const asp_text* params, asp_text* 
 
 #ifdef RTCONFIG_WEBDAV_PENDING
 					//websWrite(wp, "[\"\", %d, %d, %d]", samba_right, ftp_right, webdav_right);
-					sprintf(tmp, "[\"\", %d, %d, %d]", samba_right, ftp_right, webdav_right);
+					snprintf(tmp, sizeof(tmp), "[\"\", %d, %d, %d]", samba_right, ftp_right, webdav_right);
 					asp_send_response(NULL, tmp, strlen(tmp));
 #else
 					//websWrite(wp, "[\"\", %d, %d]", samba_right, ftp_right);
-					sprintf(tmp, "[\"\", %d, %d]", samba_right, ftp_right);
+					snprintf(tmp, sizeof(tmp), "[\"\", %d, %d]", samba_right, ftp_right);
 					asp_send_response(NULL, tmp, strlen(tmp));
 #endif
 					if (result == 0 && sh_num > 0)
@@ -5071,7 +5242,7 @@ get_permissions_of_account (asp_reent* reent, const asp_text* params, asp_text* 
 					if (result != 0){
 						// websWrite(wp, "];\n");
 						// websWrite(wp, "	}\n");
-						sprintf(tmp, "];\n\t}\n");
+						snprintf(tmp, sizeof(tmp), "];\n\t}\n");
 						asp_send_response(NULL, tmp, strlen(tmp));
 
 						printf("get_permissions_of_account1: Can't get all folders in \"%s\".\n", follow_partition->mount_point);
@@ -5120,11 +5291,11 @@ get_permissions_of_account (asp_reent* reent, const asp_text* params, asp_text* 
 
 #ifdef RTCONFIG_WEBDAV_PENDING
 						//websWrite(wp, "		    [\"%s\", %d, %d, %d]", folder_list[j], samba_right, ftp_right, webdav_right);
-						sprintf(tmp, "\t\t\t[\"%s\", %d, %d, %d]", folder_list[j], samba_right, ftp_right, webdav_right);
+						snprintf(tmp, sizeof(tmp), "\t\t\t[\"%s\", %d, %d, %d]", folder_list[j], samba_right, ftp_right, webdav_right);
 						asp_send_response(NULL, tmp, strlen(tmp));
 #else
 						//websWrite(wp, "		    [\"%s\", %d, %d]", folder_list[j], samba_right, ftp_right);
-						sprintf(tmp, "\t\t\t[\"%s\", %d, %d]", folder_list[j], samba_right, ftp_right);
+						snprintf(tmp, sizeof(tmp), "\t\t\t[\"%s\", %d, %d]", folder_list[j], samba_right, ftp_right);
 						asp_send_response(NULL, tmp, strlen(tmp));
 #endif
 
@@ -5135,7 +5306,7 @@ get_permissions_of_account (asp_reent* reent, const asp_text* params, asp_text* 
 
 					// websWrite(wp, "];\n");
 					// websWrite(wp, "	}\n");
-					sprintf(tmp, "];\n\t}\n");
+					snprintf(tmp, sizeof(tmp), "];\n\t}\n");
 					asp_send_response(NULL, tmp, strlen(tmp));
 				}
 			}
@@ -5167,7 +5338,7 @@ set_AiDisk_status (asp_reent* reent, const asp_text* params, asp_text* ret) {
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "set_AiDisk_status_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\nset_AiDisk_status_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\nset_AiDisk_status_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -5179,7 +5350,7 @@ set_AiDisk_status (asp_reent* reent, const asp_text* params, asp_text* ret) {
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "set_AiDisk_status_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\nset_AiDisk_status_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\nset_AiDisk_status_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -5207,7 +5378,7 @@ set_AiDisk_status (asp_reent* reent, const asp_text* params, asp_text* ret) {
 			// websWrite(wp, "<script>\n");
 			// websWrite(wp, "set_AiDisk_status_error(\'%s\');\n", error_msg);
 			// websWrite(wp, "</script>\n");
-			sprintf(tmp, "<script>\nset_AiDisk_status_error(\'%s\');\n</script>\n", error_msg);
+			snprintf(tmp, sizeof(tmp), "<script>\nset_AiDisk_status_error(\'%s\');\n</script>\n", error_msg);
 			asp_send_response(NULL, tmp, strlen(tmp));
 
 			clean_error_msg();
@@ -5236,7 +5407,7 @@ set_AiDisk_status (asp_reent* reent, const asp_text* params, asp_text* ret) {
 			// websWrite(wp, "<script>\n");
 			// websWrite(wp, "set_AiDisk_status_error(\'%s\');\n", error_msg);
 			// websWrite(wp, "</script>\n");
-			sprintf(tmp, "<script>\nset_AiDisk_status_error(\'%s\');\n</script>\n", error_msg);
+			snprintf(tmp, sizeof(tmp), "<script>\nset_AiDisk_status_error(\'%s\');\n</script>\n", error_msg);
 			asp_send_response(NULL, tmp, strlen(tmp));
 
 			clean_error_msg();
@@ -5276,7 +5447,7 @@ set_AiDisk_status (asp_reent* reent, const asp_text* params, asp_text* ret) {
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "set_AiDisk_status_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\nset_AiDisk_status_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\nset_AiDisk_status_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -5289,7 +5460,7 @@ set_AiDisk_status (asp_reent* reent, const asp_text* params, asp_text* ret) {
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "set_AiDisk_status_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\nset_AiDisk_status_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\nset_AiDisk_status_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -5301,7 +5472,7 @@ SET_AIDISK_STATUS_SUCCESS:
 	//websWrite(wp, "set_AiDisk_status_success();\n");
 	// websWrite(wp, "parent.resultOfSwitchAppStatus();\n");
 	// websWrite(wp, "</script>\n");
-	sprintf(tmp, "<script>\nparent.resultOfSwitchAppStatus();\n</script>\n");
+	snprintf(tmp, sizeof(tmp), "<script>\nparent.resultOfSwitchAppStatus();\n</script>\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 
 	tcapi_save();
@@ -5376,7 +5547,7 @@ set_share_mode (asp_reent* reent, const asp_text* params, asp_text* ret) {
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "set_share_mode_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\nset_share_mode_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\nset_share_mode_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -5389,7 +5560,7 @@ set_share_mode (asp_reent* reent, const asp_text* params, asp_text* ret) {
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "set_share_mode_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\nset_share_mode_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\nset_share_mode_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -5425,7 +5596,7 @@ set_share_mode (asp_reent* reent, const asp_text* params, asp_text* ret) {
 			// websWrite(wp, "<script>\n");
 			// websWrite(wp, "set_share_mode_error(\'%s\');\n", error_msg);
 			// websWrite(wp, "</script>\n");
-			sprintf(tmp, "<script>\nset_share_mode_error(\'%s\');\n</script>\n", error_msg);
+			snprintf(tmp, sizeof(tmp), "<script>\nset_share_mode_error(\'%s\');\n</script>\n", error_msg);
 			asp_send_response(NULL, tmp, strlen(tmp));
 
 			clean_error_msg();
@@ -5462,7 +5633,7 @@ set_share_mode (asp_reent* reent, const asp_text* params, asp_text* ret) {
 			// websWrite(wp, "<script>\n");
 			// websWrite(wp, "set_share_mode_error(\'%s\');\n", error_msg);
 			// websWrite(wp, "</script>\n");
-			sprintf(tmp, "<script>\nset_share_mode_error(\'%s\');\n</script>\n", error_msg);
+			snprintf(tmp, sizeof(tmp), "<script>\nset_share_mode_error(\'%s\');\n</script>\n", error_msg);
 			asp_send_response(NULL, tmp, strlen(tmp));
 
 			clean_error_msg();
@@ -5476,7 +5647,7 @@ set_share_mode (asp_reent* reent, const asp_text* params, asp_text* ret) {
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "set_share_mode_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\nset_share_mode_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\nset_share_mode_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -5512,7 +5683,7 @@ set_share_mode (asp_reent* reent, const asp_text* params, asp_text* ret) {
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "set_share_mode_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\nset_share_mode_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\nset_share_mode_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -5526,7 +5697,7 @@ set_share_mode (asp_reent* reent, const asp_text* params, asp_text* ret) {
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "set_share_mode_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		// sprintf(tmp, "<script>\nset_share_mode_error(\'%s\');\n</script>\n", error_msg);
+		// snprintf(tmp, sizeof(tmp), "<script>\nset_share_mode_error(\'%s\');\n</script>\n", error_msg);
 		// asp_send_response(NULL, tmp, strlen(tmp));
 
 		// clean_error_msg();
@@ -5537,7 +5708,7 @@ SET_SHARE_MODE_SUCCESS:
 	// websWrite(wp, "<script>\n");
 	// websWrite(wp, "set_share_mode_success();\n");
 	// websWrite(wp, "</script>\n");
-	sprintf(tmp, "<script>\nset_share_mode_success();\n</script>\n");
+	snprintf(tmp, sizeof(tmp), "<script>\nset_share_mode_success();\n</script>\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 
 	json_object_put(root);
@@ -5584,7 +5755,7 @@ get_usb_accounts (asp_reent* reent, const asp_text* params, asp_text* ret) {
 			asp_send_response(NULL, ", ", 2);//websWrite(wp, ", ");
 
 		//websWrite(wp, "\"%s\"", account_list[i]);
-		sprintf(tmp, "\"%s\"", account_list[i]);
+		snprintf(tmp, sizeof(tmp), "\"%s\"", account_list[i]);
 		asp_send_response(NULL, tmp, strlen(tmp));
 	}
 
@@ -5605,7 +5776,7 @@ static void create_account (asp_reent* reent, const asp_text* params, asp_text* 
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "create_account_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\ncreate_account_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\ncreate_account_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -5617,7 +5788,7 @@ static void create_account (asp_reent* reent, const asp_text* params, asp_text* 
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "create_account_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\ncreate_account_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\ncreate_account_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -5632,7 +5803,7 @@ static void create_account (asp_reent* reent, const asp_text* params, asp_text* 
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "create_account_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\ncreate_account_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\ncreate_account_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -5645,7 +5816,7 @@ static void create_account (asp_reent* reent, const asp_text* params, asp_text* 
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "create_account_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\ncreate_account_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\ncreate_account_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -5680,7 +5851,7 @@ static void create_account (asp_reent* reent, const asp_text* params, asp_text* 
 	// websWrite(wp, "<script>\n");
 	// websWrite(wp, "create_account_success();\n");
 	// websWrite(wp, "</script>\n");
-	sprintf(tmp, "<script>\ncreate_account_success();\n</script>\n");
+	snprintf(tmp, sizeof(tmp), "<script>\ncreate_account_success();\n</script>\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 	return;// 0;
 }
@@ -5695,7 +5866,7 @@ static void delete_account (asp_reent* reent, const asp_text* params, asp_text* 
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "delete_account_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\ndelete_account_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\ndelete_account_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -5710,7 +5881,7 @@ static void delete_account (asp_reent* reent, const asp_text* params, asp_text* 
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "delete_account_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\ndelete_account_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\ndelete_account_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -5723,7 +5894,7 @@ static void delete_account (asp_reent* reent, const asp_text* params, asp_text* 
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "delete_account_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\ndelete_account_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\ndelete_account_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -5758,7 +5929,7 @@ static void delete_account (asp_reent* reent, const asp_text* params, asp_text* 
 	// websWrite(wp, "<script>\n");
 	// websWrite(wp, "delete_account_success();\n");
 	// websWrite(wp, "</script>\n");
-	sprintf(tmp, "<script>\ndelete_account_success();\n</script>\n");
+	snprintf(tmp, sizeof(tmp), "<script>\ndelete_account_success();\n</script>\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 
 	return;// 0;
@@ -5776,7 +5947,7 @@ static void modify_account (asp_reent* reent, const asp_text* params, asp_text* 
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "modify_account_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\nmodify_account_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\nmodify_account_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -5788,7 +5959,7 @@ static void modify_account (asp_reent* reent, const asp_text* params, asp_text* 
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "modify_account_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\nmodify_account_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\nmodify_account_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -5801,7 +5972,7 @@ static void modify_account (asp_reent* reent, const asp_text* params, asp_text* 
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "modify_account_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\nmodify_account_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\nmodify_account_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -5814,7 +5985,7 @@ static void modify_account (asp_reent* reent, const asp_text* params, asp_text* 
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "modify_account_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\nmodify_account_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\nmodify_account_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -5849,7 +6020,7 @@ static void modify_account (asp_reent* reent, const asp_text* params, asp_text* 
 	// websWrite(wp, "<script>\n");
 	// websWrite(wp, "modify_account_success();\n");
 	// websWrite(wp, "</script>\n");
-	sprintf(tmp, "<script>\nmodify_account_success();\n</script>\n");
+	snprintf(tmp, sizeof(tmp), "<script>\nmodify_account_success();\n</script>\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 
 	return;// 0;
@@ -5872,7 +6043,7 @@ initial_account (asp_reent* reent, const asp_text* params, asp_text* ret) {
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "initial_account_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\ninitial_account_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\ninitial_account_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -5890,13 +6061,13 @@ initial_account (asp_reent* reent, const asp_text* params, asp_text* ret) {
 					// websWrite(wp, "<script>\n");
 					// websWrite(wp, "initial_account_error(\'%s\');\n", error_msg);
 					// websWrite(wp, "</script>\n");
-					sprintf(tmp, "<script>\ninitial_account_error(\'%s\');\n</script>\n", error_msg);
+					snprintf(tmp, sizeof(tmp), "<script>\ninitial_account_error(\'%s\');\n</script>\n", error_msg);
 					asp_send_response(NULL, tmp, strlen(tmp));
 
 					clean_error_msg();
 					return;
 				}
-				sprintf(command, "rm -f %s/.__*", follow_partition->mount_point);
+				snprintf(command, len + 1, "rm -f %s/.__*", follow_partition->mount_point);
 				command[len] = 0;
 
 				result = system(command);
@@ -5925,7 +6096,7 @@ initial_account (asp_reent* reent, const asp_text* params, asp_text* ret) {
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "initial_account_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\ninitial_account_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\ninitial_account_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -5938,7 +6109,7 @@ initial_account (asp_reent* reent, const asp_text* params, asp_text* ret) {
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "init_account_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\ninitial_account_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\ninitial_account_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -5972,7 +6143,7 @@ initial_account (asp_reent* reent, const asp_text* params, asp_text* ret) {
 	// websWrite(wp, "<script>\n");
 	// websWrite(wp, "initial_account_success();\n");
 	// websWrite(wp, "</script>\n");
-	sprintf(tmp, "<script>\ninitial_account_success();\n</script>\n");
+	snprintf(tmp, sizeof(tmp), "<script>\ninitial_account_success();\n</script>\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 
 	return;
@@ -6050,7 +6221,7 @@ get_share_tree(asp_reent* reent, const asp_text* params, asp_text* ret) {
 							asp_send_response(NULL, ", ", 2);//websWrite(wp, ", ");
 
 						//websWrite(wp, "\"%s#%u#0\"", share_list[i], i);
-						sprintf(tmp, "\"%s#%u#0\"", share_list[i], i);
+						snprintf(tmp, sizeof(tmp), "\"%s#%u#0\"", share_list[i], i);
 						asp_send_response(NULL, tmp, strlen(tmp));
 					}
 				}
@@ -6062,7 +6233,7 @@ get_share_tree(asp_reent* reent, const asp_text* params, asp_text* ret) {
 
 					follow_info = rindex(follow_partition->mount_point, '/');
 					//websWrite(wp, "\"%s#%u#%u\"", follow_info+1, partition_count, share_count);
-					sprintf(tmp, "\"%s#%u#%u\"", follow_info+1, partition_count, share_count);
+					snprintf(tmp, sizeof(tmp), "\"%s#%u#%u\"", follow_info+1, partition_count, share_count);
 					asp_send_response(NULL, tmp, strlen(tmp));
 				}
 
@@ -6076,7 +6247,7 @@ get_share_tree(asp_reent* reent, const asp_text* params, asp_text* ret) {
 				asp_send_response(NULL, ", ", 2);//websWrite(wp, ", ");
 
 			//websWrite(wp, "\"%s#%u#%u\"", follow_disk->tag, disk_count, partition_count);
-			sprintf(tmp, "\"%s#%u#%u\"", follow_disk->tag, disk_count, partition_count);
+			snprintf(tmp, sizeof(tmp), "\"%s#%u#%u\"", follow_disk->tag, disk_count, partition_count);
 			asp_send_response(NULL, tmp, strlen(tmp));
 		}
 
@@ -6105,7 +6276,7 @@ set_account_permission (asp_reent* reent, const asp_text* params, asp_text* ret)
 
 	//Carlos 2015/07/31, Add UTF-8 processor
 	char buf[1024];
-	sprintf(buf, "%s", folder);
+	snprintf(buf, sizeof(buf), "%s", folder);
 	if(decode(buf, folder) > 0) {
 		con_dbgprintf("[%s, %d]folder:%s\n", __FUNCTION__, __LINE__, folder);
 	}
@@ -6116,7 +6287,7 @@ set_account_permission (asp_reent* reent, const asp_text* params, asp_text* ret)
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "set_account_permission_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\nset_account_permission_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\nset_account_permission_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -6129,7 +6300,7 @@ set_account_permission (asp_reent* reent, const asp_text* params, asp_text* ret)
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "set_account_permission_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\nset_account_permission_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\nset_account_permission_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -6144,7 +6315,7 @@ set_account_permission (asp_reent* reent, const asp_text* params, asp_text* ret)
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "set_account_permission_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\nset_account_permission_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\nset_account_permission_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -6157,7 +6328,7 @@ set_account_permission (asp_reent* reent, const asp_text* params, asp_text* ret)
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "set_account_permission_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\nset_account_permission_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\nset_account_permission_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -6173,7 +6344,7 @@ set_account_permission (asp_reent* reent, const asp_text* params, asp_text* ret)
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "set_account_permission_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\nset_account_permission_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\nset_account_permission_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -6186,7 +6357,7 @@ set_account_permission (asp_reent* reent, const asp_text* params, asp_text* ret)
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "set_account_permission_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\nset_account_permission_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\nset_account_permission_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -6199,7 +6370,7 @@ set_account_permission (asp_reent* reent, const asp_text* params, asp_text* ret)
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "set_account_permission_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\nset_account_permission_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\nset_account_permission_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -6212,7 +6383,7 @@ set_account_permission (asp_reent* reent, const asp_text* params, asp_text* ret)
 		// websWrite(wp, "<script>\n");
 		// websWrite(wp, "set_account_permission_error(\'%s\');\n", error_msg);
 		// websWrite(wp, "</script>\n");
-		sprintf(tmp, "<script>\nset_account_permission_error(\'%s\');\n</script>\n", error_msg);
+		snprintf(tmp, sizeof(tmp), "<script>\nset_account_permission_error(\'%s\');\n</script>\n", error_msg);
 		asp_send_response(NULL, tmp, strlen(tmp));
 
 		clean_error_msg();
@@ -6234,7 +6405,7 @@ set_account_permission (asp_reent* reent, const asp_text* params, asp_text* ret)
 			// websWrite(wp, "<script>\n");
 			// websWrite(wp, "set_account_permission_error(\'%s\');\n", error_msg);
 			// websWrite(wp, "</script>\n");
-			sprintf(tmp, "<script>\nset_account_permission_error(\'%s\');\n</script>\n", error_msg);
+			snprintf(tmp, sizeof(tmp), "<script>\nset_account_permission_error(\'%s\');\n</script>\n", error_msg);
 			asp_send_response(NULL, tmp, strlen(tmp));
 
 			clean_error_msg();
@@ -6259,7 +6430,7 @@ set_account_permission (asp_reent* reent, const asp_text* params, asp_text* ret)
 	// websWrite(wp, "<script>\n");
 	// websWrite(wp, "set_account_permission_success();\n");
 	// websWrite(wp, "</script>\n");
-	sprintf(tmp, "<script>\nset_account_permission_success();\n</script>\n");
+	snprintf(tmp, sizeof(tmp), "<script>\nset_account_permission_success();\n</script>\n");
 	asp_send_response(NULL, tmp, strlen(tmp));
 
 	return;// 0;
@@ -6291,140 +6462,140 @@ get_printer_info (asp_reent* reent, const asp_text* params, asp_text* ret) {
 			// strncpy(printer_array[port_num-1][1], nvram_safe_get(strcat_r(prefix, "_manufacturer", tmp)), 64);
 			// strncpy(printer_array[port_num-1][2], nvram_safe_get(strcat_r(prefix, "_product", tmp)), 64);
 			// strncpy(printer_array[port_num-1][3], nvram_safe_get(strcat_r(prefix, "_serial", tmp)), 64);
-			tcapi_get("USB_Entry", strcat_r(prefix, "_manufacturer", tmp), value);
+			tcapi_get("USB_Entry", strcat_rs(prefix, "_manufacturer", tmp, sizeof(tmp)), value);
 			strncpy(printer_array[port_num-1][1], value, 64);
-			tcapi_get("USB_Entry", strcat_r(prefix, "_product", tmp), value);
+			tcapi_get("USB_Entry", strcat_rs(prefix, "_product", tmp, sizeof(tmp)), value);
 			strncpy(printer_array[port_num-1][2], value, 64);
-			tcapi_get("USB_Entry", strcat_r(prefix, "_serial", tmp), value);
+			tcapi_get("USB_Entry", strcat_rs(prefix, "_serial", tmp, sizeof(tmp)), value);
 			strncpy(printer_array[port_num-1][3], value, 64);
 
 			tcapi_get("USB_Entry", "u2ec_serial", value);
 			if(!strcmp(printer_array[port_num-1][3], value))
 			// if(!strcmp(printer_array[port_num-1][3], nvram_safe_get("u2ec_serial")))
-				strcpy(printer_array[port_num-1][4], "VirtualPool");
+				snprintf(printer_array[port_num-1][4], sizeof(printer_array[port_num-1][4]), "VirtualPool");
 			else
-				strcpy(printer_array[port_num-1][4], "");
+				memset(printer_array[port_num-1][4], 0, sizeof(printer_array[port_num-1][4]));
 		}
 	}
 
 	// websWrite(wp, "function printer_manufacturers(){\n");
 	// websWrite(wp, "    return [");
-	sprintf(wp, "function printer_manufacturers(){\n\treturn [");
+	snprintf(wp, sizeof(wp), "function printer_manufacturers(){\n\treturn [");
 	asp_send_response(NULL, wp, strlen(wp));
 
 	first = 1;
 	for(port_num = 1; port_num <= MAX_PRINTER_NUM; ++port_num){
 		if(strlen(printer_array[port_num-1][0]) > 0) {
 			// websWrite(wp, "\"%s\"", printer_array[port_num-1][1]);
-			sprintf(wp, "\"%s\"", printer_array[port_num-1][1]);
+			snprintf(wp, sizeof(wp), "\"%s\"", printer_array[port_num-1][1]);
 			asp_send_response(NULL, wp, strlen(wp));
 		}
 		else {
 			// websWrite(wp, "\"\"");
-			sprintf(wp, "\"\"");
+			snprintf(wp, sizeof(wp), "\"\"");
 			asp_send_response(NULL, wp, strlen(wp));
 		}
 		if(first){
 			--first;
 			// websWrite(wp, ", ");
-			sprintf(wp, ", ");
+			snprintf(wp, sizeof(wp), ", ");
 			asp_send_response(NULL, wp, strlen(wp));
 		}
 	}
 
 	// websWrite(wp, "];\n");
 	// websWrite(wp, "}\n\n");
-	sprintf(wp, "];\n}\n\n");
+	snprintf(wp, sizeof(wp), "];\n}\n\n");
 	asp_send_response(NULL, wp, strlen(wp));
 
 	// websWrite(wp, "function printer_models(){\n");
 	// websWrite(wp, "    return [");
-	sprintf(wp, "function printer_models(){\n\treturn [");
+	snprintf(wp, sizeof(wp), "function printer_models(){\n\treturn [");
 	asp_send_response(NULL, wp, strlen(wp));
 
 	first = 1;
 	for(port_num = 1; port_num <= MAX_PRINTER_NUM; ++port_num){
 		if(strlen(printer_array[port_num-1][0]) > 0) {
 			// websWrite(wp, "\"%s\"", printer_array[port_num-1][2]);
-			sprintf(wp, "\"%s\"", printer_array[port_num-1][2]);
+			snprintf(wp, sizeof(wp), "\"%s\"", printer_array[port_num-1][2]);
 			asp_send_response(NULL, wp, strlen(wp));
 		}
 		else {
 			// websWrite(wp, "\"\"");
-			sprintf(wp, "\"\"");
+			snprintf(wp, sizeof(wp), "\"\"");
 			asp_send_response(NULL, wp, strlen(wp));
 		}
 		if(first){
 			--first;
 			// websWrite(wp, ", ");
-			sprintf(wp, ", ");
+			snprintf(wp, sizeof(wp), ", ");
 			asp_send_response(NULL, wp, strlen(wp));
 		}
 	}
 
 	// websWrite(wp, "];\n");
 	// websWrite(wp, "}\n\n");
-	sprintf(wp, "];\n}\n\n");
+	snprintf(wp, sizeof(wp), "];\n}\n\n");
 	asp_send_response(NULL, wp, strlen(wp));
 
 	// websWrite(wp, "function printer_serialn(){\n");
 	// websWrite(wp, "    return [");
-	sprintf(wp, "function printer_serialn(){\n\treturn [");
+	snprintf(wp, sizeof(wp), "function printer_serialn(){\n\treturn [");
 	asp_send_response(NULL, wp, strlen(wp));
 
 	first = 1;
 	for(port_num = 1; port_num <= MAX_PRINTER_NUM; ++port_num){
 		if(strlen(printer_array[port_num-1][0]) > 0) {
 			// websWrite(wp, "\"%s\"", printer_array[port_num-1][3]);
-			sprintf(wp, "\"%s\"", printer_array[port_num-1][3]);
+			snprintf(wp, sizeof(wp), "\"%s\"", printer_array[port_num-1][3]);
 			asp_send_response(NULL, wp, strlen(wp));
 		}
 		else {
 			// websWrite(wp, "\"\"");
-			sprintf(wp, "\"\"");
+			snprintf(wp, sizeof(wp), "\"\"");
 			asp_send_response(NULL, wp, strlen(wp));
 		}
 		if(first){
 			--first;
 			// websWrite(wp, ", ");
-			sprintf(wp, ", ");
+			snprintf(wp, sizeof(wp), ", ");
 			asp_send_response(NULL, wp, strlen(wp));
 		}
 	}
 
 	// websWrite(wp, "];\n");
 	// websWrite(wp, "}\n\n");
-	sprintf(wp, "];\n}\n\n");
+	snprintf(wp, sizeof(wp), "];\n}\n\n");
 	asp_send_response(NULL, wp, strlen(wp));
 
 	// websWrite(wp, "function printer_pool(){\n");
 	// websWrite(wp, "    return [");
-	sprintf(wp, "function printer_pool(){\n\treturn [");
+	snprintf(wp, sizeof(wp), "function printer_pool(){\n\treturn [");
 	asp_send_response(NULL, wp, strlen(wp));
 
 	first = 1;
 	for(port_num = 1; port_num <= MAX_PRINTER_NUM; ++port_num){
 		if(strlen(printer_array[port_num-1][0]) > 0) {
 			// websWrite(wp, "\"%s\"", printer_array[port_num-1][4]);
-			sprintf(wp, "\"%s\"", printer_array[port_num-1][4]);
+			snprintf(wp, sizeof(wp), "\"%s\"", printer_array[port_num-1][4]);
 			asp_send_response(NULL, wp, strlen(wp));
 		}
 		else {
 			// websWrite(wp, "\"\"");
-			sprintf(wp, "\"\"");
+			snprintf(wp, sizeof(wp), "\"\"");
 			asp_send_response(NULL, wp, strlen(wp));
 		}
 		if(first){
 			--first;
 			// websWrite(wp, ", ");
-			sprintf(wp, ", ");
+			snprintf(wp, sizeof(wp), ", ");
 			asp_send_response(NULL, wp, strlen(wp));
 		}
 	}
 
 	// websWrite(wp, "];\n");
 	// websWrite(wp, "}\n\n");
-	sprintf(wp, "];\n}\n\n");
+	snprintf(wp, sizeof(wp), "];\n}\n\n");
 	asp_send_response(NULL, wp, strlen(wp));
 
 	// return 0;
@@ -6543,7 +6714,7 @@ static void cloud_status (asp_reent* reent, const asp_text* params, asp_text* re
 	websWrite(wp, "cloud_sync=\"%s\";\n", buf);
 
 	if(fp == NULL){
-		websWrite(wp, "cloud_status=\"ERROR\";\n");
+		websWrite(wp, "cloud_status=\"WAITING\";\n");
 		websWrite(wp, "cloud_obj=\"\";\n");
 		websWrite(wp, "cloud_msg=\"\";\n");
 		return;
@@ -6567,16 +6738,13 @@ static void cloud_status (asp_reent* reent, const asp_text* params, asp_text* re
 			case 2:
 				memset(buf, 0, PATH_MAX);
 				char_to_ascii(buf, line);
-				strcpy(mounted_path, buf);
+				snprintf(mounted_path, sizeof(mounted_path), "%s", buf);
 				break;
 			case 3:
-				// memset(buf, 0, PATH_MAX);
-				// char_to_ascii(buf, line);
-				// strcpy(target_obj, buf);
-				strcpy(target_obj, line); // support Chinese
+				snprintf(target_obj, sizeof(target_obj), "%s", line); // support Chinese
 				break;
 			case 4:
-				strcpy(error_msg, line);
+				snprintf(error_msg, sizeof(error_msg), "%s", line);
 				break;
 		}
 
@@ -6617,7 +6785,7 @@ static void UI_cloud_dropbox_status(asp_reent* reent, const asp_text* params, as
 		websWrite(wp, "cloud_dropbox_fullcapa=\"\";\n");
 		websWrite(wp, "cloud_dropbox_usedcapa=\"\";\n");
 		websWrite(wp, "cloud_dropbox_rule_num=\"\";\n");
-		return 0;
+		return;
 	}
 
 	memset(status, 0, 16);
@@ -6641,27 +6809,27 @@ static void UI_cloud_dropbox_status(asp_reent* reent, const asp_text* params, as
 			memset(buf, 0, PATH_MAX);
 			substr(dest, line, 11, PATH_MAX);
 			char_to_ascii(buf, dest);
-			strcpy(mounted_path, buf);
+			snprintf(mounted_path, sizeof(mounted_path), "%s", buf);
 		}
 		else if(strstr(line, "FILENAME") != NULL){
 			substr(dest, line, 9, PATH_MAX);
-			strcpy(target_obj, dest); // support Chinese
+			snprintf(target_obj, sizeof(target_obj), "%s", dest); // support Chinese
 		}
 		else if(strstr(line, "ERR_MSG") != NULL){
 			substr(dest, line, 8, PATH_MAX);
-			strcpy(error_msg, dest);
+			snprintf(error_msg, sizeof(error_msg), "%s", dest);
 		}
 		else if(strstr(line, "TOTAL_SPACE") != NULL){
 			substr(dest, line, 12, PATH_MAX);
-			strcpy(full_capa, dest);
+			snprintf(full_capa, sizeof(full_capa), "%s", dest);
 		}
 		else if(strstr(line, "USED_SPACE") != NULL){
 			substr(dest, line, 11, PATH_MAX);
-			strcpy(used_capa, dest);
+			snprintf(used_capa, sizeof(used_capa), "%s", dest);
 		}
 		else if(strstr(line, "RULENUM") != NULL){
 			substr(dest, line, 8, PATH_MAX);
-			strcpy(rule_num, dest);
+			snprintf(rule_num, sizeof(rule_num), dest);
 		}
 		
 		memset(line, 0, PATH_MAX);
@@ -6689,7 +6857,7 @@ static void UI_cloud_dropbox_status(asp_reent* reent, const asp_text* params, as
 		websWrite(wp, "cloud_dropbox_rule_num=\"%s\";\n", rule_num);
 	}
 
-	return 0;
+	return;
 }
 
 static void UI_cloud_ftpclient_status(asp_reent* reent, const asp_text* params, asp_text* ret){
@@ -6706,7 +6874,7 @@ static void UI_cloud_ftpclient_status(asp_reent* reent, const asp_text* params, 
 		websWrite(wp, "cloud_ftpclient_fullcapa=\"\";\n");
 		websWrite(wp, "cloud_ftpclient_usedcapa=\"\";\n");
 		websWrite(wp, "cloud_ftpclient_rule_num=\"\";\n");
-		return 0;
+		return;
 	}
 
 	memset(status, 0, 16);
@@ -6730,27 +6898,27 @@ static void UI_cloud_ftpclient_status(asp_reent* reent, const asp_text* params, 
 			memset(buf, 0, PATH_MAX);
 			substr(dest, line, 11, PATH_MAX);
 			char_to_ascii(buf, dest);
-			strcpy(mounted_path, buf);
+			snprintf(mounted_path, sizeof(mounted_path), "%s", buf);
 		}
 		else if(strstr(line, "FILENAME") != NULL){
 			substr(dest, line, 9, PATH_MAX);
-			strcpy(target_obj, dest); // support Chinese
+			snprintf(target_obj, sizeof(target_obj), "%s", dest); // support Chinese
 		}
 		else if(strstr(line, "ERR_MSG") != NULL){
 			substr(dest, line, 8, PATH_MAX);
-			strcpy(error_msg, dest);
+			snprintf(error_msg, sizeof(error_msg), "%s", dest);
 		}
 		else if(strstr(line, "TOTAL_SPACE") != NULL){
 			substr(dest, line, 12, PATH_MAX);
-			strcpy(full_capa, dest);
+			snprintf(full_capa, sizeof(full_capa), "%s", dest);
 		}
 		else if(strstr(line, "USED_SPACE") != NULL){
 			substr(dest, line, 11, PATH_MAX);
-			strcpy(used_capa, dest);
+			snprintf(used_capa, sizeof(used_capa), "%s", dest);
 		}
 		else if(strstr(line, "RULENUM") != NULL){
 			substr(dest, line, 8, PATH_MAX);
-			strcpy(rule_num, dest);
+			snprintf(rule_num, sizeof(rule_num), "%s", dest);
 		}
 		
 		memset(line, 0, PATH_MAX);
@@ -6778,7 +6946,7 @@ static void UI_cloud_ftpclient_status(asp_reent* reent, const asp_text* params, 
 		websWrite(wp, "cloud_ftpclient_rule_num=\"%s\";\n", rule_num);
 	}
 
-	return 0;
+	return;
 }
 
 static void UI_cloud_sambaclient_status(asp_reent* reent, const asp_text* params, asp_text* ret){
@@ -6795,7 +6963,7 @@ static void UI_cloud_sambaclient_status(asp_reent* reent, const asp_text* params
 		websWrite(wp, "cloud_sambaclient_fullcapa=\"\";\n");
 		websWrite(wp, "cloud_sambaclient_usedcapa=\"\";\n");
 		websWrite(wp, "cloud_sambaclient_rule_num=\"\";\n");
-		return 0;
+		return;
 	}
 
 	memset(status, 0, 16);
@@ -6819,27 +6987,27 @@ static void UI_cloud_sambaclient_status(asp_reent* reent, const asp_text* params
 			memset(buf, 0, PATH_MAX);
 			substr(dest, line, 11, PATH_MAX);
 			char_to_ascii(buf, dest);
-			strcpy(mounted_path, buf);
+			snprintf(mounted_path, sizeof(mounted_path), "%s", buf);
 		}
 		else if(strstr(line, "FILENAME") != NULL){
 			substr(dest, line, 9, PATH_MAX);
-			strcpy(target_obj, dest); // support Chinese
+			snprintf(target_obj, sizeof(target_obj), "%s", dest); // support Chinese
 		}
 		else if(strstr(line, "ERR_MSG") != NULL){
 			substr(dest, line, 8, PATH_MAX);
-			strcpy(error_msg, dest);
+			snprintf(error_msg, sizeof(error_msg), "%s", dest);
 		}
 		else if(strstr(line, "TOTAL_SPACE") != NULL){
 			substr(dest, line, 12, PATH_MAX);
-			strcpy(full_capa, dest);
+			snprintf(full_capa, sizeof(full_capa), "%s", dest);
 		}
 		else if(strstr(line, "USED_SPACE") != NULL){
 			substr(dest, line, 11, PATH_MAX);
-			strcpy(used_capa, dest);
+			snprintf(used_capa, sizeof(used_capa), "%s", dest);
 		}
 		else if(strstr(line, "RULENUM") != NULL){
 			substr(dest, line, 8, PATH_MAX);
-			strcpy(rule_num, dest);
+			snprintf(rule_num, sizeof(rule_num), "%s", dest);
 		}
 		
 		memset(line, 0, PATH_MAX);
@@ -6867,7 +7035,7 @@ static void UI_cloud_sambaclient_status(asp_reent* reent, const asp_text* params
 		websWrite(wp, "cloud_sambaclient_rule_num=\"%s\";\n", rule_num);
 	}
 
-	return 0;
+	return;
 }
 
 static void UI_cloud_usbclient_status(asp_reent* reent, const asp_text* params, asp_text* ret){
@@ -6884,7 +7052,7 @@ static void UI_cloud_usbclient_status(asp_reent* reent, const asp_text* params, 
 		websWrite(wp, "cloud_usbclient_fullcapa=\"\";\n");
 		websWrite(wp, "cloud_usbclient_usedcapa=\"\";\n");
 		websWrite(wp, "cloud_usbclient_rule_num=\"\";\n");
-		return 0;
+		return;
 	}
 
 	memset(status, 0, 16);
@@ -6908,27 +7076,27 @@ static void UI_cloud_usbclient_status(asp_reent* reent, const asp_text* params, 
 			memset(buf, 0, PATH_MAX);
 			substr(dest, line, 11, PATH_MAX);
 			char_to_ascii(buf, dest);
-			strcpy(mounted_path, buf);
+			snprintf(mounted_path, sizeof(mounted_path), "%s", buf);
 		}
 		else if(strstr(line, "FILENAME") != NULL){
 			substr(dest, line, 9, PATH_MAX);
-			strcpy(target_obj, dest); // support Chinese
+			snprintf(target_obj, sizeof(target_obj), "%s", dest); // support Chinese
 		}
 		else if(strstr(line, "ERR_MSG") != NULL){
 			substr(dest, line, 8, PATH_MAX);
-			strcpy(error_msg, dest);
+			snprintf(error_msg, sizeof(error_msg), "%s", dest);
 		}
 		else if(strstr(line, "TOTAL_SPACE") != NULL){
 			substr(dest, line, 12, PATH_MAX);
-			strcpy(full_capa, dest);
+			snprintf(full_capa, sizeof(full_capa), "%s", dest);
 		}
 		else if(strstr(line, "USED_SPACE") != NULL){
 			substr(dest, line, 11, PATH_MAX);
-			strcpy(used_capa, dest);
+			snprintf(used_capa, sizeof(used_capa), "%s", dest);
 		}
 		else if(strstr(line, "RULENUM") != NULL){
 			substr(dest, line, 8, PATH_MAX);
-			strcpy(rule_num, dest);
+			snprintf(rule_num, sizeof(rule_num), "%s", dest);
 		}
 		
 		memset(line, 0, PATH_MAX);
@@ -6956,7 +7124,7 @@ static void UI_cloud_usbclient_status(asp_reent* reent, const asp_text* params, 
 		websWrite(wp, "cloud_usbclient_rule_num=\"%s\";\n", rule_num);
 	}
 
-	return 0;
+	return;
 }
 
 static void UI_cloud_status (asp_reent* reent, const asp_text* params, asp_text* ret)
@@ -6968,7 +7136,7 @@ static void UI_cloud_status (asp_reent* reent, const asp_text* params, asp_text*
 	char wp[256] = {0};
 
 	if(fp == NULL){
-		websWrite(wp, "cloud_status=\"ERROR\";\n");
+		websWrite(wp, "cloud_status=\"WAITING\";\n");
 		websWrite(wp, "cloud_obj=\"\";\n");
 		websWrite(wp, "cloud_msg=\"\";\n");
 		websWrite(wp, "cloud_fullcapa=\"\";\n");
@@ -6996,24 +7164,24 @@ static void UI_cloud_status (asp_reent* reent, const asp_text* params, asp_text*
 			memset(buf, 0, PATH_MAX);
 			substr(dest, line, 11, PATH_MAX);
 			char_to_ascii(buf, dest);
-			strcpy(mounted_path, buf);
+			snprintf(mounted_path, sizeof(mounted_path), "%s", buf);
 		}
 		else if(strstr(line, "FILENAME") != NULL){
 			substr(dest, line, 9, PATH_MAX);
-			strcpy(target_obj, dest); // support Chinese
+			snprintf(target_obj, sizeof(target_obj), "%s", dest); // support Chinese
 			break;
 		}
 		else if(strstr(line, "ERR_MSG") != NULL){
 			substr(dest, line, 8, PATH_MAX);
-			strcpy(error_msg, dest);
+			snprintf(error_msg, sizeof(error_msg), "%s", dest);
 		}
 		else if(strstr(line, "TOTAL_SPACE") != NULL){
 			substr(dest, line, 12, PATH_MAX);
-			strcpy(full_capa, dest);
+			snprintf(full_capa, sizeof(full_capa), "%s", dest);
 		}
 		else if(strstr(line, "USED_SPACE") != NULL){
 			substr(dest, line, 11, PATH_MAX);
-			strcpy(used_capa, dest);
+			snprintf(used_capa, sizeof(used_capa), "%s", dest);
 		}
 
 		memset(line, 0, PATH_MAX);
@@ -7030,6 +7198,10 @@ static void UI_cloud_status (asp_reent* reent, const asp_text* params, asp_text*
 	else{
 		websWrite(wp, "cloud_status=\"%s\";\n", status);
 		websWrite(wp, "cloud_obj=\"%s\";\n", target_obj);
+		if(!strcmp(status,"SYNC"))
+		   strncpy(error_msg,"Sync has been completed",PATH_MAX);
+		else if(!strcmp(status,"INITIAL"))
+		   strncpy(error_msg,"Verifying",PATH_MAX);
 		websWrite(wp, "cloud_msg=\"%s\";\n", error_msg);
 		websWrite(wp, "cloud_fullcapa=\"%s\";\n", full_capa);
 		websWrite(wp, "cloud_usedcapa=\"%s\";\n", used_capa);
@@ -7048,7 +7220,7 @@ static void UI_rs_status (asp_reent* reent, const asp_text* params, asp_text* re
 
         if(fp == NULL){
                 websWrite(wp, "rs_rulenum=\"\";\n");
-                websWrite(wp, "rs_status=\"ERROR\";\n");
+                websWrite(wp, "rs_status=\"WAITING\";\n");
                 websWrite(wp, "rs_obj=\"\";\n");
                 websWrite(wp, "rs_msg=\"\";\n");
                 websWrite(wp, "rs_fullcapa=\"\";\n");
@@ -7075,29 +7247,29 @@ static void UI_rs_status (asp_reent* reent, const asp_text* params, asp_text* re
                 }
                 else if(strstr(line, "RULENUM") != NULL){
                         substr(dest, line, 8, PATH_MAX);
-                        strcpy(rulenum, dest);
+                        snprintf(rulenum, sizeof(rulenum), "%s", dest);
                 }
                 else if(strstr(line, "MOUNT_PATH") != NULL){
                         memset(buf, 0, PATH_MAX);
                         substr(dest, line, 11, PATH_MAX);
                         char_to_ascii(buf, dest);
-                        strcpy(mounted_path, buf);
+                        snprintf(mounted_path, sizeof(mounted_path), "%s", buf);
                 }
                 else if(strstr(line, "FILENAME") != NULL){
                         substr(dest, line, 9, PATH_MAX);
-                        strcpy(target_obj, dest); // support Chinese
+                        snprintf(target_obj, sizeof(target_obj), "%s", dest); // support Chinese
                 }
                 else if(strstr(line, "ERR_MSG") != NULL){
                         substr(dest, line, 8, PATH_MAX);
-                        strcpy(error_msg, dest);
+                        snprintf(error_msg, sizeof(error_msg), "%s", dest);
                 }
                 else if(strstr(line, "TOTAL_SPACE") != NULL){
                         substr(dest, line, 12, PATH_MAX);
-                        strcpy(full_capa, dest);
+                        snprintf(full_capa, sizeof(full_capa), "%s", dest);
                 }
                 else if(strstr(line, "USED_SPACE") != NULL){
                         substr(dest, line, 11, PATH_MAX);
-                        strcpy(used_capa, dest);
+                        snprintf(used_capa, sizeof(used_capa), "%s", dest);
                 }
 
                 memset(line, 0, PATH_MAX);
@@ -7116,6 +7288,10 @@ static void UI_rs_status (asp_reent* reent, const asp_text* params, asp_text* re
                 websWrite(wp, "rs_rulenum=\"%s\";\n", rulenum);
                 websWrite(wp, "rs_status=\"%s\";\n", status);
                 websWrite(wp, "rs_obj=\"%s\";\n", target_obj);
+		if(!strcmp(status,"SYNC"))
+		   strncpy(error_msg,"Sync has been completed",PATH_MAX);
+		else if(!strcmp(status,"INITIAL"))
+		   strncpy(error_msg,"Verifying",PATH_MAX);
                 websWrite(wp, "rs_msg=\"%s\";\n", error_msg);
                 websWrite(wp, "rs_fullcapa=\"%s\";\n", full_capa);
                 websWrite(wp, "rs_usedcapa=\"%s\";\n", used_capa);
@@ -7133,7 +7309,7 @@ static void ej_webdavInfo(asp_reent* reent, const asp_text* params, asp_text* re
 	websWrite(wp, "// pktInfo=['PrinterInfo','SSID','NetMask','ProductID','FWVersion','OPMode','MACAddr','Regulation'];\n");
 	websWrite(wp, "pktInfo=['','%s',", tcapi_get_string("WLan_Entry0", "wl0_ssid", buf));
 	websWrite(wp, "'%s',", tcapi_get_string("Lan_Entry0", "netmask", buf));
-	websWrite(wp, "'%s',", tcapi_get_string("SysInfo_Entry", "ProductName", buf));
+	websWrite(wp, "'%s',", get_productid());
 	websWrite(wp, "'%s',", tcapi_get_string("DeviceInfo", "FwVer", buf));
 	websWrite(wp, "'1',");	//sw_mode
 	websWrite(wp, "'%s',", tcapi_get_string("Info_Ether", "mac", buf));
@@ -7228,30 +7404,30 @@ static void apps_action(asp_reent* reent, const asp_text* params, asp_text* ret)
 		if(strlen(apps_name) <= 0 || strlen(apps_flag) <= 0)
 			return;
 
-		// sprintf(command, "start_apps_install %s %s", apps_name, apps_flag);
-		sprintf(command, "app_install.sh %s %s", apps_name, apps_flag);
+		// snprintf(command, sizeof(command), "start_apps_install %s %s", apps_name, apps_flag);
+		snprintf(command, sizeof(command), "app_install.sh %s %s", apps_name, apps_flag);
 	}
 	else if(!strcmp(apps_action, "stop")){
-		// sprintf(command, "start_apps_stop");
-		sprintf(command, "app_stop.sh");
+		// snprintf(command, sizeof(command), "start_apps_stop");
+		snprintf(command, sizeof(command), "app_stop.sh");
 	}
 	else if(!strcmp(apps_action, "update")){
-		// sprintf(command, "start_apps_update");
-		sprintf(command, "app_update.sh");
+		// snprintf(command, sizeof(command), "start_apps_update");
+		snprintf(command, sizeof(command), "app_update.sh");
 	}
 	else if(!strcmp(apps_action, "upgrade")){
 		if(strlen(apps_name) <= 0)
 			return;
 
-		// sprintf(command, "start_apps_upgrade %s", apps_name);
-		sprintf(command, "app_upgrade.sh %s", apps_name);
+		// snprintf(command, sizeof(command), "start_apps_upgrade %s", apps_name);
+		snprintf(command, sizeof(command), "app_upgrade.sh %s", apps_name);
 	}
 	else if(!strcmp(apps_action, "remove")){
 		if(strlen(apps_name) <= 0)
 			return;
 
-		// sprintf(command, "start_apps_remove %s", apps_name);
-		sprintf(command, "app_remove.sh %s", apps_name);
+		// snprintf(command, sizeof(command), "start_apps_remove %s", apps_name);
+		snprintf(command, sizeof(command), "app_remove.sh %s", apps_name);
 	}
 	else if(!strcmp(apps_action, "enable")){
 		if(strlen(apps_name) <= 0 || strlen(apps_flag) <= 0)
@@ -7260,19 +7436,19 @@ static void apps_action(asp_reent* reent, const asp_text* params, asp_text* ret)
 		if(strcmp(apps_flag, "yes") && strcmp(apps_flag, "no"))
 			return;
 
-		// sprintf(command, "start_apps_enable %s %s", apps_name, apps_flag);
-		sprintf(command, "app_set_enabled.sh %s %s", apps_name, apps_flag);
+		// snprintf(command, sizeof(command), "start_apps_enable %s %s", apps_name, apps_flag);
+		snprintf(command, sizeof(command), "app_set_enabled.sh %s %s", apps_name, apps_flag);
 	}
 	else if(!strcmp(apps_action, "switch")){
 		if(strlen(apps_name) <= 0 || strlen(apps_flag) <= 0)
 			return;
 
-		// sprintf(command, "start_apps_switch %s %s", apps_name, apps_flag);
-		sprintf(command, "app_switch.sh %s %s", apps_name, apps_flag);
+		// snprintf(command, sizeof(command), "start_apps_switch %s %s", apps_name, apps_flag);
+		snprintf(command, sizeof(command), "app_switch.sh %s %s", apps_name, apps_flag);
 	}
 	else if(!strcmp(apps_action, "cancel")){
-		// sprintf(command, "start_apps_cancel");
-		sprintf(command, "app_cancel.sh");
+		// snprintf(command, sizeof(command), "start_apps_cancel");
+		snprintf(command, sizeof(command), "app_cancel.sh");
 	}
 
 	// if(strlen(command) > 0)
@@ -7288,7 +7464,7 @@ static void apps_action(asp_reent* reent, const asp_text* params, asp_text* ret)
 		tcapi_set(APPS_DATA, "apps_state_upgrade", "");
 		tcapi_set(APPS_DATA, "apps_state_cancel", "");
 		tcapi_set(APPS_DATA, "apps_state_error", "");
-		strcat(command, " &");
+		snprintf(command + strlen(command), sizeof(command) - strlen(command),  " &");
 		system(command);
 	}
 
@@ -7306,16 +7482,16 @@ static void dms_info(asp_reent* reent, const asp_text* params, asp_text* ret){
 
 	tcapi_get("Apps_Entry", "dms_dbcwd", dms_dbcwd);
 
-	strcpy(dms_status, "");
+	memset(dms_status, 0, sizeof(dms_status));
 
 	if(strlen(dms_dbcwd))
 	{
-		sprintf(dms_scanfile, "%s/scantag", dms_dbcwd);
+		snprintf(dms_scanfile, sizeof(dms_scanfile), "%s/scantag", dms_dbcwd);
 
 		fp = fopen(dms_scanfile, "r");
 
 		if(fp) {
-			strcpy(dms_status, "Scanning");
+			snprintf(dms_status, sizeof(dms_status), "Scanning");
 			fclose(fp);
 		}
 	}
@@ -7367,52 +7543,52 @@ static void show_error_msg(const char *const msg_num){
 	char str_path[PATH_LENGTH] = {0};
 
 	memset(msg_name, 0, 32);
-	sprintf(msg_name, "ALERT_OF_ERROR_%s", msg_num);
+	snprintf(msg_name, sizeof(msg_name), "ALERT_OF_ERROR_%s", msg_num);
 
 	tcapi_get("LanguageSwitch_Entry", "Type", str_type);
 	if (strlen(str_type))
 		nIndex = atoi(str_type);
 
 	if(nIndex == 1) //English
-		sprintf(str_path, STRING_PATH, "EN");
+		snprintf(str_path, sizeof(str_path), STRING_PATH, "EN");
 	else if(nIndex == 2) //Brazil
-		sprintf(str_path, STRING_PATH, "BR");
+		snprintf(str_path, sizeof(str_path), STRING_PATH, "BR");
 	else if(nIndex == 3) //Simplified Chinese
-		sprintf(str_path, STRING_PATH, "CN");
+		snprintf(str_path, sizeof(str_path), STRING_PATH, "CN");
 	else if(nIndex == 4) //Cesky
-		sprintf(str_path, STRING_PATH, "CZ");
+		snprintf(str_path, sizeof(str_path), STRING_PATH, "CZ");
 	else if(nIndex == 5) //Dansk
-		sprintf(str_path, STRING_PATH, "DA");
+		snprintf(str_path, sizeof(str_path), STRING_PATH, "DA");
 	else if(nIndex == 6) //Deutsch
-		sprintf(str_path, STRING_PATH, "DE");
+		snprintf(str_path, sizeof(str_path), STRING_PATH, "DE");
 	else if(nIndex == 7) //Espanol
-		sprintf(str_path, STRING_PATH, "ES");
+		snprintf(str_path, sizeof(str_path), STRING_PATH, "ES");
 	else if(nIndex == 8) //Finsk
-		sprintf(str_path, STRING_PATH, "FI");
+		snprintf(str_path, sizeof(str_path), STRING_PATH, "FI");
 	else if(nIndex == 9) //Francais
-		sprintf(str_path, STRING_PATH, "FR");
+		snprintf(str_path, sizeof(str_path), STRING_PATH, "FR");
 	else if(nIndex == 10) //Italiano
-		sprintf(str_path, STRING_PATH, "IT");
+		snprintf(str_path, sizeof(str_path), STRING_PATH, "IT");
 	else if(nIndex == 11) //Malay
-		sprintf(str_path, STRING_PATH, "MS");
+		snprintf(str_path, sizeof(str_path), STRING_PATH, "MS");
 	else if(nIndex == 12) //Norsk
-		sprintf(str_path, STRING_PATH, "NO");
+		snprintf(str_path, sizeof(str_path), STRING_PATH, "NO");
 	else if(nIndex == 13) //Polski
-		sprintf(str_path, STRING_PATH, "PL");
+		snprintf(str_path, sizeof(str_path), STRING_PATH, "PL");
 	else if(nIndex == 14) //Russian
-		sprintf(str_path, STRING_PATH, "RU");
+		snprintf(str_path, sizeof(str_path), STRING_PATH, "RU");
 	else if(nIndex == 15) //Svensk
-		sprintf(str_path, STRING_PATH, "SV");
+		snprintf(str_path, sizeof(str_path), STRING_PATH, "SV");
 	else if(nIndex == 16) //Thai
-		sprintf(str_path, STRING_PATH, "TH");
+		snprintf(str_path, sizeof(str_path), STRING_PATH, "TH");
 	else if(nIndex == 17) //Turkey
-		sprintf(str_path, STRING_PATH, "TR");
+		snprintf(str_path, sizeof(str_path), STRING_PATH, "TR");
 	else if(nIndex == 18) //Traditional Chinese
-		sprintf(str_path, STRING_PATH, "TW");
+		snprintf(str_path, sizeof(str_path), STRING_PATH, "TW");
 	else if(nIndex == 19) //Ukraine
-		sprintf(str_path, STRING_PATH, "UK");
+		snprintf(str_path, sizeof(str_path), STRING_PATH, "UK");
 	else
-		sprintf(str_path, STRING_PATH, "EN");
+		snprintf(str_path, sizeof(str_path), STRING_PATH, "EN");
 
 	error_msg = get_msg_from_dict(str_path, msg_name);
 #ifdef TCSUPPORT_SYSLOG_ENHANCE
@@ -7439,7 +7615,7 @@ static char *get_msg_from_dict(char *lang_path, const char *const msg_name){
 	int len;
 
 	memset(dict_file, 0, MAX_FILE_LENGTH);
-	sprintf(dict_file, "%s", lang_path);
+	snprintf(dict_file, sizeof(dict_file), "%s", lang_path);
 
 	dict_info = read_whole_file(dict_file);
 	if (dict_info == NULL){
@@ -7481,65 +7657,110 @@ static void qis_do_dsl_iptv (asp_reent* reent, const asp_text* params, asp_text*
 	char dsltmp_transfer_mode[MAXLEN_TCAPI_MSG] = {0};
 	char *nvp, *b;
 	char *p1, *p2, *p3, *p4, *p5;
-	int i = 0;
+	int i = 0, auto_detect_bng = 0;
 	char node[MAXLEN_NODE_NAME];
 	char cmd[256];
 	char tmp[64];
+
+	//If the IPTV service is in Deutsche Telekom, we must detect bng line automatically.
+	if(TCAPI_PROCESS_OK == tcapi_get("GUITemp_Entry0", "auto_detect_bng", tmp))
+	{
+		auto_detect_bng = atoi(tmp);
+		tcapi_set("IPTV_Entry", "auto_detect_bng", tmp);
+		dbgprintf("[%s, %d]set auto_detect_bng = %s\n", __FUNCTION__, __LINE__, tmp);
+	}
 
 	//LAN IPTV Settings
 	tcapi_get("GUITemp_Entry0", "dsltmp_transfer_mode", dsltmp_transfer_mode);
 	
 	if(!strncmp(dsltmp_transfer_mode, "PTM", 3)) 	//PTM
 	{
-		if(tcapi_match("GUITemp_Entry0", "dsltmp_cfg_iptv_mr", "1")) {
+		if(tcapi_match("GUITemp_Entry0", "dsltmp_cfg_iptv_mr", "1")) 
+		{
 			tcapi_set("IPTV_Entry", "vd_mr_enable_x", "1");
-			tcapi_set("IPTV_Entry", "vd_wan_port", "1");
+			if(auto_detect_bng)
+			{
+				tcapi_set("IPTV_Entry", "vd_wan_port", "0");
+			}
+			else			
+			{
+				tcapi_set("IPTV_Entry", "vd_wan_port", "1");
+			}
 		}
-		else {
+		else 
+		{
 			tcapi_set("IPTV_Entry", "vd_mr_enable_x", "0");
-		}	
-		
-		if(tcapi_match("GUITemp_Entry0", "dsltmp_cfg_iptv_rmvlan", "1")) {
+		}
+#ifdef TCSUPPORT_PIMD
+		tcapi_set("IPTV_Entry", "vd_pim_enable_x", "0");
+#endif
+
+		if(tcapi_match("GUITemp_Entry0", "dsltmp_cfg_iptv_rmvlan", "1")) 
+		{
 			tcapi_set("IPTV_Entry", "vd_rmvlan", "1");
 		}
-		else {
+		else 
+		{
 			tcapi_set("IPTV_Entry", "vd_rmvlan", "0");
 		}
+
+		tcapi_set("IPTV_Entry", "TransMode", "PTM");
 	}	
 	else	//ATM
 	{
-		if(tcapi_match("GUITemp_Entry0", "dsltmp_cfg_iptv_mr", "1")) {
+		if(tcapi_match("GUITemp_Entry0", "dsltmp_cfg_iptv_mr", "1")) 
+		{
 			tcapi_set("IPTV_Entry", "ad_mr_enable_x", "1");
-			tcapi_set("IPTV_Entry", "ad_wan_port", "1");
+			if(auto_detect_bng)
+			{
+				tcapi_set("IPTV_Entry", "ad_wan_port", "0");
+			}
+			else			
+			{
+				tcapi_set("IPTV_Entry", "ad_wan_port", "1");
+			}
 		}
-		else {
+		else 
+		{
 			tcapi_set("IPTV_Entry", "ad_mr_enable_x", "0");
 		}
+#ifdef TCSUPPORT_PIMD
+		tcapi_set("IPTV_Entry", "ad_pim_enable_x", "0");
+#endif
 
-		if(tcapi_match("GUITemp_Entry0", "dsltmp_cfg_iptv_rmvlan", "1")) {
+		if(tcapi_match("GUITemp_Entry0", "dsltmp_cfg_iptv_rmvlan", "1")) 
+		{
 			tcapi_set("IPTV_Entry", "ad_rmvlan", "1");
 		}
-		else {
+		else 
+		{
 			tcapi_set("IPTV_Entry", "ad_rmvlan", "0");
 		}
+
+		tcapi_set("IPTV_Entry", "TransMode", "ATM");
 	}
 
 	tcapi_commit("IPTV");
 
 	//Set Wan
 	if(tcapi_get("GUITemp_Entry0", "dsltmp_cfg_iptv_pvclist", dsltmp_cfg_iptv_pvclist) == TCAPI_PROCESS_OK
-		&& tcapi_get("GUITemp_Entry0", "dsltmp_transfer_mode", dsltmp_transfer_mode) == TCAPI_PROCESS_OK
-	) {
+		&& tcapi_get("GUITemp_Entry0", "dsltmp_transfer_mode", dsltmp_transfer_mode) == TCAPI_PROCESS_OK)
+	{
 		nvp = dsltmp_cfg_iptv_pvclist;
-		while( (b = strsep(&nvp, "<")) != NULL){
+		while( (b = strsep(&nvp, "<")) != NULL)
+		{
 			if((vstrsep(b, ">", &p1, &p2, &p3, &p4, &p5) != 5))
+			{
 				continue;
+			}
 			++i;
 			//dbgprintf("[%s, %d]set vpi/vci,proto,encap,vlan: [%s/%s][%s][%s][%s]\n", __FUNCTION__, __LINE__, p1,p2,p3,p4,p5);
-			if(!strncmp(dsltmp_transfer_mode, "PTM", 3)) {
+			if(!strncmp(dsltmp_transfer_mode, "PTM", 3)) 
+			{
 				snprintf(node, sizeof(node), "WanExt_PVC8e%d", i);
 			}
-			else {
+			else 
+			{
 				snprintf(node, sizeof(node), "Wan_PVC%d", i);
 				tcapi_set(node, "VPI", p1);
 				tcapi_set(node, "VCI", p2);
@@ -7548,33 +7769,43 @@ static void qis_do_dsl_iptv (asp_reent* reent, const asp_text* params, asp_text*
 				{
 					//check protocol
 					if(!strcmp(p3, "0"))		//pppoe0
+					{
 						tcapi_set(node, "ENCAP", "PPPoE LLC");
+					}
 					else if(!strcmp(p3, "1"))	//pppoa
+					{
 						tcapi_set(node, "ENCAP", "PPPoA LLC");
+					}
 					else if(!strcmp(p3, "2"))	//Automatic IP
+					{
 						tcapi_set(node, "ENCAP", "1483 Bridged IP LLC");
+					}
 //					else if(!strcmp(p3, "4"))	//ipoa
 					else	//bridge				
-					tcapi_set(node, "ENCAP", "1483 Bridged Only LLC");
+					{
+						tcapi_set(node, "ENCAP", "1483 Bridged Only LLC");
+					}
 				}	
 				else	//VC-MUX
 				{
 					if(!strcmp(p3, "0"))		//pppoe
+					{
 						tcapi_set(node, "ENCAP", "PPPoE VC-Mux");
+					}
 					else if(!strcmp(p3, "1"))	//pppoa
+					{
 						tcapi_set(node, "ENCAP", "PPPoA VC-Mux");
+					}
 					else if(!strcmp(p3, "2"))	//Automatic IP
-					tcapi_set(node, "ENCAP", "1483 Bridged IP VC-Mux");
+					{
+						tcapi_set(node, "ENCAP", "1483 Bridged IP VC-Mux");
+					}
 //					else if(!strcmp(p3, "4"))	//ipoa
 					else	//bridge				
+					{
 						tcapi_set(node, "ENCAP", "1483 Bridged Only VC-Mux");
+					}
 				}
-
-				//QoS
-				//tcapi_set(node,"QOS","rt-vbr");
-				//tcapi_set(node,"PCR","300");
-				//tcapi_set(node,"SCR","299");
-				//tcapi_set(node,"MBS","32");
 			}
 
 			//dbgprintf("[%s, %d]node(%s)\n", __FUNCTION__, __LINE__, node);
@@ -7585,10 +7816,14 @@ static void qis_do_dsl_iptv (asp_reent* reent, const asp_text* params, asp_text*
 				tcapi_set(node, "ISP", "2");
 
 				if(!tcapi_get("GUITemp_Entry0", "dsltmp_cfg_iptv_username", tmp) && tmp[0] != '\0')
+				{
 					tcapi_set(node, "USERNAME", tmp);
+				}
 				
 				if(!tcapi_get("GUITemp_Entry0", "dsltmp_cfg_iptv_passwd", tmp) && tmp[0] != '\0')
+				{
 					tcapi_set(node, "PASSWORD", tmp);
+				}
 
 				tcapi_set(node, "WAN_MAC", "");
 				tcapi_set(node, "AUTHEN", "AUTO");
@@ -7616,13 +7851,19 @@ static void qis_do_dsl_iptv (asp_reent* reent, const asp_text* params, asp_text*
 				{					
 					tcapi_set(node, "DNS_type", "1");
 					if(!tcapi_get("GUITemp_Entry0", "dsltmp_cfg_iptv_dns1", tmp) && tmp[0] != '\0')
+					{
 						tcapi_set(node, "Primary_DNS", tmp);
+					}
 
 					if(!tcapi_get("GUITemp_Entry0", "dsltmp_cfg_iptv_dns2", tmp) && tmp[0] != '\0')
+					{
 						tcapi_set(node, "Secondary_DNS", tmp);					
+					}
 				}
-			else
+				else
+				{
 					tcapi_set(node, "DNS_type", "0");
+				}
 				tcapi_set(node, "MLDproxy", "No");				
 				tcapi_set(node, "DEFAULTROUTE", "No");				
 				tcapi_set(node, "MTU", "1492");				
@@ -7631,16 +7872,17 @@ static void qis_do_dsl_iptv (asp_reent* reent, const asp_text* params, asp_text*
 			}
 			else	//bridge
 			{
-				dbgprintf("[%s, %d]\n", __FUNCTION__, __LINE__);
 				tcapi_set(node, "ISP", "3");
 				tcapi_set(node, "bridge_lan_port", "1");
 			}
 			
 			//vlan
-			if(!strcmp(p5, "")) {
+			if(!strcmp(p5, "")) 
+			{
 				tcapi_set(node, "dot1q", "No");
 			}
-			else {
+			else 
+			{
 				tcapi_set(node, "dot1q", "Yes");
 				tcapi_set(node, "VLANID", p5);
 			}
@@ -7649,30 +7891,19 @@ static void qis_do_dsl_iptv (asp_reent* reent, const asp_text* params, asp_text*
 			tcapi_set(node, "Active", "Yes");
 			tcapi_commit(node);
 		}
-#if 0
-		if(i) {
-			tcapi_set("IPTV_Entry", "switch_stb_x", "1");
-		#ifdef TCSUPPORT_WAN_ETHER_LAN
-			int wans_lanport = -1;
-			tcapi_set("Dualwan_Entry", "wans_lanport", "4");
-			wans_lanport = get_cur_lanwan_port();
-			if(wans_lanport != -1) {
-				set_lanwan_if(wans_lanport, 4);
-				tcapi_commit("Wan_PVC12");
-			}
-		#endif
-		}
-		else {
-#endif
-		if(!i){
+		if(!i)
+		{
 			//disable iptv pvc if re-run QIS but select internet service only.
-			for(i = 1; i < 8; i++) {
+			for(i = 1; i < 8; i++) 
+			{
 			#ifdef TCSUPPORT_MULTISERVICE_ON_WAN
-				if(!strncmp(dsltmp_transfer_mode, "PTM", 3)) {
+				if(!strncmp(dsltmp_transfer_mode, "PTM", 3)) 
+				{
 					snprintf(node, sizeof(node), "WanExt_PVC8e%d", i);
 					snprintf(cmd, sizeof(cmd), "/usr/script/wan_stop.sh 8 %d; /usr/bin/smuxctl rem nas8_%d", i, i);
 				}
-				else {
+				else 
+				{
 					snprintf(node, sizeof(node), "Wan_PVC%d", i);
 					snprintf(cmd, sizeof(cmd), "/usr/script/wan_stop.sh %d 0", i);
 				}
@@ -7680,12 +7911,19 @@ static void qis_do_dsl_iptv (asp_reent* reent, const asp_text* params, asp_text*
 				snprintf(node, sizeof(node), "Wan_PVC%d", i);
 				snprintf(cmd, sizeof(cmd), "/usr/script/wan_stop.sh %d", i);
 			#endif
-				if(tcapi_match(node, "Active", "Yes")) {
+				if(tcapi_match(node, "Active", "Yes"))
+				{
 					system(cmd);
 					tcapi_set(node, "Active", "No");
 				}
 			}
 		}
+	}
+
+	tcapi_set("Misc_Entry", "qis_notification_iptv", "0");	//Andy Chiu, 2017/2/21. clean qis notificaiton
+	if(tcapi_get("IPTV_Entry", "switch_stb_x", tmp) == TCAPI_PROCESS_OK)
+	{
+		tcapi_set("IPTV_Entry", "switch_stb_x", "0");
 	}
 }
 
@@ -7754,10 +7992,17 @@ static void do_apply_cgi (asp_reent* reent, const asp_text* params, asp_text* re
 			/* [SET] [QoS] Parental Control Rule */
 			if(!strcmp(action_script, "saveNvram")) {
 				char *current_page = get_cgi_json(g_var_post, "current_page", root);
-
 				if(current_page) {
+					if(!strcmp(current_page, "Advanced_IPTV_Content.asp")) {
+						char *formname = get_cgi_json(g_var_post, "formname", root);
+						if(formname) {
+							if(!strcmp(formname, "igmpproxy_form")) {
+								_save_igmpproxy_param();
+							}
+						}
+					}
 #ifdef RTCONFIG_OPENVPN
-					if(!strcmp(current_page, "Advanced_VPN_OpenVPN.asp")) {
+					else if(!strcmp(current_page, "Advanced_VPN_OpenVPN.asp")) {
 						char *formname = get_cgi_json(g_var_post, "formname", root);
 
 						if(formname) {
@@ -7794,7 +8039,7 @@ static void do_apply_cgi (asp_reent* reent, const asp_text* params, asp_text* re
 				j++;
 			else{
 				_dprintf("[httpd] Invalid SystemCmd!\n");
-				strcpy(SystemCmd, "");
+				memset(SystemCmd, 0, sizeof(SystemCmd));
 
 				json_object_put(root);
 				websRedirect_iframe(wp, current_url);
@@ -7834,7 +8079,7 @@ static void do_apply_cgi (asp_reent* reent, const asp_text* params, asp_text* re
 		}
 		else{
 			_dprintf("[httpd] Invalid SystemCmd!\n");
-			strcpy(SystemCmd, "");
+			memset(SystemCmd, 0, sizeof(SystemCmd));
 		}
 
 		websWrite(wp, "MODIFIED\n");
@@ -7901,9 +8146,9 @@ static void do_apply_cgi (asp_reent* reent, const asp_text* params, asp_text* re
 
 			memset(value, 0, sizeof(value));
 			if(!strncmp(wan_unit, "1", 1))
-				sprintf(value, "%d", wan_secondary_pvcunit());
+				snprintf(value, sizeof(value), "%d", wan_secondary_pvcunit());
 			else
-				sprintf(value, "%d", wan_primary_pvcunit());
+				snprintf(value, sizeof(value), "%d", wan_primary_pvcunit());
 			tcapi_set("WebCurSet_Entry", "wan_pvc", value);
 
 			if(!strcmp(value, "0"))
@@ -8022,144 +8267,139 @@ static int appSet_attribute(char *wp, json_object *root)
 {
 	int app_method_hit = 0, tmpInt = -1;
 	char tmp[4096], wan0_node[16], wan1_node[16];
-
+#ifdef RTCONFIG_DUALWAN
+	int pri_unit = wan_primary_pvcunit();
+	int sec_unit = wan_secondary_pvcunit();
+#else
 	int pri_unit = wan_primary_ifunit();
-	int sec_unit = wan_secondary_ifunit();
-	if (pri_unit >= 0) {
-		sprintf(wan0_node, "Wan_PVC%d", pri_unit);
-	}
-	if (sec_unit >= 0) {
-		sprintf(wan1_node, "Wan_PVC%d", sec_unit);
-	}
+	int sec_unit = -1;
+#endif
 
-	/* AiHome [SET] [AiProtection] Router Security - Secure your router */
-	/* not support
-	char *wan1_upnp_enable = get_cgi_json(g_var_post, "wan1_upnp_enable", root);
-	char *wrs_cc_enable = get_cgi_json(g_var_post, "wrs_cc_enable", root);
-	char *wrs_vp_enable = get_cgi_json(g_var_post, "wrs_vp_enable", root);
-	char *wrs_mals_enable = get_cgi_json(g_var_post, "wrs_mals_enable", root);
+	/****** Set Nvram (Attribute) ******/
+	/* not support nvram
+	[SET] [AiProtection] Router Security - Secure your router: wan1_upnp_enable, wrs_cc_enable, wrs_vp_enable, wrs_mals_enable
+	[SET] [Client List] Custom Name: custom_clientlist, e.g. <$nickName>$mac>0>$type>>
+	[SET] [Client List] User Icon: custom_usericon, e.g. <$mac>$imagebase64
+		if(custom_usericon) {(void)handle_upload_icon(value);}
+	[SET] [QoS] game first mode: bwdpi_app_rulelist, ctf_fa_mode
+	[SET] [Guest Network] 2.4GHz - 1: wl0_1_mbss; 5GHz - 1: wl1_1_mbss
+	[SET] [Wireless] General Setting: acs_dfs, wl_chanspec
+	[SET] [CloudCheck] Enabled: enable_cloudcheck
+	[SET] [Change Mode] Repeater mode setting
+	[SET] [USB] samba - NTFS Sparse Files Support: usb_fs_ntfs_sparse
+	[SET] [Wireless] RF 4x4 to 1x1
+	[SET] [QIS] Wan L2TP Setting, Wan PPTP Setting: wan0_heartbeat_x
+	DUT_RT_SetBandwidthMonitorMode: apps_analysis
 	 */
+	/* [SET] [AiProtection] Router Security - Secure your router */
 	char *wan0_upnp_enable = get_cgi_json(g_var_post, "wan0_upnp_enable", root);
-	char *misc_http_x = get_cgi_json(g_var_post, "misc_http_x", root);
-	char *misc_ping_x = get_cgi_json(g_var_post, "misc_ping_x", root);
-	char *dmz_ip = get_cgi_json(g_var_post, "dmz_ip", root);
-	char *autofw_enable_x = get_cgi_json(g_var_post, "autofw_enable_x", root);
-	char *wps_enable = get_cgi_json(g_var_post, "wps_enable", root);
-	char *wps_sta_pin = get_cgi_json(g_var_post, "wps_sta_pin", root);
-
 	if(wan0_upnp_enable) {
 		if(strcmp(wan0_upnp_enable, "1") == 0)
 			tcapi_set("Upnpd_Entry", "Active", "Yes");
 		else
 			tcapi_set("Upnpd_Entry", "Active", "No");
 	}
+	char *misc_http_x = get_cgi_json(g_var_post, "misc_http_x", root);
+	char *misc_ping_x = get_cgi_json(g_var_post, "misc_ping_x", root);
+	/* DUT_RT_SetHttpWANAccess */
+	char *misc_httpport_x = get_cgi_json(g_var_post, "misc_httpport_x", root);
+	char *misc_httpsport_x = get_cgi_json(g_var_post, "misc_httpsport_x", root);
 	if(misc_http_x)
 		tcapi_set("Firewall_Entry", "misc_http_x", misc_http_x);
 	if(misc_ping_x)
 		tcapi_set("Firewall_Entry", "misc_ping_x", misc_ping_x);
-	if(dmz_ip)
-		tcapi_set("Dmz_PVC", "DMZ_IP", dmz_ip);
-	if(autofw_enable_x)
-		tcapi_set("portTriggering_Entry0", "AutoFW_Enable", autofw_enable_x);
-	if(wps_enable)
-		tcapi_set("WLan_Common", "wps_enable", wps_enable);
-	if(wps_sta_pin)
-		tcapi_set("WLan_Entry0", "enrolleePinCode", wps_sta_pin);
-	if(wan0_upnp_enable || misc_http_x || misc_ping_x || dmz_ip || autofw_enable_x || wps_enable || wps_sta_pin)
-		app_method_hit = 1; //"MODIFIED"
-
-	/* DUT_RT_SetHttpWANAccess */
-	char *misc_httpport_x = get_cgi_json(g_var_post, "misc_httpport_x", root);
-	char *misc_httpsport_x = get_cgi_json(g_var_post, "misc_httpsport_x", root);
+#ifndef TCSUPPORT_WEBSERVER_SSL
 	if(misc_httpport_x)
 		tcapi_set("Firewall_Entry", "misc_httpport_x", misc_httpport_x);
+#else
 	if(misc_httpsport_x)
 		tcapi_set("Firewall_Entry", "misc_httpsport_x", misc_httpsport_x);
-	if(misc_httpport_x || misc_httpsport_x)
-		app_method_hit = 1;
-
-	/* [SET] [Client List] Custom Name: <$nickName>$mac>0>$type>> */
-	/* not support
-	char *custom_clientlist = get_cgi_json(g_var_post, "custom_clientlist", root);
-	 */
-	/* [SET] [Client List] User Icon: <$mac>$imagebase64 */
-	/* not support
-	char *custom_usericon = get_cgi_json(g_var_post, "custom_usericon", root);
-	if(custom_usericon) {
-		_dprintf("http: custom_usericon=%s\n", custom_usericon);
-		(void)handle_upload_icon(value);
-		nvram_modified = 1;
-	} */
-
-	/* [SET] [QoS] game first mode */
-	char *qos_enable = get_cgi_json(g_var_post, "qos_enable", root);
-	char *qos_type = get_cgi_json(g_var_post, "qos_type", root);
-	char *qos_obw = get_cgi_json(g_var_post, "qos_obw", root);
-	char *qos_ibw = get_cgi_json(g_var_post, "qos_ibw", root);
-	char *ctf_disable = get_cgi_json(g_var_post, "ctf_disable", root);
-	/* not support
-	char *bwdpi_app_rulelist = get_cgi_json(g_var_post, "bwdpi_app_rulelist", root);
-	char *ctf_fa_mode = get_cgi_json(g_var_post, "ctf_fa_mode", root);
-	 */
-	if(qos_enable)
-		tcapi_set("QoS_Entry0", "qos_enable", qos_enable);
-	if(qos_type)
-		tcapi_set("QoS_Entry0", "qos_type", qos_type);
-	if(qos_obw)
-		tcapi_set("QoS_Entry0", "qos_obw", qos_obw);
-	if(qos_ibw)
-		tcapi_set("QoS_Entry0", "qos_ibw", qos_ibw);
-	if(ctf_disable)
-		tcapi_set("Misc_Entry", "hwnat_enable", ctf_disable);
-	if(qos_enable || qos_type || qos_obw || qos_ibw || ctf_disable) {
-		app_method_hit = 1;
-	}
-
-	/* [SET] [QoS] Bandwidth limiter */
-	char *qos_rulelist = get_cgi_json(g_var_post, "qos_rulelist", root);
-	char *qos_bw_rulelist = get_cgi_json(g_var_post, "qos_bw_rulelist", root);
-	if(qos_rulelist)
-		//tcapi_set("QoS_Entry0", "qos_rulelist", qos_rulelist);
-		tcapi_set_list("qos_rulelist", qos_rulelist);
-	if(qos_bw_rulelist)
-		//tcapi_set("QoS_Entry0", "qos_bw_rulelist", qos_bw_rulelist);
-		tcapi_set_list("qos_bw_rulelist", qos_bw_rulelist);
-	if(qos_rulelist || qos_bw_rulelist) {
-		app_method_hit = 1;
-	}
-
-	/* [SET] [USB] FTP - Enabled */
-	char *enable_ftp = get_cgi_json(g_var_post, "enable_ftp", root);
-	char *st_ftp_mode = get_cgi_json(g_var_post, "st_ftp_mode", root);
-	if(enable_ftp) {
-		if(strcmp(enable_ftp, "1") == 0)
-			tcapi_set("Samba_Entry", "enable_ftp", "Yes");
-		else
-			tcapi_set("Samba_Entry", "enable_ftp", "No");
-	}
-	if(st_ftp_mode)
-		tcapi_set("Samba_Entry", "st_ftp_mode", st_ftp_mode);
-	if(enable_ftp || st_ftp_mode)
-		app_method_hit = 1;
-
-	/* [SET] [USB] samba - enabled */
-	char *enable_samba = get_cgi_json(g_var_post, "enable_samba", root);
-	char *st_samba_mode = get_cgi_json(g_var_post, "st_samba_mode", root);
-	if(enable_samba) {
-		if(strcmp(enable_samba, "1") == 0)
-			tcapi_set("Samba_Entry", "Active", "Yes");
-		else
-			tcapi_set("Samba_Entry", "Active", "No");
-	}
-	if(st_samba_mode)
-		tcapi_set("Samba_Entry", "st_samba_mode", st_samba_mode);
-	if(enable_samba || st_samba_mode)
-		app_method_hit = 1;
-
-	/* [SET] [Guest Network] 2.4GHz - 1 */
-	/* DUT_RT_SetGuestWireless: 2.4GHz */
+#endif
+	char *dmz_ip = get_cgi_json(g_var_post, "dmz_ip", root);
+	if(dmz_ip)
+		tcapi_set("Dmz_PVC", "DMZ_IP", dmz_ip);
+	char *autofw_enable_x = get_cgi_json(g_var_post, "autofw_enable_x", root);
+	if(autofw_enable_x)
+		tcapi_set("portTriggering_Entry0", "AutoFW_Enable", autofw_enable_x);
+	/* [SET] [Guest Network] 2.4GHz - 1, 5GHz - 1 */
+	/* DUT_RT_SetGuestWireless, DUT_RT_SetWirelessConfig */
 	char *wl_unit = get_cgi_json(g_var_post, "wl_unit", root);
 	char *wl_subunit = get_cgi_json(g_var_post, "wl_subunit", root);
+	char *wl_nmode_x = get_cgi_json(g_var_post, "wl_nmode_x", root);
+	char *wl_bw = get_cgi_json(g_var_post, "wl_bw", root);
+	char *wl0_nmode_x = get_cgi_json(g_var_post, "wl0_nmode_x", root);
+	char *wl0_bw = get_cgi_json(g_var_post, "wl0_bw", root);
+	char *wl1_nmode_x = get_cgi_json(g_var_post, "wl1_nmode_x", root);
+	char *wl1_bw = get_cgi_json(g_var_post, "wl1_bw", root);
+	char *wl0_txpower = get_cgi_json(g_var_post, "wl0_txpower", root);
+	char *wl1_txpower = get_cgi_json(g_var_post, "wl1_txpower", root);
+	char *guard_mode = get_cgi_json(g_var_post, "guard_mode", root);/* not support now */
+	/* [SET] [Wireless] WPS Method */
+	char *wps_enable = get_cgi_json(g_var_post, "wps_enable", root);
+	char *wps_band = get_cgi_json(g_var_post, "wps_band", root);
+	if(wl_unit)
+		tcapi_set("WLan_Common", "wl_unit", wl_unit);
+	if(wl_subunit)
+		tcapi_set("WLan_Common", "wl_subunit", wl_subunit);
+	if(wl_nmode_x)
+		tcapi_set("WLan_Common","WirelessMode",wl_nmode_x);
+	if(wl_bw)
+		tcapi_set("WLan_Common","HT_BW",wl_bw);
+	if(wl0_nmode_x) {
+		/* (ASUSWRT)2.4G=> 0: Auto, 1: N Only, 2: Legacy */
+		tmpInt = atoi(wl0_nmode_x);
+		switch (tmpInt) {
+			/* (DSL ASUSWRT)2.4G=> 9:Auto, 6:N only, 0:Legacy */
+			case 0:
+				tcapi_set("WLan_Common", "wl0_WirelessMode", "9");
+				break;
+			case 1:
+				tcapi_set("WLan_Common", "wl0_WirelessMode", "6");
+				break;
+			case 2:
+				tcapi_set("WLan_Common", "wl0_WirelessMode", "0");
+				break;
+		}
+	}
+	if(wl0_bw)
+		tcapi_set("WLan_Common", "wl0_HT_BW", wl0_bw);
+	if(wl1_nmode_x) {
+		/* (ASUSWRT)5G=> 0:Auto, 1:N only, 2:Legacy, 8:N/AC mixed */
+		tmpInt = atoi(wl1_nmode_x);
+		switch (tmpInt) {
+			/* (DSL ASUSWRT)5G=> 14:Auto(support 11ac), 8:Auto(not support 11ac), 11: N only, 2:Legacy, 15:N/AC mixed */
+			case 0:
+				if(!tcapi_get("SysInfo_Entry", "rc_support", tmp) && strstr(tmp, "11AC"))
+					/* support 11ac */
+					tcapi_set("WLan_Common", "wl1_WirelessMode", "14");
+				else
+					/* not support 11ac: DSL-N55U_C1, DSL-N55U_D1, DSL-N66U */
+					tcapi_set("WLan_Common", "wl1_WirelessMode", "8");
+				break;
+			case 1:
+				tcapi_set("WLan_Common", "wl1_WirelessMode", "11");
+				break;
+			case 2:
+				tcapi_set("WLan_Common", "wl1_WirelessMode", "2");
+				break;
+			case 8:
+				tcapi_set("WLan_Common", "wl1_WirelessMode", "15");
+				break;
+		}
+	}
+	if(wl1_bw)
+		tcapi_set("WLan_Common", "wl1_HT_BW", wl1_bw);
+	if(wl0_txpower)
+		tcapi_set("WLan_Common", "wl0_TxPower", wl0_txpower);
+	if(wl1_txpower)
+		tcapi_set("WLan_Common", "wl1_TxPower", wl1_txpower);
+	if(guard_mode)/* not support now */
+		tcapi_set("WLan_Common", "guard_mode", guard_mode);
+	if(wps_enable)
+		tcapi_set("WLan_Common", "wps_enable", wps_enable);
+	if(wps_band)
+		tcapi_set("WLan_Common", "wl_unit", wps_band);
+	char *wps_sta_pin = get_cgi_json(g_var_post, "wps_sta_pin", root);
 	char *wl0_1_bss_enabled = get_cgi_json(g_var_post, "wl0.1_bss_enabled", root);
 	char *wl0_1_ssid = get_cgi_json(g_var_post, "wl0.1_ssid", root);
 	char *wl0_1_auth_mode_x = get_cgi_json(g_var_post, "wl0.1_auth_mode_x", root);
@@ -8169,7 +8409,6 @@ static int appSet_attribute(char *wp, json_object *root)
 	char *wl0_1_lanaccess = get_cgi_json(g_var_post, "wl0.1_lanaccess", root);
 	char *wl0_1_expire = get_cgi_json(g_var_post, "wl0.1_expire", root);
 	char *wl0_1_expire_tmp = get_cgi_json(g_var_post, "wl0.1_expire_tmp", root);
-	char *wl0_1_macmode = get_cgi_json(g_var_post, "wl0.1_macmode", root);
 	char *wl0_2_bss_enabled = get_cgi_json(g_var_post, "wl0.2_bss_enabled", root);
 	char *wl0_2_ssid = get_cgi_json(g_var_post, "wl0.2_ssid", root);
 	char *wl0_2_auth_mode_x = get_cgi_json(g_var_post, "wl0.2_auth_mode_x", root);
@@ -8179,7 +8418,6 @@ static int appSet_attribute(char *wp, json_object *root)
 	char *wl0_2_lanaccess = get_cgi_json(g_var_post, "wl0.2_lanaccess", root);
 	char *wl0_2_expire = get_cgi_json(g_var_post, "wl0.2_expire", root);
 	char *wl0_2_expire_tmp = get_cgi_json(g_var_post, "wl0.2_expire_tmp", root);
-	char *wl0_2_macmode = get_cgi_json(g_var_post, "wl0.2_macmode", root);
 	char *wl0_3_bss_enabled = get_cgi_json(g_var_post, "wl0.3_bss_enabled", root);
 	char *wl0_3_ssid = get_cgi_json(g_var_post, "wl0.3_ssid", root);
 	char *wl0_3_auth_mode_x = get_cgi_json(g_var_post, "wl0.3_auth_mode_x", root);
@@ -8189,14 +8427,56 @@ static int appSet_attribute(char *wp, json_object *root)
 	char *wl0_3_lanaccess = get_cgi_json(g_var_post, "wl0.3_lanaccess", root);
 	char *wl0_3_expire = get_cgi_json(g_var_post, "wl0.3_expire", root);
 	char *wl0_3_expire_tmp = get_cgi_json(g_var_post, "wl0.3_expire_tmp", root);
-	char *wl0_3_macmode = get_cgi_json(g_var_post, "wl0.3_macmode", root);
-	/* not support
-	char *wl0_1_mbss = get_cgi_json(g_var_post, "wl0.1_mbss", root);
-	 */
-	if(wl_unit)
-		tcapi_set("WLan_Common", "wl_unit", wl_unit);
-	if(wl_subunit)
-		tcapi_set("WLan_Common", "wl_subunit", wl_subunit);
+	char *wl1_1_bss_enabled = get_cgi_json(g_var_post, "wl1.1_bss_enabled", root);
+	char *wl1_1_ssid = get_cgi_json(g_var_post, "wl1.1_ssid", root);
+	char *wl1_1_auth_mode_x = get_cgi_json(g_var_post, "wl1.1_auth_mode_x", root);
+	char *wl1_1_crypto = get_cgi_json(g_var_post, "wl1.1_crypto", root);
+	char *wl1_1_key = get_cgi_json(g_var_post, "wl1.1_key", root);
+	char *wl1_1_wpa_psk = get_cgi_json(g_var_post, "wl1.1_wpa_psk", root);
+	char *wl1_1_lanaccess = get_cgi_json(g_var_post, "wl1.1_lanaccess", root);
+	char *wl1_1_expire = get_cgi_json(g_var_post, "wl1.1_expire", root);
+	char *wl1_1_expire_tmp = get_cgi_json(g_var_post, "wl1.1_expire_tmp", root);
+	char *wl1_2_bss_enabled = get_cgi_json(g_var_post, "wl1.2_bss_enabled", root);
+	char *wl1_2_ssid = get_cgi_json(g_var_post, "wl1.2_ssid", root);
+	char *wl1_2_auth_mode_x = get_cgi_json(g_var_post, "wl1.2_auth_mode_x", root);
+	char *wl1_2_crypto = get_cgi_json(g_var_post, "wl1.2_crypto", root);
+	char *wl1_2_key = get_cgi_json(g_var_post, "wl1.2_key", root);
+	char *wl1_2_wpa_psk = get_cgi_json(g_var_post, "wl1.2_wpa_psk", root);
+	char *wl1_2_lanaccess = get_cgi_json(g_var_post, "wl1.2_lanaccess", root);
+	char *wl1_2_expire = get_cgi_json(g_var_post, "wl1.2_expire", root);
+	char *wl1_2_expire_tmp = get_cgi_json(g_var_post, "wl1.2_expire_tmp", root);
+	char *wl1_3_bss_enabled = get_cgi_json(g_var_post, "wl1.3_bss_enabled", root);
+	char *wl1_3_ssid = get_cgi_json(g_var_post, "wl1.3_ssid", root);
+	char *wl1_3_auth_mode_x = get_cgi_json(g_var_post, "wl1.3_auth_mode_x", root);
+	char *wl1_3_crypto = get_cgi_json(g_var_post, "wl1.3_crypto", root);
+	char *wl1_3_key = get_cgi_json(g_var_post, "wl1.3_key", root);
+	char *wl1_3_wpa_psk = get_cgi_json(g_var_post, "wl1.3_wpa_psk", root);
+	char *wl1_3_lanaccess = get_cgi_json(g_var_post, "wl1.3_lanaccess", root);
+	char *wl1_3_expire = get_cgi_json(g_var_post, "wl1.3_expire", root);
+	char *wl1_3_expire_tmp = get_cgi_json(g_var_post, "wl1.3_expire_tmp", root);
+	/* [SET] [Wireless] General Setting */
+	char *wl_closed = get_cgi_json(g_var_post, "wl_closed", root);
+	char *wl_radio = get_cgi_json(g_var_post, "wl_radio", root);
+	char *wl_ssid = get_cgi_json(g_var_post, "wl_ssid", root);
+	char *wl0_ssid = get_cgi_json(g_var_post, "wl0_ssid", root);
+	char *wl0_closed = get_cgi_json(g_var_post, "wl0_closed", root);
+	char *wl0_auth_mode_x = get_cgi_json(g_var_post, "wl0_auth_mode_x", root);
+	char *wl0_crypto = get_cgi_json(g_var_post, "wl0_crypto", root);
+	char *wl0_wpa_psk = get_cgi_json(g_var_post, "wl0_wpa_psk", root);
+	char *wl1_ssid = get_cgi_json(g_var_post, "wl1_ssid", root);
+	char *wl1_closed = get_cgi_json(g_var_post, "wl1_closed", root);
+	char *wl1_auth_mode_x = get_cgi_json(g_var_post, "wl1_auth_mode_x", root);
+	char *wl1_crypto = get_cgi_json(g_var_post, "wl1_crypto", root);
+	char *wl1_wpa_psk = get_cgi_json(g_var_post, "wl1_wpa_psk", root);
+	/* [SET] [Wireless] radio on/off */
+	char *wl0_radio = get_cgi_json(g_var_post, "wl0_radio", root);
+	char *wl1_radio = get_cgi_json(g_var_post, "wl1_radio", root);
+	/* [SET] [Wireless] Roaming assistant */
+	char *wl0_user_rssi = get_cgi_json(g_var_post, "wl0_user_rssi", root);
+	char *wl1_user_rssi = get_cgi_json(g_var_post, "wl1_user_rssi", root);
+	char *wl2_user_rssi = get_cgi_json(g_var_post, "wl2_user_rssi", root);
+	if(wps_sta_pin)
+		tcapi_set("WLan_Entry0", "enrolleePinCode", wps_sta_pin);
 	if(wl0_1_bss_enabled)
 		tcapi_set("WLan_Entry0", "wl0.1_bss_enabled", wl0_1_bss_enabled);
 	if(wl0_1_ssid)
@@ -8231,8 +8511,6 @@ static int appSet_attribute(char *wp, json_object *root)
 		tcapi_set("WLan_Entry0", "wl0.1_expire", wl0_1_expire);
 	if(wl0_1_expire_tmp)
 		tcapi_set("WLan_Entry0", "wl0.1_expire_tmp", wl0_1_expire_tmp);
-	if(wl0_1_macmode)
-		tcapi_set("ACL_Entry0", "wl0.1_wl_macmode", wl0_1_macmode);
 	if(wl0_2_bss_enabled)
 		tcapi_set("WLan_Entry0", "wl0.2_bss_enabled", wl0_2_bss_enabled);
 	if(wl0_2_ssid)
@@ -8267,8 +8545,6 @@ static int appSet_attribute(char *wp, json_object *root)
 		tcapi_set("WLan_Entry0", "wl0.2_expire", wl0_2_expire);
 	if(wl0_2_expire_tmp)
 		tcapi_set("WLan_Entry0", "wl0.2_expire_tmp", wl0_2_expire_tmp);
-	if(wl0_2_macmode)
-		tcapi_set("ACL_Entry0", "wl0.2_wl_macmode", wl0_2_macmode);
 	if(wl0_3_bss_enabled)
 		tcapi_set("WLan_Entry0", "wl0.3_bss_enabled", wl0_3_bss_enabled);
 	if(wl0_3_ssid)
@@ -8303,50 +8579,7 @@ static int appSet_attribute(char *wp, json_object *root)
 		tcapi_set("WLan_Entry0", "wl0.3_expire", wl0_3_expire);
 	if(wl0_3_expire_tmp)
 		tcapi_set("WLan_Entry0", "wl0.3_expire_tmp", wl0_3_expire_tmp);
-	if(wl0_3_macmode)
-		tcapi_set("ACL_Entry0", "wl0.3_wl_macmode", wl0_3_macmode);
-	if(wl_unit || wl_subunit
-		|| wl0_1_bss_enabled || wl0_1_ssid || wl0_1_auth_mode_x || wl0_1_crypto || wl0_1_key || wl0_1_wpa_psk || wl0_1_lanaccess || wl0_1_expire || wl0_1_expire_tmp || wl0_1_macmode
-		|| wl0_2_bss_enabled || wl0_2_ssid || wl0_2_auth_mode_x || wl0_2_crypto || wl0_2_key || wl0_2_wpa_psk || wl0_2_lanaccess || wl0_2_expire || wl0_2_expire_tmp || wl0_2_macmode
-		|| wl0_3_bss_enabled || wl0_3_ssid || wl0_3_auth_mode_x || wl0_3_crypto || wl0_3_key || wl0_3_wpa_psk || wl0_3_lanaccess || wl0_3_expire || wl0_3_expire_tmp || wl0_3_macmode)
-		app_method_hit = 1;
 
-	/* [SET] [Guest Network] 5GHz - 1 */
-	/* DUT_RT_SetGuestWireless: 5GHz */
-	char *wl1_1_bss_enabled = get_cgi_json(g_var_post, "wl1.1_bss_enabled", root);
-	char *wl1_1_ssid = get_cgi_json(g_var_post, "wl1.1_ssid", root);
-	char *wl1_1_auth_mode_x = get_cgi_json(g_var_post, "wl1.1_auth_mode_x", root);
-	char *wl1_1_crypto = get_cgi_json(g_var_post, "wl1.1_crypto", root);
-	char *wl1_1_key = get_cgi_json(g_var_post, "wl1.1_key", root);
-	char *wl1_1_wpa_psk = get_cgi_json(g_var_post, "wl1.1_wpa_psk", root);
-	char *wl1_1_lanaccess = get_cgi_json(g_var_post, "wl1.1_lanaccess", root);
-	char *wl1_1_expire = get_cgi_json(g_var_post, "wl1.1_expire", root);
-	char *wl1_1_expire_tmp = get_cgi_json(g_var_post, "wl1.1_expire_tmp", root);
-	char *wl1_1_macmode = get_cgi_json(g_var_post, "wl1.1_macmode", root);
-	char *wl1_2_bss_enabled = get_cgi_json(g_var_post, "wl1.2_bss_enabled", root);
-	char *wl1_2_ssid = get_cgi_json(g_var_post, "wl1.2_ssid", root);
-	char *wl1_2_auth_mode_x = get_cgi_json(g_var_post, "wl1.2_auth_mode_x", root);
-	char *wl1_2_crypto = get_cgi_json(g_var_post, "wl1.2_crypto", root);
-	char *wl1_2_key = get_cgi_json(g_var_post, "wl1.2_key", root);
-	char *wl1_2_wpa_psk = get_cgi_json(g_var_post, "wl1.2_wpa_psk", root);
-	char *wl1_2_lanaccess = get_cgi_json(g_var_post, "wl1.2_lanaccess", root);
-	char *wl1_2_expire = get_cgi_json(g_var_post, "wl1.2_expire", root);
-	char *wl1_2_expire_tmp = get_cgi_json(g_var_post, "wl1.2_expire_tmp", root);
-	char *wl1_2_macmode = get_cgi_json(g_var_post, "wl1.2_macmode", root);
-	char *wl1_3_bss_enabled = get_cgi_json(g_var_post, "wl1.3_bss_enabled", root);
-	char *wl1_3_ssid = get_cgi_json(g_var_post, "wl1.3_ssid", root);
-	char *wl1_3_auth_mode_x = get_cgi_json(g_var_post, "wl1.3_auth_mode_x", root);
-	char *wl1_3_crypto = get_cgi_json(g_var_post, "wl1.3_crypto", root);
-	char *wl1_3_key = get_cgi_json(g_var_post, "wl1.3_key", root);
-	char *wl1_3_wpa_psk = get_cgi_json(g_var_post, "wl1.3_wpa_psk", root);
-	char *wl1_3_lanaccess = get_cgi_json(g_var_post, "wl1.3_lanaccess", root);
-	char *wl1_3_expire = get_cgi_json(g_var_post, "wl1.3_expire", root);
-	char *wl1_3_expire_tmp = get_cgi_json(g_var_post, "wl1.3_expire_tmp", root);
-	char *wl1_3_macmode = get_cgi_json(g_var_post, "wl1.3_macmode", root);
-	/* not support
-	char *wl1_1_macmode = get_cgi_json(g_var_post, "wl1.1_macmode", root);
-	char *wl1_1_mbss = get_cgi_json(g_var_post, "wl1.1_mbss", root);
-	 */
 	if(wl1_1_bss_enabled)
 		tcapi_set("WLan_Entry0", "wl1.1_bss_enabled", wl1_1_bss_enabled);
 	if(wl1_1_ssid)
@@ -8381,8 +8614,6 @@ static int appSet_attribute(char *wp, json_object *root)
 		tcapi_set("WLan_Entry0", "wl1.1_expire", wl1_1_expire);
 	if(wl1_1_expire_tmp)
 		tcapi_set("WLan_Entry0", "wl1.1_expire_tmp", wl1_1_expire_tmp);
-	if(wl1_1_macmode)
-		tcapi_set("ACL_Entry0", "wl1.1_wl_macmode", wl1_1_macmode);
 	if(wl1_2_bss_enabled)
 		tcapi_set("WLan_Entry0", "wl1.2_bss_enabled", wl1_2_bss_enabled);
 	if(wl1_2_ssid)
@@ -8417,8 +8648,6 @@ static int appSet_attribute(char *wp, json_object *root)
 		tcapi_set("WLan_Entry0", "wl1.2_expire", wl1_2_expire);
 	if(wl1_2_expire_tmp)
 		tcapi_set("WLan_Entry0", "wl1.2_expire_tmp", wl1_2_expire_tmp);
-	if(wl1_2_macmode)
-		tcapi_set("ACL_Entry0", "wl1.2_wl_macmode", wl1_2_macmode);
 	if(wl1_3_bss_enabled)
 		tcapi_set("WLan_Entry0", "wl1.3_bss_enabled", wl1_3_bss_enabled);
 	if(wl1_3_ssid)
@@ -8453,64 +8682,16 @@ static int appSet_attribute(char *wp, json_object *root)
 		tcapi_set("WLan_Entry0", "wl1.3_expire", wl1_3_expire);
 	if(wl1_3_expire_tmp)
 		tcapi_set("WLan_Entry0", "wl1.3_expire_tmp", wl1_3_expire_tmp);
-	if(wl1_3_macmode)
-		tcapi_set("ACL_Entry0", "wl1.3_wl_macmode", wl1_3_macmode);
-	if(wl1_1_bss_enabled || wl1_1_ssid || wl1_1_auth_mode_x || wl1_1_crypto || wl1_1_key || wl1_1_wpa_psk || wl1_1_lanaccess || wl1_1_expire || wl1_1_expire_tmp || wl1_1_macmode
-		|| wl1_2_bss_enabled || wl1_2_ssid || wl1_2_auth_mode_x || wl1_2_crypto || wl1_2_key || wl1_2_wpa_psk || wl1_2_lanaccess || wl1_2_expire || wl1_2_expire_tmp || wl1_2_macmode
-		|| wl1_3_bss_enabled || wl1_3_ssid || wl1_3_auth_mode_x || wl1_3_crypto || wl1_3_key || wl1_3_wpa_psk || wl1_3_lanaccess || wl1_3_expire || wl1_3_expire_tmp || wl1_3_macmode)
-		app_method_hit = 1;
-
-	/* [SET] [Wireless] General Setting */
-	char *wl_closed = get_cgi_json(g_var_post, "wl_closed", root);
-	char *wl_radio = get_cgi_json(g_var_post, "wl_radio", root);
-	char *wl_ssid = get_cgi_json(g_var_post, "wl_ssid", root);
-	char *wl_nmode_x = get_cgi_json(g_var_post, "wl_nmode_x", root);
-	char *wl_bw = get_cgi_json(g_var_post, "wl_bw", root);
-	/* not support
-	char *acs_dfs = get_cgi_json(g_var_post, "acs_dfs", root);
-	char *wl_chanspec = get_cgi_json(g_var_post, "wl_chanspec", root);
-	 */
 	if(wl_closed)
 		tcapi_set("WLan_Entry0","HideSSID",wl_closed);
 	if(wl_radio)
 		tcapi_set("WLan_Entry0","radio_on",wl_radio);
 	if(wl_ssid)
 		tcapi_set("WLan_Entry0","ssid",wl_ssid);
-	if(wl_nmode_x)
-		tcapi_set("WLan_Common","WirelessMode",wl_nmode_x);
-	if(wl_bw)
-		tcapi_set("WLan_Common","HT_BW",wl_bw);
-	if(wl_closed || wl_radio || wl_ssid || wl_nmode_x || wl_bw)
-		app_method_hit = 1;
-
-	/* DUT_RT_SetWirelessConfig: 2.4GHz */
-	char *wl0_ssid = get_cgi_json(g_var_post, "wl0_ssid", root);
-	char *wl0_closed = get_cgi_json(g_var_post, "wl0_closed", root);
-	char *wl0_nmode_x = get_cgi_json(g_var_post, "wl0_nmode_x", root);
-	char *wl0_bw = get_cgi_json(g_var_post, "wl0_bw", root);
-	char *wl0_auth_mode_x = get_cgi_json(g_var_post, "wl0_auth_mode_x", root);
-	char *wl0_crypto = get_cgi_json(g_var_post, "wl0_crypto", root);
-	char *wl0_wpa_psk = get_cgi_json(g_var_post, "wl0_wpa_psk", root);
 	if(wl0_ssid)
 		tcapi_set("WLan_Entry0", "wl0_ssid", wl0_ssid);
 	if(wl0_closed)
 		tcapi_set("WLan_Entry0", "wl0_HideSSID", wl0_closed);
-	if(wl0_nmode_x) { //APP=> 2:Legacy, 1:N only, 0:Auto
-		tmpInt = atoi(wl0_nmode_x);
-		switch (tmpInt) {
-			case 2:
-				tcapi_set("WLan_Common", "wl0_WirelessMode", "0"); /*2G=>0: Legacy*/
-				break;
-			case 1:
-				tcapi_set("WLan_Common", "wl0_WirelessMode", "6"); /*2G=>6: N Only*/
-				break;
-			case 0:
-				tcapi_set("WLan_Common", "wl0_WirelessMode", "9"); /*2G=>9: Auto*/
-				break;
-		}
-	}
-	if(wl0_bw)
-		tcapi_set("WLan_Common", "wl0_HT_BW", wl0_bw);
 	if(wl0_auth_mode_x) {
 		if(strcmp(wl0_auth_mode_x, "open") ==0)
 			tcapi_set("WLan_Entry0", "wl0_auth_mode_x", "OPEN");
@@ -8533,37 +8714,10 @@ static int appSet_attribute(char *wp, json_object *root)
 	}
 	if(wl0_wpa_psk)
 		tcapi_set("WLan_Entry0", "wl0_wpa_psk", wl0_wpa_psk);
-	if(wl0_ssid || wl0_closed || wl0_nmode_x || wl0_bw || wl0_auth_mode_x || wl0_crypto || wl0_wpa_psk)
-		app_method_hit = 1;
-
-	/* DUT_RT_SetWirelessConfig: 5GHz */
-	char *wl1_ssid = get_cgi_json(g_var_post, "wl1_ssid", root);
-	char *wl1_closed = get_cgi_json(g_var_post, "wl1_closed", root);
-	char *wl1_nmode_x = get_cgi_json(g_var_post, "wl1_nmode_x", root);
-	char *wl1_bw = get_cgi_json(g_var_post, "wl1_bw", root);
-	char *wl1_auth_mode_x = get_cgi_json(g_var_post, "wl1_auth_mode_x", root);
-	char *wl1_crypto = get_cgi_json(g_var_post, "wl1_crypto", root);
-	char *wl1_wpa_psk = get_cgi_json(g_var_post, "wl1_wpa_psk", root);
 	if(wl1_ssid)
 		tcapi_set("WLan_Entry0", "wl1_ssid", wl1_ssid);
 	if(wl1_closed)
 		tcapi_set("WLan_Entry0", "wl1_HideSSID", wl1_closed);
-	if(wl1_nmode_x) { //APP=>2:Legacy, 1:N only, 0:Auto
-		tmpInt = atoi(wl1_nmode_x);
-		switch (tmpInt) {
-			case 2:
-				tcapi_set("WLan_Common", "wl1_WirelessMode", "2"); /*5G=>2: Legacy*/
-				break;
-			case 1:
-				tcapi_set("WLan_Common", "wl1_WirelessMode", "11"); /*5G=>11: N Only*/
-				break;
-			case 0:
-				tcapi_set("WLan_Common", "wl1_WirelessMode", "8"); /*5G=>8: Auto*/
-				break;
-		}
-	}
-	if(wl1_bw)
-		tcapi_set("WLan_Common", "wl1_HT_BW", wl1_bw);
 	if(wl1_auth_mode_x) {
 		if(strcmp(wl1_auth_mode_x, "open") ==0)
 			tcapi_set("WLan_Entry0", "wl1_auth_mode_x", "OPEN");
@@ -8586,9 +8740,16 @@ static int appSet_attribute(char *wp, json_object *root)
 	}
 	if(wl1_wpa_psk)
 		tcapi_set("WLan_Entry0", "wl1_wpa_psk", wl1_wpa_psk);
-	if(wl1_ssid || wl1_closed || wl1_nmode_x || wl1_bw || wl1_auth_mode_x || wl1_crypto || wl1_wpa_psk)
-		app_method_hit = 1;
-
+	if(wl0_radio)
+		tcapi_set("WLan_Entry0", "wl0_radio_on", wl0_radio);
+	if(wl1_radio)
+		tcapi_set("WLan_Entry0", "wl1_radio_on", wl1_radio);
+	if(wl0_user_rssi)
+		tcapi_set("WLan_Entry0", "wl0_user_rssi", wl0_user_rssi);
+	if(wl1_user_rssi)
+		tcapi_set("WLan_Entry0", "wl1_user_rssi", wl1_user_rssi);
+	if(wl2_user_rssi)
+		tcapi_set("WLan_Entry0", "wl2_user_rssi", wl2_user_rssi);
 	/* [SET] [Wireless] Mac filter */
 	char *wl0_macmode = get_cgi_json(g_var_post, "wl0_macmode", root);
 	char *wl1_macmode = get_cgi_json(g_var_post, "wl1_macmode", root);
@@ -8596,6 +8757,12 @@ static int appSet_attribute(char *wp, json_object *root)
 	char *wl0_maclist_x = get_cgi_json(g_var_post, "wl0_maclist_x", root);
 	char *wl1_maclist_x = get_cgi_json(g_var_post, "wl1_maclist_x", root);
 	char *wl2_maclist_x = get_cgi_json(g_var_post, "wl2_maclist_x", root);
+	char *wl0_1_macmode = get_cgi_json(g_var_post, "wl0.1_macmode", root);
+	char *wl0_2_macmode = get_cgi_json(g_var_post, "wl0.2_macmode", root);
+	char *wl0_3_macmode = get_cgi_json(g_var_post, "wl0.3_macmode", root);
+	char *wl1_1_macmode = get_cgi_json(g_var_post, "wl1.1_macmode", root);
+	char *wl1_2_macmode = get_cgi_json(g_var_post, "wl1.2_macmode", root);
+	char *wl1_3_macmode = get_cgi_json(g_var_post, "wl1.3_macmode", root);
 	if(wl0_macmode)
 		tcapi_set("ACL_Entry0", "wl0_wl_macmode",wl0_macmode);
 	if(wl1_macmode)
@@ -8608,55 +8775,66 @@ static int appSet_attribute(char *wp, json_object *root)
 		tcapi_set("ACL_Entry0","wl1_wl_maclist",wl1_maclist_x);
 	if(wl2_maclist_x)
 		tcapi_set("ACL_Entry0","wl2_wl_maclist",wl2_maclist_x);
-	if(wl0_macmode || wl1_macmode || wl2_macmode || wl0_maclist_x || wl1_maclist_x || wl2_maclist_x)
-		app_method_hit = 1;
-
-	/* [SET] [Wireless] radio on/off */
-	char *wl0_radio = get_cgi_json(g_var_post, "wl0_radio", root);
-	char *wl1_radio = get_cgi_json(g_var_post, "wl1_radio", root);
-	if(wl0_radio)
-		tcapi_set("WLan_Entry0", "wl0_radio_on", wl0_radio);
-	if(wl1_radio)
-		tcapi_set("WLan_Entry0", "wl1_radio_on", wl1_radio);
-	if(wl0_radio || wl1_radio)
-		app_method_hit = 1;
-
-	/* [SET] [Wireless] Roaming assistant */
-	char *wl0_user_rssi = get_cgi_json(g_var_post, "wl0_user_rssi", root);
-	char *wl1_user_rssi = get_cgi_json(g_var_post, "wl1_user_rssi", root);
-	char *wl2_user_rssi = get_cgi_json(g_var_post, "wl2_user_rssi", root);
-	if(wl0_user_rssi)
-		tcapi_set("WLan_Entry0", "wl0_user_rssi", wl0_user_rssi);
-	if(wl1_user_rssi)
-		tcapi_set("WLan_Entry0", "wl1_user_rssi", wl1_user_rssi);
-	if(wl2_user_rssi)
-		tcapi_set("WLan_Entry0", "wl2_user_rssi", wl2_user_rssi);
-	if(wl0_user_rssi || wl1_user_rssi || wl2_user_rssi)
-		app_method_hit = 1;
-
-	/* [SET] [Wireless] Tx power adjustment */
-	char *wl0_txpower = get_cgi_json(g_var_post, "wl0_txpower", root);
-	char *wl1_txpower = get_cgi_json(g_var_post, "wl1_txpower", root);
-	if(wl0_txpower)
-		tcapi_set("WLan_Common", "wl0_TxPower", wl0_txpower);
-	if(wl1_txpower)
-		tcapi_set("WLan_Common", "wl1_TxPower", wl1_txpower);
-	if(wl0_txpower || wl1_txpower)
-		app_method_hit = 1;
-
-	/* [SET] [CloudCheck] Enabled */
-	/* not support
-	char *enable_cloudcheck = get_cgi_json(g_var_post, "enable_cloudcheck", root);
-	 */
-
-	/* [SET] [Change Mode] Repeater mode setting */
-	/* not support (only support SW_MODE_ROUTER mode) */
-
-	/* [SET] [USB] samba - NTFS Sparse Files Support */
-	/* not support
-	char *usb_fs_ntfs_sparse = get_cgi_json(g_var_post, "usb_fs_ntfs_sparse", root);
-	 */
-
+	if(wl0_1_macmode)
+		tcapi_set("ACL_Entry0", "wl0.1_wl_macmode", wl0_1_macmode);
+	if(wl0_2_macmode)
+		tcapi_set("ACL_Entry0", "wl0.2_wl_macmode", wl0_2_macmode);
+	if(wl0_3_macmode)
+		tcapi_set("ACL_Entry0", "wl0.3_wl_macmode", wl0_3_macmode);
+	if(wl1_1_macmode)
+		tcapi_set("ACL_Entry0", "wl1.1_wl_macmode", wl1_1_macmode);
+	if(wl1_2_macmode)
+		tcapi_set("ACL_Entry0", "wl1.2_wl_macmode", wl1_2_macmode);
+	if(wl1_3_macmode)
+		tcapi_set("ACL_Entry0", "wl1.3_wl_macmode", wl1_3_macmode);
+	/* [SET] [QoS] game first mode */
+	char *qos_enable = get_cgi_json(g_var_post, "qos_enable", root);
+	char *qos_type = get_cgi_json(g_var_post, "qos_type", root);
+	char *qos_obw = get_cgi_json(g_var_post, "qos_obw", root);
+	char *qos_ibw = get_cgi_json(g_var_post, "qos_ibw", root);
+	/* [SET] [QoS] Bandwidth limiter */
+	char *qos_rulelist = get_cgi_json(g_var_post, "qos_rulelist", root);
+	char *qos_bw_rulelist = get_cgi_json(g_var_post, "qos_bw_rulelist", root);
+	if(qos_enable)
+		tcapi_set("QoS_Entry0", "qos_enable", qos_enable);
+	if(qos_type)
+		tcapi_set("QoS_Entry0", "qos_type", qos_type);
+	if(qos_obw)
+		tcapi_set("QoS_Entry0", "qos_obw", qos_obw);
+	if(qos_ibw)
+		tcapi_set("QoS_Entry0", "qos_ibw", qos_ibw);
+	if(qos_rulelist)
+		//tcapi_set("QoS_Entry0", "qos_rulelist", qos_rulelist);
+		tcapi_set_list("qos_rulelist", qos_rulelist);
+	if(qos_bw_rulelist)
+		//tcapi_set("QoS_Entry0", "qos_bw_rulelist", qos_bw_rulelist);
+		tcapi_set_list("qos_bw_rulelist", qos_bw_rulelist);
+	/* [SET] [QoS] game first mode */
+	char *ctf_disable = get_cgi_json(g_var_post, "ctf_disable", root);
+	if(ctf_disable)
+		tcapi_set("Misc_Entry", "hwnat_enable", ctf_disable);
+	/* [SET] [USB] FTP - Enabled */
+	char *enable_ftp = get_cgi_json(g_var_post, "enable_ftp", root);
+	char *st_ftp_mode = get_cgi_json(g_var_post, "st_ftp_mode", root);
+	/* [SET] [USB] samba - enabled */
+	char *enable_samba = get_cgi_json(g_var_post, "enable_samba", root);
+	char *st_samba_mode = get_cgi_json(g_var_post, "st_samba_mode", root);
+	if(enable_ftp) {
+		if(strcmp(enable_ftp, "1") == 0)
+			tcapi_set("Samba_Entry", "enable_ftp", "Yes");
+		else
+			tcapi_set("Samba_Entry", "enable_ftp", "No");
+	}
+	if(st_ftp_mode)
+		tcapi_set("Samba_Entry", "st_ftp_mode", st_ftp_mode);
+	if(enable_samba) {
+		if(strcmp(enable_samba, "1") == 0)
+			tcapi_set("Samba_Entry", "Active", "Yes");
+		else
+			tcapi_set("Samba_Entry", "Active", "No");
+	}
+	if(st_samba_mode)
+		tcapi_set("Samba_Entry", "st_samba_mode", st_samba_mode);
 	/* [SET] [System] HTTP / HTTPS */
 	char *http_enable = get_cgi_json(g_var_post, "http_enable", root);
 	char *https_lanport = get_cgi_json(g_var_post, "https_lanport", root);
@@ -8682,9 +8860,6 @@ static int appSet_attribute(char *wp, json_object *root)
 	}
 	if(https_lanport)
 		tcapi_set("Https_Entry", "https_lanport", https_lanport);
-	if(http_enable || https_lanport)
-		app_method_hit = 1;
-
 	/* [SET] [WAN] ASUS DDNS */
 	char *ddns_enable_x = get_cgi_json(g_var_post, "ddns_enable_x", root);
 	char *ddns_server_x = get_cgi_json(g_var_post, "ddns_server_x", root);
@@ -8696,44 +8871,163 @@ static int appSet_attribute(char *wp, json_object *root)
 	if(ddns_hostname_x){
 		tcapi_set("Ddns_Entry", "MYHOST", ddns_hostname_x);
 	}
-	if(ddns_enable_x || ddns_server_x || ddns_hostname_x)
-		app_method_hit = 1;
-
 	/* [SET] [WAN] Disconnect WAN */
 	char *wan0_enable = get_cgi_json(g_var_post, "wan0_enable", root);
 	char *wan1_enable = get_cgi_json(g_var_post, "wan1_enable", root);
-	if((wan0_enable) && (pri_unit >= 0)) {
-		tcapi_set(wan0_node, "Active", strcmp(wan0_enable, "1") ? "No" : "Yes");
-		app_method_hit = 1;
+	char *wan0_dhcpenable_x = get_cgi_json(g_var_post, "wan0_dhcpenable_x", root);
+	char *wan1_dhcpenable_x = get_cgi_json(g_var_post, "wan1_dhcpenable_x", root);
+	/* [SET] [QIS] Wan DHCP Setting */
+	char *wan0_dnsenable_x = get_cgi_json(g_var_post, "wan0_dnsenable_x", root);
+	char *wan0_dns1_x = get_cgi_json(g_var_post, "wan0_dns1_x", root);
+	char *wan0_dns2_x = get_cgi_json(g_var_post, "wan0_dns2_x", root);
+	char *wan1_dnsenable_x = get_cgi_json(g_var_post, "wan1_dnsenable_x", root);
+	char *wan1_dns1_x = get_cgi_json(g_var_post, "wan1_dns1_x", root);
+	char *wan1_dns2_x = get_cgi_json(g_var_post, "wan1_dns2_x", root);
+	/* [SET] [QIS] Wan PPPoE Setting */
+	char *wan0_pppoe_username = get_cgi_json(g_var_post, "wan0_pppoe_username", root);
+	char *wan0_pppoe_passwd = get_cgi_json(g_var_post, "wan0_pppoe_passwd", root);
+	char *wan0_hwaddr_x = get_cgi_json(g_var_post, "wan0_hwaddr_x", root);
+	char *wan1_pppoe_username = get_cgi_json(g_var_post, "wan1_pppoe_username", root);
+	char *wan1_pppoe_passwd = get_cgi_json(g_var_post, "wan1_pppoe_passwd", root);
+	char *wan1_hwaddr_x = get_cgi_json(g_var_post, "wan1_hwaddr_x", root);
+	if(pri_unit >= 0) {
+#ifdef TCSUPPORT_MULTISERVICE_ON_WAN
+		if(pri_unit == WAN_UNIT_PTM0 || pri_unit == WAN_UNIT_ETH) //multiservice only for PTM, WAN
+			snprintf(wan0_node, sizeof(wan0_node), "WanExt_PVC%de0", pri_unit);
+		else
+#endif
+		snprintf(wan0_node, sizeof(wan0_node), "Wan_PVC%d", pri_unit);
+		if(wan0_enable)
+			tcapi_set(wan0_node, "Active", strcmp(wan0_enable, "1") ? "No" : "Yes");
+		if(wan0_dhcpenable_x)
+			tcapi_set(wan0_node, "ISP", strcmp(wan0_dhcpenable_x, "0") ? "0" : "1"); //ISP=0, Automatic; ISP=1, Static; ISP=2, PPPoE
+		if(wan0_dnsenable_x)
+			tcapi_set(wan0_node, "DNS_type", strcmp(wan0_dnsenable_x, "0") ? "0" : "1");
+		if(wan0_dns1_x)
+			tcapi_set(wan0_node, "Primary_DNS", wan0_dns1_x);
+		if(wan0_dns2_x)
+			tcapi_set(wan0_node, "Secondary_DNS", wan0_dns2_x);
+		if(wan0_pppoe_username)
+			tcapi_set(wan0_node, "USERNAME", wan0_pppoe_username);
+		if(wan0_pppoe_passwd)
+			tcapi_set(wan0_node, "PASSWORD", wan0_pppoe_passwd);
+		if(wan0_hwaddr_x)
+			tcapi_set(wan0_node, "WAN_MAC", wan0_hwaddr_x);
 	}
-	if((wan1_enable) && (sec_unit >= 0)) {
-		tcapi_set(wan1_node, "Active", strcmp(wan1_enable, "1") ? "No" : "Yes");
-		app_method_hit = 1;
+	if(sec_unit >= 0) {
+#ifdef TCSUPPORT_MULTISERVICE_ON_WAN
+		if(sec_unit == WAN_UNIT_PTM0 || sec_unit == WAN_UNIT_ETH) //multiservice only for PTM, WAN
+			snprintf(wan1_node, sizeof(wan1_node), "WanExt_PVC%de0", sec_unit);
+		else
+#endif
+		snprintf(wan1_node, sizeof(wan1_node), "Wan_PVC%d", sec_unit);
+		if(wan1_enable)
+			tcapi_set(wan1_node, "Active", strcmp(wan1_enable, "1") ? "No" : "Yes");
+		if(wan1_dhcpenable_x)
+			tcapi_set(wan1_node, "ISP", strcmp(wan1_dhcpenable_x, "0") ? "0" : "1"); //ISP=0, Automatic; ISP=1, Static; ISP=2, PPPoE
+		if(wan1_dnsenable_x)
+			tcapi_set(wan1_node, "DNS_type", strcmp(wan1_dnsenable_x, "0") ? "0" : "1");
+		if(wan1_dns1_x)
+			tcapi_set(wan1_node, "Primary_DNS", wan1_dns1_x);
+		if(wan1_dns2_x)
+			tcapi_set(wan1_node, "Secondary_DNS", wan1_dns2_x);
+		if(wan1_pppoe_username)
+			tcapi_set(wan1_node, "USERNAME", wan1_pppoe_username);
+		if(wan1_pppoe_passwd)
+			tcapi_set(wan1_node, "PASSWORD", wan1_pppoe_passwd);
+		if(wan1_hwaddr_x)
+			tcapi_set(wan1_node, "WAN_MAC", wan1_hwaddr_x);
 	}
-
+	/* [SET] [QIS] */
+	char *wan0_proto = get_cgi_json(g_var_post, "wan0_proto", root);
+	char *wan1_proto = get_cgi_json(g_var_post, "wan1_proto", root);
+	/* [SET] [QIS] Wan Static Setting */
+	char *wan0_ipaddr = get_cgi_json(g_var_post, "wan0_ipaddr", root);
+	char *wan0_gateway = get_cgi_json(g_var_post, "wan0_gateway", root);
+	char *wan0_netmask = get_cgi_json(g_var_post, "wan0_netmask", root);
+	char *wan0_ipaddr_x = get_cgi_json(g_var_post, "wan0_ipaddr_x", root);
+	char *wan0_gateway_x = get_cgi_json(g_var_post, "wan0_gateway_x", root);
+	char *wan0_netmask_x = get_cgi_json(g_var_post, "wan0_netmask_x", root);
+	char *wan1_ipaddr = get_cgi_json(g_var_post, "wan1_ipaddr", root);
+	char *wan1_gateway = get_cgi_json(g_var_post, "wan1_gateway", root);
+	char *wan1_netmask = get_cgi_json(g_var_post, "wan1_netmask", root);
+	char *wan1_ipaddr_x = get_cgi_json(g_var_post, "wan1_ipaddr_x", root);
+	char *wan1_gateway_x = get_cgi_json(g_var_post, "wan1_gateway_x", root);
+	char *wan1_netmask_x = get_cgi_json(g_var_post, "wan1_netmask_x", root);
+	if(pri_unit >= 0) {
+		if(wan0_proto) {
+			snprintf(tmp, sizeof(tmp), "wan%d_proto", pri_unit);
+			tcapi_set("Wanduck_Common", tmp, wan0_proto);
+		}
+		if(wan0_ipaddr) {
+			snprintf(tmp, sizeof(tmp), "wan%d_ipaddr", pri_unit);
+			tcapi_set("Wanduck_Common", tmp, wan0_ipaddr);
+		}
+		else if(wan0_ipaddr_x) {
+			snprintf(tmp, sizeof(tmp), "wan%d_ipaddr", pri_unit);
+			tcapi_set("Wanduck_Common", tmp, wan0_ipaddr_x);
+		}
+		if(wan0_gateway) {
+			snprintf(tmp, sizeof(tmp), "wan%d_gateway", pri_unit);
+			tcapi_set("Wanduck_Common", tmp, wan0_gateway);
+		}
+		else if(wan0_gateway_x) {
+			snprintf(tmp, sizeof(tmp), "wan%d_gateway", pri_unit);
+			tcapi_set("Wanduck_Common", tmp, wan0_gateway_x);
+		}
+		if(wan0_netmask) {
+			snprintf(tmp, sizeof(tmp), "wan%d_netmask", pri_unit);
+			tcapi_set("Wanduck_Common", tmp, wan0_netmask);
+		}
+		else if(wan0_netmask_x) {
+			snprintf(tmp, sizeof(tmp), "wan%d_netmask", pri_unit);
+			tcapi_set("Wanduck_Common", tmp, wan0_netmask_x);
+		}
+	}
+	if(sec_unit >= 0) {
+		if(wan1_proto) {
+			snprintf(tmp, sizeof(tmp), "wan%d_proto", sec_unit);
+			tcapi_set("Wanduck_Common", tmp, wan1_proto);
+		}
+		if(wan1_ipaddr) {
+			snprintf(tmp, sizeof(tmp), "wan%d_ipaddr", sec_unit);
+			tcapi_set("Wanduck_Common", tmp, wan1_ipaddr);
+		}
+		else if(wan1_ipaddr_x) {
+			snprintf(tmp, sizeof(tmp), "wan%d_ipaddr", sec_unit);
+			tcapi_set("Wanduck_Common", tmp, wan1_ipaddr_x);
+		}
+		if(wan1_gateway) {
+			snprintf(tmp, sizeof(tmp), "wan%d_gateway", sec_unit);
+			tcapi_set("Wanduck_Common", tmp, wan1_gateway);
+		}
+		else if(wan1_gateway_x) {
+			snprintf(tmp, sizeof(tmp), "wan%d_gateway", sec_unit);
+			tcapi_set("Wanduck_Common", tmp, wan1_gateway_x);
+		}
+		if(wan1_netmask) {
+			snprintf(tmp, sizeof(tmp), "wan%d_netmask", sec_unit);
+			tcapi_set("Wanduck_Common", tmp, wan1_netmask);
+		}
+		else if(wan1_netmask_x) {
+			snprintf(tmp, sizeof(tmp), "wan%d_netmask", sec_unit);
+			tcapi_set("Wanduck_Common", tmp, wan1_netmask_x);
+		}
+	}
 	/* [SET] [WAN] PPTP VPN server */
 	char *VPNServer_enable = get_cgi_json(g_var_post, "VPNServer_enable", root);
-	char *pptpd_enable = get_cgi_json(g_var_post, "pptpd_enable", root);
 	char *VPNServer_mode = get_cgi_json(g_var_post, "VPNServer_mode", root);
-	char *pptpd_clientlist = get_cgi_json(g_var_post, "pptpd_clientlist", root);
 	if(VPNServer_enable)
 		tcapi_set("VPNControl_Entry", "VPNServer_enable", VPNServer_enable);
-	if(pptpd_enable)
-		tcapi_set("PPTP_Entry", "pptpd_enable", pptpd_enable);
 	if(VPNServer_mode)
 		tcapi_set("VPNControl_Entry", "VPNServer_mode", VPNServer_mode);
+	char *pptpd_enable = get_cgi_json(g_var_post, "pptpd_enable", root);
+	char *pptpd_clientlist = get_cgi_json(g_var_post, "pptpd_clientlist", root);
+	if(pptpd_enable)
+		tcapi_set("PPTP_Entry", "pptpd_enable", pptpd_enable);
 	if(pptpd_clientlist)
 		//tcapi_set("PPTP_Entry", "pptpd_clientlist", pptpd_clientlist);
 		tcapi_set_list("pptpd_clientlist", pptpd_clientlist);
-	if(VPNServer_enable || pptpd_enable || VPNServer_mode || pptpd_clientlist)
-		app_method_hit = 1;
-
-	/* [SET] [Wireless] RF 4x4 to 1x1 */
-	/* not support now */
-	char *guard_mode = get_cgi_json(g_var_post, "guard_mode", root);
-	if(guard_mode)
-		tcapi_set("WLan_Common", "guard_mode", guard_mode);
-
 	/* [SET] [QoS] Parental Control Rule */
 	char *MULTIFILTER_ALL = get_cgi_json(g_var_post, "MULTIFILTER_ALL", root);
 	char *MULTIFILTER_ENABLE = get_cgi_json(g_var_post, "MULTIFILTER_ENABLE", root);
@@ -8752,195 +9046,6 @@ static int appSet_attribute(char *wp, json_object *root)
 	if(MULTIFILTER_MACFILTER_DAYTIME)
 		//tcapi_set("Parental_Entry", "MULTIFILTER_MACFILTER_DAYTIME", MULTIFILTER_MACFILTER_DAYTIME);
 		tcapi_set_list("MULTIFILTER_MACFILTER_DAYTIME", MULTIFILTER_MACFILTER_DAYTIME);
-	if(MULTIFILTER_ALL || MULTIFILTER_ENABLE || MULTIFILTER_MAC || MULTIFILTER_DEVICENAME || MULTIFILTER_MACFILTER_DAYTIME) {
-		app_method_hit = 1;
-	}
-
-	/* [SET] [Wireless] WPS Method */
-	char *wps_band = get_cgi_json(g_var_post, "wps_band", root);
-	if(wps_band) {
-		tcapi_set("WLan_Common","wl_unit", wps_band);
-			app_method_hit = 1;
-	}
-
-	/* [SET] [QIS] */
-	char *wan0_proto = get_cgi_json(g_var_post, "wan0_proto", root);
-	char *wan1_proto = get_cgi_json(g_var_post, "wan1_proto", root);
-	if((wan0_proto) && (pri_unit >= 0)) {
-		sprintf(tmp, "wan%d_proto", pri_unit);
-		tcapi_set("Wanduck_Common", tmp, wan0_proto);
-		app_method_hit = 1;
-	}
-	if((wan1_proto) && (pri_unit >= 0)) {
-		sprintf(tmp, "wan%d_proto", sec_unit);
-		tcapi_set("Wanduck_Common", tmp, wan1_proto);
-		app_method_hit = 1;
-	}
-	char *wan0_dhcpenable_x = get_cgi_json(g_var_post, "wan0_dhcpenable_x", root);
-	char *wan1_dhcpenable_x = get_cgi_json(g_var_post, "wan1_dhcpenable_x", root);
-	if((wan0_dhcpenable_x) && (pri_unit >= 0)) {
-		tcapi_set(wan0_node, "ISP", strcmp(wan0_dhcpenable_x, "0") ? "0" : "1"); //ISP=0, Automatic; ISP=1, Static; ISP=2, PPPoE
-		app_method_hit = 1;
-	}
-	if((wan1_dhcpenable_x) && (sec_unit >= 0)) {
-		tcapi_set(wan1_node, "ISP", strcmp(wan1_dhcpenable_x, "0") ? "0" : "1"); //ISP=0, Automatic; ISP=1, Static; ISP=2, PPPoE
-		app_method_hit = 1;
-	}
-
-	/* [SET] [QIS] Wan DHCP Setting */
-	char *wan0_dnsenable_x = get_cgi_json(g_var_post, "wan0_dnsenable_x", root);
-	char *wan0_dns1_x = get_cgi_json(g_var_post, "wan0_dns1_x", root);
-	char *wan0_dns2_x = get_cgi_json(g_var_post, "wan0_dns2_x", root);
-	if(pri_unit >= 0) {
-		if(wan0_dnsenable_x)
-			tcapi_set(wan0_node, "DNS_type", strcmp(wan0_dnsenable_x, "0") ? "0" : "1");
-		if(wan0_dns1_x)
-			tcapi_set(wan0_node, "Primary_DNS", wan0_dns1_x);
-		if(wan0_dns2_x)
-			tcapi_set(wan0_node, "Secondary_DNS", wan0_dns2_x);
-		if(wan0_dnsenable_x || wan0_dns1_x || wan0_dns2_x)
-			app_method_hit = 1;
-	}
-	char *wan1_dnsenable_x = get_cgi_json(g_var_post, "wan1_dnsenable_x", root);
-	char *wan1_dns1_x = get_cgi_json(g_var_post, "wan1_dns1_x", root);
-	char *wan1_dns2_x = get_cgi_json(g_var_post, "wan1_dns2_x", root);
-	if(sec_unit >= 0) {
-		if(wan1_dnsenable_x)
-			tcapi_set(wan1_node, "DNS_type", strcmp(wan1_dnsenable_x, "0") ? "0" : "1");
-		if(wan1_dns1_x)
-			tcapi_set(wan1_node, "Primary_DNS", wan1_dns1_x);
-		if(wan1_dns2_x)
-			tcapi_set(wan1_node, "Secondary_DNS", wan1_dns2_x);
-		if(wan1_dnsenable_x || wan1_dns1_x || wan1_dns2_x)
-			app_method_hit = 1;
-	}
-
-	/* [SET] [QIS] Wan L2TP Setting */
-	/* not support
-	char *wan0_heartbeat_x = get_cgi_json(g_var_post, "wan0_heartbeat_x", root);
-	 */
-	/* [SET] [QIS] Wan PPPoE Setting */
-	char *wan0_pppoe_username = get_cgi_json(g_var_post, "wan0_pppoe_username", root);
-	char *wan0_pppoe_passwd = get_cgi_json(g_var_post, "wan0_pppoe_passwd", root);
-	char *wan0_hwaddr_x = get_cgi_json(g_var_post, "wan0_hwaddr_x", root);
-	if(pri_unit >= 0) {
-		if(wan0_pppoe_username)
-			tcapi_set(wan0_node, "USERNAME", wan0_pppoe_username);
-		if(wan0_pppoe_passwd)
-			tcapi_set(wan0_node, "PASSWORD", wan0_pppoe_passwd);
-		if(wan0_hwaddr_x)
-			tcapi_set(wan0_node, "WAN_MAC", wan0_hwaddr_x);
-		if(wan0_pppoe_username || wan0_pppoe_passwd || wan0_hwaddr_x)
-			app_method_hit = 1;
-	}
-	char *wan1_pppoe_username = get_cgi_json(g_var_post, "wan1_pppoe_username", root);
-	char *wan1_pppoe_passwd = get_cgi_json(g_var_post, "wan1_pppoe_passwd", root);
-	char *wan1_hwaddr_x = get_cgi_json(g_var_post, "wan1_hwaddr_x", root);
-	if(sec_unit >= 0) {
-		if(wan1_pppoe_username)
-			tcapi_set(wan1_node, "USERNAME", wan1_pppoe_username);
-		if(wan1_pppoe_passwd)
-			tcapi_set(wan1_node, "PASSWORD", wan1_pppoe_passwd);
-		if(wan1_hwaddr_x)
-			tcapi_set(wan1_node, "WAN_MAC", wan1_hwaddr_x);
-		if(wan1_pppoe_username || wan1_pppoe_passwd || wan1_hwaddr_x)
-			app_method_hit = 1;
-	}
-
-	/* [SET] [QIS] Wan PPTP Setting */
-	/* not support
-	char *wan0_heartbeat_x = get_cgi_json(g_var_post, "wan0_heartbeat_x", root);
-	 */
-	/* [SET] [QIS] Wan Static Setting */
-	char *wan0_ipaddr = get_cgi_json(g_var_post, "wan0_ipaddr", root);
-	char *wan0_gateway = get_cgi_json(g_var_post, "wan0_gateway", root);
-	char *wan0_netmask = get_cgi_json(g_var_post, "wan0_netmask", root);
-	char *wan0_ipaddr_x = get_cgi_json(g_var_post, "wan0_ipaddr_x", root);
-	char *wan0_gateway_x = get_cgi_json(g_var_post, "wan0_gateway_x", root);
-	char *wan0_netmask_x = get_cgi_json(g_var_post, "wan0_netmask_x", root);
-	if(pri_unit >= 0) {
-		if(wan0_ipaddr) {
-			sprintf(tmp, "wan%d_ipaddr", pri_unit);
-			tcapi_set("Wanduck_Common", tmp, wan0_ipaddr);
-			app_method_hit = 1;
-		}
-		else if(wan0_ipaddr_x) {
-			sprintf(tmp, "wan%d_ipaddr", pri_unit);
-			tcapi_set("Wanduck_Common", tmp, wan0_ipaddr_x);
-			app_method_hit = 1;
-		}
-		if(wan0_gateway) {
-			sprintf(tmp, "wan%d_gateway", pri_unit);
-			tcapi_set("Wanduck_Common", tmp, wan0_gateway);
-			app_method_hit = 1;
-		}
-		else if(wan0_gateway_x) {
-			sprintf(tmp, "wan%d_gateway", pri_unit);
-			tcapi_set("Wanduck_Common", tmp, wan0_gateway_x);
-			app_method_hit = 1;
-		}
-		if(wan0_netmask) {
-			sprintf(tmp, "wan%d_netmask", pri_unit);
-			tcapi_set("Wanduck_Common", tmp, wan0_netmask);
-			app_method_hit = 1;
-		}
-		else if(wan0_netmask_x) {
-			sprintf(tmp, "wan%d_netmask", pri_unit);
-			tcapi_set("Wanduck_Common", tmp, wan0_netmask_x);
-			app_method_hit = 1;
-		}
-	}
-	char *wan1_ipaddr = get_cgi_json(g_var_post, "wan1_ipaddr", root);
-	char *wan1_gateway = get_cgi_json(g_var_post, "wan1_gateway", root);
-	char *wan1_netmask = get_cgi_json(g_var_post, "wan1_netmask", root);
-	char *wan1_ipaddr_x = get_cgi_json(g_var_post, "wan1_ipaddr_x", root);
-	char *wan1_gateway_x = get_cgi_json(g_var_post, "wan1_gateway_x", root);
-	char *wan1_netmask_x = get_cgi_json(g_var_post, "wan1_netmask_x", root);
-	if(sec_unit >= 0) {
-		if(wan1_ipaddr) {
-			sprintf(tmp, "wan%d_ipaddr", sec_unit);
-			tcapi_set("Wanduck_Common", tmp, wan1_ipaddr);
-			app_method_hit = 1;
-		}
-		else if(wan1_ipaddr_x) {
-			sprintf(tmp, "wan%d_ipaddr", sec_unit);
-			tcapi_set("Wanduck_Common", tmp, wan1_ipaddr_x);
-			app_method_hit = 1;
-		}
-		if(wan1_gateway) {
-			sprintf(tmp, "wan%d_gateway", sec_unit);
-			tcapi_set("Wanduck_Common", tmp, wan1_gateway);
-			app_method_hit = 1;
-		}
-		else if(wan1_gateway_x) {
-			sprintf(tmp, "wan%d_gateway", sec_unit);
-			tcapi_set("Wanduck_Common", tmp, wan1_gateway_x);
-			app_method_hit = 1;
-		}
-		if(wan1_netmask) {
-			sprintf(tmp, "wan%d_netmask", sec_unit);
-			tcapi_set("Wanduck_Common", tmp, wan1_netmask);
-			app_method_hit = 1;
-		}
-		else if(wan1_netmask_x) {
-			sprintf(tmp, "wan%d_netmask", sec_unit);
-			tcapi_set("Wanduck_Common", tmp, wan1_netmask_x);
-			app_method_hit = 1;
-		}
-	}
-
-	/* DUT_RT_SetBandwidthMonitorMode */
-	/* not support
-	char *apps_analysis = get_cgi_json(g_var_post, "apps_analysis", root);
-	 */
-
-	/* Others */
-	char *x_Setting = get_cgi_json(g_var_post, "x_Setting", root);
-	if(x_Setting) {
-		tcapi_set("SysInfo_Entry","x_Setting", x_Setting);
-		app_method_hit = 1;
-	}
-
 	/* [SET] [QIS] Username/Passwd */
 	char *http_username = get_cgi_json(g_var_post, "http_username", root);
 	char *http_passwd = get_cgi_json(g_var_post, "http_passwd", root);
@@ -8949,6 +9054,151 @@ static int appSet_attribute(char *wp, json_object *root)
 	if(http_passwd) {
 		tcapi_set("Account_Entry0", "web_passwd", http_passwd);
 		tcapi_set("Account_Entry0", "console_passwd", http_passwd);
+	}
+	/* [SET] [AiCloud] enabled AiColud */
+	char *enable_webdav = get_cgi_json(g_var_post, "enable_webdav", root);
+	char *webdav_aidisk = get_cgi_json(g_var_post, "webdav_aidisk", root);
+	char *webdav_proxy = get_cgi_json(g_var_post, "webdav_proxy", root);
+	char *st_webdav_mode = get_cgi_json(g_var_post, "st_webdav_mode", root);
+	if(enable_webdav)
+		tcapi_set("AiCloud_Entry", "enable_webdav", enable_webdav);
+	if(webdav_aidisk)
+		tcapi_set("AiCloud_Entry", "webdav_aidisk", webdav_aidisk);
+	if(webdav_proxy)
+		tcapi_set("AiCloud_Entry", "webdav_proxy", webdav_proxy);
+	if(st_webdav_mode)
+		tcapi_set("AiCloud_Entry", "st_webdav_mode", st_webdav_mode);
+	/* DUT_RT_AddSmartSync, DUT_RT_DelSmartSync */
+	char *enable_cloudsync = get_cgi_json(g_var_post, "enable_cloudsync", root);
+	char *cloud_sync = get_cgi_json(g_var_post, "cloud_sync", root);
+	if(enable_cloudsync)
+		tcapi_set("AiCloud_Entry", "enable_cloudsync", enable_cloudsync);
+	if(cloud_sync)
+		tcapi_set("AiCloud_Entry", "cloud_sync", cloud_sync);
+	/* Others */
+	char *x_Setting = get_cgi_json(g_var_post, "x_Setting", root);
+	if(x_Setting)
+		tcapi_set("SysInfo_Entry","x_Setting", x_Setting);
+
+	/****** Run rc_service (commit node) ******/
+	/* not support rc_service
+	restart_cloudcheck, restart_wrs, restart_eco_guard
+	 */
+	if(wan0_upnp_enable) {
+		tcapi_commit("Upnpd_Entry");
+		app_method_hit = 2; //"MODIFIED" and "RUN SERVICE"
+	}
+	/* rc_service: restart_firewall */
+	if(misc_http_x || misc_ping_x
+#ifndef TCSUPPORT_WEBSERVER_SSL
+		|| misc_httpport_x 
+#else		
+		|| misc_httpsport_x
+#endif
+		) {
+		tcapi_commit("Firewall_Entry");
+		app_method_hit = 2;
+	}
+	if(dmz_ip) {
+		tcapi_commit("Dmz_PVC");
+		app_method_hit = 2;
+	}
+	if(autofw_enable_x) {
+		tcapi_commit("portTriggering_Entry0");
+		app_method_hit = 2;
+	}
+	if(wl_unit || wl_subunit || wl_nmode_x || wl_bw
+		|| wl0_nmode_x || wl0_bw || wl1_nmode_x || wl1_bw
+		|| wl0_txpower || wl1_txpower
+		|| guard_mode || wps_enable || wps_band) {
+		tcapi_commit("WLan_Common");
+		app_method_hit = 2;
+	}
+	/* rc_service: restart_wireless */
+	if(wps_sta_pin
+		|| wl0_1_bss_enabled || wl0_1_ssid || wl0_1_auth_mode_x || wl0_1_crypto || wl0_1_key || wl0_1_wpa_psk || wl0_1_lanaccess || wl0_1_expire || wl0_1_expire_tmp
+		|| wl0_2_bss_enabled || wl0_2_ssid || wl0_2_auth_mode_x || wl0_2_crypto || wl0_2_key || wl0_2_wpa_psk || wl0_2_lanaccess || wl0_2_expire || wl0_2_expire_tmp
+		|| wl0_3_bss_enabled || wl0_3_ssid || wl0_3_auth_mode_x || wl0_3_crypto || wl0_3_key || wl0_3_wpa_psk || wl0_3_lanaccess || wl0_3_expire || wl0_3_expire_tmp
+		|| wl1_1_bss_enabled || wl1_1_ssid || wl1_1_auth_mode_x || wl1_1_crypto || wl1_1_key || wl1_1_wpa_psk || wl1_1_lanaccess || wl1_1_expire || wl1_1_expire_tmp
+		|| wl1_2_bss_enabled || wl1_2_ssid || wl1_2_auth_mode_x || wl1_2_crypto || wl1_2_key || wl1_2_wpa_psk || wl1_2_lanaccess || wl1_2_expire || wl1_2_expire_tmp
+		|| wl1_3_bss_enabled || wl1_3_ssid || wl1_3_auth_mode_x || wl1_3_crypto || wl1_3_key || wl1_3_wpa_psk || wl1_3_lanaccess || wl1_3_expire || wl1_3_expire_tmp
+		|| wl_closed || wl_radio || wl_ssid
+		|| wl0_ssid || wl0_closed || wl0_auth_mode_x || wl0_crypto || wl0_wpa_psk
+		|| wl1_ssid || wl1_closed || wl1_auth_mode_x || wl1_crypto || wl1_wpa_psk
+		|| wl0_radio || wl1_radio
+		|| wl0_user_rssi || wl1_user_rssi || wl2_user_rssi
+		) {
+		tcapi_commit("WLan_Entry0");
+		app_method_hit = 2;
+	}
+	/* rc_service: restart_wireless */
+	if(wl0_macmode || wl1_macmode || wl2_macmode
+		|| wl0_maclist_x || wl1_maclist_x || wl2_maclist_x
+		|| wl0_1_macmode || wl0_2_macmode || wl0_3_macmode
+		|| wl1_1_macmode || wl1_2_macmode || wl1_3_macmode) {
+		tcapi_commit("ACL_Entry0");
+		app_method_hit = 2;
+	}
+	/* rc_service: restart_qos */
+	if(qos_enable || qos_type || qos_obw || qos_ibw
+		|| qos_rulelist || qos_bw_rulelist) {
+		tcapi_commit("QoS_Entry0");
+		app_method_hit = 2;
+	}
+	if(ctf_disable) {
+		tcapi_commit("Misc_Entry");
+		app_method_hit = 2;
+	}
+	/* rc_service: restart_ftpd, stop_ftpd, restart_samba, stop_samba */
+	if(enable_ftp || st_ftp_mode
+		|| enable_samba || st_samba_mode) {
+		tcapi_commit("Samba_Entry");
+		app_method_hit = 2;
+	}
+	/* rc_service: restart_httpd */
+	if(http_enable || https_lanport) {
+		tcapi_commit("Https_Entry");
+		app_method_hit = 2;
+	}
+	/* rc_service: enable_webdav, restart_ddns */
+	if(ddns_enable_x || ddns_server_x || ddns_hostname_x) {
+		tcapi_commit("Ddns_Entry");
+		app_method_hit = 2;
+	}
+	if((pri_unit >= 0) && (wan0_enable || wan0_dhcpenable_x
+		|| wan0_dnsenable_x || wan0_dns1_x || wan0_dns2_x
+		|| wan0_pppoe_username || wan0_pppoe_passwd || wan0_hwaddr_x)) {
+		tcapi_commit(wan0_node);
+		app_method_hit = 2;
+	}
+	if((sec_unit >= 0) && (wan1_enable || wan1_dhcpenable_x
+		|| wan1_dnsenable_x || wan1_dns1_x || wan1_dns2_x
+		|| wan1_pppoe_username || wan1_pppoe_passwd || wan1_hwaddr_x)) {
+		tcapi_commit(wan1_node);
+		app_method_hit = 2;
+	}
+	/* rc_service: restart_wan_if */
+	if(wan0_proto || wan1_proto
+		|| wan0_ipaddr || wan0_gateway || wan0_netmask
+		|| wan0_ipaddr_x || wan0_gateway_x || wan0_netmask_x
+		|| wan1_ipaddr || wan1_gateway || wan1_netmask
+		|| wan1_ipaddr_x || wan1_gateway_x || wan1_netmask_x) {
+		tcapi_commit("Wanduck_Common");
+		app_method_hit = 2;
+	}
+	/* rc_service: restart_vpnd */
+	if(VPNServer_enable || VPNServer_mode) {
+		tcapi_commit("VPNControl_Entry");
+		app_method_hit = 2;
+	}
+	/* rc_service: restart_vpnd */
+	if(pptpd_enable || pptpd_clientlist) {
+		tcapi_commit("PPTP_Entry");
+		app_method_hit = 2;
+	}
+	if(MULTIFILTER_ALL || MULTIFILTER_ENABLE || MULTIFILTER_MAC || MULTIFILTER_DEVICENAME || MULTIFILTER_MACFILTER_DAYTIME) {
+		tcapi_commit("Parental_Entry");
+		app_method_hit = 2;
 	}
 	if(http_username || http_passwd) {
 		tcapi_commit("Account");
@@ -8979,6 +9229,23 @@ static int appSet_attribute(char *wp, json_object *root)
 		}
 #endif
 	}
+	if(enable_webdav || webdav_aidisk || webdav_proxy || st_webdav_mode
+		||enable_cloudsync || cloud_sync) {
+		tcapi_commit("AiCloud_Entry");
+	}
+	/* rc_service: restart_cloudsync */
+	if(enable_webdav || webdav_aidisk || webdav_proxy || st_webdav_mode) {
+		system("/sbin/rc_call webdav 2 &");	//restart
+		app_method_hit = 2;
+	}
+	if(enable_cloudsync || cloud_sync) {
+		system("/sbin/rc_call cloudsync 2 &");	//restart
+		app_method_hit = 2;
+	}
+	if(x_Setting) {
+		tcapi_commit("SysInfo_Entry");
+		app_method_hit = 2;
+	}
 
 	return app_method_hit;
 }
@@ -8986,156 +9253,12 @@ static int appSet_attribute(char *wp, json_object *root)
 static int appDo_rc_service(char *rc_service, char *wp, json_object *root)
 {
 	int app_method_hit = 0;
-	char wan0_node[16], wan1_node[16];
-
-	int pri_unit = wan_primary_ifunit();
-	int sec_unit = wan_secondary_ifunit();
-	if (pri_unit >= 0) {
-		sprintf(wan0_node, "Wan_PVC%d", pri_unit);
-	}
-	if (sec_unit >= 0) {
-		sprintf(wan1_node, "Wan_PVC%d", sec_unit);
-	}
 
 	//_dprintf("[AiHome] appDo_rc_service: rc_service=%s\n", rc_service);
 	if(rc_service) {
-		if(!strcmp(rc_service, "enable_webdav")) {
-			char *ddns_enable_x = get_cgi_json(g_var_post, "ddns_enable_x", root);
-			char *ddns_server_x = get_cgi_json(g_var_post, "ddns_server_x", root);
-			char *ddns_hostname_x = get_cgi_json(g_var_post, "ddns_hostname_x", root);
-			char *enable_webdav = get_cgi_json(g_var_post, "enable_webdav", root);
-			char *webdav_aidisk = get_cgi_json(g_var_post, "webdav_aidisk", root);
-			char *webdav_proxy = get_cgi_json(g_var_post, "webdav_proxy", root);
-			char *st_webdav_mode = get_cgi_json(g_var_post, "st_webdav_mode", root);
-
-			if(ddns_enable_x || ddns_server_x || ddns_hostname_x) {
-				tcapi_commit("Ddns");
-				app_method_hit = 2; //"MODIFIED" and "RUN SERVICE"
-			}
-
-			if(enable_webdav)
-				tcapi_set("AiCloud_Entry", "enable_webdav", enable_webdav);
-			if(webdav_aidisk)
-				tcapi_set("AiCloud_Entry", "webdav_aidisk", webdav_aidisk);
-			if(webdav_proxy)
-				tcapi_set("AiCloud_Entry", "webdav_proxy", webdav_proxy);
-			if(st_webdav_mode)
-				tcapi_set("AiCloud_Entry", "st_webdav_mode", st_webdav_mode);
-			if(enable_webdav || webdav_aidisk || webdav_proxy || st_webdav_mode) {
-				tcapi_commit("AiCloud_Entry");
-				system("/sbin/rc_call webdav 2 &");	//restart
-				app_method_hit = 2;
-			}
-		}
-		else if(!strcmp(rc_service, "restart_cloudsync")) {
-			char *enable_cloudsync = get_cgi_json(g_var_post, "enable_cloudsync", root);
-			char *cloud_sync = get_cgi_json(g_var_post, "cloud_sync", root);
-
-			if(enable_cloudsync)
-				tcapi_set("AiCloud_Entry", "enable_cloudsync", enable_cloudsync);
-			if(cloud_sync)
-				tcapi_set("AiCloud_Entry", "cloud_sync", cloud_sync);
-			if(enable_cloudsync || cloud_sync) {
-				tcapi_commit("AiCloud_Entry");
-				system("/sbin/rc_call cloudsync 2 &");	//restart
-				app_method_hit = 2;
-			}
-		}
-		/* [SET] [AiProtection] Router Security - Secure your router */
-		/* [SET] [WAN] Disconnect WAN */
-		else if(!strncmp(rc_service, "restart_wan_if", 14)) {
-			/* not support wan1_upnp_enable */
-			/* [SET] [QIS] */
-			char *wan0_proto = get_cgi_json(g_var_post, "wan0_proto", root);
-			char *wan1_proto = get_cgi_json(g_var_post, "wan1_proto", root);
-			if(wan0_proto || wan1_proto) {
-				tcapi_commit("Wanduck_Common");
-				app_method_hit = 2;
-			}
-			char *wan0_enable = get_cgi_json(g_var_post, "wan0_enable", root);
-			char *wan0_dhcpenable_x = get_cgi_json(g_var_post, "wan0_dhcpenable_x", root);
-			char *wan0_dnsenable_x = get_cgi_json(g_var_post, "wan0_dnsenable_x", root);
-			char *wan0_dns1_x = get_cgi_json(g_var_post, "wan0_dns1_x", root);
-			char *wan0_dns2_x = get_cgi_json(g_var_post, "wan0_dns2_x", root);
-			char *wan0_pppoe_username = get_cgi_json(g_var_post, "wan0_pppoe_username", root);
-			char *wan0_pppoe_passwd = get_cgi_json(g_var_post, "wan0_pppoe_passwd", root);
-			char *wan0_hwaddr_x = get_cgi_json(g_var_post, "wan0_hwaddr_x", root);
-			char *wan0_ipaddr = get_cgi_json(g_var_post, "wan0_ipaddr", root);
-			char *wan0_gateway = get_cgi_json(g_var_post, "wan0_gateway", root);
-			char *wan0_netmask = get_cgi_json(g_var_post, "wan0_netmask", root);
-			char *wan0_ipaddr_x = get_cgi_json(g_var_post, "wan0_ipaddr_x", root);
-			char *wan0_gateway_x = get_cgi_json(g_var_post, "wan0_gateway_x", root);
-			char *wan0_netmask_x = get_cgi_json(g_var_post, "wan0_netmask_x", root);
-			if((wan0_enable || wan0_dhcpenable_x
-				|| wan0_dnsenable_x || wan0_dns1_x || wan0_dns2_x
-				|| wan0_pppoe_username || wan0_pppoe_passwd || wan0_hwaddr_x
-				|| wan0_ipaddr || wan0_gateway || wan0_netmask
-				|| wan0_ipaddr_x || wan0_gateway_x || wan0_netmask_x) && (pri_unit >= 0)) {
-				tcapi_commit(wan0_node);
-				app_method_hit = 2;
-			}
-			char *wan1_enable = get_cgi_json(g_var_post, "wan1_enable", root);
-			char *wan1_dhcpenable_x = get_cgi_json(g_var_post, "wan1_dhcpenable_x", root);
-			char *wan1_dnsenable_x = get_cgi_json(g_var_post, "wan1_dnsenable_x", root);
-			char *wan1_dns1_x = get_cgi_json(g_var_post, "wan1_dns1_x", root);
-			char *wan1_dns2_x = get_cgi_json(g_var_post, "wan1_dns2_x", root);
-			char *wan1_pppoe_username = get_cgi_json(g_var_post, "wan1_pppoe_username", root);
-			char *wan1_pppoe_passwd = get_cgi_json(g_var_post, "wan1_pppoe_passwd", root);
-			char *wan1_hwaddr_x = get_cgi_json(g_var_post, "wan1_hwaddr_x", root);
-			char *wan1_ipaddr = get_cgi_json(g_var_post, "wan1_ipaddr", root);
-			char *wan1_gateway = get_cgi_json(g_var_post, "wan1_gateway", root);
-			char *wan1_netmask = get_cgi_json(g_var_post, "wan1_netmask", root);
-			char *wan1_ipaddr_x = get_cgi_json(g_var_post, "wan1_ipaddr_x", root);
-			char *wan1_gateway_x = get_cgi_json(g_var_post, "wan1_gateway_x", root);
-			char *wan1_netmask_x = get_cgi_json(g_var_post, "wan1_netmask_x", root);
-			if((wan1_enable || wan1_dhcpenable_x
-				|| wan1_dnsenable_x || wan1_dns1_x || wan1_dns2_x
-				|| wan1_pppoe_username || wan1_pppoe_passwd || wan1_hwaddr_x
-				|| wan1_ipaddr || wan1_gateway || wan1_netmask
-				|| wan1_ipaddr_x || wan1_gateway_x || wan1_netmask_x) && (sec_unit >= 0)) {
-				tcapi_commit(wan1_node);
-				app_method_hit = 2;
-			}
+		if(!strncmp(rc_service, "restart_wan_if", 14)) {
 			tcapi_commit("Upnpd_Entry");
 			tcapi_commit("Route");
-		}
-		else if(!strcmp(rc_service, "restart_time")) {
-			tcapi_commit("Firewall");
-			app_method_hit = 2;
-		}
-		else if(!strcmp(rc_service, "restart_firewall")) {
-			tcapi_commit("Firewall");
-			app_method_hit = 2;
-		}
-		else if(!strcmp(rc_service, "restart_wrs")) {
-			/* not support [AiProtection][bwdpi] wrs_cc_enable, wrs_vp_enable, wrs_mals_enable */
-		}
-		else if(!strcmp(rc_service, "restart_wireless")) {
-			/* [SET] [Wireless] Mac filter */
-			char *wl0_macmode = get_cgi_json(g_var_post, "wl0_macmode", root);
-			char *wl1_macmode = get_cgi_json(g_var_post, "wl1_macmode", root);
-			char *wl2_macmode = get_cgi_json(g_var_post, "wl2_macmode", root);
-			char *wl0_maclist_x = get_cgi_json(g_var_post, "wl0_maclist_x", root);
-			char *wl1_maclist_x = get_cgi_json(g_var_post, "wl1_maclist_x", root);
-			char *wl2_maclist_x = get_cgi_json(g_var_post, "wl2_maclist_x", root);
-			if(wl0_macmode || wl1_macmode || wl2_macmode || wl0_maclist_x || wl1_maclist_x || wl2_maclist_x) {
-				tcapi_commit("ACL_Entry0");
-				app_method_hit = 2;
-			}
-			else {
-			/* [SET] [AiProtection] Router Security - Secure your router */
-			/* [SET] [Guest Network] 2.4GHz - 1 */
-			/* [SET] [Wireless] General Setting */
-			/* [SET] [Wireless] radio on/off */
-			/* [SET] [Wireless] Roaming assistant */
-			/* [SET] [Wireless] Tx power adjustment */
-				tcapi_commit("WLan_Entry0");
-				app_method_hit = 2;
-			}
-		}
-		/* [SET] [CloudCheck] Enabled */
-		else if(!strcmp(rc_service, "restart_cloudcheck")) {
-			/* not support enable_cloudcheck */
 		}
 		/* [SET] [Firmware Update] download fw server info */
 		else if(!strcmp(rc_service, "start_webs_update")) {
@@ -9168,54 +9291,11 @@ static int appDo_rc_service(char *rc_service, char *wp, json_object *root)
 			system("reboot");
 			app_method_hit = 2;
 		}
-		/* [SET] [QoS] Bandwidth limiter */
-		else if(!strcmp(rc_service, "restart_qos")) {
-			tcapi_commit("QoS_Entry0");
-			app_method_hit = 2;
-		}
-		/* [SET] [System] HTTP / HTTPS */
-		else if(!strcmp(rc_service, "restart_httpd")) {
-			tcapi_commit("Https_Entry");
-			app_method_hit = 2;
-		}
-		/* [SET] [USB] FTP - Enabled */
-		else if(!strcmp(rc_service, "restart_ftpd")) {
-			tcapi_commit("Samba_Entry");
-			eval("/sbin/rc_call", "ftp", "2");
-			app_method_hit = 2;
-		}
-		else if(!strcmp(rc_service, "stop_ftpd")) {
-			tcapi_commit("Samba_Entry");
-			eval("/sbin/rc_call", "ftp", "0");
-			app_method_hit = 2;
-		}
-		/* [SET] [USB] samba - enabled */
-		else if(!strcmp(rc_service, "restart_samba")) {
-			tcapi_commit("Samba_Entry");
-			eval("/sbin/rc_call", "samba", "2");
-			app_method_hit = 2;
-		}
-		else if(!strcmp(rc_service, "stop_samba")) {
-			tcapi_commit("Samba_Entry");
-			eval("/sbin/rc_call", "samba", "0");
-			app_method_hit = 2;
-		}
-		/* [SET] [WAN] ASUS DDNS */
-		else if(!strcmp(rc_service, "restart_ddns")) {
-			tcapi_commit("Ddns_Entry0");
-			app_method_hit = 2;
-		}
 		/* [SET] [WAN] PPTP VPN server */
 		else if(!strcmp(rc_service, "restart_vpnd")) {
-			tcapi_commit("VPNControl_Entry");
-			tcapi_commit("PPTP_Entry");
 			system("/sbin/service restart_vpnd");
 			tcapi_commit("Firewall");
 			app_method_hit = 2;
-		}
-		/* [SET] [Wireless] RF 4x4 to 1x1 */
-		else if(!strcmp(rc_service, "restart_eco_guard")) {
-			/* not support guard_mode */
 		}
 		/* [SET] [QIS] Change lan ip conflict */
 		else if(!strcmp(rc_service, "restart_subnet")) {
@@ -9242,19 +9322,17 @@ static int appDo_rc_service(char *rc_service, char *wp, json_object *root)
 			int unit;
 			// char tmp_wan[100], prefix_wan[] = "wanXXXXXXXXXX_";
 			char tmp_wanip[32], tmp_wanmask[32];
-			char wp[4] = {0};
+			//char wp[4] = {0};
 
 			app_method_hit = 2;
 			// snprintf(prefix_lan, sizeof(prefix_lan), "lan_");
 
 			memset(lan_ipaddr_t, 0, sizeof(lan_ipaddr_t));
-			// strcpy(lan_ipaddr_t, nvram_safe_get(strcat_r(prefix_lan, "ipaddr", tmp_lan)));
 			tcapi_get("Lan_Entry0", "IP", lan_ipaddr_t);
 			memset(&addr, 0, sizeof(addr));
 			lan_ip_num = ntohl(inet_aton(lan_ipaddr_t, &addr));
 			lan_ip_num = ntohl(addr.s_addr);
 			memset(lan_netmask_t, 0, sizeof(lan_netmask_t));
-			// strcpy(lan_netmask_t, nvram_safe_get(strcat_r(prefix_lan, "netmask", tmp_lan)));
 			tcapi_get("Lan_Entry0", "netmask", lan_netmask_t);
 			memset(&addr, 0, sizeof(addr));
 			lan_mask_num = ntohl(inet_aton(lan_netmask_t, &addr));
@@ -9287,15 +9365,13 @@ static int appDo_rc_service(char *rc_service, char *wp, json_object *root)
 			// wan_prefix(unit, prefix_wan);
 
 			memset(wan_ipaddr_t, 0, sizeof(wan_ipaddr_t));
-			// strcpy(wan_ipaddr_t, nvram_safe_get(strcat_r(prefix_lan, "ipaddr", tmp_wan)));
-			sprintf(tmp_wanip, "wan%d_ipaddr", unit);
+			snprintf(tmp_wanip, sizeof(tmp_wanip), "wan%d_ipaddr", unit);
 			tcapi_get("Wanduck_Common", tmp_wanip, wan_ipaddr_t);
 			memset(&addr, 0, sizeof(addr));
 			wan_ip_num = ntohl(inet_aton(wan_ipaddr_t, &addr));
 			wan_ip_num = ntohl(addr.s_addr);
 			memset(wan_netmask_t, 0, sizeof(wan_netmask_t));
-			// strcpy(wan_netmask_t, nvram_safe_get(strcat_r(prefix_lan, "netmask", tmp_wan)));
-			sprintf(tmp_wanmask, "wan%d_netmask", unit);
+			snprintf(tmp_wanmask, sizeof(tmp_wanmask), "wan%d_netmask", unit);
 			tcapi_get("Wanduck_Common", tmp_wanmask, wan_netmask_t);
 			memset(&addr, 0, sizeof(addr));
 			wan_mask_num = ntohl(inet_aton(wan_netmask_t, &addr));
@@ -9327,16 +9403,16 @@ static int appDo_rc_service(char *rc_service, char *wp, json_object *root)
 		dbg("%u, %u, %u.\n", new_lan_ip_num, new_dhcp_start_num, new_dhcp_end_num);
 			memset(&addr, 0, sizeof(addr));
 			addr.s_addr = htonl(new_lan_ip_num);
-			memset(new_lan_ip_str, 0, sizeof(new_lan_ip_str));
-			strcpy(new_lan_ip_str, inet_ntoa(addr));
+			//memset(new_lan_ip_str, 0, sizeof(new_lan_ip_str));
+			snprintf(new_lan_ip_str, sizeof(new_lan_ip_str), "%s", inet_ntoa(addr));
 			memset(&addr, 0, sizeof(addr));
 			addr.s_addr = htonl(new_dhcp_start_num);
-			memset(new_dhcp_start_str, 0, sizeof(new_dhcp_start_str));
-			strcpy(new_dhcp_start_str, inet_ntoa(addr));
+			//memset(new_dhcp_start_str, 0, sizeof(new_dhcp_start_str));
+			snprintf(new_dhcp_start_str, sizeof(new_dhcp_start_str), "%s", inet_ntoa(addr));
 			memset(&addr, 0, sizeof(addr));
 			addr.s_addr = htonl(new_dhcp_end_num);
-			memset(new_dhcp_end_str, 0, sizeof(new_dhcp_end_str));
-			strcpy(new_dhcp_end_str, inet_ntoa(addr));
+			//memset(new_dhcp_end_str, 0, sizeof(new_dhcp_end_str));
+			snprintf(new_dhcp_end_str, sizeof(new_dhcp_end_str), "%s", inet_ntoa(addr));
 		dbg("%s, %s, %s.\n", new_lan_ip_str, new_dhcp_start_str, new_dhcp_end_str);
 
 			// nvram_set(strcat_r(prefix_lan, "ipaddr", tmp_lan), new_lan_ip_str);
@@ -9478,9 +9554,30 @@ appGet_attribute(char *stream, char *name)
 	int latest_firmver = 0, current_firmver = 0, tmpInt = -1;
 	char *exist_firm;
 	//_dprintf("appGet_attribute: name = %s\n", name);
-
+	char wan0_node[16], wan1_node[16];
+#ifdef RTCONFIG_DUALWAN
+	int pri_unit = wan_primary_pvcunit();
+	int sec_unit = wan_secondary_pvcunit();
+#else
 	int pri_unit = wan_primary_ifunit();
-	int sec_unit = wan_secondary_ifunit();
+	int sec_unit = -1;
+#endif
+	if(pri_unit >= 0) {
+#ifdef TCSUPPORT_MULTISERVICE_ON_WAN
+		if(pri_unit == WAN_UNIT_PTM0 || pri_unit == WAN_UNIT_ETH) //multiservice only for PTM, WAN
+			snprintf(wan0_node, sizeof(wan0_node), "WanExt_PVC%de0", pri_unit);
+		else
+#endif
+		snprintf(wan0_node, sizeof(wan0_node), "Wan_PVC%d", pri_unit);
+	}
+	if(sec_unit >= 0) {
+#ifdef TCSUPPORT_MULTISERVICE_ON_WAN
+		if(sec_unit == WAN_UNIT_PTM0 || sec_unit == WAN_UNIT_ETH) //multiservice only for PTM, WAN
+			snprintf(wan1_node, sizeof(wan1_node), "WanExt_PVC%de0", sec_unit);
+		else
+#endif
+		snprintf(wan1_node, sizeof(wan1_node), "Wan_PVC%d", sec_unit);
+	}
 
 	/* Bandwidth limiter */
 	if (strcmp(name, "qos_enable") == 0) {
@@ -10325,8 +10422,7 @@ appGet_attribute(char *stream, char *name)
 	/* [WAN] Disconnect WAN */
 	else if (strcmp(name, "wan0_enable") == 0) {
 		if (pri_unit >= 0) {
-			sprintf(tmp, "Wan_PVC%d", pri_unit);
-			if(!tcapi_get(tmp, "Active", value)) {
+			if(!tcapi_get(wan0_node, "Active", value)) {
 				websWrite(stream, strcmp(value, "Yes") ? "0" : "1");
 				app_method_hit = 1;
 			}
@@ -10337,8 +10433,7 @@ appGet_attribute(char *stream, char *name)
 	}
 	else if (strcmp(name, "wan1_enable") == 0) {
 		if (sec_unit >= 0) {
-			sprintf(tmp, "Wan_PVC%d", sec_unit);
-			if(!tcapi_get(tmp, "Active", value)) {
+			if(!tcapi_get(wan1_node, "Active", value)) {
 				websWrite(stream, strcmp(value, "Yes") ? "0" : "1");
 				app_method_hit = 1;
 			}
@@ -10398,6 +10493,9 @@ appGet_attribute(char *stream, char *name)
 	}
 	else if (strcmp(name, "computer_name") == 0) {
 		if(!tcapi_get("Samba_Entry", "NetBiosName", value)) {
+			if(strlen(value) <= 0) {
+				snprintf(value, sizeof(value), "%s", get_productid());
+			}
 			websWrite(stream, value);
 			app_method_hit = 1;
 		}
@@ -10498,6 +10596,7 @@ appGet_attribute(char *stream, char *name)
 			app_method_hit = 2;
 		}
 	}
+#ifndef TCSUPPORT_WEBSERVER_SSL	
 	else if (strcmp(name, "misc_httpport_x") == 0) {
 		if(!tcapi_get("Firewall_Entry", "misc_httpport_x", value)) {
 			websWrite(stream, value);
@@ -10507,6 +10606,7 @@ appGet_attribute(char *stream, char *name)
 			app_method_hit = 2;
 		}
 	}
+#else	
 	else if (strcmp(name, "misc_httpsport_x") == 0) {
 		if(!tcapi_get("Firewall_Entry", "misc_httpsport_x", value)) {
 			websWrite(stream, value);
@@ -10516,6 +10616,7 @@ appGet_attribute(char *stream, char *name)
 			app_method_hit = 2;
 		}
 	}
+#endif
 	/* [GET] [AiProtection] Router Security - WPS Disabled status */
 	/* DUT_RT_GetWirelessWPS */
 	else if (strcmp(name, "wps_band") == 0) {
@@ -10674,20 +10775,22 @@ appGet_attribute(char *stream, char *name)
 			app_method_hit = 2;
 		}
 	}
-	else if (strcmp(name, "wl0_nmode_x") == 0) { //2G=> 0:Legacy, 6:N only, 9:Auto
+	/* (DSL ASUSWRT)2.4G=> 9:Auto, 6:N only, 0:Legacy */
+	else if (strcmp(name, "wl0_nmode_x") == 0) {
 		if(!tcapi_get("WLan_Common", "wl0_WirelessMode", value)) {
 			tmpInt = atoi(value);
 			switch (tmpInt) {
-				case 0:
-					websWrite(stream, "2"); /*2: Legacy*/
+				/* (ASUSWRT)2.4G=> 0: Auto, 1: N Only, 2: Legacy */
+				case 9:
+					websWrite(stream, "0");
 					app_method_hit = 1;
 					break;
 				case 6:
-					websWrite(stream, "1"); /*1: N Only*/
+					websWrite(stream, "1");
 					app_method_hit = 1;
 					break;
-				case 9:
-					websWrite(stream, "0"); /*0: Auto*/
+				case 0:
+					websWrite(stream, "2");
 					app_method_hit = 1;
 					break;
 				default:
@@ -10721,8 +10824,6 @@ appGet_attribute(char *stream, char *name)
 				websWrite(stream, "wpa2");
 			else if(strcmp(value, "WPA1WPA2") ==0)
 				websWrite(stream, "wpawpa2");
-			else
-				websWrite(stream, "");
 			app_method_hit = 1;
 		}
 		else {
@@ -10736,8 +10837,6 @@ appGet_attribute(char *stream, char *name)
 				websWrite(stream, "aes");
 			else if(strcmp(value, "TKIP+AES") ==0)
 				websWrite(stream, "tkip+aes");
-			else
-				websWrite(stream, "");
 			app_method_hit = 1;
 		}
 		else {
@@ -10772,20 +10871,27 @@ appGet_attribute(char *stream, char *name)
 			app_method_hit = 2;
 		}
 	}
-	else if (strcmp(name, "wl1_nmode_x") == 0) { //5G=> 2:Legacy, 11: N only, 8:Auto
+	/* (DSL ASUSWRT)5G=> 14:Auto(support 11ac), 8:Auto(not support 11ac), 11: N only, 2:Legacy, 15:N/AC mixed */
+	else if (strcmp(name, "wl1_nmode_x") == 0) {
 		if(!tcapi_get("WLan_Common", "wl1_WirelessMode", value)) {
 			tmpInt = atoi(value);
 			switch (tmpInt) {
-				case 2:
-					websWrite(stream, "2"); /*2: Legacy*/
+				/* (ASUSWRT)5G=> 0:Auto, 1:N only, 2:Legacy, 8:N/AC mixed */
+				case 14: /* support 11ac */
+				case 8:  /* not support 11ac: DSL-N55U_C1, DSL-N55U_D1, DSL-N66U */
+					websWrite(stream, "0"); /*(ASUSWRT)0: Auto*/
 					app_method_hit = 1;
 					break;
 				case 11:
-					websWrite(stream, "1"); /*1: N Only*/
+					websWrite(stream, "1");
 					app_method_hit = 1;
 					break;
-				case 8:
-					websWrite(stream, "0"); /*0: Auto*/
+				case 2:
+					websWrite(stream, "2");
+					app_method_hit = 1;
+					break;
+				case 15:
+					websWrite(stream, "8");
 					app_method_hit = 1;
 					break;
 				default:
@@ -10846,7 +10952,7 @@ appGet_attribute(char *stream, char *name)
 	/* DUT_RT_GetWanConfig */
 	else if (strcmp(name, "wan0_proto") == 0) {
 		if (pri_unit >= 0) {
-			sprintf(tmp, "wan%d_proto", pri_unit);
+			snprintf(tmp, sizeof(tmp), "wan%d_proto", pri_unit);
 			if(!tcapi_get("Wanduck_Common", tmp, value)) {
 				websWrite(stream, value);
 				app_method_hit = 1;
@@ -10858,7 +10964,7 @@ appGet_attribute(char *stream, char *name)
 	}
 	else if (strcmp(name, "wan1_proto") == 0) {
 		if (sec_unit >= 0) {
-			sprintf(tmp, "wan%d_proto", sec_unit);
+			snprintf(tmp, sizeof(tmp), "wan%d_proto", sec_unit);
 			if(!tcapi_get("Wanduck_Common", tmp, value)) {
 				websWrite(stream, value);
 				app_method_hit = 1;
@@ -10878,8 +10984,7 @@ appGet_attribute(char *stream, char *name)
 	}
 	else if (strcmp(name, "wan0_dhcpenable_x") == 0) {
 		if (pri_unit >= 0) {
-			sprintf(tmp, "Wan_PVC%d", pri_unit);
-			if(!tcapi_get(tmp, "ISP", value)) {
+			if(!tcapi_get(wan0_node, "ISP", value)) {
 				websWrite(stream, strcmp(value, "0") ? "0" : "1"); //ISP=0, Automatic; ISP=1, Static; ISP=2, PPPoE 
 				app_method_hit = 1;
 			}
@@ -10890,8 +10995,7 @@ appGet_attribute(char *stream, char *name)
 	}
 	else if (strcmp(name, "wan1_dhcpenable_x") == 0) {
 		if (sec_unit >= 0) {
-			sprintf(tmp, "Wan_PVC%d", sec_unit);
-			if(!tcapi_get(tmp, "ISP", value)) {
+			if(!tcapi_get(wan1_node, "ISP", value)) {
 				websWrite(stream, strcmp(value, "0") ? "0" : "1"); //ISP=0, Automatic; ISP=1, Static; ISP=2, PPPoE 
 				app_method_hit = 1;
 			}
@@ -10902,7 +11006,7 @@ appGet_attribute(char *stream, char *name)
 	}
 	else if ((strcmp(name, "wan0_ipaddr") == 0) || (strcmp(name, "wan0_ipaddr_x") == 0)) {
 		if (pri_unit >= 0) {
-			sprintf(tmp, "wan%d_ipaddr", pri_unit);
+			snprintf(tmp, sizeof(tmp), "wan%d_ipaddr", pri_unit);
 			if(!tcapi_get("Wanduck_Common", tmp, value)) {
 				websWrite(stream, value);
 				app_method_hit = 1;
@@ -10914,7 +11018,7 @@ appGet_attribute(char *stream, char *name)
 	}
 	else if ((strcmp(name, "wan1_ipaddr") == 0) || (strcmp(name, "wan1_ipaddr_x") == 0)) {
 		if (sec_unit >= 0) {
-			sprintf(tmp, "wan%d_ipaddr", sec_unit);
+			snprintf(tmp, sizeof(tmp), "wan%d_ipaddr", sec_unit);
 			if(!tcapi_get("Wanduck_Common", tmp, value)) {
 				websWrite(stream, value);
 				app_method_hit = 1;
@@ -10926,7 +11030,7 @@ appGet_attribute(char *stream, char *name)
 	}
 	else if ((strcmp(name, "wan0_gateway") == 0) || (strcmp(name, "wan0_gateway_x") == 0)) {
 		if (pri_unit >= 0) {
-			sprintf(tmp, "wan%d_proto", pri_unit);
+			snprintf(tmp, sizeof(tmp), "wan%d_proto", pri_unit);
 			if(!tcapi_get("Wanduck_Common", tmp, value)) {
 				websWrite(stream, value);
 				app_method_hit = 1;
@@ -10938,7 +11042,7 @@ appGet_attribute(char *stream, char *name)
 	}
 	else if ((strcmp(name, "wan1_gateway") == 0) || (strcmp(name, "wan1_gateway_x") == 0)) {
 		if (sec_unit >= 0) {
-			sprintf(tmp, "wan%d_gateway", sec_unit);
+			snprintf(tmp, sizeof(tmp), "wan%d_gateway", sec_unit);
 			if(!tcapi_get("Wanduck_Common", tmp, value)) {
 				websWrite(stream, value);
 				app_method_hit = 1;
@@ -10950,7 +11054,7 @@ appGet_attribute(char *stream, char *name)
 	}
 	else if ((strcmp(name, "wan0_netmask") == 0) || (strcmp(name, "wan0_netmask_x") == 0)) {
 		if (pri_unit >= 0) {
-			sprintf(tmp, "wan%d_netmask", pri_unit);
+			snprintf(tmp, sizeof(tmp), "wan%d_netmask", pri_unit);
 			if(!tcapi_get("Wanduck_Common", tmp, value)) {
 				websWrite(stream, value);
 				app_method_hit = 1;
@@ -10962,7 +11066,7 @@ appGet_attribute(char *stream, char *name)
 	}
 	else if ((strcmp(name, "wan1_netmask") == 0) || (strcmp(name, "wan1_netmask_x") == 0)) {
 		if (sec_unit >= 0) {
-			sprintf(tmp, "wan%d_netmask", sec_unit);
+			snprintf(tmp, sizeof(tmp), "wan%d_netmask", sec_unit);
 			if(!tcapi_get("Wanduck_Common", tmp, value)) {
 				websWrite(stream, value);
 				app_method_hit = 1;
@@ -10974,8 +11078,7 @@ appGet_attribute(char *stream, char *name)
 	}
 	else if (strcmp(name, "wan0_dnsenable_x") == 0) {
 		if (pri_unit >= 0) {
-			sprintf(tmp, "Wan_PVC%d", pri_unit);
-			if(!tcapi_get(tmp, "DNS_type", value)) {
+			if(!tcapi_get(wan0_node, "DNS_type", value)) {
 				websWrite(stream, strcmp(value, "0") ? "0" : "1");
 				app_method_hit = 1;
 			}
@@ -10986,8 +11089,7 @@ appGet_attribute(char *stream, char *name)
 	}
 	else if (strcmp(name, "wan1_dnsenable_x") == 0) {
 		if (sec_unit >= 0) {
-			sprintf(tmp, "Wan_PVC%d", sec_unit);
-			if(!tcapi_get(tmp, "DNS_type", value)) {
+			if(!tcapi_get(wan1_node, "DNS_type", value)) {
 				websWrite(stream, strcmp(value, "0") ? "0" : "1");
 				app_method_hit = 1;
 			}
@@ -10998,11 +11100,10 @@ appGet_attribute(char *stream, char *name)
 	}
 	else if (strcmp(name, "wan0_dns_x") == 0) {
 		if (pri_unit >= 0) {
-			sprintf(tmp, "Wan_PVC%d", pri_unit);
-			if(!tcapi_get(tmp, "Primary_DNS", value)) {
+			if(!tcapi_get(wan0_node, "Primary_DNS", value)) {
 				if(!tcapi_get(tmp, "Secondary_DNS", tmp2)) {
-					strcat(value, " ");
-					strcat(value, tmp2);
+					snprintf(value + strlen(value), sizeof(value) - strlen(value),  " ");
+					snprintf(value + strlen(value), sizeof(value) - strlen(value),  "%s", tmp2);
 					websWrite(stream, value);
 				}
 				else
@@ -11016,11 +11117,10 @@ appGet_attribute(char *stream, char *name)
 	}
 	else if (strcmp(name, "wan1_dns_x") == 0) {
 		if (sec_unit >= 0) {
-			sprintf(tmp, "Wan_PVC%d", sec_unit);
-			if(!tcapi_get(tmp, "Primary_DNS", value)) {
+			if(!tcapi_get(wan1_node, "Primary_DNS", value)) {
 				if(!tcapi_get(tmp, "Secondary_DNS", tmp2)) {
-					strcat(value, " ");
-					strcat(value, tmp2);
+					snprintf(value + strlen(value), sizeof(value) - strlen(value),  " ");
+					snprintf(value + strlen(value), sizeof(value) - strlen(value),  "%s", tmp2);
 					websWrite(stream, value);
 				}
 				else
@@ -11034,8 +11134,7 @@ appGet_attribute(char *stream, char *name)
 	}
 	else if (strcmp(name, "wan0_pppoe_username") == 0) {
 		if (pri_unit >= 0) {
-			sprintf(tmp, "Wan_PVC%d", pri_unit);
-			if(!tcapi_get(tmp, "USERNAME", value)) {
+			if(!tcapi_get(wan0_node, "USERNAME", value)) {
 				websWrite(stream, value);
 				app_method_hit = 1;
 			}
@@ -11046,8 +11145,7 @@ appGet_attribute(char *stream, char *name)
 	}
 	else if (strcmp(name, "wan1_pppoe_username") == 0) {
 		if (sec_unit >= 0) {
-			sprintf(tmp, "Wan_PVC%d", sec_unit);
-			if(!tcapi_get(tmp, "USERNAME", value)) {
+			if(!tcapi_get(wan1_node, "USERNAME", value)) {
 				websWrite(stream, value);
 				app_method_hit = 1;
 			}
@@ -11058,8 +11156,7 @@ appGet_attribute(char *stream, char *name)
 	}
 	else if (strcmp(name, "wan0_pppoe_passwd") == 0) {
 		if (pri_unit >= 0) {
-			sprintf(tmp, "Wan_PVC%d", pri_unit);
-			if(!tcapi_get(tmp, "PASSWORD", value)) {
+			if(!tcapi_get(wan0_node, "PASSWORD", value)) {
 				websWrite(stream, value);
 				app_method_hit = 1;
 			}
@@ -11070,8 +11167,7 @@ appGet_attribute(char *stream, char *name)
 	}
 	else if (strcmp(name, "wan1_pppoe_passwd") == 0) {
 		if (sec_unit >= 0) {
-			sprintf(tmp, "Wan_PVC%d", sec_unit);
-			if(!tcapi_get(tmp, "PASSWORD", value)) {
+			if(!tcapi_get(wan1_node, "PASSWORD", value)) {
 				websWrite(stream, value);
 				app_method_hit = 1;
 			}
@@ -11094,12 +11190,12 @@ appGet_attribute(char *stream, char *name)
 	/* DUT_RT_TotalWanIf */
 	else if (strcmp(name, "wan_ifnames") == 0) {
 		if (pri_unit >= 0) {
-			sprintf(tmp, "wan%d_proto", pri_unit);
+			snprintf(tmp, sizeof(tmp), "wan%d_proto", pri_unit);
 			if(!tcapi_get("Wanduck_Common", tmp, tmp2) && (strcmp(tmp2, "pppoe") == 0)) {
-				sprintf(tmp, "wan%d_pppoe_ifname", pri_unit);
+				snprintf(tmp, sizeof(tmp), "wan%d_pppoe_ifname", pri_unit);
 			}
 			else {
-				sprintf(tmp, "wan%d_ifname", pri_unit);
+				snprintf(tmp, sizeof(tmp), "wan%d_ifname", pri_unit);
 			}
 			if(!tcapi_get("Wanduck_Common", tmp, value)) {
 				websWrite(stream, value);
@@ -11234,9 +11330,54 @@ appGet_attribute(char *stream, char *name)
 		/* not support */
 		app_method_hit = 2;
 	}
+	/* DUT_RT_GetDNSConfig */
+	else if (strcmp(name, "wan0_dns1_x") == 0) {
+		if (pri_unit >= 0) {
+			if(!tcapi_get(wan0_node, "Primary_DNS", value)) {
+				websWrite(stream, value);
+				app_method_hit = 1;
+			}
+			else {
+				app_method_hit = 2;
+			}
+		}
+	}
+	else if (strcmp(name, "wan0_dns2_x") == 0) {
+		if (pri_unit >= 0) {
+			if(!tcapi_get(wan0_node, "Secondary_DNS", value)) {
+				websWrite(stream, value);
+				app_method_hit = 1;
+			}
+			else {
+				app_method_hit = 2;
+			}
+		}
+	}
+	else if (strcmp(name, "wan1_dns1_x") == 0) {
+		if (sec_unit >= 0) {
+			if(!tcapi_get(wan1_node, "Primary_DNS", value)) {
+				websWrite(stream, value);
+				app_method_hit = 1;
+			}
+			else {
+				app_method_hit = 2;
+			}
+		}
+	}
+	else if (strcmp(name, "wan1_dns2_x") == 0) {
+		if (sec_unit >= 0) {
+			if(!tcapi_get(wan1_node, "Secondary_DNS", value)) {
+				websWrite(stream, value);
+				app_method_hit = 1;
+			}
+			else {
+				app_method_hit = 2;
+			}
+		}
+	}
 	/* Others */
 	else if (strcmp(name, "productid") == 0) {
-		if(!tcapi_get("SysInfo_Entry", "ProductName", value)) {
+		if(snprintf(value, sizeof(value), "%s", get_productid())) {
 			websWrite(stream, value);
 			app_method_hit = 1;
 		}
@@ -11407,8 +11548,7 @@ appGet_attribute(char *stream, char *name)
 	}
 	else if (strcmp(name, "wan0_pppoe_mtu") == 0) {
 		if (pri_unit >= 0) {
-			sprintf(tmp, "Wan_PVC%d", pri_unit);
-			if(!tcapi_get(tmp, "MTU", value)) {
+			if(!tcapi_get(wan0_node, "MTU", value)) {
 				websWrite(stream, value);
 				app_method_hit = 1;
 			}
@@ -11419,8 +11559,7 @@ appGet_attribute(char *stream, char *name)
 	}
 	else if (strcmp(name, "wan1_pppoe_mtu") == 0) {
 		if (sec_unit >= 0) {
-			sprintf(tmp, "Wan_PVC%d", sec_unit);
-			if(!tcapi_get(tmp, "MTU", value)) {
+			if(!tcapi_get(wan1_node, "MTU", value)) {
 				websWrite(stream, value);
 				app_method_hit = 1;
 			}
@@ -11431,8 +11570,7 @@ appGet_attribute(char *stream, char *name)
 	}
 	else if (strcmp(name, "wan0_6rd_prefix") == 0) {
 		if (pri_unit >= 0) {
-			sprintf(tmp, "Wan_PVC%d", pri_unit);
-			if(!tcapi_get(tmp, "PREFIX6", value)) {
+			if(!tcapi_get(wan0_node, "PREFIX6", value)) {
 				websWrite(stream, value);
 				app_method_hit = 1;
 			}
@@ -11443,8 +11581,7 @@ appGet_attribute(char *stream, char *name)
 	}
 	else if (strcmp(name, "wan1_6rd_prefix") == 0) {
 		if (sec_unit >= 0) {
-			sprintf(tmp, "Wan_PVC%d", sec_unit);
-			if(!tcapi_get(tmp, "PREFIX6", value)) {
+			if(!tcapi_get(wan1_node, "PREFIX6", value)) {
 				websWrite(stream, value);
 				app_method_hit = 1;
 			}
@@ -11474,6 +11611,301 @@ appGet_encode(char *str)
 			websWrite(wp, "&#%d", *c);
 		}
 	}
+}
+
+static int do_check_acorpw(char *stream)
+{
+	char username[256] = {0};
+	char web_passwd[256] = {0};
+	char default_username[256] = {0};
+	char default_passwd[256] = {0};
+
+	tcapi_get("Account_Entry0", "username", username);
+	tcapi_get("Account_Entry0", "web_passwd", web_passwd);
+	tcapi_get("Account_Entry0", "default_username", default_username);
+	tcapi_get("Account_Entry0", "default_passwd", default_passwd);
+
+	if(!strcmp(username, default_username) || !strcmp(web_passwd, default_passwd))
+	{
+		websWrite(stream, "\"1\"");
+	}
+	else
+	{
+		websWrite(stream, "\"0\"");
+	}
+
+	return 1;
+}
+
+static int do_check_passwd_strength(char *stream, char *att_name)
+{
+	//ej_check_passwd_strength();
+	int unit=0, guest_id=0;
+	int nScore_total=0, nScore=0;
+	char pwd[32];
+	char prefix[32];
+	int nLength=0, nConsecAlphaUC=0, nConsecCharType=0, nAlphaUC=0, nConsecAlphaLC=0, nAlphaLC=0, nMidChar=0, nConsecNumber=0, nNumber=0, nConsecSymbol=0, nSymbol=0, nRepChar=0, nUnqChar=0, nSeqAlpha=0, nSeqNumber=0, nSeqChar = 0, nSeqSymbol=0;
+	int nMultMidChar=2, nMultLength=4, nMultNumber=4, nMultSymbol=6, nMultConsecAlphaUC=2, nMultConsecAlphaLC=2, nMultConsecNumber=2, nMultSeqAlpha=3, nMultSeqNumber=3, nMultSeqSymbol=3;
+	int a=0, b=0, s=0, x=0;
+	int nTmpAlphaUC = -1, nTmpAlphaLC = -1, nTmpNumber = -1, nTmpSymbol = -1;
+	double nRepInc = 0.0;
+	char sAlphas[] = "abcdefghijklmnopqrstuvwxyz";
+	char sNumerics[] = "01234567890";
+	char sSymbols[] = "~!@#$%^&*()_+";
+	char pwd_s[128] = {0};
+	char *pwd_st=NULL, *arrPwd=NULL;
+	char auth_mode[32];
+	char sFwd[4], sFwd_t[4], sRev[4];
+	if(!strcmp(att_name, "wl_key")){
+		for(unit=0; unit < 2; unit++) {
+			for(guest_id=0; guest_id < MAX_NO_MSSID; guest_id++){
+				if(guest_id){	//the Guest Network
+					snprintf(prefix, sizeof(prefix), "wl%d.%d_wpa_psk", unit, guest_id);
+					tcapi_get("WLan_Entry0", prefix, pwd);
+					snprintf(prefix, sizeof(prefix), "wl%d.%d_auth_mode_x", unit, guest_id);
+					tcapi_get("WLan_Entry0", prefix, auth_mode);
+				}
+				else{	//bring up the primary of 2.4G and 5G.
+					snprintf(prefix, sizeof(prefix), "wl%d_wpa_psk", unit);
+					tcapi_get("WLan_Entry0", prefix, pwd);
+					snprintf(prefix, sizeof(prefix), "wl%d_auth_mode_x", unit);
+					tcapi_get("WLan_Entry0", prefix, auth_mode);
+				}
+				nLength=0; nConsecAlphaUC=0; nConsecCharType=0; nAlphaUC=0; nConsecAlphaLC=0; nAlphaLC=0; nMidChar=0; nConsecNumber=0; nNumber=0; nConsecSymbol=0; nSymbol=0; nRepChar=0; nUnqChar=0; nSeqAlpha=0; nSeqNumber=0; nSeqChar = 0; nSeqSymbol=0;
+				nTmpAlphaUC = -1; nTmpAlphaLC = -1; nTmpNumber = -1; nTmpSymbol = -1;
+			   if (strlen(pwd) && (!strcmp(auth_mode,"OPEN") || !strcmp(auth_mode,"WPA2PSK") || !strcmp(auth_mode,"WPAPSKWPA2PSK") || !strcmp(auth_mode,"WPA2") || !strcmp(auth_mode,"WPA1WPA2"))){
+				nScore=0;
+				nLength=0;
+				pwd_st = pwd;
+				arrPwd = pwd;
+				nLength = strlen(pwd);
+				nScore = nLength * nMultLength;
+
+				/* Main calculation for strength:
+						Loop through password to check for Symbol, Numeric, Lowercase and Uppercase pattern matches */
+				for (a=0; a <nLength; a++){
+					if(isupper(arrPwd[a])){
+						if(nTmpAlphaUC != -1){
+							if((nTmpAlphaUC + 1) == a){
+								nConsecAlphaUC++;
+								nConsecCharType++;
+							}
+						}
+						nTmpAlphaUC = a;
+						nAlphaUC++;
+					}
+					else if(islower(arrPwd[a])){
+						if(nTmpAlphaLC != -1){
+							if((nTmpAlphaLC + 1) == a){
+								nConsecAlphaLC++;
+								nConsecCharType++;
+							}
+						}
+						nTmpAlphaLC = a;
+						nAlphaLC++;
+					}
+					else if(isdigit(arrPwd[a])){
+						if(a > 0 && a < (nLength - 1)){
+							nMidChar++;
+						}
+						if(nTmpNumber != -1){
+							if((nTmpNumber + 1) == a){
+								nConsecNumber++;
+								nConsecCharType++;
+							}
+						}
+						nTmpNumber = a;
+						nNumber++;
+					}
+					else if(!isalnum(arrPwd[a])){
+						if(a > 0 && a < (nLength - 1))
+						{
+							nMidChar++;
+						}
+						if(nTmpSymbol != -1){
+							if((nTmpSymbol + 1) == a){
+								nConsecSymbol++;
+								nConsecCharType++;
+							}
+						}
+						nTmpSymbol = a;
+						nSymbol++;
+					}
+
+					/* Internal loop through password to check for repeat characters */
+					int bCharExists = 0;
+					for (b=0; b < nLength; b++){
+						if (arrPwd[a] == arrPwd[b] && a != b){ /* repeat character exists */
+							bCharExists = 1;
+							/*
+							Calculate icrement deduction based on proximity to identical characters
+							Deduction is incremented each time a new match is discovered
+							Deduction amount is based on total password length divided by the
+							difference of distance between currently selected match
+							*/
+							nRepInc += abs(nLength/(b-a));
+						}
+					}
+					if (bCharExists == 1) {
+						nRepChar++;
+						nUnqChar = nLength-nRepChar;
+						nRepInc = (nUnqChar > 0) ? ceil(nRepInc/(double)nUnqChar) : ceil(nRepInc); 
+					}
+				}
+
+				for(x = 0; x < nLength; x++){
+					pwd_s[x]= tolower(*pwd_st);
+					pwd_st++;
+				}
+
+				/* Check for sequential alpha string patterns (forward and reverse) */
+				for (s=0; s < 23; s++){
+					memset(sFwd, 0, sizeof(sFwd));
+					memset(sFwd_t, 0, sizeof(sFwd_t));
+					memset(sRev, 0, sizeof(sRev));
+					if(sAlphas+s != '\0'){
+						strncpy(sFwd, sAlphas+s, 3);
+						strncpy(sFwd_t, sFwd, 3);
+					}
+					snprintf(sRev, sizeof(sRev), "%s", reverse_str(sFwd));
+
+					if(strstr(pwd_s, sFwd_t) != NULL || strstr(pwd_s, sRev) != NULL){
+						nSeqAlpha++;
+						nSeqChar++;
+					}
+				}
+				/* Check for sequential numeric string patterns (forward and reverse) */
+				for (s=0; s < 8; s++) {
+					memset(sFwd, 0, sizeof(sFwd));
+					memset(sFwd_t, 0, sizeof(sFwd_t));
+					memset(sRev, 0, sizeof(sRev));
+					if(sNumerics+s != '\0'){
+						strncpy(sFwd, sNumerics+s, 3);
+						strncpy(sFwd_t, sFwd, 3);
+					}
+					snprintf(sRev, sizeof(sRev), "%s", reverse_str(sFwd));
+					if(strstr(pwd_s, sFwd_t) != NULL || strstr(pwd_s, sRev) != NULL){
+						nSeqNumber++;
+						nSeqChar++;
+					}
+				}
+				/* Check for sequential symbol string patterns (forward and reverse) */
+				for (s=0; s < 8; s++) {
+					memset(sFwd, 0, sizeof(sFwd));
+					memset(sFwd_t, 0, sizeof(sFwd_t));
+					memset(sRev, 0, sizeof(sRev));
+					if(sSymbols+s != '\0'){
+						strncpy(sFwd, sSymbols+s, 3);
+						strncpy(sFwd_t, sFwd, 3);
+					}
+					snprintf(sRev, sizeof(sRev), "%s", reverse_str(sFwd));
+					if(strstr(pwd_s, sFwd_t) != NULL || strstr(pwd_s, sRev) != NULL){
+						nSeqSymbol++;
+						nSeqChar++;
+					}
+				}
+				/* Modify overall score value based on usage vs requirements */
+
+				/* General point assignment */
+				if (nAlphaUC > 0 && nAlphaUC < nLength){
+					nScore = nScore + ((nLength - nAlphaUC) * 2);
+				}
+				if (nAlphaLC > 0 && nAlphaLC < nLength){
+					nScore = nScore + ((nLength - nAlphaLC) * 2);
+				}
+				if (nNumber > 0 && nNumber < nLength){
+					nScore = nScore + (nNumber * nMultNumber);
+				}
+				if (nSymbol > 0){
+					nScore = nScore + (nSymbol * nMultSymbol);
+				}
+				if (nMidChar > 0){
+					nScore = nScore + (nMidChar * nMultMidChar);
+				}
+				/* Point deductions for poor practices */
+				if ((nAlphaLC > 0 || nAlphaUC > 0) && nSymbol == 0 && nNumber == 0) {  // Only Letters
+					nScore = nScore - nLength;
+				}
+				if (nAlphaLC == 0 && nAlphaUC == 0 && nSymbol == 0 && nNumber > 0) {  // Only Numbers
+					nScore = nScore - nLength;
+				}
+				if (nRepChar > 0) {  // Same character exists more than once
+					nScore = nScore - nRepInc;
+				}
+				if (nConsecAlphaUC > 0) {  // Consecutive Uppercase Letters exist
+				nScore = nScore - (nConsecAlphaUC * nMultConsecAlphaUC);
+				}
+				if (nConsecAlphaLC > 0) {  // Consecutive Lowercase Letters exist
+					nScore = nScore - (nConsecAlphaLC * nMultConsecAlphaLC);
+				}
+				if (nConsecNumber > 0) {  // Consecutive Numbers exist
+					nScore = nScore - (nConsecNumber * nMultConsecNumber);
+				}
+				if (nSeqAlpha > 0) {  // Sequential alpha strings exist (3 characters or more)
+					nScore = nScore - (nSeqAlpha * nMultSeqAlpha);
+				}
+				if (nSeqNumber > 0) {  // Sequential numeric strings exist (3 characters or more)
+					nScore = nScore - (nSeqNumber * nMultSeqNumber);
+				}
+				if (nSeqSymbol > 0) {  // Sequential symbol strings exist (3 characters or more)
+					nScore = nScore - (nSeqSymbol * nMultSeqSymbol);
+				}
+
+				/* Determine complexity based on overall score */
+				if (nScore > 100)
+				{
+					nScore = 100;
+				}else if(nScore < 0)
+				{
+					nScore = 0;
+				}
+				nScore_total = nScore + nScore_total;
+			   }else{
+				nScore = 0;
+			   }
+			}
+		}
+	}
+	websWrite(stream, "\"%d\"", (int)(nScore_total/unit));
+
+	return 1;
+}
+
+static int do_check_wireless_encryption(char *stream)
+{
+	int unit=0, guest_id=0;
+	char auth_mode[32] = {0};
+	char prefix[32] = {0};
+	char bss_enabled[4] = {0};
+
+	for(unit=0; unit<2; unit++) {
+		for(guest_id=0; guest_id < MAX_NO_MSSID; guest_id++){
+			if(guest_id){	//the Guest Network
+				snprintf(prefix, sizeof(prefix), "wl%d.%d_auth_mode_x", unit, guest_id);
+				tcapi_get("WLan_Entry0", prefix, auth_mode);
+				snprintf(prefix, sizeof(prefix), "wl%d.%d_bss_enabled", unit, guest_id);
+				tcapi_get("WLan_Entry0", prefix, bss_enabled);
+			}
+			else{	//bring up the primary of 2.4G and 5G.
+				snprintf(prefix, sizeof(prefix), "wl%d_auth_mode_x", unit);
+				tcapi_get("WLan_Entry0", prefix, auth_mode);
+				snprintf(prefix, sizeof(prefix), "wl%d_radio_on", unit);
+				tcapi_get("WLan_Entry0", prefix, bss_enabled);
+			}
+			if(strcmp(bss_enabled,"1") == 0
+				&& strcmp(auth_mode,"WPA2PSK") != 0
+				&& strcmp(auth_mode,"WPAPSKWPA2PSK") != 0
+				&& strcmp(auth_mode,"WPA2") != 0
+				&& strcmp(auth_mode,"WPA1WPA2") != 0)
+			{
+				websWrite(stream, "\"0\"");
+				return 1;
+			}
+		}
+	}
+	websWrite(stream, "\"1\"");
+
+	return 1;
 }
 
 static void
@@ -11557,9 +11989,9 @@ app_call(char *func, char *stream)
 			memset(devname, 0, LINE_SIZE);
 
 		    if(strcmp((const char *)p_client_info_tab->user_define[i], ""))
-				strcpy(dev_name, (const char *)p_client_info_tab->user_define[i]);
+				snprintf(dev_name, sizeof(dev_name), "%s", (const char *)p_client_info_tab->user_define[i]);
 			else
-				strcpy(dev_name, (const char *)p_client_info_tab->device_name[i]);
+				snprintf(dev_name, sizeof(dev_name), "%s", (const char *)p_client_info_tab->device_name[i]);
 
 		    if(p_client_info_tab->exist[i]==1) {
 				len = strlen(dev_name);
@@ -11571,21 +12003,21 @@ app_call(char *func, char *stream)
 						devname[j] = ' ';
 				}
 
-				sprintf(ipaddr, "%d.%d.%d.%d", p_client_info_tab->ip_addr[i][0],p_client_info_tab->ip_addr[i][1],
+				snprintf(ipaddr, sizeof(ipaddr), "%d.%d.%d.%d", p_client_info_tab->ip_addr[i][0],p_client_info_tab->ip_addr[i][1],
 				p_client_info_tab->ip_addr[i][2],p_client_info_tab->ip_addr[i][3]);
 
-				sprintf(mac_buf, "\"%02X:%02X:%02X:%02X:%02X:%02X\"",
+				snprintf(mac_buf, sizeof(mac_buf), "\"%02X:%02X:%02X:%02X:%02X:%02X\"",
 				p_client_info_tab->mac_addr[i][0],p_client_info_tab->mac_addr[i][1],
 				p_client_info_tab->mac_addr[i][2],p_client_info_tab->mac_addr[i][3],
 				p_client_info_tab->mac_addr[i][4],p_client_info_tab->mac_addr[i][5]
 				);
 				if(first_mac == 1){
 					first_mac = 0;
-					strcat(maclist_buf,brackets_h);
+					snprintf(maclist_buf + strlen(maclist_buf), sizeof(maclist_buf) - strlen(maclist_buf),  "%s", brackets_h);
 				}else{
-					strcat(maclist_buf,dot);
+					snprintf(maclist_buf + strlen(maclist_buf), sizeof(maclist_buf) - strlen(maclist_buf),  "%s", dot);
 				}
-				strcat(maclist_buf,mac_buf);
+				snprintf(maclist_buf + strlen(maclist_buf), sizeof(maclist_buf) - strlen(maclist_buf),  "%s", mac_buf);
 
 				if(first_info == 1){
 					first_info = 0;			
@@ -11594,7 +12026,7 @@ app_call(char *func, char *stream)
 				}
 
 				tcapi_get("Lan_Entry", "IP", value);
-				sprintf(output_buf, "%s:{\"type\":\"%d\",\"name\":\"%s\",\"ip\":\"%s\",\"mac\":%s,\"from\":\"networkmapd\",\"macRepeat\":\"%d\",\"isGateway\":\"%s\",\"isWebServer\":\"%d\",\"isPrinter\":\"%d\",\"isITunes\":\"%d\",\"isOnline\":\"true\"}",
+				snprintf(output_buf, sizeof(output_buf), "%s:{\"type\":\"%d\",\"name\":\"%s\",\"ip\":\"%s\",\"mac\":%s,\"from\":\"networkmapd\",\"macRepeat\":\"%d\",\"isGateway\":\"%s\",\"isWebServer\":\"%d\",\"isPrinter\":\"%d\",\"isITunes\":\"%d\",\"isOnline\":\"true\"}",
 				mac_buf,
 				p_client_info_tab->type[i],
 				devname,
@@ -11611,7 +12043,7 @@ app_call(char *func, char *stream)
 		}
 		shmdt(shared_client_info);
 		file_unlock(lock);
-		strcat(maclist_buf,brackets_d);
+		snprintf(maclist_buf + strlen(maclist_buf), sizeof(maclist_buf) - strlen(maclist_buf),  "%s", brackets_d);
 		websWrite(stream, maclist_buf);
 
 		app_method_hit = 1;
@@ -11629,7 +12061,7 @@ app_call(char *func, char *stream)
 			while(fgets(tmp, 512, fp)){
 				if (tmp != NULL){
 					websWrite(stream, "%s", tmp);
-					//strcat(buf, tmp);
+					//snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "%s", tmp);
 				}
 			}
 			fclose(fp);
@@ -11649,7 +12081,7 @@ app_call(char *func, char *stream)
 			while(fgets(tmp, 512, fp)){
 				if (tmp != NULL){
 					websWrite(stream, "%s", tmp);
-					//strcat(buf, tmp);
+					//snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "%s", tmp);
 				}
 			}
 			fclose(fp);
@@ -11685,7 +12117,7 @@ app_call(char *func, char *stream)
 				mkdir(JFFS_USERICON, 0755);
 
 			//Write upload icon value
-			sprintf(file_name, "/jffs/usericon/%s.log", client_mac);
+			snprintf(file_name, sizeof(file_name), "/jffs/usericon/%s.log", client_mac);
 			if(check_if_file_exist(file_name)) {
 				dump_file(stream, file_name);
 			}
@@ -11808,9 +12240,9 @@ app_call(char *func, char *stream)
 		memset(wan_proto, 0, sizeof(wan_proto));
 		wan_prefix(unit, prefix);
 
-		wan_state = tcapi_get_int(WANDUCK, strcat_r(prefix, "state_t", tmp));
-		wan_sbstate = tcapi_get_int(WANDUCK, strcat_r(prefix, "sbstate_t", tmp));
-		wan_auxstate = tcapi_get_int(WANDUCK, strcat_r(prefix, "auxstate_t", tmp));
+		wan_state = tcapi_get_int(WANDUCK, strcat_rs(prefix, "state_t", tmp, sizeof(tmp)));
+		wan_sbstate = tcapi_get_int(WANDUCK, strcat_rs(prefix, "sbstate_t", tmp, sizeof(tmp)));
+		wan_auxstate = tcapi_get_int(WANDUCK, strcat_rs(prefix, "auxstate_t", tmp, sizeof(tmp)));
 
 		websWrite(stream, "\"wanstate\":\"%d\",\n", wan_state);
 		websWrite(stream, "\"wansbstate\":\"%d\",\n", wan_sbstate);
@@ -11819,7 +12251,7 @@ app_call(char *func, char *stream)
 		websWrite(stream, "\"autodet_auxstate\":\"0\",\n"); //not support autodet_auxstate, so set 0
 
 		// wan_proto = nvram_safe_get(strcat_r(prefix, "proto", tmp));
-		tcapi_get(WANDUCK, strcat_r(prefix, "proto", tmp), wan_proto);
+		tcapi_get(WANDUCK, strcat_rs(prefix, "proto", tmp, sizeof(tmp)), wan_proto);
 
 		if (dualwan_unit__usbif(unit)) {
 			if(wan_state == WAN_STATE_INITIALIZING){
@@ -11896,11 +12328,11 @@ app_call(char *func, char *stream)
 				status = 0;
 			}
 			else {
-				lease = nvram_get_int(strcat_r(prefix, "lease", tmp));
+				lease = nvram_get_int(strcat_rs(prefix, "lease", tmp, sizeof(tmp)));
 				// treat short lease time as disconnected
 				if(!strcmp(wan_proto, "dhcp") &&	//DHCP
 					lease <= 60 &&
-					is_private_subnet(nvram_safe_get(strcat_r(prefix, "ipaddr", tmp)))
+					is_private_subnet(nvram_safe_get(strcat_rs(prefix, "ipaddr", tmp, sizeof(tmp))))
 				) {
 					status = 0;
 				}
@@ -11918,13 +12350,13 @@ app_call(char *func, char *stream)
 			type = wan_proto;
 
 		if(status != 0){
-			strncpy(ip, nvram_safe_get(strcat_r(prefix, "ipaddr", tmp)), sizeof(ip)-1);
-			strncpy(netmask, nvram_safe_get(strcat_r(prefix, "netmask", tmp)), sizeof(netmask)-1);
-			strncpy(gateway, nvram_safe_get(strcat_r(prefix, "gateway", tmp)), sizeof(gateway)-1);
-			strncpy(dns, nvram_safe_get(strcat_r(prefix, "dns", dns)), sizeof(dns)-1);
-			lease = nvram_get_int(strcat_r(prefix, "lease", tmp));
+			strncpy(ip, nvram_safe_get(strcat_rs(prefix, "ipaddr", tmp, sizeof(tmp))), sizeof(ip)-1);
+			strncpy(netmask, nvram_safe_get(strcat_rs(prefix, "netmask", tmp, sizeof(tmp))), sizeof(netmask)-1);
+			strncpy(gateway, nvram_safe_get(strcat_rs(prefix, "gateway", tmp, sizeof(tmp))), sizeof(gateway)-1);
+			strncpy(dns, nvram_safe_get(strcat_rs(prefix, "dns", tmp, sizeof(tmp))), sizeof(dns)-1);
+			lease = nvram_get_int(strcat_rs(prefix, "lease", tmp, sizeof(tmp)));
 			if (lease > 0)
-				expires = nvram_get_int(strcat_r(prefix, "expires", tmp)) - uptime();
+				expires = nvram_get_int(strcat_rs(prefix, "expires", tmp, sizeof(tmp))) - uptime();
 		}
 
 		if(!strcmp(argv[0],"appobj")){
@@ -12059,283 +12491,17 @@ app_call(char *func, char *stream)
 	/* [GET] [AiProtection] Router Security - Default username or password changed */
 	else if (strcmp(func, "check_acorpw") == 0) {
 		//ej_check_acorpw(); -> ASUSWRT //ej_check_acpw(); -> DSL ASUSWRT
-		char default_acpw[] = "admin"; //hardcode
-
-		if(tcapi_match("Account_Entry0", "username", default_acpw) || tcapi_match("Account_Entry0", "web_passwd", default_acpw))
-			websWrite(stream, "\"1\"");
-		else
-			websWrite(stream, "\"0\"");
-
+		do_check_acorpw(stream);
 		app_method_hit = 1;
 	}
 	/* [GET] [AiProtection] Router Security - Wireless encryption enabled */
 	else if (strcmp(func, "check_wireless_encryption") == 0) {
 		//ej_check_wireless_encryption();
-		int unit=0, guest_id=0;
-		char auth_mode[32];
-		char prefix[32], bss_enabled[4];
-
-		for(unit=0; unit<2; unit++) {
-			for(guest_id=0; guest_id < MAX_NO_MSSID; guest_id++){
-				if(guest_id){	//the Guest Network
-					snprintf(prefix, sizeof(prefix), "wl%d.%d_auth_mode_x", unit, guest_id);
-					tcapi_get("WLan_Entry0", prefix, auth_mode);
-					snprintf(prefix, sizeof(prefix), "wl%d.%d_bss_enabled", unit, guest_id);
-					tcapi_get("WLan_Entry0", prefix, bss_enabled);
-				}
-				else{	//bring up the primary of 2.4G and 5G.
-					snprintf(prefix, sizeof(prefix), "wl%d_auth_mode_x", unit);
-					tcapi_get("WLan_Entry0", prefix, auth_mode);
-					snprintf(prefix, sizeof(prefix), "wl%d_radio_on", unit);
-					tcapi_get("WLan_Entry0", prefix, bss_enabled);
-				}
-				if(strcmp(bss_enabled,"1") == 0
-					&& strcmp(auth_mode,"WPA2PSK") != 0
-					&& strcmp(auth_mode,"WPAPSKWPA2PSK") != 0
-					&& strcmp(auth_mode,"WPA2") != 0
-					&& strcmp(auth_mode,"WPA1WPA2") != 0)
-				{
-					websWrite(stream, "\"0\"");
-					app_method_hit = 1;
-					goto get_api_fail;
-				}
-			}
-		}
-		websWrite(stream, "\"1\"");
-		app_method_hit = 1;
+		app_method_hit = do_check_wireless_encryption(stream);
 	}
 	/* [GET] [AiProtection] Router Security - Wireless password strength check */
 	else if (strcmp(func, "check_passwd_strength") == 0) {
-		//ej_check_passwd_strength();
-		int unit=0, guest_id=0;
-		int nScore_total=0, nScore=0;
-		char pwd[32];
-		char prefix[32];
-		int nLength=0, nConsecAlphaUC=0, nConsecCharType=0, nAlphaUC=0, nConsecAlphaLC=0, nAlphaLC=0, nMidChar=0, nConsecNumber=0, nNumber=0, nConsecSymbol=0, nSymbol=0, nRepChar=0, nUnqChar=0, nSeqAlpha=0, nSeqNumber=0, nSeqChar = 0, nSeqSymbol=0;
-		int nMultMidChar=2, nMultLength=4, nMultNumber=4, nMultSymbol=6, nMultConsecAlphaUC=2, nMultConsecAlphaLC=2, nMultConsecNumber=2, nMultSeqAlpha=3, nMultSeqNumber=3, nMultSeqSymbol=3;
-		int a=0, b=0, s=0, x=0;
-		int nTmpAlphaUC = -1, nTmpAlphaLC = -1, nTmpNumber = -1, nTmpSymbol = -1;
-		double nRepInc = 0.0;
-		char sAlphas[] = "abcdefghijklmnopqrstuvwxyz";
-		char sNumerics[] = "01234567890";
-		char sSymbols[] = "~!@#$%^&*()_+";
-		char pwd_s[128] = {0};
-		char *pwd_st=NULL, *arrPwd=NULL;
-		char auth_mode[32];
-		char sFwd[4], sFwd_t[4], sRev[4];
-		if(!strcmp(argv[0], "wl_key")){
-			for(unit=0; unit < 2; unit++) {
-				for(guest_id=0; guest_id < MAX_NO_MSSID; guest_id++){
-					if(guest_id){	//the Guest Network
-						snprintf(prefix, sizeof(prefix), "wl%d.%d_wpa_psk", unit, guest_id);
-						tcapi_get("WLan_Entry0", prefix, pwd);
-						snprintf(prefix, sizeof(prefix), "wl%d.%d_auth_mode_x", unit, guest_id);
-						tcapi_get("WLan_Entry0", prefix, auth_mode);
-					}
-					else{	//bring up the primary of 2.4G and 5G.
-						snprintf(prefix, sizeof(prefix), "wl%d_wpa_psk", unit);
-						tcapi_get("WLan_Entry0", prefix, pwd);
-						snprintf(prefix, sizeof(prefix), "wl%d_auth_mode_x", unit);
-						tcapi_get("WLan_Entry0", prefix, auth_mode);
-					}
-					nLength=0; nConsecAlphaUC=0; nConsecCharType=0; nAlphaUC=0; nConsecAlphaLC=0; nAlphaLC=0; nMidChar=0; nConsecNumber=0; nNumber=0; nConsecSymbol=0; nSymbol=0; nRepChar=0; nUnqChar=0; nSeqAlpha=0; nSeqNumber=0; nSeqChar = 0; nSeqSymbol=0;
-					nTmpAlphaUC = -1; nTmpAlphaLC = -1; nTmpNumber = -1; nTmpSymbol = -1;
-				   if (strlen(pwd) && (!strcmp(auth_mode,"OPEN") || !strcmp(auth_mode,"WPA2PSK") || !strcmp(auth_mode,"WPAPSKWPA2PSK") || !strcmp(auth_mode,"WPA2") || !strcmp(auth_mode,"WPA1WPA2"))){
-					nScore=0;
-					nLength=0;
-					pwd_st = pwd;
-					arrPwd = pwd;
-					nLength = strlen(pwd);
-					nScore = nLength * nMultLength;
-
-					/* Main calculation for strength:
-							Loop through password to check for Symbol, Numeric, Lowercase and Uppercase pattern matches */
-					for (a=0; a <nLength; a++){
-						if(isupper(arrPwd[a])){
-							if(nTmpAlphaUC != -1){
-								if((nTmpAlphaUC + 1) == a){
-									nConsecAlphaUC++;
-									nConsecCharType++;
-								}
-							}
-							nTmpAlphaUC = a;
-							nAlphaUC++;
-						}
-						else if(islower(arrPwd[a])){
-							if(nTmpAlphaLC != -1){
-								if((nTmpAlphaLC + 1) == a){
-									nConsecAlphaLC++;
-									nConsecCharType++;
-								}
-							}
-							nTmpAlphaLC = a;
-							nAlphaLC++;
-						}
-						else if(isdigit(arrPwd[a])){
-							if(a > 0 && a < (nLength - 1)){
-								nMidChar++;
-							}
-							if(nTmpNumber != -1){
-								if((nTmpNumber + 1) == a){
-									nConsecNumber++;
-									nConsecCharType++;
-								}
-							}
-							nTmpNumber = a;
-							nNumber++;
-						}
-						else if(!isalnum(arrPwd[a])){
-							if(a > 0 && a < (nLength - 1))
-							{
-								nMidChar++;
-							}
-							if(nTmpSymbol != -1){
-								if((nTmpSymbol + 1) == a){
-									nConsecSymbol++;
-									nConsecCharType++;
-								}
-							}
-							nTmpSymbol = a;
-							nSymbol++;
-						}
-
-						/* Internal loop through password to check for repeat characters */
-						int bCharExists = 0;
-						for (b=0; b < nLength; b++){
-							if (arrPwd[a] == arrPwd[b] && a != b){ /* repeat character exists */
-								bCharExists = 1;
-								/*
-								Calculate icrement deduction based on proximity to identical characters
-								Deduction is incremented each time a new match is discovered
-								Deduction amount is based on total password length divided by the
-								difference of distance between currently selected match
-								*/
-								nRepInc += abs(nLength/(b-a));
-							}
-						}
-						if (bCharExists == 1) {
-							nRepChar++;
-							nUnqChar = nLength-nRepChar;
-							nRepInc = (nUnqChar > 0) ? ceil(nRepInc/(double)nUnqChar) : ceil(nRepInc); 
-						}
-					}
-
-					for(x = 0; x < nLength; x++){
-						pwd_s[x]= tolower(*pwd_st);
-						pwd_st++;
-					}
-
-					/* Check for sequential alpha string patterns (forward and reverse) */
-					for (s=0; s < 23; s++){
-						memset(sFwd, 0, sizeof(sFwd));
-						memset(sFwd_t, 0, sizeof(sFwd_t));
-						memset(sRev, 0, sizeof(sRev));
-						if(sAlphas+s != '\0'){
-							strncpy(sFwd, sAlphas+s, 3);
-							strncpy(sFwd_t, sFwd, 3);
-						}
-						strcpy(sRev, reverse_str(sFwd));
-
-						if(strstr(pwd_s, sFwd_t) != NULL || strstr(pwd_s, sRev) != NULL){
-							nSeqAlpha++;
-							nSeqChar++;
-						}
-					}
-					/* Check for sequential numeric string patterns (forward and reverse) */
-					for (s=0; s < 8; s++) {
-						memset(sFwd, 0, sizeof(sFwd));
-						memset(sFwd_t, 0, sizeof(sFwd_t));
-						memset(sRev, 0, sizeof(sRev));
-						if(sNumerics+s != '\0'){
-							strncpy(sFwd, sNumerics+s, 3);
-							strncpy(sFwd_t, sFwd, 3);
-						}
-						strcpy(sRev, reverse_str(sFwd));
-						if(strstr(pwd_s, sFwd_t) != NULL || strstr(pwd_s, sRev) != NULL){
-							nSeqNumber++;
-							nSeqChar++;
-						}
-					}
-					/* Check for sequential symbol string patterns (forward and reverse) */
-					for (s=0; s < 8; s++) {
-						memset(sFwd, 0, sizeof(sFwd));
-						memset(sFwd_t, 0, sizeof(sFwd_t));
-						memset(sRev, 0, sizeof(sRev));
-						if(sSymbols+s != '\0'){
-							strncpy(sFwd, sSymbols+s, 3);
-							strncpy(sFwd_t, sFwd, 3);
-						}
-						strcpy(sRev, reverse_str(sFwd));
-						if(strstr(pwd_s, sFwd_t) != NULL || strstr(pwd_s, sRev) != NULL){
-							nSeqSymbol++;
-							nSeqChar++;
-						}
-					}
-					/* Modify overall score value based on usage vs requirements */
-
-					/* General point assignment */
-					if (nAlphaUC > 0 && nAlphaUC < nLength){
-						nScore = nScore + ((nLength - nAlphaUC) * 2);
-					}
-					if (nAlphaLC > 0 && nAlphaLC < nLength){
-						nScore = nScore + ((nLength - nAlphaLC) * 2);
-					}
-					if (nNumber > 0 && nNumber < nLength){
-						nScore = nScore + (nNumber * nMultNumber);
-					}
-					if (nSymbol > 0){
-						nScore = nScore + (nSymbol * nMultSymbol);
-					}
-					if (nMidChar > 0){
-						nScore = nScore + (nMidChar * nMultMidChar);
-					}
-					/* Point deductions for poor practices */
-					if ((nAlphaLC > 0 || nAlphaUC > 0) && nSymbol == 0 && nNumber == 0) {  // Only Letters
-						nScore = nScore - nLength;
-					}
-					if (nAlphaLC == 0 && nAlphaUC == 0 && nSymbol == 0 && nNumber > 0) {  // Only Numbers
-						nScore = nScore - nLength;
-					}
-					if (nRepChar > 0) {  // Same character exists more than once
-						nScore = nScore - nRepInc;
-					}
-					if (nConsecAlphaUC > 0) {  // Consecutive Uppercase Letters exist
-					nScore = nScore - (nConsecAlphaUC * nMultConsecAlphaUC);
-					}
-					if (nConsecAlphaLC > 0) {  // Consecutive Lowercase Letters exist
-						nScore = nScore - (nConsecAlphaLC * nMultConsecAlphaLC);
-					}
-					if (nConsecNumber > 0) {  // Consecutive Numbers exist
-						nScore = nScore - (nConsecNumber * nMultConsecNumber);
-					}
-					if (nSeqAlpha > 0) {  // Sequential alpha strings exist (3 characters or more)
-						nScore = nScore - (nSeqAlpha * nMultSeqAlpha);
-					}
-					if (nSeqNumber > 0) {  // Sequential numeric strings exist (3 characters or more)
-						nScore = nScore - (nSeqNumber * nMultSeqNumber);
-					}
-					if (nSeqSymbol > 0) {  // Sequential symbol strings exist (3 characters or more)
-						nScore = nScore - (nSeqSymbol * nMultSeqSymbol);
-					}
-
-					/* Determine complexity based on overall score */
-					if (nScore > 100)
-					{
-						nScore = 100;
-					}else if(nScore < 0)
-					{
-						nScore = 0;
-					}
-					nScore_total = nScore + nScore_total;
-				   }else{
-					nScore = 0;
-				   }
-				}
-			}
-		}
-		websWrite(stream, "\"%d\"", (int)(nScore_total/unit));
-
-		app_method_hit = 1;
+		app_method_hit = do_check_passwd_strength(stream, argv[0]);
 	}
 	/* [GET] [QIS] start_autodet */
 	else if (strcmp(func, "start_autodet") == 0) {
@@ -12375,12 +12541,12 @@ app_call(char *func, char *stream)
 		memset(wan_proto, 0, sizeof(wan_proto));
 		wan_prefix(unit, prefix);
 
-		wan_state = tcapi_get_int(WANDUCK, strcat_r(prefix, "state_t", tmp));
-		wan_sbstate = tcapi_get_int(WANDUCK, strcat_r(prefix, "sbstate_t", tmp));
-		wan_auxstate = tcapi_get_int(WANDUCK, strcat_r(prefix, "auxstate_t", tmp));
+		wan_state = tcapi_get_int(WANDUCK, strcat_rs(prefix, "state_t", tmp, sizeof(tmp)));
+		wan_sbstate = tcapi_get_int(WANDUCK, strcat_rs(prefix, "sbstate_t", tmp, sizeof(tmp)));
+		wan_auxstate = tcapi_get_int(WANDUCK, strcat_rs(prefix, "auxstate_t", tmp, sizeof(tmp)));
 
 		// wan_proto = nvram_safe_get(strcat_r(prefix, "proto", tmp));
-		tcapi_get(WANDUCK, strcat_r(prefix, "proto", tmp), wan_proto);
+		tcapi_get(WANDUCK, strcat_rs(prefix, "proto", tmp, sizeof(tmp)), wan_proto);
 
 		if (dualwan_unit__usbif(unit)) {
 			if(wan_state == WAN_STATE_INITIALIZING){
@@ -12457,11 +12623,11 @@ app_call(char *func, char *stream)
 				status = 0;
 			}
 			else {
-				lease = nvram_get_int(strcat_r(prefix, "lease", tmp));
+				lease = nvram_get_int(strcat_rs(prefix, "lease", tmp, sizeof(tmp)));
 				// treat short lease time as disconnected
 				if(!strcmp(wan_proto, "dhcp") &&	//DHCP
 					lease <= 60 &&
-					is_private_subnet(nvram_safe_get(strcat_r(prefix, "ipaddr", tmp)))
+					is_private_subnet(nvram_safe_get(strcat_rs(prefix, "ipaddr", tmp, sizeof(tmp))))
 				) {
 					status = 0;
 				}
@@ -12479,13 +12645,13 @@ app_call(char *func, char *stream)
 			type = wan_proto;
 
 		if(status != 0){
-			strncpy(ip, nvram_safe_get(strcat_r(prefix, "ipaddr", tmp)), sizeof(ip)-1);
-			strncpy(netmask, nvram_safe_get(strcat_r(prefix, "netmask", tmp)), sizeof(netmask)-1);
-			strncpy(gateway, nvram_safe_get(strcat_r(prefix, "gateway", tmp)), sizeof(gateway)-1);
-			strncpy(dns, nvram_safe_get(strcat_r(prefix, "dns", dns)), sizeof(dns)-1);
-			lease = nvram_get_int(strcat_r(prefix, "lease", tmp));
+			strncpy(ip, nvram_safe_get(strcat_rs(prefix, "ipaddr", tmp, sizeof(tmp))), sizeof(ip)-1);
+			strncpy(netmask, nvram_safe_get(strcat_rs(prefix, "netmask", tmp, sizeof(tmp))), sizeof(netmask)-1);
+			strncpy(gateway, nvram_safe_get(strcat_rs(prefix, "gateway", tmp, sizeof(tmp))), sizeof(gateway)-1);
+			strncpy(dns, nvram_safe_get(strcat_rs(prefix, "dns", tmp, sizeof(tmp))), sizeof(dns)-1);
+			lease = nvram_get_int(strcat_rs(prefix, "lease", tmp, sizeof(tmp)));
 			if (lease > 0)
-				expires = nvram_get_int(strcat_r(prefix, "expires", tmp)) - uptime();
+				expires = nvram_get_int(strcat_rs(prefix, "expires", tmp, sizeof(tmp))) - uptime();
 		}
 
 		if(argv[0] == NULL){
@@ -12609,7 +12775,7 @@ app_call(char *func, char *stream)
 						*(str+strlen(str)-1)=0x0;
 						snprintf(hostname, sizeof(hostname), "%s", str);
 					}
-					char_to_ascii_safe(buf, hostname, strlen(hostname));
+					char_to_ascii_safe(buf, hostname, sizeof(buf));
 					websWrite(stream,"[\"%s\", \"%s\"],", ip, buf);
 				}
 				else
@@ -12653,12 +12819,12 @@ app_call(char *func, char *stream)
 	}
 
 get_api_fail:
-	if (app_method_hit == 0)
+	//if (app_method_hit == 0)
 		//websWrite(stream,"");       //Not Support
-		_dprintf("app_call: %s(%s): Not yet support\n", func, argv[0]);
-	else if (app_method_hit == 2)
+		//_dprintf("app_call: %s(%s): Not yet support\n", func, argv[0]);
+	//else if (app_method_hit == 2)
 		//websWrite(stream,"");       //DSL model not support
-		_dprintf("app_call: %s(%s): DSL model not support\n", func, argv[0]);
+		//_dprintf("app_call: %s(%s): DSL model not support\n", func, argv[0]);
 
 	if(strcmp(func, "nvram_get") == 0)
 		websWrite(stream,"\"" );
@@ -12673,7 +12839,7 @@ static void do_appGet_cgi (asp_reent* reent, const asp_text* params, asp_text* r
 	char wp[1024] = {0}; //If too small, may cause boa crash
 
 	pattern = get_param(g_var_post, "hook");
-	//_dprintf("do_appGet_cgi: pattern_t=%s\n", pattern);
+	//_dprintf("[AiHome] do_appGet_cgi: pattern_t=%s\n", pattern);
 	char *pattern_t = strtok_r(pattern, ";", &saveptr);
 
 	websWrite(wp,"{\n" );
@@ -12739,21 +12905,21 @@ static void wanstate (asp_reent* reent, const asp_text* params, asp_text* ret)
 	// websWrite(wp, "wansbstate = %d;\n", wan_sbstate);
 	// websWrite(wp, "wanauxstate = %d;\n", wan_auxstate);
 
-	strcat_r(prefix, "state_t", tmp);
+	strcat_rs(prefix, "state_t", tmp, sizeof(tmp));
 	if(!tcapi_get(WANDUCK, tmp, value)) {
-		sprintf(wp, "wanstate = %s;\n", value);
+		snprintf(wp, sizeof(wp), "wanstate = %s;\n", value);
 		asp_send_response(NULL, wp, strlen(wp));
 	}
 
-	strcat_r(prefix, "sbstate_t", tmp);
+	strcat_rs(prefix, "sbstate_t", tmp, sizeof(tmp));
 	if(!tcapi_get(WANDUCK, tmp, value)) {
-		sprintf(wp, "wansbstate = %s;\n", value);
+		snprintf(wp, sizeof(wp), "wansbstate = %s;\n", value);
 		asp_send_response(NULL, wp, strlen(wp));
 	}
 
-	strcat_r(prefix, "auxstate_t", tmp);
+	strcat_rs(prefix, "auxstate_t", tmp, sizeof(tmp));
 	if(!tcapi_get(WANDUCK, tmp, value)) {
-		sprintf(wp, "wanauxstate = %s;\n", value);
+		snprintf(wp, sizeof(wp), "wanauxstate = %s;\n", value);
 		asp_send_response(NULL, wp, strlen(wp));
 	}
 
@@ -12788,14 +12954,14 @@ static void wl_nband_info (asp_reent* reent, const asp_text* params, asp_text* r
 	wl2g = strstr(value, "2.4G");
 	wl5g = strstr(value, "5G");
 	
-	sprintf(buf, "[");
+	snprintf(buf, sizeof(buf), "[");
 	if(wl2g != NULL) {
-		strcat(buf, "\"2\"");
+		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), "\"2\"");
 	}
 	if(wl5g != NULL) {
-		strcat(buf, ",\"1\"");
+		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), ",\"1\"");
 	}
-	strcat(buf, "]");
+	snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "]");
 	asp_send_response (NULL,buf,strlen(buf));
 	
 }
@@ -12860,6 +13026,14 @@ static void disable_other_wan (asp_reent* reent, const asp_text* params, asp_tex
 				}
 #endif
 			}
+
+			//sync iptv transmode
+			if( (!strncmp(transmode, "ATM", 3) && tcapi_match("IPTV_Entry", "TransMode", "PTM"))
+				|| (!strncmp(transmode, "PTM", 3) && tcapi_match("IPTV_Entry", "TransMode", "ATM"))
+			)
+			{
+				tcapi_set("IPTV_Entry", "TransMode", transmode);
+			}
 #endif
 
 			for(i = 0; i < WAN_UNIT_MAX; i++) {
@@ -12875,8 +13049,8 @@ static void disable_other_wan (asp_reent* reent, const asp_text* params, asp_tex
 				#ifdef TCSUPPORT_MULTISERVICE_ON_WAN
 					if(i == WAN_UNIT_PTM0 || i == WAN_UNIT_ETH) {	//multiservice only for PTM, WAN
 						for(j = 0; j < 8; j++) {
-							sprintf(prefix, "WanExt_PVC%de%d", i, j);
-							snprintf(cmd, sizeof(cmd)-1, "/usr/script/wan_stop.sh %d %d", i, j);
+							snprintf(prefix, sizeof(prefix), "WanExt_PVC%de%d", i, j);
+							snprintf(cmd, sizeof(cmd), "/usr/script/wan_stop.sh %d %d", i, j);
 							if(tcapi_match(prefix, "Active", "Yes")) {
 								system(cmd);
 								tcapi_set(prefix, "Active", "No");
@@ -12886,20 +13060,20 @@ static void disable_other_wan (asp_reent* reent, const asp_text* params, asp_tex
 									snprintf(brif, sizeof(brif), "br%d", tcapi_get_int(prefix, "bridge_lan_port"));
 									snprintf(cmd, sizeof(cmd), "brctl delif %s nas%d_%d", brif, i, j);
 									system(cmd);
-									snprintf(cmd, sizeof(cmd), "brctl delif %s lan%d", brif, tcapi_get_int(prefix, "bridge_lan_port"));
+									snprintf(cmd, sizeof(cmd), "brctl delif %s %s%d", brif, LAN_PORT_ITF_PREFIX, tcapi_get_int(prefix, "bridge_lan_port"));
 									system(cmd);									
-									snprintf(cmd, sizeof(cmd), "brctl addif br0 lan%d", tcapi_get_int(prefix, "bridge_lan_port"));
+									snprintf(cmd, sizeof(cmd), "brctl addif br0 %s%d", LAN_PORT_ITF_PREFIX, tcapi_get_int(prefix, "bridge_lan_port"));
 									system(cmd);									
 								}
 								
 								memset(cmd, 0, sizeof(cmd));
-								sprintf(cmd, "/usr/bin/smuxctl rem nas%d_%d", i, j);
+								snprintf(cmd, sizeof(cmd), "/usr/bin/smuxctl rem nas%d_%d", i, j);
 								system(cmd);
 							}
 						}
 					}
 					else {
-						sprintf(prefix, "Wan_PVC%d", i);
+						snprintf(prefix, sizeof(prefix), "Wan_PVC%d", i);
 						snprintf(cmd, sizeof(cmd)-1, "/usr/script/wan_stop.sh %d %d", i, 0);
 						if(tcapi_match(prefix, "Active", "Yes")) {
 
@@ -12908,9 +13082,9 @@ static void disable_other_wan (asp_reent* reent, const asp_text* params, asp_tex
 								snprintf(brif, sizeof(brif), "br%d", tcapi_get_int(prefix, "bridge_lan_port"));
 								snprintf(cmd, sizeof(cmd), "brctl delif %s nas%d", brif, i);
 								system(cmd);
-								snprintf(cmd, sizeof(cmd), "brctl delif %s lan%d", brif, tcapi_get_int(prefix, "bridge_lan_port"));
+								snprintf(cmd, sizeof(cmd), "brctl delif %s %s%d", brif, LAN_PORT_ITF_PREFIX, tcapi_get_int(prefix, "bridge_lan_port"));
 								system(cmd);									
-								snprintf(cmd, sizeof(cmd), "brctl addif br0 lan%d", tcapi_get_int(prefix, "bridge_lan_port"));
+								snprintf(cmd, sizeof(cmd), "brctl addif br0 %s%d", LAN_PORT_ITF_PREFIX, tcapi_get_int(prefix, "bridge_lan_port"));
 								system(cmd);									
 							}
 							
@@ -12925,7 +13099,7 @@ static void disable_other_wan (asp_reent* reent, const asp_text* params, asp_tex
 						}
 					}
 				#else
-					sprintf(prefix, "Wan_PVC%d", i);
+					snprintf(prefix, sizeof(prefix), "Wan_PVC%d", i);
 					snprintf(cmd, sizeof(cmd)-1, "/usr/script/wan_stop.sh %d", i);
 					if(tcapi_match(prefix, "Active", "Yes")) {
 						system(cmd);
@@ -13008,12 +13182,12 @@ static void wanlink (asp_reent* reent, const asp_text* params, asp_text* ret)
 	memset(wan_proto, 0, sizeof(wan_proto));
 	wan_prefix(unit, prefix);
 
-	wan_state = tcapi_get_int(WANDUCK, strcat_r(prefix, "state_t", tmp));
-	wan_sbstate = tcapi_get_int(WANDUCK, strcat_r(prefix, "sbstate_t", tmp));
-	wan_auxstate = tcapi_get_int(WANDUCK, strcat_r(prefix, "auxstate_t", tmp));
+	wan_state = tcapi_get_int(WANDUCK, strcat_rs(prefix, "state_t", tmp, sizeof(tmp)));
+	wan_sbstate = tcapi_get_int(WANDUCK, strcat_rs(prefix, "sbstate_t", tmp, sizeof(tmp)));
+	wan_auxstate = tcapi_get_int(WANDUCK, strcat_rs(prefix, "auxstate_t", tmp, sizeof(tmp)));
 
 	// wan_proto = nvram_safe_get(strcat_r(prefix, "proto", tmp));
-	tcapi_get(WANDUCK, strcat_r(prefix, "proto", tmp), wan_proto);
+	tcapi_get(WANDUCK, strcat_rs(prefix, "proto", tmp, sizeof(tmp)), wan_proto);
 
 	if (dualwan_unit__usbif(unit)) {
 		if(wan_state == WAN_STATE_INITIALIZING){
@@ -13090,11 +13264,11 @@ static void wanlink (asp_reent* reent, const asp_text* params, asp_text* ret)
 			status = 0;
 		}
 		else {
-			lease = nvram_get_int(strcat_r(prefix, "lease", tmp));
+			lease = nvram_get_int(strcat_rs(prefix, "lease", tmp, sizeof(tmp)));
 			// treat short lease time as disconnected
 			if(!strcmp(wan_proto, "dhcp") &&	//DHCP
 				lease <= 60 &&
-				is_private_subnet(nvram_safe_get(strcat_r(prefix, "ipaddr", tmp)))
+				is_private_subnet(nvram_safe_get(strcat_rs(prefix, "ipaddr", tmp, sizeof(tmp))))
 			) {
 				status = 0;
 			}
@@ -13112,13 +13286,13 @@ static void wanlink (asp_reent* reent, const asp_text* params, asp_text* ret)
 		type = wan_proto;
 
 	if(status != 0){
-		strncpy(ip, nvram_safe_get(strcat_r(prefix, "ipaddr", tmp)), sizeof(ip)-1);
-		strncpy(netmask, nvram_safe_get(strcat_r(prefix, "netmask", tmp)), sizeof(netmask)-1);
-		strncpy(gateway, nvram_safe_get(strcat_r(prefix, "gateway", tmp)), sizeof(gateway)-1);
-		strncpy(dns, nvram_safe_get(strcat_r(prefix, "dns", dns)), sizeof(dns)-1);
-		lease = nvram_get_int(strcat_r(prefix, "lease", tmp));
+		strncpy(ip, nvram_safe_get(strcat_rs(prefix, "ipaddr", tmp, sizeof(tmp))), sizeof(ip)-1);
+		strncpy(netmask, nvram_safe_get(strcat_rs(prefix, "netmask", tmp, sizeof(tmp))), sizeof(netmask)-1);
+		strncpy(gateway, nvram_safe_get(strcat_rs(prefix, "gateway", tmp, sizeof(tmp))), sizeof(gateway)-1);
+		strncpy(dns, nvram_safe_get(strcat_rs(prefix, "dns", tmp, sizeof(tmp))), sizeof(dns)-1);
+		lease = nvram_get_int(strcat_rs(prefix, "lease", tmp, sizeof(tmp)));
 		if (lease > 0)
-			expires = nvram_get_int(strcat_r(prefix, "expires", tmp)) - uptime();
+			expires = nvram_get_int(strcat_rs(prefix, "expires", tmp, sizeof(tmp))) - uptime();
 	}
 
 	websWrite(wp, "function wanlink_status() { return %d;}\n", status);
@@ -13140,7 +13314,7 @@ static void wanlink (asp_reent* reent, const asp_text* params, asp_text* ret)
 	{
 		char node[MAXLEN_NODE_NAME];
 		int dhcpenable = 0;
-		sprintf(node, "Wan_PVC%d", unit);
+		snprintf(node, sizeof(node), "Wan_PVC%d", unit);
 		tcapi_get(node, "PPPGETIP", tmp);
 		dhcpenable = strcmp(tmp, "Dynamic") ? 0 : 1;
 		xtype = (dhcpenable == 0) ? "static" :
@@ -13194,12 +13368,12 @@ static void first_wanlink (asp_reent* reent, const asp_text* params, asp_text* r
 	memset(wan_proto, 0, sizeof(wan_proto));
 	wan_prefix(unit, prefix);
 
-	wan_state = tcapi_get_int(WANDUCK, strcat_r(prefix, "state_t", tmp));
-	wan_sbstate = tcapi_get_int(WANDUCK, strcat_r(prefix, "sbstate_t", tmp));
-	wan_auxstate = tcapi_get_int(WANDUCK, strcat_r(prefix, "auxstate_t", tmp));
+	wan_state = tcapi_get_int(WANDUCK, strcat_rs(prefix, "state_t", tmp, sizeof(tmp)));
+	wan_sbstate = tcapi_get_int(WANDUCK, strcat_rs(prefix, "sbstate_t", tmp, sizeof(tmp)));
+	wan_auxstate = tcapi_get_int(WANDUCK, strcat_rs(prefix, "auxstate_t", tmp, sizeof(tmp)));
 
 	// wan_proto = nvram_safe_get(strcat_r(prefix, "proto", tmp));
-	tcapi_get(WANDUCK, strcat_r(prefix, "proto", tmp), wan_proto);
+	tcapi_get(WANDUCK, strcat_rs(prefix, "proto", tmp, sizeof(tmp)), wan_proto);
 
 	if (dualwan_unit__usbif(unit)) {
 		if(wan_state == WAN_STATE_INITIALIZING){
@@ -13276,11 +13450,11 @@ static void first_wanlink (asp_reent* reent, const asp_text* params, asp_text* r
 			status = 0;
 		}
 		else {
-			lease = nvram_get_int(strcat_r(prefix, "lease", tmp));
+			lease = nvram_get_int(strcat_rs(prefix, "lease", tmp, sizeof(tmp)));
 			// treat short lease time as disconnected
 			if(!strcmp(wan_proto, "dhcp") &&	//DHCP
 				lease <= 60 &&
-				is_private_subnet(nvram_safe_get(strcat_r(prefix, "ipaddr", tmp)))
+				is_private_subnet(nvram_safe_get(strcat_rs(prefix, "ipaddr", tmp, sizeof(tmp))))
 			) {
 				status = 0;
 			}
@@ -13298,13 +13472,13 @@ static void first_wanlink (asp_reent* reent, const asp_text* params, asp_text* r
 		type = wan_proto;
 
 	if(status != 0){
-		strncpy(ip, nvram_safe_get(strcat_r(prefix, "ipaddr", tmp)), sizeof(ip)-1);
-		strncpy(netmask, nvram_safe_get(strcat_r(prefix, "netmask", tmp)), sizeof(netmask)-1);
-		strncpy(gateway, nvram_safe_get(strcat_r(prefix, "gateway", tmp)), sizeof(gateway)-1);
-		strncpy(dns, nvram_safe_get(strcat_r(prefix, "dns", dns)), sizeof(dns)-1);
-		lease = nvram_get_int(strcat_r(prefix, "lease", tmp));
+		strncpy(ip, nvram_safe_get(strcat_rs(prefix, "ipaddr", tmp, sizeof(tmp))), sizeof(ip)-1);
+		strncpy(netmask, nvram_safe_get(strcat_rs(prefix, "netmask", tmp, sizeof(tmp))), sizeof(netmask)-1);
+		strncpy(gateway, nvram_safe_get(strcat_rs(prefix, "gateway", tmp, sizeof(tmp))), sizeof(gateway)-1);
+		strncpy(dns, nvram_safe_get(strcat_rs(prefix, "dns", tmp, sizeof(tmp))), sizeof(dns)-1);
+		lease = nvram_get_int(strcat_rs(prefix, "lease", tmp, sizeof(tmp)));
 		if (lease > 0)
-			expires = nvram_get_int(strcat_r(prefix, "expires", tmp)) - uptime();
+			expires = nvram_get_int(strcat_rs(prefix, "expires", tmp, sizeof(tmp))) - uptime();
 	}
 
 	websWrite(wp, "function first_wanlink_status() { return %d;}\n", status);
@@ -13325,7 +13499,7 @@ static void first_wanlink (asp_reent* reent, const asp_text* params, asp_text* r
 	{
 		char node[MAXLEN_NODE_NAME];
 		int dhcpenable = 0;
-		sprintf(node, "Wan_PVC%d", unit);
+		snprintf(node, sizeof(node), "Wan_PVC%d", unit);
 		tcapi_get(node, "PPPGETIP", tmp);
 		dhcpenable = strcmp(tmp, "Dynamic") ? 0 : 1;
 		xtype = (dhcpenable == 0) ? "static" :
@@ -13378,13 +13552,13 @@ static void secondary_wanlink (asp_reent* reent, const asp_text* params, asp_tex
 	unit = wan_secondary_pvcunit();
 	wan_prefix(unit, prefix);
 
-	wan_state = nvram_get_int(strcat_r(prefix, "state_t", tmp));
-	wan_sbstate = nvram_get_int(strcat_r(prefix, "sbstate_t", tmp));
-	wan_auxstate = nvram_get_int(strcat_r(prefix, "auxstate_t", tmp));
+	wan_state = nvram_get_int(strcat_rs(prefix, "state_t", tmp, sizeof(tmp)));
+	wan_sbstate = nvram_get_int(strcat_rs(prefix, "sbstate_t", tmp, sizeof(tmp)));
+	wan_auxstate = nvram_get_int(strcat_rs(prefix, "auxstate_t", tmp, sizeof(tmp)));
 
 	//wan_proto = nvram_safe_get(strcat_r(prefix, "proto", tmp));
 	memset(wan_proto, 0, sizeof(wan_proto));
-	tcapi_get(WANDUCK, strcat_r(prefix, "proto", tmp), wan_proto);
+	tcapi_get(WANDUCK, strcat_rs(prefix, "proto", tmp, sizeof(tmp)), wan_proto);
 
 	if (dualwan_unit__usbif(unit)) {
 		if(wan_state == WAN_STATE_INITIALIZING){
@@ -13461,11 +13635,11 @@ static void secondary_wanlink (asp_reent* reent, const asp_text* params, asp_tex
 			status = 0;
 		}
 		else {
-			lease = nvram_get_int(strcat_r(prefix, "lease", tmp));
+			lease = nvram_get_int(strcat_rs(prefix, "lease", tmp, sizeof(tmp)));
 			// treat short lease time as disconnected
 			if(!strcmp(wan_proto, "dhcp") &&	//DHCP
 				lease <= 60 &&
-				is_private_subnet(nvram_safe_get(strcat_r(prefix, "ipaddr", tmp)))
+				is_private_subnet(nvram_safe_get(strcat_rs(prefix, "ipaddr", tmp, sizeof(tmp))))
 			) {
 				status = 0;
 			}
@@ -13481,13 +13655,13 @@ static void secondary_wanlink (asp_reent* reent, const asp_text* params, asp_tex
 		type = wan_proto;
 
 	if(status != 0){
-		strncpy(ip, nvram_safe_get(strcat_r(prefix, "ipaddr", tmp)), sizeof(ip)-1);
-		strncpy(netmask, nvram_safe_get(strcat_r(prefix, "netmask", tmp)), sizeof(netmask)-1);
-		strncpy(gateway, nvram_safe_get(strcat_r(prefix, "gateway", tmp)), sizeof(gateway)-1);
-		strncpy(dns, nvram_safe_get(strcat_r(prefix, "dns", tmp)), sizeof(dns)-1);
-		lease = nvram_get_int(strcat_r(prefix, "lease", tmp));
+		strncpy(ip, nvram_safe_get(strcat_rs(prefix, "ipaddr", tmp, sizeof(tmp))), sizeof(ip)-1);
+		strncpy(netmask, nvram_safe_get(strcat_rs(prefix, "netmask", tmp, sizeof(tmp))), sizeof(netmask)-1);
+		strncpy(gateway, nvram_safe_get(strcat_rs(prefix, "gateway", tmp, sizeof(tmp))), sizeof(gateway)-1);
+		strncpy(dns, nvram_safe_get(strcat_rs(prefix, "dns", tmp, sizeof(tmp))), sizeof(dns)-1);
+		lease = nvram_get_int(strcat_rs(prefix, "lease", tmp, sizeof(tmp)));
 		if (lease > 0)
-			expires = nvram_get_int(strcat_r(prefix, "expires", tmp)) - uptime();
+			expires = nvram_get_int(strcat_rs(prefix, "expires", tmp, sizeof(tmp))) - uptime();
 	}
 
 	websWrite(wp, "function secondary_wanlink_status() { return %d;}\n", status);
@@ -13496,10 +13670,10 @@ static void secondary_wanlink (asp_reent* reent, const asp_text* params, asp_tex
 	websWrite(wp, "function secondary_wanlink_ipaddr() { return '%s';}\n", ip);
 	websWrite(wp, "function secondary_wanlink_netmask() { return '%s';}\n", netmask);
 	websWrite(wp, "function secondary_wanlink_gateway() { return '%s';}\n", gateway);
-	websWrite(wp, "function secondary_wanlink_dns() { return '%s';}\n", nvram_safe_get(strcat_r(prefix, "dns", tmp)));
+	websWrite(wp, "function secondary_wanlink_dns() { return '%s';}\n", nvram_safe_get(strcat_rs(prefix, "dns", tmp, sizeof(tmp))));
 	websWrite(wp, "function secondary_wanlink_lease() { return %d;}\n", lease);
 	websWrite(wp, "function secondary_wanlink_expires() { return %d;}\n", expires);
-	websWrite(wp, "function is_private_subnet() { return %d;}\n", is_private_subnet(nvram_safe_get(strcat_r(prefix, "ipaddr", tmp))));
+	websWrite(wp, "function is_private_subnet() { return %d;}\n", is_private_subnet(nvram_safe_get(strcat_rs(prefix, "ipaddr", tmp, sizeof(tmp)))));
 
 #if 0//Note: not support VPN + DHCP Connection currently
 	if (strcmp(wan_proto, "pppoe") == 0
@@ -13509,7 +13683,7 @@ static void secondary_wanlink (asp_reent* reent, const asp_text* params, asp_tex
 	{
 		char node[MAXLEN_NODE_NAME];
 		int dhcpenable = 0;
-		sprintf(node, "Wan_PVC%d", unit);
+		snprintf(node, sizeof(node), "Wan_PVC%d", unit);
 		tcapi_get(node, "PPPGETIP", tmp);
 		dhcpenable = strcmp(tmp, "Dynamic") ? 0 : 1;
 		xtype = (dhcpenable == 0) ? "static" :
@@ -13552,6 +13726,23 @@ static void secondary_wanlink (asp_reent* reent, const asp_text* params, asp_tex
 	websWrite(wp, "function secondary_wanlink_xlease() { return -1;}\n");
 	websWrite(wp, "function secondary_wanlink_xexpires() { return -1;}\n");
 #endif
+	return;
+}
+
+static void get_ssh_first_init (asp_reent* reent, const asp_text* params, asp_text* ret)
+{
+	int state;
+	char wp[4] = {0};
+	
+	if(!f_exists("/etc/dropbear/dropbear_rsa_host_key") || 
+	   !f_exists("/etc/dropbear/dropbear_dss_host_key")) {
+		state = 0;
+	} else {
+		state = 1;
+	}
+	
+	websWrite(wp, "%d", state);
+	
 	return;
 }
 
@@ -13618,13 +13809,11 @@ static void setting_lan (asp_reent* reent, const asp_text* params, asp_text* ret
 	// snprintf(prefix_lan, sizeof(prefix_lan), "lan_");
 
 	memset(lan_ipaddr_t, 0, sizeof(lan_ipaddr_t));
-	// strcpy(lan_ipaddr_t, nvram_safe_get(strcat_r(prefix_lan, "ipaddr", tmp_lan)));
 	tcapi_get("Lan_Entry0", "IP", lan_ipaddr_t);
 	memset(&addr, 0, sizeof(addr));
 	lan_ip_num = ntohl(inet_aton(lan_ipaddr_t, &addr));
 	lan_ip_num = ntohl(addr.s_addr);
 	memset(lan_netmask_t, 0, sizeof(lan_netmask_t));
-	// strcpy(lan_netmask_t, nvram_safe_get(strcat_r(prefix_lan, "netmask", tmp_lan)));
 	tcapi_get("Lan_Entry0", "netmask", lan_netmask_t);
 	memset(&addr, 0, sizeof(addr));
 	lan_mask_num = ntohl(inet_aton(lan_netmask_t, &addr));
@@ -13657,15 +13846,13 @@ dbg("http: Can't get the WAN's unit!\n");
 	// wan_prefix(unit, prefix_wan);
 
 	memset(wan_ipaddr_t, 0, sizeof(wan_ipaddr_t));
-	// strcpy(wan_ipaddr_t, nvram_safe_get(strcat_r(prefix_lan, "ipaddr", tmp_wan)));
-	sprintf(tmp_wanip, "wan%d_ipaddr", unit);
+	snprintf(tmp_wanip, sizeof(tmp_wanip), "wan%d_ipaddr", unit);
 	tcapi_get("Wanduck_Common", tmp_wanip, wan_ipaddr_t);
 	memset(&addr, 0, sizeof(addr));
 	wan_ip_num = ntohl(inet_aton(wan_ipaddr_t, &addr));
 	wan_ip_num = ntohl(addr.s_addr);
 	memset(wan_netmask_t, 0, sizeof(wan_netmask_t));
-	// strcpy(wan_netmask_t, nvram_safe_get(strcat_r(prefix_lan, "netmask", tmp_wan)));
-	sprintf(tmp_wanmask, "wan%d_netmask", unit);
+	snprintf(tmp_wanmask, sizeof(tmp_wanmask), "wan%d_netmask", unit);
 	tcapi_get("Wanduck_Common", tmp_wanmask, wan_netmask_t);
 	memset(&addr, 0, sizeof(addr));
 	wan_mask_num = ntohl(inet_aton(wan_netmask_t, &addr));
@@ -13697,16 +13884,16 @@ dbg("http: The subnets of WAN and LAN aren't the same already.!\n");
 dbg("%u, %u, %u.\n", new_lan_ip_num, new_dhcp_start_num, new_dhcp_end_num);
 	memset(&addr, 0, sizeof(addr));
 	addr.s_addr = htonl(new_lan_ip_num);
-	memset(new_lan_ip_str, 0, sizeof(new_lan_ip_str));
-	strcpy(new_lan_ip_str, inet_ntoa(addr));
+	//memset(new_lan_ip_str, 0, sizeof(new_lan_ip_str));
+	snprintf(new_lan_ip_str, sizeof(new_lan_ip_str), "%s", inet_ntoa(addr));
 	memset(&addr, 0, sizeof(addr));
 	addr.s_addr = htonl(new_dhcp_start_num);
-	memset(new_dhcp_start_str, 0, sizeof(new_dhcp_start_str));
-	strcpy(new_dhcp_start_str, inet_ntoa(addr));
+	//memset(new_dhcp_start_str, 0, sizeof(new_dhcp_start_str));
+	snprintf(new_dhcp_start_str, sizeof(new_dhcp_start_str), "%s", inet_ntoa(addr));
 	memset(&addr, 0, sizeof(addr));
 	addr.s_addr = htonl(new_dhcp_end_num);
-	memset(new_dhcp_end_str, 0, sizeof(new_dhcp_end_str));
-	strcpy(new_dhcp_end_str, inet_ntoa(addr));
+	//memset(new_dhcp_end_str, 0, sizeof(new_dhcp_end_str));
+	snprintf(new_dhcp_end_str, sizeof(new_dhcp_end_str), "%s", inet_ntoa(addr));
 dbg("%s, %s, %s.\n", new_lan_ip_str, new_dhcp_start_str, new_dhcp_end_str);
 
 	// nvram_set(strcat_r(prefix_lan, "ipaddr", tmp_lan), new_lan_ip_str);
@@ -13751,9 +13938,8 @@ static void login_state_hook (asp_reent* reent, const asp_text* params, asp_text
 	//csprintf("ip = %u\n",ip);
 
 	// now_ip_addr.s_addr = ip;
-	memset(ip_str, 0, sizeof(ip_str));
-	// strcpy(ip_str, inet_ntoa(now_ip_addr));
-	strcpy(ip_str, reent->server_env->remote_ip_addr);
+	//memset(ip_str, 0, sizeof(ip_str));
+	snprintf(ip_str, sizeof(ip_str), "%s", reent->server_env->remote_ip_addr);
 //	time(&now);
 	now = uptime();
 
@@ -13844,9 +14030,9 @@ static void ajax_wanstate (asp_reent* reent, const asp_text* params, asp_text* r
 	unit = wan_primary_ifunit();
 	wan_prefix(unit, prefix);
 
-	wan_state = tcapi_get_int(WANDUCK, strcat_r(prefix, "state_t", tmp));
-	wan_sbstate = tcapi_get_int(WANDUCK, strcat_r(prefix, "sbstate_t", tmp));
-	wan_auxstate = tcapi_get_int(WANDUCK, strcat_r(prefix, "auxstate_t", tmp));
+	wan_state = tcapi_get_int(WANDUCK, strcat_rs(prefix, "state_t", tmp, sizeof(tmp)));
+	wan_sbstate = tcapi_get_int(WANDUCK, strcat_rs(prefix, "sbstate_t", tmp, sizeof(tmp)));
+	wan_auxstate = tcapi_get_int(WANDUCK, strcat_rs(prefix, "auxstate_t", tmp, sizeof(tmp)));
 
 	websWrite(wp, "<wan>%d</wan>\n", wan_state);
 	websWrite(wp, "<wan>%d</wan>\n", wan_sbstate);
@@ -13867,9 +14053,9 @@ static void secondary_ajax_wanstate (asp_reent* reent, const asp_text* params, a
 	unit = wan_secondary_pvcunit();
 	wan_prefix(unit, prefix);
 
-	wan_state = nvram_get_int(strcat_r(prefix, "state_t", tmp));
-	wan_sbstate = nvram_get_int(strcat_r(prefix, "sbstate_t", tmp));
-	wan_auxstate = nvram_get_int(strcat_r(prefix, "auxstate_t", tmp));
+	wan_state = nvram_get_int(strcat_rs(prefix, "state_t", tmp, sizeof(tmp)));
+	wan_sbstate = nvram_get_int(strcat_rs(prefix, "sbstate_t", tmp, sizeof(tmp)));
+	wan_auxstate = nvram_get_int(strcat_rs(prefix, "auxstate_t", tmp, sizeof(tmp)));
 
 	websWrite(wp, "<secondary_wan>%d</secondary_wan>\n", wan_state);
 	websWrite(wp, "<secondary_wan>%d</secondary_wan>\n", wan_sbstate);
@@ -13894,6 +14080,7 @@ static void stop_service (asp_reent* reent, const asp_text* params, asp_text* re
 	system("ejusb 2 0");
 #endif
 	system("rc_call service 0");
+	system("bwdpi service stop");
 
 	return;
 }
@@ -13903,7 +14090,7 @@ static void sysinfo(asp_reent* reent, const asp_text* params, asp_text* ret) {
 	char result[8];
 	char wp[256] = {0};
 
-	strcpy(result, "-1");
+	snprintf(result, sizeof(result), "-1");
 
 	//if (ejArgs(argc, argv, "%s", &type) < 1) {
 		//websError(wp, 400, "Insufficient args\n");
@@ -13923,7 +14110,7 @@ static void sysinfo(asp_reent* reent, const asp_text* params, asp_text* ret) {
 		sscanf(type, "pid.%31s", service);
 
 		if (strlen(service))
-			sprintf(result, "%d", pidof(service));
+			snprintf(result, sizeof(result), "%d", pidof(service));
 
 		//dbg("[sysinfo] service=%s, result=%d\n", service, result);
 	}
@@ -13952,176 +14139,175 @@ static void dump_fb_fail_content( void )
 		up_seconds = atoi(str);
 		free(str);
 	}
-	reltime(up_seconds, up_time);
+	reltime(up_seconds, up_time, sizeof(up_time));
 
 	memset(tmp_val, 0, sizeof(tmp_val));
-	tcapi_get_string("SysInfo_Entry", "ProductName", tmp_val);
-	sprintf(buf, "Model: %s\n", tmp_val);
+	snprintf(buf, sizeof(buf), "Model: %s\n", get_productid());
 	asp_send_response(NULL, buf, strlen(buf));
 
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("DeviceInfo", "FwVer", tmp_val);
-	sprintf(buf, "Firmware Version: %s\n", tmp_val);
+	snprintf(buf, sizeof(buf), "Firmware Version: %s\n", tmp_val);
 	asp_send_response(NULL, buf, strlen(buf));
 
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("SysInfo_Entry", "InnerVersion", tmp_val);
-	sprintf(buf, "Inner Version: %s\n", tmp_val);
+	snprintf(buf, sizeof(buf), "Inner Version: %s\n", tmp_val);
 	asp_send_response(NULL, buf, strlen(buf));
 
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("Info_Adsl", "fwVer", tmp_val);
-	sprintf(buf, "DSL Driver Version: %s\n", tmp_val);
+	snprintf(buf, sizeof(buf), "DSL Driver Version: %s\n", tmp_val);
 	asp_send_response(NULL, buf, strlen(buf));
 
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("Adsl_Entry", "MODULATIONTYPE", tmp_val);
-	sprintf(buf, "Configured DSL modulation: %s\n", tmp_val);
+	snprintf(buf, sizeof(buf), "Configured DSL modulation: %s\n", tmp_val);
 	asp_send_response(NULL, buf, strlen(buf));
 
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("Adsl_Entry", "ANNEXTYPEA", tmp_val);
-	sprintf(buf, "Configured Annex mode: %s\n", tmp_val);
+	snprintf(buf, sizeof(buf), "Configured Annex mode: %s\n", tmp_val);
 	asp_send_response(NULL, buf, strlen(buf));
 
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("Adsl_Entry", "dslx_testlab", tmp_val);
-	sprintf(buf, "Special setting for: %s\n", tmp_val);
+	snprintf(buf, sizeof(buf), "Special setting for: %s\n", tmp_val);
 	asp_send_response(NULL, buf, strlen(buf));
 
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("Adsl_Entry", "dslx_snrm_offset", tmp_val);
-	sprintf(buf, "Stability Adjustment(ADSL): %s", tmp_val);
+	snprintf(buf, sizeof(buf), "Stability Adjustment(ADSL): %s", tmp_val);
 	if(strcmp(tmp_val, "0") == 0)
 	{
-		strcat(buf, "(Disabled)\n");
+		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), "(Disabled)\n");
 	}
 	else
 	{
 		long_tmp = atoi(tmp_val);
-		sprintf(tmp_val, "(%ld dB)\n", long_tmp/512);
-		strcat(buf, tmp_val);
+		snprintf(tmp_val, sizeof(tmp_val), "(%ld dB)\n", long_tmp/512);
+		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), "%s", tmp_val);
 	}
 	asp_send_response(NULL, buf, strlen(buf));
 
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("Adsl_Entry", "adsl_rx_agc", tmp_val);
-	sprintf(buf, "Rx AGC(ADSL): %s\n", tmp_val);
+	snprintf(buf, sizeof(buf), "Rx AGC(ADSL): %s\n", tmp_val);
 	asp_send_response(NULL, buf, strlen(buf));
 
 #if defined(TCSUPPORT_CPU_MT7510) || defined(TCSUPPORT_CPU_RT63365) || defined(TCSUPPORT_CPU_RT63368)
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("Adsl_Entry", "dslx_adsl_esnp", tmp_val);
-	sprintf(buf, "ESNP - Enhanced Sudden Noise Protection(ADSL): %s\n", tmp_val);
+	snprintf(buf, sizeof(buf), "ESNP - Enhanced Sudden Noise Protection(ADSL): %s\n", tmp_val);
 	asp_send_response(NULL, buf, strlen(buf));
 #endif /* TCSUPPORT_CPU_MT7510 */
 
 #ifdef TCSUPPORT_WAN_PTM
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("Adsl_Entry", "vdsl_snrm_offset", tmp_val);
-	sprintf(buf, "Stability Adjustment(VDSL): %s", tmp_val);
+	snprintf(buf, sizeof(buf), "Stability Adjustment(VDSL): %s", tmp_val);
 	if(strcmp(tmp_val, "32767") == 0)
 	{
-		strcat(buf, "(Disabled)\n");
+		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), "(Disabled)\n");
 	}
 	else
 	{
 		long_tmp = atoi(tmp_val);
-		sprintf(tmp_val, "(%ld dB)\n", long_tmp/512);
-		strcat(buf, tmp_val);
+		snprintf(tmp_val, sizeof(tmp_val), "(%ld dB)\n", long_tmp/512);
+		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), "%s", tmp_val);
 	}
 	asp_send_response(NULL, buf, strlen(buf));
 
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("Adsl_Entry", "vdsl_tx_gain_off", tmp_val);
-	sprintf(buf, "Tx Power Control(VDSL): %s", tmp_val);
+	snprintf(buf, sizeof(buf), "Tx Power Control(VDSL): %s", tmp_val);
 	if(strcmp(tmp_val, "32767") == 0)
 	{
-		strcat(buf, "(Disabled)\n");
+		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), "(Disabled)\n");
 	}
 	else
 	{
 		long_tmp = atoi(tmp_val);
-		sprintf(tmp_val, "(%ld dB)\n", long_tmp/10);
-		strcat(buf, tmp_val);
+		snprintf(tmp_val, sizeof(tmp_val), "(%ld dB)\n", long_tmp/10);
+		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), "%s", tmp_val);
 	}
 	asp_send_response(NULL, buf, strlen(buf));
 
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("Adsl_Entry", "vdsl_rx_agc", tmp_val);
-	sprintf(buf, "Rx AGC(VDSL): %s", tmp_val);
+	snprintf(buf, sizeof(buf), "Rx AGC(VDSL): %s", tmp_val);
 	if(strcmp(tmp_val, "65535") == 0)
 	{
-		strcat(buf, "(Default)\n");
+		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), "(Default)\n");
 	}
 	else if(strcmp(tmp_val, "394") == 0)
 	{
-		strcat(buf, "(Stable)\n");
+		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), "(Stable)\n");
 	}
 	else if(strcmp(tmp_val, "476") == 0)
 	{
-		strcat(buf, "(Balance)\n");
+		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), "(Balance)\n");
 	}
 	else if(strcmp(tmp_val, "550") == 0)
 	{
-		strcat(buf, "(High Performance)\n");
+		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), "(High Performance)\n");
 	}
 	asp_send_response(NULL, buf, strlen(buf));
 
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("Adsl_Entry", "vdsl_upbo", tmp_val);
-	sprintf(buf, "UPBO - Upstream Power Back Off(VDSL): %s\n", tmp_val);
+	snprintf(buf, sizeof(buf), "UPBO - Upstream Power Back Off(VDSL): %s\n", tmp_val);
 	asp_send_response(NULL, buf, strlen(buf));
 
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("Adsl_Entry", "dslx_vdsl_esnp", tmp_val);
-	sprintf(buf, "ESNP - Enhanced Sudden Noise Protection(VDSL): %s\n", tmp_val);
+	snprintf(buf, sizeof(buf), "ESNP - Enhanced Sudden Noise Protection(VDSL): %s\n", tmp_val);
 	asp_send_response(NULL, buf, strlen(buf));
 #endif /* TCSUPPORT_WAN_PTM */
 
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("Adsl_Entry", "dslx_sra", tmp_val);
-	sprintf(buf, "SRA (Seamless Rate Adaptation): %s\n", tmp_val);
+	snprintf(buf, sizeof(buf), "SRA (Seamless Rate Adaptation): %s\n", tmp_val);
 	asp_send_response(NULL, buf, strlen(buf));
 
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("Adsl_Entry", "dslx_bitswap", tmp_val);
-	sprintf(buf, "Bitswap (ADSL): %s\n", tmp_val);
+	snprintf(buf, sizeof(buf), "Bitswap (ADSL): %s\n", tmp_val);
 	asp_send_response(NULL, buf, strlen(buf));
 
 #ifdef TCSUPPORT_WAN_PTM
 	#ifdef TCSUPPORT_CPU_MT7510
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("Adsl_Entry", "dslx_vdsl_bitswap", tmp_val);
-	sprintf(buf, "Bitswap (VDSL): %s\n", tmp_val);
+	snprintf(buf, sizeof(buf), "Bitswap (VDSL): %s\n", tmp_val);
 	asp_send_response(NULL, buf, strlen(buf));
 
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("Adsl_Entry", "dslx_vdsl_vectoring", tmp_val);
-	sprintf(buf, "G.vector: %s\n", tmp_val);
+	snprintf(buf, sizeof(buf), "G.vector: %s\n", tmp_val);
 	asp_send_response(NULL, buf, strlen(buf));
 
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("Adsl_Entry", "dslx_vdsl_nonstd_vectoring", tmp_val);
-	sprintf(buf, "Non-Standard G.vector: %s\n", tmp_val);
+	snprintf(buf, sizeof(buf), "Non-Standard G.vector: %s\n", tmp_val);
 	asp_send_response(NULL, buf, strlen(buf));
 	#endif /* TCSUPPORT_CPU_MT7510 */
 
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("Adsl_Entry", "vdsl_profile", tmp_val);
-	sprintf(buf, "VDSL Profile: %s", tmp_val);
+	snprintf(buf, sizeof(buf), "VDSL Profile: %s", tmp_val);
 	if(strcmp(tmp_val, "0") == 0)
 	{
-		strcat(buf, "0(30a multi mode)\n");
+		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), "0(30a multi mode)\n");
 	}
 	else if(strcmp(tmp_val, "1") == 0)
 	{
-		strcat(buf, "1(17a multi mode)\n");
+		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), "1(17a multi mode)\n");
 	}
 	else
 	{
-		strcat(buf, tmp_val);
-		strcat(buf, "(unknown mode)\n");
+		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), "%s", tmp_val);
+		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), "(unknown mode)\n");
 	}
 	asp_send_response(NULL, buf, strlen(buf));
 #endif /* TCSUPPORT_WAN_PTM */
@@ -14129,7 +14315,7 @@ static void dump_fb_fail_content( void )
 #ifdef TCSUPPORT_CPU_RT65168
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("Adsl_Entry", "dslx_ginp", tmp_val);
-	sprintf(buf, "G.INP: %s\n", tmp_val);
+	snprintf(buf, sizeof(buf), "G.INP: %s\n", tmp_val);
 	asp_send_response(NULL, buf, strlen(buf));
 #endif /* TCSUPPORT_CPU_RT65168 */
 
@@ -14138,17 +14324,17 @@ static void dump_fb_fail_content( void )
 	if(strcmp(tmp_val, "1") == 0)
 	{
 		//please refer to [advanced.c] and ask [Javier Su] why output "2".
-		sprintf(buf, "Monitor line stability: %s\n", "2");
+		snprintf(buf, sizeof(buf), "Monitor line stability: %s\n", "2");
 	}
 	else
 	{
-		sprintf(buf, "Monitor line stability: %s\n", tmp_val);
+		snprintf(buf, sizeof(buf), "Monitor line stability: %s\n", tmp_val);
 	}
 	asp_send_response(NULL, buf, strlen(buf));
 
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("WebCurSet_Entry", "dslup_counter", tmp_val);
-	sprintf(buf, " / %s\n", tmp_val);
+	snprintf(buf, sizeof(buf), " / %s\n", tmp_val);
 	asp_send_response(NULL, buf, strlen(buf));
 
 	memset(tmp_val, 0, sizeof(tmp_val));
@@ -14178,154 +14364,154 @@ static void dump_fb_fail_content( void )
 	snprintf(buf, sizeof(buf), "Diagnostic Duration: %s\n", tmp_val);
 	asp_send_response(NULL, buf, strlen(buf));
 
-	sprintf(buf, "System Up time: %s\n", up_time);
+	snprintf(buf, sizeof(buf), "System Up time: %s\n", up_time);
 	asp_send_response(NULL, buf, strlen(buf));
 
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("Info_Adsl", "ADSLUpTime", tmp_val);
-	sprintf(buf, "DSL Up time: %s\n", tmp_val);
+	snprintf(buf, sizeof(buf), "DSL Up time: %s\n", tmp_val);
 	asp_send_response(NULL, buf, strlen(buf));
 
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("Info_Adsl", "lineState", tmp_val);
-	sprintf(buf, "DSL Link Status: %s\n", tmp_val);
+	snprintf(buf, sizeof(buf), "DSL Link Status: %s\n", tmp_val);
 	asp_send_response(NULL, buf, strlen(buf));
 
 	if(strcmp(tmp_val, "up") == 0)
 	{
 		memset(tmp_val, 0, sizeof(tmp_val));
 		tcapi_get_string("Info_Adsl", "Opmode", tmp_val);
-		sprintf(buf, "Current DSL modulation: %s\n", tmp_val);
+		snprintf(buf, sizeof(buf), "Current DSL modulation: %s\n", tmp_val);
 		asp_send_response(NULL, buf, strlen(buf));
 
 		memset(tmp_val, 0, sizeof(tmp_val));
 		tcapi_get_string("Info_Adsl", "AdslType", tmp_val);
-		sprintf(buf, "Current Annex mode: %s\n", tmp_val);
+		snprintf(buf, sizeof(buf), "Current Annex mode: %s\n", tmp_val);
 		asp_send_response(NULL, buf, strlen(buf));
 
 		memset(tmp_val, 0, sizeof(tmp_val));
 		tcapi_get_string("Info_Adsl", "CurrentProfiles", tmp_val);
-		sprintf(buf, "Current Profile: %s\n", tmp_val);
+		snprintf(buf, sizeof(buf), "Current Profile: %s\n", tmp_val);
 		asp_send_response(NULL, buf, strlen(buf));
 
 		memset(tmp_val, 0, sizeof(tmp_val));
 		tcapi_get_string("Info_Adsl", "SNRMarginDown", tmp_val);
-		sprintf(buf, "SNR Down: %s\n", tmp_val);
+		snprintf(buf, sizeof(buf), "SNR Down: %s\n", tmp_val);
 		asp_send_response(NULL, buf, strlen(buf));
 
 		memset(tmp_val, 0, sizeof(tmp_val));
 		tcapi_get_string("Info_Adsl", "SNRMarginUp", tmp_val);
-		sprintf(buf, "SNR Up: %s\n", tmp_val);
+		snprintf(buf, sizeof(buf), "SNR Up: %s\n", tmp_val);
 		asp_send_response(NULL, buf, strlen(buf));
 
 		memset(tmp_val, 0, sizeof(tmp_val));
 		tcapi_get_string("Info_Adsl", "AttenDown", tmp_val);
-		sprintf(buf, "Line Attenuation Down: %s\n", tmp_val);
+		snprintf(buf, sizeof(buf), "Line Attenuation Down: %s\n", tmp_val);
 		asp_send_response(NULL, buf, strlen(buf));
 
 		memset(tmp_val, 0, sizeof(tmp_val));
 		tcapi_get_string("Info_Adsl", "AttenUp", tmp_val);
-		sprintf(buf, "Line Attenuation Up: %s\n", tmp_val);
+		snprintf(buf, sizeof(buf), "Line Attenuation Up: %s\n", tmp_val);
 		asp_send_response(NULL, buf, strlen(buf));
 
 		memset(tmp_val, 0, sizeof(tmp_val));
 		tcapi_get_string("Info_Adsl", "TCM", tmp_val);
-		sprintf(buf, "TCM: %s\n", tmp_val);
+		snprintf(buf, sizeof(buf), "TCM: %s\n", tmp_val);
 		asp_send_response(NULL, buf, strlen(buf));
 
 		memset(tmp_val, 0, sizeof(tmp_val));
 		tcapi_get_string("Info_Adsl", "PathModeDown", tmp_val);
-		sprintf(buf, "Path Mode Down: %s\n", tmp_val);
+		snprintf(buf, sizeof(buf), "Path Mode Down: %s\n", tmp_val);
 		asp_send_response(NULL, buf, strlen(buf));
 
 		memset(tmp_val, 0, sizeof(tmp_val));
 		tcapi_get_string("Info_Adsl", "InterleaveDepthDown", tmp_val);
-		sprintf(buf, "Interleave Depth Down: %s\n", tmp_val);
+		snprintf(buf, sizeof(buf), "Interleave Depth Down: %s\n", tmp_val);
 		asp_send_response(NULL, buf, strlen(buf));
 
 		memset(tmp_val, 0, sizeof(tmp_val));
 		tcapi_get_string("Info_Adsl", "PathModeUp", tmp_val);
-		sprintf(buf, "Path Mode Up: %s\n", tmp_val);
+		snprintf(buf, sizeof(buf), "Path Mode Up: %s\n", tmp_val);
 		asp_send_response(NULL, buf, strlen(buf));
 
 		memset(tmp_val, 0, sizeof(tmp_val));
 		tcapi_get_string("Info_Adsl", "InterleaveDepthUp", tmp_val);
-		sprintf(buf, "Interleave Depth Up: %s\n", tmp_val);
+		snprintf(buf, sizeof(buf), "Interleave Depth Up: %s\n", tmp_val);
 		asp_send_response(NULL, buf, strlen(buf));
 
 		memset(tmp_val, 0, sizeof(tmp_val));
 		tcapi_get_string("Info_Adsl", "DataRateDown", tmp_val);
-		sprintf(buf, "Data Rate Down: %s\n", tmp_val);
+		snprintf(buf, sizeof(buf), "Data Rate Down: %s\n", tmp_val);
 		asp_send_response(NULL, buf, strlen(buf));
 
 		memset(tmp_val, 0, sizeof(tmp_val));
 		tcapi_get_string("Info_Adsl", "DataRateUp", tmp_val);
-		sprintf(buf, "Data Rate Up: %s\n", tmp_val);
+		snprintf(buf, sizeof(buf), "Data Rate Up: %s\n", tmp_val);
 		asp_send_response(NULL, buf, strlen(buf));
 
 		memset(tmp_val, 0, sizeof(tmp_val));
 		tcapi_get_string("Info_Adsl", "AttainDown", tmp_val);
-		sprintf(buf, "MAX Rate Down: %s\n", tmp_val);
+		snprintf(buf, sizeof(buf), "MAX Rate Down: %s\n", tmp_val);
 		asp_send_response(NULL, buf, strlen(buf));
 
 		memset(tmp_val, 0, sizeof(tmp_val));
 		tcapi_get_string("Info_Adsl", "AttainUp", tmp_val);
-		sprintf(buf, "MAX Rate Up: %s\n", tmp_val);
+		snprintf(buf, sizeof(buf), "MAX Rate Up: %s\n", tmp_val);
 		asp_send_response(NULL, buf, strlen(buf));
 
 		memset(tmp_val, 0, sizeof(tmp_val));
 		tcapi_get_string("Info_Adsl", "CRCDown", tmp_val);
-		sprintf(buf, "CRC Down: %s\n", tmp_val);
+		snprintf(buf, sizeof(buf), "CRC Down: %s\n", tmp_val);
 		asp_send_response(NULL, buf, strlen(buf));
 
 		memset(tmp_val, 0, sizeof(tmp_val));
 		tcapi_get_string("Info_Adsl", "CRCUp", tmp_val);
-		sprintf(buf, "CRC Up: %s\n", tmp_val);
+		snprintf(buf, sizeof(buf), "CRC Up: %s\n", tmp_val);
 		asp_send_response(NULL, buf, strlen(buf));
 
 		memset(tmp_val, 0, sizeof(tmp_val));
 		tcapi_get_string("Info_Adsl", "PowerDown", tmp_val);
-		sprintf(buf, "Power Down: %s\n", tmp_val);
+		snprintf(buf, sizeof(buf), "Power Down: %s\n", tmp_val);
 		asp_send_response(NULL, buf, strlen(buf));
 
 		memset(tmp_val, 0, sizeof(tmp_val));
 		tcapi_get_string("Info_Adsl", "PowerUp", tmp_val);
-		sprintf(buf, "Power Up: %s\n\n", tmp_val);
+		snprintf(buf, sizeof(buf), "Power Up: %s\n\n", tmp_val);
 		asp_send_response(NULL, buf, strlen(buf));
 
 		memset(tmp_val, 0, sizeof(tmp_val));
 		tcapi_get_string("Info_Adsl", "FarEndVendorID", tmp_val);
-		sprintf(buf, "Far end vendor: %s\n\n", tmp_val);
+		snprintf(buf, sizeof(buf), "Far end vendor: %s\n\n", tmp_val);
 		asp_send_response(NULL, buf, strlen(buf));
 	}
 
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("GUITemp_Entry0", "fb_tmp_country", tmp_val);
-	sprintf(buf, "Country: %s\n", tmp_val);
+	snprintf(buf, sizeof(buf), "Country: %s\n", tmp_val);
 	asp_send_response(NULL, buf, strlen(buf));
 
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("Timezone_Entry", "TZ", tmp_val);
-	sprintf(buf, "Time Zone: %s\n", tmp_val);
+	snprintf(buf, sizeof(buf), "Time Zone: %s\n", tmp_val);
 	asp_send_response(NULL, buf, strlen(buf));
 
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("GUITemp_Entry0", "fb_tmp_ISP", tmp_val);
-	sprintf(buf, "ISP: %s\n", tmp_val);
+	snprintf(buf, sizeof(buf), "ISP: %s\n", tmp_val);
 	asp_send_response(NULL, buf, strlen(buf));
 
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("GUITemp_Entry0", "fb_tmp_Subscribed_Info", tmp_val);
-	sprintf(buf, "Subscribed Package: %s\n", tmp_val);
+	snprintf(buf, sizeof(buf), "Subscribed Package: %s\n", tmp_val);
 	asp_send_response(NULL, buf, strlen(buf));
 
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("GUITemp_Entry0", "fb_tmp_email", tmp_val);
-	sprintf(buf, "E-mail: %s\n", tmp_val);
+	snprintf(buf, sizeof(buf), "E-mail: %s\n", tmp_val);
 	asp_send_response(NULL, buf, strlen(buf));
 
 	activePVC = wan_primary_ifunit();
-	sprintf(wanPVC, "Wan_PVC%d", activePVC);
+	snprintf(wanPVC, sizeof(wanPVC), "Wan_PVC%d", activePVC);
 	switch(activePVC)
 	{
 		/* ATM */
@@ -14350,54 +14536,54 @@ static void dump_fb_fail_content( void )
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string(wanPVC, "ISP", tmp_val);
 	if(atoi(tmp_val) == 0){
-		sprintf(tmp_wan_conn_type, "Automatic IP");
+		snprintf(tmp_wan_conn_type, sizeof(tmp_wan_conn_type), "Automatic IP");
 	}
 	else if(atoi(tmp_val) == 1){
-		sprintf(tmp_wan_conn_type, "Static IP");
+		snprintf(tmp_wan_conn_type, sizeof(tmp_wan_conn_type), "Static IP");
 	}
 	else if(atoi(tmp_val) == 2){
 	if(transferMode == 0){
-		sprintf(tmp_wan_conn_type, "PPPoA/PPPoE");
+		snprintf(tmp_wan_conn_type, sizeof(tmp_wan_conn_type), "PPPoA/PPPoE");
 	}
 	else{
-		sprintf(tmp_wan_conn_type, "PPPoE");
+		snprintf(tmp_wan_conn_type, sizeof(tmp_wan_conn_type), "PPPoE");
 	}
 	}
 	else if(atoi(tmp_val) == 3){
-		sprintf(tmp_wan_conn_type, "BRIDGE");
+		snprintf(tmp_wan_conn_type, sizeof(tmp_wan_conn_type), "BRIDGE");
 	}
 
 	if(transferMode == 1){
-		sprintf(buf, "WAN Connection Type: %s\n", tmp_wan_conn_type);
+		snprintf(buf, sizeof(buf), "WAN Connection Type: %s\n", tmp_wan_conn_type);
 		asp_send_response(NULL, buf, strlen(buf));
 
 		memset(tmp_val, 0, sizeof(tmp_val));
 		tcapi_get_string(wanPVC, "VLANID", tmp_val);
-		sprintf(buf, "VLAN ID: %s\n", tmp_val);
+		snprintf(buf, sizeof(buf), "VLAN ID: %s\n", tmp_val);
 		asp_send_response(NULL, buf, strlen(buf));
 	}
 	else if(transferMode == 0){
 		tcapi_get_string(wanPVC, "VPI", tmp1);
 		tcapi_get_string(wanPVC, "VCI", tmp2);
-		sprintf(buf, "VPI/VCI: %s/%s\n", tmp1, tmp2);
+		snprintf(buf, sizeof(buf), "VPI/VCI: %s/%s\n", tmp1, tmp2);
 		asp_send_response(NULL, buf, strlen(buf));
 
-		sprintf(buf, "WAN Connection Type: %s\n", tmp_wan_conn_type);
+		snprintf(buf, sizeof(buf), "WAN Connection Type: %s\n", tmp_wan_conn_type);
 		asp_send_response(NULL, buf, strlen(buf));
 
 		memset(tmp_val, 0, sizeof(tmp_val));
 		tcapi_get_string(wanPVC, "ENCAP", tmp_val);
-		sprintf(buf, "Encapsulation Mode: %s\n", tmp_val);
+		snprintf(buf, sizeof(buf), "Encapsulation Mode: %s\n", tmp_val);
 		asp_send_response(NULL, buf, strlen(buf));
 	}
 
 	memset(tmp_val, 0, sizeof(tmp_val));
 	tcapi_get_string("GUITemp_Entry0", "fb_tmp_availability", tmp_val);
-	sprintf(buf, "DSL connection: %s\n", tmp_val);
+	snprintf(buf, sizeof(buf), "DSL connection: %s\n", tmp_val);
 	asp_send_response(NULL, buf, strlen(buf));
 
 	memset(buf, 0, sizeof(buf));
-	sprintf(buf, "\nComments:\n");
+	snprintf(buf, sizeof(buf), "\nComments:\n");
 	asp_send_response(NULL, buf, strlen(buf));
 	memset(buf, 0, sizeof(buf));
 	tcapi_get_string("GUITemp_Entry0", "fb_tmp_comment0", buf);
@@ -14417,7 +14603,7 @@ static void dump_fb_fail_content( void )
 		tcapi_get_string("GUITemp_Entry0", "fb_tmp_comment4", buf);
 		asp_send_response(NULL, buf, strlen(buf));
 		memset(buf, 0, sizeof(buf));
-		sprintf(buf, "\n\n");
+		snprintf(buf, sizeof(buf), "\n\n");
 		asp_send_response(NULL, buf, strlen(buf));
 	}
 
@@ -14438,31 +14624,31 @@ static void ej_dump(asp_reent* reent, const asp_text* params, asp_text* ret) {
 
 	if (strcmp(file, "syslog.log")==0)
 	{
-		sprintf(filename, "/var/log/%s", file);
+		snprintf(filename, sizeof(filename), "/var/log/%s", file);
 		dump_file(wp, filename);
 	}
 	else if(!strcmp(file, "cloudsync.log")){
-		sprintf(filename, "/tmp/smartsync/.logs/system.log");
+		snprintf(filename, sizeof(filename), "/tmp/smartsync/.logs/system.log");
 		dump_file(wp, filename);
-		sprintf(filename, "/tmp/%s", file);
+		snprintf(filename, sizeof(filename), "/tmp/%s", file);
 		dump_file(wp, filename);
 	}
 	else if(!strcmp(file, "clouddisk.log")){
-		sprintf(filename, "/tmp/lighttpd/syslog.log");
+		snprintf(filename, sizeof(filename), "/tmp/lighttpd/syslog.log");
 		dump_file(wp, filename);
-		sprintf(filename, "/tmp/%s", file);
+		snprintf(filename, sizeof(filename), "/tmp/%s", file);
 		dump_file(wp, filename);
 	}
 	else if(!strcmp(file, "fb_fail_content")){
-		sprintf(filename, "/tmp/xdslissuestracking");
+		snprintf(filename, sizeof(filename), "/tmp/xdslissuestracking");
 		if(f_exists(filename))
 		{
 			char cmd[128] = {0};
-			sprintf(cmd, "sed -i '/PIN Code:/d' %s", filename);
+			snprintf(cmd, sizeof(cmd), "sed -i '/PIN Code:/d' %s", filename);
 			system(cmd);
-			sprintf(cmd, "sed -i '/MAC Address:/d' %s", filename);
+			snprintf(cmd, sizeof(cmd), "sed -i '/MAC Address:/d' %s", filename);
 			system(cmd);
-			sprintf(cmd, "sed -i '/E-mail:/d' %s", filename);
+			snprintf(cmd, sizeof(cmd), "sed -i '/E-mail:/d' %s", filename);
 			system(cmd);
 			dump_file(wp, filename);
 			unlink(filename);
@@ -14473,19 +14659,19 @@ static void ej_dump(asp_reent* reent, const asp_text* params, asp_text* ret) {
 		}
 	}
 	else if(!strcmp(file,"ISP_List")) {
-		sprintf(filename, "/etc/ISP_List.txt");
+		snprintf(filename, sizeof(filename), "/etc/ISP_List.txt");
 		dump_file(wp, filename);
 	}
 	else if(!strcmp(file,"ISP_List_IPTV")) {
-		sprintf(filename, "/etc/ISP_List_IPTV.txt");
+		snprintf(filename, sizeof(filename), "/etc/ISP_List_IPTV.txt");
 		dump_file(wp, filename);
 	}
 	else if(!strcmp(file,"ISP_PTM_List")) {
-		sprintf(filename, "/etc/ISP_PTM_List.txt");
+		snprintf(filename, sizeof(filename), "/etc/ISP_PTM_List.txt");
 		dump_file(wp, filename);
 	}
 	else if(!strcmp(file,"ISP_PTM_List_IPTV")) {
-		sprintf(filename, "/etc/ISP_PTM_List_IPTV.txt");
+		snprintf(filename, sizeof(filename), "/etc/ISP_PTM_List_IPTV.txt");
 		dump_file(wp, filename);
 	}
 	else if (strcmp(file, "iptable.log")==0)
@@ -14494,26 +14680,33 @@ static void ej_dump(asp_reent* reent, const asp_text* params, asp_text* ret) {
 	}
 #ifdef RTCONFIG_OPENVPN
 	else if(!strncmp(file, "vpn_crt_", 8)) {
-		sprintf(filename, "/%s/%s", OVPN_FS_PATH, file);
+		snprintf(filename, sizeof(filename), "/%s/%s", OVPN_DIR_SAVE, file);
 		if(f_exists(filename))
 			clean_dump_file(wp, filename);
 	}
 	else if(!strcmp(file, "openvpn_connected")){
-		int unit = tcapi_get_int("WebCurSet_Entry","openvpn_id") - SERVER_IF_START;
+		int unit = tcapi_get_int("WebCurSet_Entry","openvpn_id") - OVPN_SERVER_BASE;
 		parse_openvpn_status(unit);
-		sprintf(filename, "/etc/openvpn/server%d/client_status", unit);
+		snprintf(filename, sizeof(filename), "/etc/openvpn/server%d/client_status", unit);
 		dump_file(wp, filename);
 	}
 #endif
 #ifdef TCSUPPORT_WEBMON
 	else if(!strcmp(file, "web_history.log")){
 		get_web_history_table(wp);
-		sprintf(filename, "/tmp/web_history.txt");
+		snprintf(filename, sizeof(filename), "/tmp/web_history.txt");
+		dump_file(wp, filename);
+	}
+#endif
+#ifdef TCSUPPORT_ACCESSLOG
+	else if(!strcmp(file, "access_log.log")){
+		get_access_log_table();
+		snprintf(filename, sizeof(filename), ACCESSLOG_UI_PATH);
 		dump_file(wp, filename);
 	}
 #endif
 	else {
-		sprintf(filename, "/tmp/%s", file);
+		snprintf(filename, sizeof(filename), "/tmp/%s", file);
 		dump_file(wp, filename);
 	}
 
@@ -14550,7 +14743,7 @@ void websRedirect_iframe(char *wp, char *url)
 void sys_script(char *name) {
 	char scmd[64];
 
-	sprintf(scmd, "/tmp/%s", name);
+	snprintf(scmd, sizeof(scmd), "/tmp/%s", name);
 	//dbg("run %s %d %s\n", name, strlen(name), scmd);	// tmp test
 
      //handle special scirpt first
@@ -14558,9 +14751,9 @@ void sys_script(char *name) {
      {
 	   if (strcmp(SystemCmd, "")!=0)
 	   {
-		sprintf(SystemCmd, "%s > /tmp/syscmd.log 2>&1 && echo 'XU6J03M6' >> /tmp/syscmd.log &\n", SystemCmd);	// oleg patch
+		snprintf(SystemCmd, sizeof(SystemCmd), "%s > /tmp/syscmd.log 2>&1 && echo 'XU6J03M6' >> /tmp/syscmd.log &\n", SystemCmd);	// oleg patch
 		system(SystemCmd);
-		strcpy(SystemCmd, ""); // decrease loading time.
+		memset(SystemCmd, 0, sizeof(SystemCmd)); // decrease loading time.
 	   }
 	   else
 	   {
@@ -14592,7 +14785,7 @@ void websApply(char *wp, char *url)
 #endif
 }
 
-int gen_modemlog(void)
+static void gen_modemlog(asp_reent* reent, const asp_text* params,  asp_text* ret)
 {
 	char value[8] = {0};
 	char cmd[128] = {0};
@@ -14601,10 +14794,10 @@ int gen_modemlog(void)
 
 	if( strcmp(value, "1") == 0 )
 	{
-		sprintf(cmd, "/usr/script/3ginfo.sh > %s", "/tmp/xdsl/modemlog.txt");
+		snprintf(cmd, sizeof(cmd), "/usr/script/3ginfo.sh > %s", "/tmp/xdsl/modemlog.txt");
 		system(cmd);
 	}
-	return 0;
+	return;
 }
 
 int dump_file(char *wp, char *filename) {
@@ -14730,8 +14923,8 @@ static void NetworkToolsNetstat(asp_reent* reent, const asp_text* params, asp_te
 
 	if(!strcmp(cmdMethod, "netstat")) {
 		if((MAX_LINE_SIZE - strlen(cmd) - 1) > strlen(cmdMethod) + 1) {
-			strcat(cmd, cmdMethod);
-			strcat(cmd, " ");
+			snprintf(cmd + strlen(cmd), sizeof(cmd) - strlen(cmd), "%s", cmdMethod);
+			snprintf(cmd + strlen(cmd), sizeof(cmd) - strlen(cmd), " ");
 		}
 	}
 	else
@@ -14746,17 +14939,17 @@ static void NetworkToolsNetstat(asp_reent* reent, const asp_text* params, asp_te
 		return;
 
 	if((MAX_LINE_SIZE - strlen(cmd) - 1) > strlen(NetOption) + 1) {
-		strcat(cmd, NetOption);
-		strcat(cmd, " ");
+		snprintf(cmd + strlen(cmd), sizeof(cmd) - strlen(cmd), "%s", NetOption);
+		snprintf(cmd + strlen(cmd), sizeof(cmd) - strlen(cmd), " ");
 	}
 
 	if(strcmp(ResolveName, "1")) {
 		if(MAX_LINE_SIZE - strlen(cmd) - 1 > 2)
-			strcat(cmd, "-n");
+			snprintf(cmd + strlen(cmd), sizeof(cmd) - strlen(cmd), "-n");
 	}
 
 	if(MAX_LINE_SIZE - strlen(cmd) - 1 > strlen(logstr)) {
-		strcat(cmd, logstr);
+		snprintf(cmd + strlen(cmd), sizeof(cmd) - strlen(cmd), "%s", logstr);
 		system(cmd);
 	}
 	else
@@ -14793,28 +14986,28 @@ static void NetworkToolsAnalysis(asp_reent* reent, const asp_text* params, asp_t
 		return;
 
 	if((MAX_LINE_SIZE - strlen(cmd) - 1) > strlen(cmdMethod) + 1) {
-		strcat(cmd, cmdMethod);
-		strcat(cmd, " ");
+		snprintf(cmd + strlen(cmd), sizeof(cmd) - strlen(cmd), "%s",  cmdMethod);
+		snprintf(cmd + strlen(cmd), sizeof(cmd) - strlen(cmd), " ");
 	}
 
 	if(strlen(pingCNT) > 0 && !strcmp(cmdMethod, "ping")) {
 		if((MAX_LINE_SIZE - strlen(cmd) - 1) > strlen(pingCNT) + 4) {
-			strcat(cmd, "-c ");
-			strcat(cmd, pingCNT);
-			strcat(cmd, " ");
+			snprintf(cmd + strlen(cmd), sizeof(cmd) - strlen(cmd), "-c ");
+			snprintf(cmd + strlen(cmd), sizeof(cmd) - strlen(cmd), "%s", pingCNT);
+			snprintf(cmd + strlen(cmd), sizeof(cmd) - strlen(cmd), " ");
 		}
 
 		//Andy Chiu, 2015/06/01.
 		unlink("/tmp/nettool.log");
-		sprintf(cmd, "%s -o %s ",  cmd, "/tmp/nettool.log");
+		snprintf(cmd, sizeof(cmd), "%s -o %s ",  cmd, "/tmp/nettool.log");
 	}
 
 	if((MAX_LINE_SIZE - strlen(cmd) - 1) > strlen(destIP)) {
-		strcat(cmd, destIP);
+		snprintf(cmd + strlen(cmd), sizeof(cmd) - strlen(cmd), "%s", destIP);
 	}
 
 	if(MAX_LINE_SIZE - strlen(cmd) - 1 > strlen(logstr)) {
-		strcat(cmd, logstr);
+		snprintf(cmd + strlen(cmd), sizeof(cmd) - strlen(cmd), "%s", logstr);
 		system(cmd);
 	}
 	else
@@ -14834,7 +15027,7 @@ static void get_DSL_WAN_list(asp_reent* reent, const asp_text* params, asp_text*
 	if(tcapi_match("Wan_Common", "TransMode", "ATM")) {
 		for(i=0; i<8; i++) {
 			memset(node, 0, sizeof(node));
-			sprintf(node, "Wan_PVC%d", i);
+			snprintf(node, sizeof(node), "Wan_PVC%d", i);
 
 			memset(value, 0, sizeof(value));
 			tcapi_get(node, "Active", value);
@@ -14872,7 +15065,7 @@ static void get_DSL_WAN_list(asp_reent* reent, const asp_text* params, asp_text*
 #if (defined(TCSUPPORT_WAN_ETHER) || defined(TCSUPPORT_WAN_PTM)) && defined(TCSUPPORT_MULTISERVICE_ON_WAN)
 		for(i=0; i<8; i++) {
 			memset(node, 0, sizeof(node));
-			sprintf(node, "WanExt_PVC%de%d", pvc, i);
+			snprintf(node, sizeof(node), "WanExt_PVC%de%d", pvc, i);
 
 			memset(value, 0, sizeof(value));
 			tcapi_get(node, "Active", value);
@@ -14899,7 +15092,7 @@ static void get_DSL_WAN_list(asp_reent* reent, const asp_text* params, asp_text*
 		}
 #else
 		memset(node, 0, sizeof(node));
-		sprintf(node, "Wan_PVC%d", pvc);
+		snprintf(node, sizeof(node), "Wan_PVC%d", pvc);
 
 		memset(value, 0, sizeof(value));
 		tcapi_get(node, "Active", value);
@@ -14943,7 +15136,7 @@ static void WOL_Invoke(asp_reent* reent, const asp_text* params, asp_text* ret)
 		return;
 
 	//generate the command line
-	sprintf(cmd, "ether-wake -i %s %s", IF_LAN, destMac);
+	snprintf(cmd, sizeof(cmd), "ether-wake -i %s %s", IF_LAN, destMac);
 
 	//execute the command line
 	system(cmd);
@@ -14974,7 +15167,7 @@ static void ClientList_Refresh(asp_reent* reent, const asp_text* params, asp_tex
 	else
 	{
 		//send signal to networkmap to do refresh
-		sprintf(tmp, "killall -%d networkmap", SIGUSR1);
+		snprintf(tmp, sizeof(tmp), "killall -%d networkmap", SIGUSR1);
 		system(tmp);
 	}
 }
@@ -15001,7 +15194,7 @@ static void ClientList_Update(asp_reent* reent, const asp_text* params, asp_text
 	else
 	{
 		//send signal to networkmap to do refresh
-		sprintf(tmp, "killall -%d networkmap", SIGUSR1);
+		snprintf(tmp, sizeof(tmp), "killall -%d networkmap", SIGUSR1);
 		system(tmp);
 	}
 }
@@ -15020,7 +15213,7 @@ static void set_primary_pvc(asp_reent* reent, const asp_text* params, asp_text* 
 {
 	char unit[8] = {0};
 
-	sprintf(unit, "%d", wan_primary_ifunit());
+	snprintf(unit, sizeof(unit), "%d", wan_primary_ifunit());
 
 	tcapi_set("WebCurSet_Entry", "dev_pvc", unit);
 }
@@ -15049,7 +15242,7 @@ static void wl_sta_list_2g(asp_reent* reent, const asp_text* params, asp_text* r
 		while(fgets(tmp, 512, fp)){
 			if (tmp != NULL){
 				websWrite(buf, "%s", tmp);
-				//strcat(buf, tmp);
+				//snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "%s", tmp);
 			}
 		}
 		fclose(fp);
@@ -15059,8 +15252,7 @@ static void wl_sta_list_2g(asp_reent* reent, const asp_text* params, asp_text* r
 
 /*******************************************************************
 * NAME: wl_sta_list_2g
-* AUTHOR:
-Andy Chiu
+* AUTHOR:Andy Chiu
 * CREATE DATE: 2014/12/03
 * DESCRIPTION: get the 5g wifi station list
 * INPUT:
@@ -15081,10 +15273,38 @@ static void wl_sta_list_5g(asp_reent* reent, const asp_text* params, asp_text* r
 		while(fgets(tmp, 512, fp)){
 			if (tmp != NULL){
 				websWrite(buf, "%s", tmp);
-				//strcat(buf, tmp);
+				//snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),  "%s", tmp);
 			}
 		}
 		fclose(fp);
+	}
+}
+
+/*******************************************************************
+* NAME: wl_support_region
+* AUTHOR:Andy Chiu
+* CREATE DATE: 2017/07/17
+* DESCRIPTION: get the wifi region list
+* INPUT:
+* OUTPUT:
+* RETURN:
+* NOTE:
+*******************************************************************/
+static void wl_support_region(asp_reent* reent, const asp_text* params, asp_text* ret)
+{
+	char tmp[128] = {0};
+	char buf[1024]={0};
+
+	if(!tcapi_get("SysInfo_Entry", "ProductName", tmp))
+	{
+		if(!strcmp(tmp, "DSL-AC52U") || !strcmp(tmp, "DSL-AC56U"))
+		{
+			websWrite(buf, "AA/AU/EU");
+		}
+		else if(!strcmp(tmp, "DSL-AC55U"))
+		{
+			websWrite(buf, "AU/EU");
+		}
 	}
 }
 
@@ -15158,7 +15378,7 @@ static void get_client_list(asp_reent* reent, const asp_text* params, asp_text* 
 				devname[j] = ' ';
 		}
 
-		sprintf(output_buf, "<%d.%d.%d.%d>%02X:%02X:%02X:%02X:%02X:%02X>%s>%d>%d>%d>%d",
+		snprintf(output_buf, sizeof(output_buf), "<%d.%d.%d.%d>%02X:%02X:%02X:%02X:%02X:%02X>%s>%d>%d>%d>%d",
 			p_client_info_tab->ip_addr[i][0],p_client_info_tab->ip_addr[i][1],
 			p_client_info_tab->ip_addr[i][2],p_client_info_tab->ip_addr[i][3],
 			p_client_info_tab->mac_addr[i][0],p_client_info_tab->mac_addr[i][1],
@@ -15273,7 +15493,7 @@ static void get_cl_userdef_list(asp_reent* reent, const asp_text* params, asp_te
 
 		for(i = 0; i < attr_num; ++i)
 		{
-			sprintf(attr, "dev%d", i);
+			snprintf(attr, sizeof(attr), "dev%d", i);
 			memset(tmp, 0, sizeof(tmp));
 			if(!tcapi_get("UserDefCL_Entry", attr, tmp))
 				websWrite(buf, "%s", tmp);
@@ -15308,7 +15528,7 @@ static void get_static_dhcp_list(asp_reent* reent, const asp_text* params, asp_t
 	{
 		for(i = 0; i < max; ++i)
 		{
-			sprintf(node, "Dhcpd_Entry%d", i);
+			snprintf(node, sizeof(node), "Dhcpd_Entry%d", i);
 			memset(ip, 0, sizeof(ip));
 			memset(mac, 0, sizeof(mac));
 			if(!tcapi_get(node, "IP", ip) && !tcapi_get(node, "MAC", mac))
@@ -15356,7 +15576,7 @@ static void dhcpLeaseMacList(asp_reent* reent, const asp_text* params, asp_text*
 					*(str+strlen(str)-1)=0x0;
 					snprintf(hostname, sizeof(hostname), "%s", str);
 				}
-				char_to_ascii_safe(buf, hostname, strlen(hostname));
+				char_to_ascii_safe(buf, hostname, sizeof(buf));
 				websWrite(wp,"['%s', '%s'],", mac, buf);
 			}
 			else
@@ -15409,7 +15629,7 @@ static void IP_dhcpLeaseInfo(asp_reent* reent, const asp_text* params, asp_text*
 					*(str+strlen(str)-1)=0x0;
 					snprintf(hostname, sizeof(hostname), "%s", str);
 				}
-				char_to_ascii_safe(buf, hostname, strlen(hostname));
+				char_to_ascii_safe(buf, hostname, sizeof(buf));
 				websWrite(wp,"['%s', '%s'],", ip, buf);
 			}
 			else
@@ -15517,12 +15737,12 @@ static void ej_vpn_crt_server(asp_reent* reent, const asp_text* params, asp_text
 	int idx = 0;
 	char wp[256] = {0};
 
-	for (idx = 1; idx <= MAX_OVPN_SERVER; idx++) {
+	for (idx = 1; idx <= OVPN_SERVER_MAX; idx++) {
 		//ca
 		memset(buf, 0, sizeof(buf));
 		memset(name, 0, sizeof(name));
-		sprintf(name, "vpn_crt_server%d_ca", idx);
-		get_parsed_crt(name, buf, sizeof(buf));
+		snprintf(name, sizeof(name), "vpn_crt_server%d_ca", idx);
+		get_ovpn_key(OVPN_TYPE_SERVER, idx, OVPN_SERVER_CA, buf, sizeof(buf));
 		websWrite(wp, "%s=['", name);
 		_webs_clean_write(buf);
 		websWrite(wp, "'];\n");
@@ -15530,8 +15750,8 @@ static void ej_vpn_crt_server(asp_reent* reent, const asp_text* params, asp_text
 		//crt
 		memset(buf, 0, sizeof(buf));
 		memset(name, 0, sizeof(name));
-		sprintf(name, "vpn_crt_server%d_crt", idx);
-		get_parsed_crt(name, buf, sizeof(buf));
+		snprintf(name, sizeof(name), "vpn_crt_server%d_crt", idx);
+		get_ovpn_key(OVPN_TYPE_SERVER, idx, OVPN_SERVER_CERT, buf, sizeof(buf));
 		websWrite(wp, "%s=['", name);
 		_webs_clean_write(buf);
 		websWrite(wp, "'];\n");
@@ -15539,8 +15759,8 @@ static void ej_vpn_crt_server(asp_reent* reent, const asp_text* params, asp_text
 		//key
 		memset(buf, 0, sizeof(buf));
 		memset(name, 0, sizeof(name));
-		sprintf(name, "vpn_crt_server%d_key", idx);
-		get_parsed_crt(name, buf, sizeof(buf));
+		snprintf(name, sizeof(name), "vpn_crt_server%d_key", idx);
+		get_ovpn_key(OVPN_TYPE_SERVER, idx, OVPN_SERVER_KEY, buf, sizeof(buf));
 		websWrite(wp, "%s=['", name);
 		_webs_clean_write(buf);
 		websWrite(wp, "'];\n");
@@ -15548,8 +15768,8 @@ static void ej_vpn_crt_server(asp_reent* reent, const asp_text* params, asp_text
 		//dh
 		memset(buf, 0, sizeof(buf));
 		memset(name, 0, sizeof(name));
-		sprintf(name, "vpn_crt_server%d_dh", idx);
-		get_parsed_crt(name, buf, sizeof(buf));
+		snprintf(name, sizeof(name), "vpn_crt_server%d_dh", idx);
+		get_ovpn_key(OVPN_TYPE_SERVER, idx, OVPN_SERVER_DH, buf, sizeof(buf));
 		websWrite(wp, "%s=['", name);
 		_webs_clean_write(buf);
 		websWrite(wp, "'];\n");
@@ -15557,8 +15777,8 @@ static void ej_vpn_crt_server(asp_reent* reent, const asp_text* params, asp_text
 		//static
 		memset(buf, 0, sizeof(buf));
 		memset(name, 0, sizeof(name));
-		sprintf(name, "vpn_crt_server%d_static", idx);
-		get_parsed_crt(name, buf, sizeof(buf));
+		snprintf(name, sizeof(name), "vpn_crt_server%d_static", idx);
+		get_ovpn_key(OVPN_TYPE_SERVER, idx, OVPN_SERVER_STATIC, buf, sizeof(buf));
 		websWrite(wp, "%s=['", name);
 		_webs_clean_write(buf);
 		websWrite(wp, "'];\n");
@@ -15566,8 +15786,8 @@ static void ej_vpn_crt_server(asp_reent* reent, const asp_text* params, asp_text
 		//crl
 		memset(buf, 0, sizeof(buf));
 		memset(name, 0, sizeof(name));
-		sprintf(name, "vpn_crt_server%d_crl", idx);
-		get_parsed_crt(name, buf, sizeof(buf));
+		snprintf(name, sizeof(name), "vpn_crt_server%d_crl", idx);
+		get_ovpn_key(OVPN_TYPE_SERVER, idx, OVPN_SERVER_CRL, buf, sizeof(buf));
 		websWrite(wp, "%s=['", name);
 		_webs_clean_write(buf);
 		websWrite(wp, "'];\n");
@@ -15583,12 +15803,12 @@ static void ej_vpn_crt_client(asp_reent* reent, const asp_text* params, asp_text
 	int idx = 0;
 	char wp[256] = {0};
 
-	for (idx = 1; idx <= MAX_OVPN_CLIENT; idx++) {
+	for (idx = 1; idx <= OVPN_CLIENT_MAX; idx++) {
 		//ca
 		memset(buf, 0, sizeof(buf));
 		memset(name, 0, sizeof(name));
-		sprintf(name, "vpn_crt_client%d_ca", idx);
-		get_parsed_crt(name, buf, sizeof(buf));
+		snprintf(name, sizeof(name), "vpn_crt_client%d_ca", idx);
+		get_ovpn_key(OVPN_TYPE_CLIENT, idx, OVPN_CLIENT_CA, buf, sizeof(buf));
 		websWrite(wp, "%s=['", name);
 		_webs_clean_write(buf);
 		websWrite(wp, "'];\n");
@@ -15596,8 +15816,8 @@ static void ej_vpn_crt_client(asp_reent* reent, const asp_text* params, asp_text
 		//crt
 		memset(buf, 0, sizeof(buf));
 		memset(name, 0, sizeof(name));
-		sprintf(name, "vpn_crt_client%d_crt", idx);
-		get_parsed_crt(name, buf, sizeof(buf));
+		snprintf(name, sizeof(name), "vpn_crt_client%d_crt", idx);
+		get_ovpn_key(OVPN_TYPE_CLIENT, idx, OVPN_CLIENT_CERT, buf, sizeof(buf));
 		websWrite(wp, "%s=['", name);
 		_webs_clean_write(buf);
 		websWrite(wp, "'];\n");
@@ -15605,8 +15825,8 @@ static void ej_vpn_crt_client(asp_reent* reent, const asp_text* params, asp_text
 		//key
 		memset(buf, 0, sizeof(buf));
 		memset(name, 0, sizeof(name));
-		sprintf(name, "vpn_crt_client%d_key", idx);
-		get_parsed_crt(name, buf, sizeof(buf));
+		snprintf(name, sizeof(name), "vpn_crt_client%d_key", idx);
+		get_ovpn_key(OVPN_TYPE_CLIENT, idx, OVPN_CLIENT_KEY, buf, sizeof(buf));
 		websWrite(wp, "%s=['", name);
 		_webs_clean_write(buf);
 		websWrite(wp, "'];\n");
@@ -15614,8 +15834,8 @@ static void ej_vpn_crt_client(asp_reent* reent, const asp_text* params, asp_text
 		//static
 		memset(buf, 0, sizeof(buf));
 		memset(name, 0, sizeof(name));
-		sprintf(name, "vpn_crt_client%d_static", idx);
-		get_parsed_crt(name, buf, sizeof(buf));
+		snprintf(name, sizeof(name), "vpn_crt_client%d_static", idx);
+		get_ovpn_key(OVPN_TYPE_CLIENT, idx, OVPN_CLIENT_STATIC, buf, sizeof(buf));
 		websWrite(wp, "%s=['", name);
 		_webs_clean_write(buf);
 		websWrite(wp, "'];\n");
@@ -15623,8 +15843,8 @@ static void ej_vpn_crt_client(asp_reent* reent, const asp_text* params, asp_text
 		//crl
 		memset(buf, 0, sizeof(buf));
 		memset(name, 0, sizeof(name));
-		sprintf(name, "vpn_crt_client%d_crl", idx);
-		get_parsed_crt(name, buf, sizeof(buf));
+		snprintf(name, sizeof(name), "vpn_crt_client%d_crl", idx);
+		get_ovpn_key(OVPN_TYPE_CLIENT, idx, OVPN_CLIENT_CRL, buf, sizeof(buf));
 		websWrite(wp, "%s=['", name);
 		_webs_clean_write(buf);
 		websWrite(wp, "'];\n");
@@ -15645,8 +15865,6 @@ static void do_vpnupload_cgi(asp_reent* reent, const asp_text* params, asp_text*
 	FILE* fpDst = NULL;
 	char filepath[128];
 	char buf[4096];
-	char node[MAXLEN_NODE_NAME];
-	char attr[MAXLEN_ATTR_NAME];
 	int state;
 
 	if(!filetype || !vpn_upload_unit || !bfilename || !bdata_start || !bdata_end)
@@ -15686,52 +15904,40 @@ static void do_vpnupload_cgi(asp_reent* reent, const asp_text* params, asp_text*
 	fclose(fpSrc);
 	fclose(fpDst);
 
-#if defined(TCSUPPORT_ADD_JFFS) || defined(TCSUPPORT_SQUASHFS_ADD_YAFFS)
-	if(!check_if_dir_exist(OVPN_FS_PATH))
-		mkdir(OVPN_FS_PATH, S_IRWXU);
-#endif
-
 	if(1) {
-		sprintf(node, "OpenVPN_Entry%ld", unit+CLIENT_IF_START);
 		if(!strcmp(filetype, "ovpn")) {
-			reset_client_setting(unit);
+			reset_ovpn_setting(OVPN_TYPE_CLIENT, unit);
 			state = read_config_file(filepath, unit);
 			tcapi_set_int("OpenVPN_Common", "vpn_upload_state", state);
 			tcapi_save();
 		}
 		else if(!strcmp(filetype, "ca")) {
-			sprintf(attr, "vpn_crt_client%ld_ca", unit);
-			set_crt_parsed(attr, filepath);
+			set_ovpn_key(OVPN_TYPE_CLIENT, unit, OVPN_CLIENT_CA, NULL, filepath);
 			state = tcapi_get_int("OpenVPN_Common", "vpn_upload_state");
 			tcapi_set_int("OpenVPN_Common", "vpn_upload_state", state & (~VPN_UPLOAD_NEED_CA_CERT));
 		}
 		else if(!strcmp(filetype, "cert")) {
-			sprintf(attr, "vpn_crt_client%ld_crt", unit);
-			set_crt_parsed(attr, filepath);
+			set_ovpn_key(OVPN_TYPE_CLIENT, unit, OVPN_CLIENT_CERT, NULL, filepath);
 			state = tcapi_get_int("OpenVPN_Common", "vpn_upload_state");
 			tcapi_set_int("OpenVPN_Common", "vpn_upload_state", state & (~VPN_UPLOAD_NEED_CERT));
 		}
 		else if(!strcmp(filetype, "key")) {
-			sprintf(attr, "vpn_crt_client%ld_key", unit);
-			set_crt_parsed(attr, filepath);
+			set_ovpn_key(OVPN_TYPE_CLIENT, unit, OVPN_CLIENT_KEY, NULL, filepath);
 			state = tcapi_get_int("OpenVPN_Common", "vpn_upload_state");
 			tcapi_set_int("OpenVPN_Common", "vpn_upload_state", state & (~VPN_UPLOAD_NEED_KEY));
 		}
 		else if(!strcmp(filetype, "static")) {
-			sprintf(attr, "vpn_crt_client%ld_static", unit);
-			set_crt_parsed(attr, filepath);
+			set_ovpn_key(OVPN_TYPE_CLIENT, unit, OVPN_CLIENT_STATIC, NULL, filepath);
 			state = tcapi_get_int("OpenVPN_Common", "vpn_upload_state");
 			tcapi_set_int("OpenVPN_Common", "vpn_upload_state", state & (~VPN_UPLOAD_NEED_STATIC));
 		}
 		else if(!strcmp(filetype, "ccrl")) {
-			sprintf(attr, "vpn_crt_client%ld_crl", unit);
-			set_crt_parsed(attr, filepath);
+			set_ovpn_key(OVPN_TYPE_CLIENT, unit, OVPN_CLIENT_CRL, NULL, filepath);
 			state = tcapi_get_int("OpenVPN_Common", "vpn_upload_state");
 			tcapi_set_int("OpenVPN_Common", "vpn_upload_state", state & (~VPN_UPLOAD_NEED_CRL));
 		}
 		else if(!strcmp(filetype, "scrl")) {
-			sprintf(attr, "vpn_crt_server%ld_crl", unit);
-			set_crt_parsed(attr, filepath);
+			set_ovpn_key(OVPN_TYPE_SERVER, unit, OVPN_SERVER_CRL, NULL, filepath);
 		}
 	}
 
@@ -15756,9 +15962,6 @@ static void _save_openvpn_client_cert()
 	char *vpn_crt_client_static = get_param(g_var_post, "vpn_crt_client_static");
 	char *vpn_crt_client_crl = get_param(g_var_post, "vpn_crt_client_crl");
 	int unit;
-	char name[32] = {0};
-	char file_path[64] = {0};
-	FILE *fp;
 
 	if(!vpn_client_unit
 		|| !vpn_crt_client_ca
@@ -15775,62 +15978,17 @@ static void _save_openvpn_client_cert()
 	decode_uri(vpn_crt_client_static);
 	decode_uri(vpn_crt_client_crl);
 
-	if(unit >= 1 && unit <= MAX_OVPN_CLIENT) {
+	if(unit >= 1 && unit <= OVPN_CLIENT_MAX) {
 		//ca
-		snprintf(name, sizeof(name), "vpn_crt_client%d_ca", unit);
-		snprintf(file_path, sizeof(file_path), "/tmp/%s", name);
-		fp = fopen(file_path, "w");
-		if(fp) {
-			fwrite(vpn_crt_client_ca, strlen(vpn_crt_client_ca), sizeof(char), fp);
-			fclose(fp);
-			chmod(file_path, S_IRUSR|S_IWUSR);
-			set_crt_parsed(name, file_path);
-		}
-		unlink(file_path);
+		set_ovpn_key(OVPN_TYPE_CLIENT, unit, OVPN_CLIENT_CA, vpn_crt_client_ca, NULL);
 		//crt
-		snprintf(name, sizeof(name), "vpn_crt_client%d_crt", unit);
-		snprintf(file_path, sizeof(file_path), "/tmp/%s", name);
-		fp = fopen(file_path, "w");
-		if(fp) {
-			fwrite(vpn_crt_client_crt, strlen(vpn_crt_client_crt), sizeof(char), fp);
-			fclose(fp);
-			chmod(file_path, S_IRUSR|S_IWUSR);
-			set_crt_parsed(name, file_path);
-		}
-		unlink(file_path);
+		set_ovpn_key(OVPN_TYPE_CLIENT, unit, OVPN_CLIENT_CERT, vpn_crt_client_crt, NULL);
 		//key
-		snprintf(name, sizeof(name), "vpn_crt_client%d_key", unit);
-		snprintf(file_path, sizeof(file_path), "/tmp/%s", name);
-		fp = fopen(file_path, "w");
-		if(fp) {
-			fwrite(vpn_crt_client_key, strlen(vpn_crt_client_key), sizeof(char), fp);
-			fclose(fp);
-			chmod(file_path, S_IRUSR|S_IWUSR);
-			set_crt_parsed(name, file_path);
-		}
-		unlink(file_path);
+		set_ovpn_key(OVPN_TYPE_CLIENT, unit, OVPN_CLIENT_KEY, vpn_crt_client_key, NULL);
 		//static
-		snprintf(name, sizeof(name), "vpn_crt_client%d_static", unit);
-		snprintf(file_path, sizeof(file_path), "/tmp/%s", name);
-		fp = fopen(file_path, "w");
-		if(fp) {
-			fwrite(vpn_crt_client_static, strlen(vpn_crt_client_static), sizeof(char), fp);
-			fclose(fp);
-			chmod(file_path, S_IRUSR|S_IWUSR);
-			set_crt_parsed(name, file_path);
-		}
-		unlink(file_path);
+		set_ovpn_key(OVPN_TYPE_CLIENT, unit, OVPN_CLIENT_STATIC, vpn_crt_client_static, NULL);
 		//crl
-		snprintf(name, sizeof(name), "vpn_crt_client%d_crl", unit);
-		snprintf(file_path, sizeof(file_path), "/tmp/%s", name);
-		fp = fopen(file_path, "w");
-		if(fp) {
-			fwrite(vpn_crt_client_crl, strlen(vpn_crt_client_crl), sizeof(char), fp);
-			fclose(fp);
-			chmod(file_path, S_IRUSR|S_IWUSR);
-			set_crt_parsed(name, file_path);
-		}
-		unlink(file_path);
+		set_ovpn_key(OVPN_TYPE_CLIENT, unit, OVPN_CLIENT_CRL, vpn_crt_client_crl, NULL);
 	}
 }
 
@@ -15838,101 +15996,44 @@ static void _save_openvpn_server_tls()
 {
 	//NOTE: only support one server. UI fixed vpn_crt_server1_xxx currently
 	char *vpn_server_unit = "1";//get_param(g_var_post, "vpn_server_unit");
-	char *vpn_crt_server1_ca = get_param(g_var_post, "vpn_crt_server1_ca");
-	char *vpn_crt_server1_crt = get_param(g_var_post, "vpn_crt_server1_crt");
-	char *vpn_crt_server1_key = get_param(g_var_post, "vpn_crt_server1_key");
-	char *vpn_crt_server1_dh = get_param(g_var_post, "vpn_crt_server1_dh");
-	char *vpn_crt_server1_static = get_param(g_var_post, "vpn_crt_server1_static");
-	char *vpn_crt_server1_crl = get_param(g_var_post, "vpn_crt_server1_crl");
+	char *vpn_crt_server_ca = get_param(g_var_post, "vpn_crt_server1_ca");
+	char *vpn_crt_server_crt = get_param(g_var_post, "vpn_crt_server1_crt");
+	char *vpn_crt_server_key = get_param(g_var_post, "vpn_crt_server1_key");
+	char *vpn_crt_server_dh = get_param(g_var_post, "vpn_crt_server1_dh");
+	char *vpn_crt_server_static = get_param(g_var_post, "vpn_crt_server1_static");
+	char *vpn_crt_server_crl = get_param(g_var_post, "vpn_crt_server1_crl");
 	int unit;
-	char name[32] = {0};
-	char file_path[64] = {0};
-	FILE *fp;
 
 	if(!vpn_server_unit
-		|| !vpn_crt_server1_ca
-		|| !vpn_crt_server1_crt
-		|| !vpn_crt_server1_key
-		|| !vpn_crt_server1_dh
-		|| !vpn_crt_server1_static
-		|| !vpn_crt_server1_crl)
+		|| !vpn_crt_server_ca
+		|| !vpn_crt_server_crt
+		|| !vpn_crt_server_key
+		|| !vpn_crt_server_dh
+		|| !vpn_crt_server_static
+		|| !vpn_crt_server_crl)
 		return;
 
 	unit = atoi(vpn_server_unit);
-	decode_uri(vpn_crt_server1_ca);
-	decode_uri(vpn_crt_server1_crt);
-	decode_uri(vpn_crt_server1_key);
-	decode_uri(vpn_crt_server1_dh);
-	decode_uri(vpn_crt_server1_static);
-	decode_uri(vpn_crt_server1_crl);
+	decode_uri(vpn_crt_server_ca);
+	decode_uri(vpn_crt_server_crt);
+	decode_uri(vpn_crt_server_key);
+	decode_uri(vpn_crt_server_dh);
+	decode_uri(vpn_crt_server_static);
+	decode_uri(vpn_crt_server_crl);
 
-	if(unit >= 1 && unit <= MAX_OVPN_SERVER) {
+	if(unit >= 1 && unit <= OVPN_SERVER_MAX) {
 		//ca
-		snprintf(name, sizeof(name), "vpn_crt_server%d_ca", unit);
-		snprintf(file_path, sizeof(file_path), "/tmp/%s", name);
-		fp = fopen(file_path, "w");
-		if(fp) {
-			fwrite(vpn_crt_server1_ca, strlen(vpn_crt_server1_ca), sizeof(char), fp);
-			fclose(fp);
-			chmod(file_path, S_IRUSR|S_IWUSR);
-			set_crt_parsed(name, file_path);
-		}
-		unlink(file_path);
+		set_ovpn_key(OVPN_TYPE_SERVER, unit, OVPN_SERVER_CA, vpn_crt_server_ca, NULL);
 		//crt
-		snprintf(name, sizeof(name), "vpn_crt_server%d_crt", unit);
-		snprintf(file_path, sizeof(file_path), "/tmp/%s", name);
-		fp = fopen(file_path, "w");
-		if(fp) {
-			fwrite(vpn_crt_server1_crt, strlen(vpn_crt_server1_crt), sizeof(char), fp);
-			fclose(fp);
-			chmod(file_path, S_IRUSR|S_IWUSR);
-			set_crt_parsed(name, file_path);
-		}
-		unlink(file_path);
+		set_ovpn_key(OVPN_TYPE_SERVER, unit, OVPN_SERVER_CERT, vpn_crt_server_crt, NULL);
 		//key
-		snprintf(name, sizeof(name), "vpn_crt_server%d_key", unit);
-		snprintf(file_path, sizeof(file_path), "/tmp/%s", name);
-		fp = fopen(file_path, "w");
-		if(fp) {
-			fwrite(vpn_crt_server1_key, strlen(vpn_crt_server1_key), sizeof(char), fp);
-			fclose(fp);
-			chmod(file_path, S_IRUSR|S_IWUSR);
-			set_crt_parsed(name, file_path);
-		}
-		unlink(file_path);
+		set_ovpn_key(OVPN_TYPE_SERVER, unit, OVPN_SERVER_KEY, vpn_crt_server_key, NULL);
 		//dh
-		snprintf(name, sizeof(name), "vpn_crt_server%d_dh", unit);
-		snprintf(file_path, sizeof(file_path), "/tmp/%s", name);
-		fp = fopen(file_path, "w");
-		if(fp) {
-			fwrite(vpn_crt_server1_dh, strlen(vpn_crt_server1_dh), sizeof(char), fp);
-			fclose(fp);
-			chmod(file_path, S_IRUSR|S_IWUSR);
-			set_crt_parsed(name, file_path);
-		}
-		unlink(file_path);
+		set_ovpn_key(OVPN_TYPE_SERVER, unit, OVPN_SERVER_DH, vpn_crt_server_dh, NULL);
 		//static
-		snprintf(name, sizeof(name), "vpn_crt_server%d_static", unit);
-		snprintf(file_path, sizeof(file_path), "/tmp/%s", name);
-		fp = fopen(file_path, "w");
-		if(fp) {
-			fwrite(vpn_crt_server1_static, strlen(vpn_crt_server1_static), sizeof(char), fp);
-			fclose(fp);
-			chmod(file_path, S_IRUSR|S_IWUSR);
-			set_crt_parsed(name, file_path);
-		}
-		unlink(file_path);
+		set_ovpn_key(OVPN_TYPE_SERVER, unit, OVPN_SERVER_STATIC, vpn_crt_server_static, NULL);
 		//crl
-		snprintf(name, sizeof(name), "vpn_crt_server%d_crl", unit);
-		snprintf(file_path, sizeof(file_path), "/tmp/%s", name);
-		fp = fopen(file_path, "w");
-		if(fp) {
-			fwrite(vpn_crt_server1_crl, strlen(vpn_crt_server1_crl), sizeof(char), fp);
-			fclose(fp);
-			chmod(file_path, S_IRUSR|S_IWUSR);
-			set_crt_parsed(name, file_path);
-		}
-		unlink(file_path);
+		set_ovpn_key(OVPN_TYPE_SERVER, unit, OVPN_SERVER_CRL, vpn_crt_server_crl, NULL);
 	}
 }
 
@@ -15940,31 +16041,19 @@ static void _save_openvpn_server_static()
 {
 	//NOTE: only support one server. UI fixed vpn_crt_server1_xxx currently
 	char *vpn_server_unit = "1";//get_param(g_var_post, "vpn_server_unit");
-	char *vpn_crt_server1_static = get_param(g_var_post, "vpn_crt_server1_static");
+	char *vpn_crt_server_static = get_param(g_var_post, "vpn_crt_server1_static");
 	int unit;
-	char name[32] = {0};
-	char file_path[64] = {0};
-	FILE *fp;
 
 	if(!vpn_server_unit
-		|| !vpn_crt_server1_static
+		|| !vpn_crt_server_static
 	)
 		return;
 
 	unit = atoi(vpn_server_unit);
-	decode_uri(vpn_crt_server1_static);
-	if(unit >= 1 && unit <= MAX_OVPN_SERVER) {
+	decode_uri(vpn_crt_server_static);
+	if(unit >= 1 && unit <= OVPN_SERVER_MAX) {
 		//static
-		snprintf(name, sizeof(name), "vpn_crt_server%d_static", unit);
-		snprintf(file_path, sizeof(file_path), "/tmp/%s", name);
-		fp = fopen(file_path, "w");
-		if(fp) {
-			fwrite(vpn_crt_server1_static, strlen(vpn_crt_server1_static), sizeof(char), fp);
-			fclose(fp);
-			chmod(file_path, S_IRUSR|S_IWUSR);
-			set_crt_parsed(name, file_path);
-		}
-		unlink(file_path);
+		set_ovpn_key(OVPN_TYPE_SERVER, unit, OVPN_SERVER_STATIC, vpn_crt_server_static, NULL);
 	}
 }
 #endif
@@ -16005,7 +16094,7 @@ static void disk_scan(asp_reent* reent, const asp_text* params, asp_text* ret)
 
 	if(buf[0] != '\0')
 	{
-		sprintf(cmd, "kill -SIGUSR2 %s", buf);
+		snprintf(cmd, sizeof(cmd), "kill -SIGUSR2 %s", buf);
 		system(cmd);
 	}
 		
@@ -16031,11 +16120,11 @@ static void disk_scan_result(asp_reent* reent, const asp_text* params, asp_text*
 	tcapi_get("USB_Entry", "scan_port", buf);
 
 	//get the disk name
-	sprintf(buf2, "usb_path%s_fs_path0", buf);
+	snprintf(buf2, sizeof(buf2), "usb_path%s_fs_path0", buf);
 	tcapi_get("USB_Entry", buf2, buf);
 
 	//open the result file
-	sprintf(buf2, "/tmp/fsck_ret/%s", buf);
+	snprintf(buf2, sizeof(buf2), "/tmp/fsck_ret/%s", buf);
 	fp = fopen(buf2, "r");
 	if(fp)
 	{
@@ -16061,7 +16150,6 @@ static void stop_dsl_diag(asp_reent* reent, const asp_text* params, asp_text* re
 #ifdef ASUS_BUSYBOX_NEW
 static void get_isp_dhcp_opt_list(asp_reent* reent, const asp_text* params, asp_text* ret)
 {
-	char *name;
 	FILE* fpIsp;
 	char bufIsp[512], wp[1024];
 
@@ -16082,7 +16170,7 @@ static void get_isp_dhcp_opt_list(asp_reent* reent, const asp_text* params, asp_
 		}
 		fclose(fpIsp);
 	}
-	return 0;	
+	return;	
 }
 #endif
 
@@ -16098,72 +16186,94 @@ static void get_isp_dhcp_opt_list(asp_reent* reent, const asp_text* params, asp_
 * NOTE: Andy Chiu, 2016/01/04. Add AiHOMEAPILevel, Httpd_AiHome_Ver and Model_Name.
 *	      Andy Chiu, 2016/01/07. Modify send reply function. use req to detect which way to send packe
 *******************************************************************/
-int http_login_header(const char *token, request *req)
+int http_login_header(const char *token, request *req, const CLIENT_TYPE cli_type)
 {
-	char buf[2048] = {0}, tmp[256] = {0}, product_name[64] = {0};
+	char buf[2048] = {0}, tmp[256] = {0};
 	char *p = buf;
 	char HTTP_OK[] = "HTTP/1.0 200 OK\r\n";
-	strcat(p, HTTP_OK);
+
+	snprintf(p, sizeof(buf) - (p -buf), "%s", HTTP_OK); 
 	p += strlen(HTTP_OK);
 
 	char DATA[] = "Date: "
 		"                             "
 		"\r\n";
 	rfc822_time_buf(DATA + 6, 0);
-	strcat(p, DATA);
+	snprintf(p, sizeof(buf) - (p -buf), "%s", DATA); 
 	p += strlen(DATA);
+	
+	if(cli_type != CLI_TYPE_BROWSER)
+	{
+		//req_write(req, "Cache-Control: no-store\r\n");
+		//req_write(req, "Pragma: no-cache\r\n");
+		if(CLI_TYPE_APP == cli_type)
+		{
+			//Add AiHOMEAPILevel
+			memset(tmp, 0, sizeof(tmp));
+			snprintf(tmp, sizeof(tmp), "AiHOMEAPILevel: %d\r\n", EXTEND_AIHOME_API_LEVEL);
+			snprintf(p, sizeof(buf) - (p -buf), "%s", tmp); 
+			p += strlen(tmp);
 
-	//Add AiHOMEAPILevel
-	memset(tmp, 0, sizeof(tmp));
-	snprintf(tmp, sizeof(tmp), "AiHOMEAPILevel: %d\r\n", EXTEND_AIHOME_API_LEVEL);
-	strcat(p, tmp);
-	p += strlen(tmp);
+			//Add Httpd_AiHome_Ver
+			memset(tmp, 0, sizeof(tmp));
+			snprintf(tmp, sizeof(tmp), "Httpd_AiHome_Ver: %d\r\n", EXTEND_HTTPD_AIHOME_VER);
+			snprintf(p, sizeof(buf) - (p -buf), "%s", tmp); 
+			p += strlen(tmp);
 
-	//Add Httpd_AiHome_Ver
-	memset(tmp, 0, sizeof(tmp));
-	snprintf(tmp, sizeof(tmp), "Httpd_AiHome_Ver: %d\r\n", EXTEND_HTTPD_AIHOME_VER);
-	strcat(p, tmp);
-	p += strlen(tmp);
-
-	//Add Model_Name
-	memset(tmp, 0, sizeof(tmp));
-	tcapi_get("SysInfo_Entry", "ProductName", product_name);
-	snprintf(tmp, sizeof(tmp), "Model_Name: %s\r\n", product_name);
-	strcat(p, tmp);
-	p += strlen(tmp);	
-
+			//Add Model_Name
+			memset(tmp, 0, sizeof(tmp));
+			snprintf(tmp, sizeof(tmp), "Model_Name: %s\r\n", get_productid());
+			snprintf(p, sizeof(buf) - (p -buf), "%s", tmp); 
+			p += strlen(tmp);	
+		}
+		else if(CLI_TYPE_ASSIA == cli_type)
+		{
+			//Add Httpd_AiHome_Ver
+			memset(tmp, 0, sizeof(tmp));
+			snprintf(tmp, sizeof(tmp), "ASSIA_API_Level: %d\r\n", EXTEND_ASSIA_API_LEVEL);
+			snprintf(p, sizeof(buf) - (p -buf), "%s", tmp); 
+			p += strlen(tmp);
+		}
+	}
+	
 	char CONTENT_TYPE[64];
 	if(charset){
-		sprintf(CONTENT_TYPE,"Content-type: text/html;charset=%s\r\n",charset);
+		snprintf(CONTENT_TYPE, sizeof(CONTENT_TYPE),"Content-type: text/html;charset=%s\r\n",charset);
 	}
 	else{
 		/*default char set: ISO-8859-1*/
-		sprintf(CONTENT_TYPE,"Content-type: text/html;charset=ISO-8859-1\r\n");
+		snprintf(CONTENT_TYPE, sizeof(CONTENT_TYPE),"Content-type: text/html;charset=ISO-8859-1\r\n");
 	}
 /*pork 20090309 added over*/
-	strcat(p, CONTENT_TYPE);
+	snprintf(p, sizeof(buf) - (p -buf), "%s", CONTENT_TYPE); 
 	p += strlen(CONTENT_TYPE);
 
 	char set_cookie[256];
 	if(token)
 	{
-		sprintf(set_cookie, "Set-Cookie: asus_token=%s; HttpOnly;\r\n", token);
+		snprintf(set_cookie, sizeof(set_cookie), "Set-Cookie: asus_token=%s; HttpOnly;\r\n", token);
 	}
 
-	strcat(p, set_cookie);
+	snprintf(p, sizeof(buf) - (p -buf), "%s", set_cookie); 
 	p += strlen(set_cookie);
 	
-	strcat(p, "Connection: close\r\n\r\n");
+	snprintf(p, sizeof(buf) - (p -buf), "Connection: close\r\n\r\n"); 
 	
 	if(req)
 	{
 		if(req_write(req,  buf))
-		return -1;
+		{
+			_dprintf("[%s, %d]req_write failed\n", __FUNCTION__, __LINE__);
+			return -1;
+		}
 	}
 	else
 	{
 		if(asp_send_response(NULL, buf, strlen(buf)))
+		{
+			_dprintf("[%s, %d]asp_send_response failed\n", __FUNCTION__, __LINE__);
 			return -1;
+		}
 	}
 
 	return 0;
@@ -16185,7 +16295,7 @@ void send_login_packet(request *req, const int error_status, char *cur_page, cha
 	char wp[2048], *page = NULL;
 	char dst_page[256] = {0};
 	asus_token_t *token = NULL;
-	char *buff[256] = {0};
+	char buff[256] = {0};
 	CLIENT_TYPE cli_type;
 
 	if(!req)
@@ -16205,8 +16315,8 @@ void send_login_packet(request *req, const int error_status, char *cur_page, cha
 	//auth success but can't generate token.
 	if(!error_status && !token)
 		return;
-	
-	http_login_header(token? token->token: NULL, NULL);
+
+	http_login_header(token? token->token: NULL, NULL, cli_type);
 
 	//Andy Chiu, 2016/01/05. Check APP
 	if(cli_type != CLI_TYPE_BROWSER)
@@ -16228,9 +16338,9 @@ void send_login_packet(request *req, const int error_status, char *cur_page, cha
 			if(!strstr(page, "Main_Login.asp") && !strstr(page, "QIS"))
 			{		
 				if(strncmp(page, "cgi-bin", 7) && strncmp(page, "/cgi-bin", 8))
-					strcpy(dst_page, "cgi-bin/");
+					snprintf(dst_page, sizeof(dst_page), "cgi-bin/");
 				else
-					strcpy(dst_page, "");
+					memset(dst_page, 0, sizeof(dst_page));
 			}
 			
 			if(page[0] == '/')
@@ -16284,22 +16394,24 @@ void send_login_packet(request *req, const int error_status, char *cur_page, cha
 static void do_login(asp_reent* reent, const asp_text* params, asp_text* ret)
 {
 	char *decode_buf = NULL;
-	int len;
+	unsigned long len;
 	s_param **auth;
 	int err_code = 0;
 	char username[129], password[129];
 	char *login_auth = get_param(g_var_post, "login_authorization");	
-	time_t dt;
 	char log[128] = {0};
+#ifdef USE_RETRY_LIST
 	login_retry_t *retry = NULL;
-	request *req;
 	long cur_time;
+#endif
+	request *req;
+	login_retry_t * retry_tmp = NULL;
 
 	if(!reent || !reent->server_env)
 		return;
-	
+
 	req = reent->server_env;
-	
+
 	//Get Account 
 	tcapi_get("Account_Entry0", "username", username);
 	tcapi_get("Account_Entry0", "web_passwd", password);
@@ -16307,10 +16419,12 @@ static void do_login(asp_reent* reent, const asp_text* params, asp_text* ret)
 	
 	//decode login_auth by base64
 	decode_uri(login_auth);
-	decode_buf = rfc822_base64(login_auth, strlen(login_auth), &len);
+	decode_buf = rfc822_base64((unsigned char*)login_auth, strlen(login_auth), &len);
 	
 	//parser the decoded string.
 	auth = param_line (decode_buf, ':', ';');
+
+	retry_tmp = get_login_retry_by_url(req->remote_ip_addr);
 	
 	if(auth)
 	{
@@ -16321,11 +16435,41 @@ static void do_login(asp_reent* reent, const asp_text* params, asp_text* ret)
 			syslog(LOG_INFO, log);
 			closelog();
 
+#ifdef USE_RETRY_LIST
 			//remove item in retry list
-			rm_retry_in_list(req->remote_ip_addr);			
+			rm_retry_in_list(req->remote_ip_addr);
+#else
+			if(retry_tmp)
+				memset(retry_tmp, 0, sizeof(login_retry_t));
+#endif
 		}
 		else {
 			err_code = ACCOUNTFAIL;
+			if(retry_tmp)
+			{
+				if(retry_tmp->try_num >= DEFAULT_LOGIN_MAX_NUM)
+				{
+					snprintf(log, sizeof(log), "Detect abnormal logins at %d times. The newest one was from %s.\n", 
+								   retry_tmp->try_num, req->remote_ip_addr);
+					openlog("TCSysLog Web Login Lock", 0, LOG_LOCAL2);
+					syslog(LOG_INFO, log);
+					closelog();
+					
+#ifdef RTCONFIG_NOTIFICATION_CENTER
+					NOTIFY_EVENT_T *e = initial_nt_event();
+					e->event = ADMIN_LOGIN_FAIL_LAN_WEB_EVENT;
+					snprintf(e->msg, sizeof(e->msg), "%s", req->remote_ip_addr);
+					send_trigger_event(e);
+					nt_event_free(e);
+#endif
+					retry_tmp->try_num = 0;
+					retry_tmp->is_lock = 1;
+
+					err_code = LOGINLOCK;
+				}
+				retry_tmp->err_status = err_code;
+			}
+#ifdef USE_RETRY_LIST
 			cur_time = uptime();
 
 			retry = search_retry_list(req->remote_ip_addr);
@@ -16347,8 +16491,15 @@ static void do_login(asp_reent* reent, const asp_text* params, asp_text* ret)
 			++ (retry->try_num);
 			if(retry->try_num >= DEFAULT_LOGIN_MAX_NUM)
 			{
+				snprintf(log, sizeof(log), "Detect abnormal logins at %d times. The newest one was from %s.\n", 
+							   retry->try_num, reent->server_env->remote_ip_addr);
+				openlog("TCSysLog Web Login Lock", 0, LOG_LOCAL2);
+				syslog(LOG_INFO, log);
+				closelog();
+				
 				retry->try_num = 0;
 				retry->is_lock = 1;
+				
 #ifdef RTCONFIG_NOTIFICATION_CENTER
 				NOTIFY_EVENT_T *e = initial_nt_event();
 				e->event = ADMIN_LOGIN_FAIL_LAN_WEB_EVENT;
@@ -16358,17 +16509,12 @@ static void do_login(asp_reent* reent, const asp_text* params, asp_text* ret)
 #endif
 				err_code = LOGINLOCK;
 			}
-			
-			snprintf(log, sizeof(log), "User [%s] from [%s] failed to log in via WEB.\n", auth[0]->name, reent->server_env->remote_ip_addr);
-			openlog("TCSysLog WEB", 0, LOG_LOCAL2);
-			syslog(LOG_INFO, log);
-			closelog();
+#endif	
 		}
 		
 		free_param(auth);
 	}
 	free(decode_buf);
-	
 	send_login_packet(reent->server_env, err_code, get_param(g_var_post, "current_page"), get_param(g_var_post, "next_page"));
 }
 
@@ -16417,11 +16563,11 @@ static int get_nat_vserver_table(char *wp)
 #ifdef NATSRC_SUPPORT
 		/* parse source */
 		if (strcmp(src, "0.0.0.0") == 0)
-			strcpy(src, "ALL");
+			snprintf(src, sizeof(src), "ALL");
 #endif
 		/* parse destination */
 		if (strcmp(dst, "0.0.0.0") == 0)
-			strcpy(dst, "ALL");
+			snprintf(dst, sizeof(dst), "ALL");
 
 		/* parse options */
 		port = host = range = "";
@@ -16458,33 +16604,31 @@ void StampToDate(unsigned long timestamp, char *date)
 	strftime(date, 30, "%Y-%m-%d %H:%M:%S", local);
 }
 
-void ipSearchMac(char *ipaddr, char *macaddr)
+int ipSearchMac(char *ipaddr, char *macaddr, int macsize)
 {
 	FILE *fp=NULL;
 	char s[512], addr[32], hwtype[32], hwaddr[32], flags[32], iface[32];
-	int find = 0;
 
 	if((fp = popen("/sbin/arp -n", "r")) != NULL) {
 		while(fgets(s, sizeof(s), fp)) {
-			if(sscanf(s, "%s\t\t%s\t%s\t%s\t%s", addr, hwtype, hwaddr, flags, iface) != 5) continue;
+			if(sscanf(s, "%63s\t\t%31s\t%31s\t%31s\t%31s", addr, hwtype, hwaddr, flags, iface) != 5) continue;
 			if(strcmp(ipaddr, addr) == 0){
-				sprintf(macaddr, "%s", hwaddr);
-				find = 1;
-				break;
+				snprintf(macaddr, macsize, "%s", hwaddr);
+				pclose(fp);
+				return SUCCESS;
 			}
 		}
 		pclose(fp);
-
-		if(find == 0)
-			tcdbg_printf("%s: cannot find MAC, ip = %s\n", __FUNCTION__, ipaddr);
+		//tcdbg_printf("%s: no MAC info, ip = %s\n", __FUNCTION__, ipaddr);
 	}
+	return FAILURE;
 }
 
 void get_web_history_table(char *wp)
 {
 	FILE *f=NULL, *fp=NULL;
 	char s[512], ip[64], mac[32], val[256];
-	unsigned long time;
+	unsigned long timestamp = 0;
 	char date[30];
 	int i = 0, find = 0;
 
@@ -16495,29 +16639,35 @@ void get_web_history_table(char *wp)
 		if ((f = fopen("/proc/webmon_recent_domains", "r")) != NULL) {
 			while(fgets(s, sizeof(s), f)) {
 				find = 0;
-				if(sscanf(s, "%lu\t\t%s\t%s", &time, ip, val) != 3) continue;
+				memset(ip, 0, sizeof(ip));
+				memset(val, 0, sizeof(val));
+				if(sscanf(s, "%lu\t\t%63s\t%255s", &timestamp, ip, val) != 3) continue;
 				for(i=0; i<512; i++)
 				{
 					if(strlen(landev[i].ipaddr) == 0) break;
 					if(strcmp(ip, landev[i].ipaddr) == 0){
-						sprintf(mac, "%s", landev[i].mac);
+						snprintf(mac, sizeof(mac), "%s", landev[i].mac);
 						find = 1;
+						//tcdbg_printf("%s: found, landev[%d].ipaddr=%s\n", __FUNCTION__, i, landev[i].ipaddr);
 						break;
 					}
-					//tcdbg_printf("%s: found, landev[%d].ipaddr=%s\n", __FUNCTION__, i, landev[i].ipaddr);
 				}
 				if(find == 0) {
-					ipSearchMac(ip, mac);
-					i = i % 512; //more than 512, it'll re-start
-					sprintf(landev[i].ipaddr, "%s", ip);
-					sprintf(landev[i].mac, "%s", mac);
-					//tcdbg_printf("%s: No records, find landev[%d].ipaddr=%s, landev[%d].mac=%s\n", __FUNCTION__, i, landev[i].ipaddr, i, landev[i].mac);
+					memset(mac, 0, sizeof(mac));
+					if(ipSearchMac(ip, mac, sizeof(mac)) == SUCCESS)
+					{
+						i = i % 512; //more than 512, it'll re-start
+						snprintf(landev[i].ipaddr, sizeof(landev[i].ipaddr), "%s", ip);
+						snprintf(landev[i].mac, sizeof(landev[i].mac), "%s", mac);
+						//tcdbg_printf("%s: Add new record, landev[%d].ipaddr=%s, landev[%d].mac=%s\n", __FUNCTION__, i, landev[i].ipaddr, i, landev[i].mac);
+					}
 				}
-				StampToDate(time, date);
+				memset(date, 0, sizeof(date));
+				StampToDate(timestamp, date);
 				if(strlen(mac))
 					fprintf(fp, "%s\t%s\t%s\t%s\r\n", date, ip, mac, val);
 				else
-					fprintf(fp, "%s\t%s\t%s\t%s\r\n", date, ip, ip, val);
+					fprintf(fp, "%s\t%s\t%s\t\t%s\r\n", date, ip, ip, val);
 			}
 			fclose(f);
 		}
@@ -16525,9 +16675,101 @@ void get_web_history_table(char *wp)
 	}
 }
 #endif
+#if defined(TCSUPPORT_WEBMON) || defined(TCSUPPORT_ACCESSLOG)
+static void check_log_path(asp_reent* reent, const asp_text* params, asp_text* ret)
+{
+	char *msg;
+	char log_dir[80]={0}, value[32]={0};
+
+	msg = (char*)asp_alloc(reent,params[0].len+1);
+	memset(msg,0,params[0].len+1);
+	memcpy(msg,params[0].str,params[0].len);
+	tcdbg_printf("%s: [%s]\n", __FUNCTION__, msg);
+
+	if(strcmp(msg, "WebHistory") == 0)
+	{
+		if(tcapi_match("WebHistory_Entry", "wh_enable", "1")
+			&& tcapi_match("WebHistory_Entry", "wh_bkp_enable", "1"))
+		{
+			memset(value, 0, sizeof(value));
+			tcapi_get("WebHistory_Entry", "wh_bkp_path", value);
+			if(tcapi_get_int("BackupLog_Entry", "log_bkp_nonhide") != 0)
+				snprintf(log_dir, sizeof(log_dir), "/tmp/mnt/%s/%s/%s", value, ROUTER_TMP_DIR, WEBMON_DIR);
+			else
+				snprintf(log_dir, sizeof(log_dir), "/tmp/mnt/%s/.%s/%s", value, ROUTER_TMP_DIR, WEBMON_DIR);
+
+			if(!check_if_dir_exist(log_dir)) {
+				tcdbg_printf("%s[WH]: %s is not exist\n", __FUNCTION__, log_dir);
+				if(tcapi_get_int("Vram_Entry", "wh_bkp_path_fail") != 1)
+					tcapi_set("Vram_Entry", "wh_bkp_path_fail", "1");
+			}
+		}
+	}
+	else if(strcmp(msg, "AccessLog") == 0)
+	{
+		if(tcapi_match("AccessLog_Entry", "al_enable", "1")
+			&& tcapi_match("AccessLog_Entry", "al_bkp_enable", "1"))
+		{
+			memset(value, 0, sizeof(value));
+			tcapi_get("AccessLog_Entry", "al_bkp_path", value);
+			if(tcapi_get_int("BackupLog_Entry", "log_bkp_nonhide") != 0)
+				snprintf(log_dir, sizeof(log_dir), "/tmp/mnt/%s/%s/%s", value, ROUTER_TMP_DIR, ACCESSLOG_DIR);
+			else
+				snprintf(log_dir, sizeof(log_dir), "/tmp/mnt/%s/.%s/%s", value, ROUTER_TMP_DIR, ACCESSLOG_DIR);
+
+			if(!check_if_dir_exist(log_dir)) {
+				tcdbg_printf("%s[AL]: %s is not exist\n", __FUNCTION__, log_dir);
+				if(tcapi_get_int("Vram_Entry", "al_bkp_path_fail") != 1)
+					tcapi_set("Vram_Entry", "al_bkp_path_fail", "1");
+			}
+		}
+	}
+}
+#endif
+#ifdef TCSUPPORT_ACCESSLOG
+void get_access_log_table(void)
+{
+	char tmp[128];
+
+	if(tcapi_match("AccessLog_Entry", "al_enable", "1"))
+	{
+		/* send signal to access_log to gen access_log file */
+		snprintf(tmp, sizeof(tmp), "killall -%d access_log", SIGUSR1);
+		system(tmp);
+
+		eval("cp", "-f", ACCESSLOG_PATH, ACCESSLOG_UI_PATH);
+	}
+}
+#endif
 
 #endif
 
+static void _save_igmpproxy_param()
+{
+	char *Robustness = get_param(g_var_post, "Robustness");
+	char *QueryInterval = get_param(g_var_post, "QueryInterval");
+	char *QueryResInterval = get_param(g_var_post, "QueryResInterval");
+	char *LastMemQueryInterval = get_param(g_var_post, "LastMemQueryInterval");
+	char *UnsolicitedReportInterval = get_param(g_var_post, "UnsolicitedReportInterval");
+
+	if( Robustness && atoi(Robustness) > 1 )
+	{
+		tcapi_set("IGMPproxy_Entry", "Robustness", Robustness);
+	}
+	if( QueryInterval && QueryResInterval && atoi(QueryInterval) > atoi(QueryResInterval) )
+	{
+		tcapi_set("IGMPproxy_Entry", "QueryInterval", QueryInterval);
+		tcapi_set("IGMPproxy_Entry", "QueryResInterval", QueryResInterval);
+	}
+	if( LastMemQueryInterval && atoi(LastMemQueryInterval) > 0 )
+	{
+		tcapi_set("IGMPproxy_Entry", "LastMemQueryInterval", LastMemQueryInterval);
+	}
+	if( UnsolicitedReportInterval && atoi(UnsolicitedReportInterval) > 0 )
+	{
+		tcapi_set("IGMPproxy_Entry", "UnsolicitedReportInterval", UnsolicitedReportInterval);
+	}
+}
 
 /*******************************************************************
 * NAME: get_iptv_wan_list_ad
@@ -16558,7 +16800,7 @@ static void get_iptv_wan_list_ad(asp_reent* reent, const asp_text* params, asp_t
 				flag = 1;
 				snprintf(tmp2, sizeof(tmp2), "%d", i);
 			}
-			strcat(tmp, tmp2);
+			snprintf(tmp + strlen(tmp), sizeof(tmp) - strlen(tmp), "%s", tmp2); 
 		}
 	}
 
@@ -16595,7 +16837,7 @@ static void get_iptv_wan_list_vd(asp_reent* reent, const asp_text* params, asp_t
 				flag = 1;
 				snprintf(tmp2, sizeof(tmp2), "%d", i);
 			}
-			strcat(tmp, tmp2);
+			snprintf(tmp + strlen(tmp), sizeof(tmp) - strlen(tmp), "%s", tmp2); 
 		}
 	}
 
@@ -16603,7 +16845,7 @@ static void get_iptv_wan_list_vd(asp_reent* reent, const asp_text* params, asp_t
 }
 #endif
 
-#if defined(TCSUPPORT_WAN_ETHER) && defined(TCSUPPORT_MULTISERVICE_ON_WAN)
+#if defined(TCSUPPORT_WAN_ETHER)
 /*******************************************************************
 * NAME: get_iptv_wan_list_eth
 * AUTHOR: Andy Chiu
@@ -16621,9 +16863,17 @@ static void get_iptv_wan_list_eth(asp_reent* reent, const asp_text* params, asp_
 	char tmp[512]={0}, tmp2[64];
 	int i, flag = 0;
 
-	for(i = 0; i < 8; ++i)
+	for(i = 0; i < MAX_SERVICE_NUM; ++i)
 	{
-		snprintf(node_name, sizeof(node_name), "WanExt_PVC10e%d", i);
+		if(isMultiSerPVC(WAN_UNIT_ETH))
+		{
+			snprintf(node_name, sizeof(node_name), "WanExt_PVC%de%d", WAN_UNIT_ETH, i);
+		}
+		else
+		{
+			snprintf(node_name, sizeof(node_name), "Wan_PVC%d", WAN_UNIT_ETH);
+		}
+
 		if(tcapi_match(node_name, "Active", "Yes"))
 		{
 			if(flag)
@@ -16633,7 +16883,7 @@ static void get_iptv_wan_list_eth(asp_reent* reent, const asp_text* params, asp_
 				flag = 1;
 				snprintf(tmp2, sizeof(tmp2), "%d", i);
 			}
-			strcat(tmp, tmp2);
+			snprintf(tmp + strlen(tmp), sizeof(tmp) - strlen(tmp), "%s", tmp2); 
 		}
 	}
 
@@ -16642,6 +16892,12 @@ static void get_iptv_wan_list_eth(asp_reent* reent, const asp_text* params, asp_
 #endif
 
 #ifdef TCSUPPORT_WAN_ETHER_LAN
+
+#if defined(DSL_AC51)
+#define LAN_PORT_NUM 2
+#else
+#define LAN_PORT_NUM 4
+#endif
 /*******************************************************************
 * NAME: available_eth_lan_wan_port
 * AUTHOR: Andy Chiu
@@ -16655,7 +16911,7 @@ static void get_iptv_wan_list_eth(asp_reent* reent, const asp_text* params, asp_
 static void available_eth_lan_wan_port(asp_reent* reent, const asp_text* params, asp_text* ret)
 {
 	char tmp[128], tmp2[64], node[32],  buf[2048];
-	int pvc = -1, i, j, lan[4], brlan, flag;
+	int pvc = -1, i, j, lan[LAN_PORT_NUM], brlan, flag;
 	const char *wan[] = {"wan_primary", "wan_secondary"};
 	
 	//init lan port list
@@ -16682,7 +16938,7 @@ static void available_eth_lan_wan_port(asp_reent* reent, const asp_text* params,
 					if(tcapi_match(node, "Active", "Yes") && tcapi_match(node, "ISP", "3"))	//active and bridge mode
 					{
 						brlan = tcapi_get_int(node, "bridge_lan_port");
-						if(brlan > 0 && brlan <= 4)
+						if(brlan > 0 && brlan <= LAN_PORT_NUM)
 						{
 							lan[brlan -1] = 1;
 						}
@@ -16692,7 +16948,7 @@ static void available_eth_lan_wan_port(asp_reent* reent, const asp_text* params,
 				flag = 0;
 				memset(tmp, sizeof(tmp), 0);
 				
-				for(i = 0; i < 4; ++i)
+				for(i = 0; i < LAN_PORT_NUM; ++i)
 				{
 					if(!lan[i])
 					{
@@ -16704,7 +16960,7 @@ static void available_eth_lan_wan_port(asp_reent* reent, const asp_text* params,
 						else
 						{
 							snprintf(tmp2, sizeof(tmp2), ",%d", i + 1);
-							strcat(tmp, tmp2);
+							snprintf(tmp + strlen(tmp), sizeof(tmp) - strlen(tmp), "%s", tmp2); 
 						}
 					}
 				}
@@ -16715,7 +16971,590 @@ static void available_eth_lan_wan_port(asp_reent* reent, const asp_text* params,
 		}
 	}
 	else
-		websWrite(buf, "1,2,3,4");
+	{
+		for(i = 0; i < LAN_PORT_NUM; ++i)
+		{
+			snprintf(tmp, sizeof(tmp), i? ",%d": "%d", i + 1);
+		}
+		websWrite(buf, tmp);
+	}
 		
 }
 #endif
+
+static void ej_check_acorpw(asp_reent* reent, const asp_text* params, asp_text* ret)
+{
+	char buf[1024] = {0};
+	do_check_acorpw(buf);
+}
+
+static void ej_check_passwd_strength(asp_reent* reent, const asp_text* params, asp_text* ret)
+{
+	char buf[1024] = {0};
+	char *att_name;
+
+	att_name = (char*)asp_alloc(reent, params[0].len+1);
+	memset(att_name, 0, params[0].len+1);
+	memcpy(att_name, params[0].str, params[0].len);
+
+	do_check_passwd_strength(buf, att_name);
+}
+
+static void ej_check_wireless_encryption(asp_reent* reent, const asp_text* params, asp_text* ret)
+{
+	char buf[1024] = {0};
+	do_check_wireless_encryption(buf);
+}
+
+#ifdef RTCONFIG_BWDPI
+static void do_HomeProtection (asp_reent* reent, const asp_text* params, asp_text* ret)
+{
+	char *wps_enable_2g = get_param(g_var_post, "wps_enable_2g");
+	char *wps_enable_5g = get_param(g_var_post, "wps_enable_5g");
+	char *wan_upnp_enable = get_param(g_var_post, "wan_upnp_enable");
+	char *wan_access_enable = get_param(g_var_post, "misc_http_x");
+	char *wan_ping_enable = get_param(g_var_post, "misc_ping_x");
+	char *dmz_ip = get_param(g_var_post, "dmz_ip");
+	char *port_trigger_enable = get_param(g_var_post, "autofw_enable_x");
+	char *port_forwarding_enable = get_param(g_var_post, "vts_enable_x");
+	char *ftp_account_mode = get_param(g_var_post, "st_ftp_mode");
+	char *ftp_force_mode = get_param(g_var_post, "st_ftp_force_mode");
+	char *samba_account_mode = get_param(g_var_post, "st_samba_mode");
+	char *samba_force_mode = get_param(g_var_post, "st_samba_force_mode");
+	char *wrs_mals_enable = get_param(g_var_post, "wrs_mals_enable");	
+	char *wrs_cc_enable = get_param(g_var_post, "wrs_cc_enable");	
+	char *wrs_vp_enable = get_param(g_var_post, "wrs_vp_enable");	
+	char *tm_eula = get_param(g_var_post, "TM_EULA");	
+	AiProtection_conf_t config;
+	int config_change = 0;	
+	int restart_wifi = 0;
+	int restart_upnp = 0;
+	int restart_firewall = 0;
+	int restart_dmz = 0;
+	int retsrat_porttrigger = 0;
+	int restart_virserver = 0;
+	int restart_samba = 0;
+	int restart_bwdpi = 0;
+
+	if (wps_enable_2g != NULL)
+	{
+		tcapi_set("WLan_Common", "wl0_wps_enable", wps_enable_2g);
+		restart_wifi = 1;
+		config_change = 1;
+	}
+
+	if (wps_enable_5g != NULL)
+	{
+		tcapi_set("WLan_Common", "wl1_wps_enable", wps_enable_5g);
+		config_change = 1;
+		restart_wifi = 1;
+	}
+
+	if (wan_upnp_enable != NULL)
+	{
+		tcapi_set("Upnpd_Entry","Active", wan_upnp_enable);
+		config_change = 1;
+		restart_upnp = 1;
+	}
+
+	if (wan_access_enable != NULL)
+	{
+		tcapi_set("Firewall_Entry","misc_http_x", wan_access_enable);
+		config_change = 1;
+		restart_firewall = 1;
+	}
+
+	if (wan_ping_enable != NULL)
+	{
+		tcapi_set("Firewall_Entry","misc_ping_x",wan_ping_enable);
+		config_change = 1;
+		restart_firewall = 1;
+	}
+
+	if (dmz_ip != NULL)
+	{
+		tcapi_set("Dmz_PVC","DMZ_IP",dmz_ip);
+		config_change = 1;
+		restart_dmz = 1;
+	}
+
+	if (port_trigger_enable != NULL)
+	{
+		tcapi_set("portTriggering_Entry0","AutoFW_Enable",port_trigger_enable);
+		config_change = 1;
+		retsrat_porttrigger = 1;
+	}
+
+	if (port_forwarding_enable != NULL)
+	{
+		tcapi_set("VirServer_PVC0_Entry0","VirServer_Enable",port_forwarding_enable);
+		config_change = 1;
+		restart_virserver = 1;
+	}
+
+	if (ftp_account_mode != NULL)
+	{
+		tcapi_set("Samba_Entry","st_ftp_mode",ftp_account_mode);
+		tcapi_set("Samba_Entry","st_ftp_force_mode",ftp_force_mode);
+		config_change = 1;
+		restart_samba = 1;	//ftp share samba node
+	}
+
+	if (samba_account_mode != NULL)
+	{
+		tcapi_set("Samba_Entry","st_samba_mode",samba_account_mode);
+		tcapi_set("Samba_Entry","st_samba_force_mode",samba_force_mode);
+		config_change = 1;
+		restart_samba = 1;
+	}
+
+	if ((wrs_mals_enable != NULL) &&
+		(wrs_cc_enable != NULL) &&
+		(wrs_vp_enable != NULL) &&
+		(tm_eula != NULL) )
+	{
+		get_AiProtection_config(&config);
+		config.wrs_mals_enable = atoi(wrs_mals_enable);
+		config.wrs_cc_enable = atoi(wrs_cc_enable);
+		config.wrs_vp_enable = atoi(wrs_vp_enable);
+		config.tm_eula = atoi(tm_eula);
+		
+		set_AiProtection_config(&config);
+		config_change = 1;
+		restart_bwdpi = 1;
+
+#ifdef TCSUPPORT_SWAP_FILE
+		if(config.wrs_mals_enable == 1 ||
+			config.wrs_cc_enable == 1 ||
+			config.wrs_vp_enable == 1)
+		{
+			tcapi_set("SysInfo_Entry", "swap_enable", "1");
+			eval("/sbin/rc_call", "swap", "1");
+		}
+#endif
+	}
+
+	if (config_change)
+	{
+		tcapi_save();
+	}
+
+	if (restart_wifi == 1)
+	{
+		tcapi_commit("WLan_Entry");
+	}
+
+	if (restart_upnp == 1)
+	{
+		tcapi_commit("Upnpd_Entry");
+	}
+
+	if (restart_firewall == 1)
+	{
+		tcapi_commit("Firewall_Entry");
+	}
+
+	if (restart_dmz == 1)
+	{
+		tcapi_commit("Dmz_PVC");
+	}
+
+	if (retsrat_porttrigger == 1)
+	{
+		tcapi_commit("portTriggering_Entry");
+	}
+
+	if (restart_virserver == 1)
+	{
+		tcapi_commit("VirServer_PVC_Entry");
+	}
+
+	if (restart_samba == 1)
+	{
+		tcapi_commit("Samba_Entry");
+	}
+
+	if (restart_bwdpi == 1)
+	{
+		system("bwdpi service restart");
+	}
+
+}
+
+static void print_wrs_rule(AiProtection_rulelist_t *rulelist)
+{
+	int i;
+	for (i=0; i<rulelist->count; i++)
+	{
+		cprintf("Rule (%d) :\n", i);
+		cprintf("==> enable (%d)\n", rulelist->rule[i].enable);
+		cprintf("==> mac (%s)\n", rulelist->rule[i].mac);
+		cprintf("==> catid1 (%s)\n", rulelist->rule[i].catid1);
+		cprintf("==> catid2 (%s)\n", rulelist->rule[i].catid2);
+		cprintf("==> catid3 (%s)\n", rulelist->rule[i].catid3);
+		cprintf("==> catid4 (%s)\n", rulelist->rule[i].catid4);
+	}
+}
+
+/*
+	e.g. 
+	1>00:11:22:33:44:55>>24,51,53,89,42>><1>00:22:33:44:55:66>>>56,70,71>
+	1>00:50:56:30:E7:87>1,2,3,4,5,6,8,9,10,14,15,16,25,26,11>24,51,53,89,42>56,70,71,57>69,23<1>00:11:22:33:44:55>>24,51,53,89,42>>
+*/
+static void parse_wrs_rule(char *liststr, AiProtection_rulelist_t *rulelist)
+{
+	char *saveptr;
+	char *str1, *str2, *token, *subtoken;
+	char list[6][64];
+	int i, j;
+
+	if (rulelist == NULL)
+	{
+		return;
+	}
+
+	memset(rulelist, 0, sizeof(AiProtection_rulelist_t));
+
+	if (liststr == NULL)
+	{
+		return;
+	}
+
+	for (i = 0, str1 = liststr; ; i++, str1 = NULL)
+	{
+		token = strtok(str1, "<");
+		if (token == NULL)
+		{
+			break;
+		}
+		//cprintf("%d: %s\n", i, token);
+		memset((void *)list, 0, sizeof(list));
+		
+		j = 0;
+		for (str2 = token; ; str2 = NULL)
+		{
+			subtoken = strtok_r(str2, ">", &saveptr);
+			if (subtoken == NULL)
+			{
+				break;
+			}
+			
+			//cprintf(" --> (%s)\n", subtoken);
+			snprintf(list[j], sizeof(list[i]), "%s", subtoken);
+			j++;
+
+			if (saveptr != NULL)
+			{
+				while (*saveptr == '>')
+				{
+					saveptr++;
+					j++;
+				}
+			}
+		}
+
+		rulelist->rule[i].enable = atoi(list[0]);
+		snprintf(rulelist->rule[i].mac, sizeof(rulelist->rule[i].mac), "%s", list[1]);
+		snprintf(rulelist->rule[i].catid1, sizeof(rulelist->rule[i].catid1), "%s", list[2]);
+		snprintf(rulelist->rule[i].catid2, sizeof(rulelist->rule[i].catid2), "%s", list[3]);
+		snprintf(rulelist->rule[i].catid3, sizeof(rulelist->rule[i].catid3), "%s", list[4]);
+		snprintf(rulelist->rule[i].catid4, sizeof(rulelist->rule[i].catid4), "%s", list[5]);
+	}	
+
+	rulelist->count = i;
+	print_wrs_rule(rulelist);
+}
+
+static void do_WebProtector (asp_reent* reent, const asp_text* params, asp_text* ret)
+{
+	char *wrs_web_enable = get_param(g_var_post, "wrs_web_enable");	
+	char *wrs_app_enable = get_param(g_var_post, "wrs_app_enable");	
+	char *wrs_web_rulelist = get_param(g_var_post, "wrs_web_rulelist");	
+	char *wrs_app_rulelist = get_param(g_var_post, "wrs_app_rulelist");	
+	char *tm_eula = get_param(g_var_post, "TM_EULA");	
+	char rulelist_tmp[2048];
+	AiProtection_conf_t config;
+	int config_change = 0;	
+	int restart_bwdpi = 0;
+
+	if ((wrs_web_enable != NULL) &&
+		(wrs_app_enable != NULL) &&
+		(tm_eula != NULL) )
+	{
+		get_AiProtection_config(&config);
+		config.tm_eula = atoi(tm_eula);
+		ascii_to_char_safe(rulelist_tmp, wrs_web_rulelist, sizeof(rulelist_tmp));
+		parse_wrs_rule(rulelist_tmp, &(config.wrs_web));
+		ascii_to_char_safe(rulelist_tmp, wrs_app_rulelist, sizeof(rulelist_tmp));
+		parse_wrs_rule(rulelist_tmp, &(config.wrs_app));
+		config.wrs_web.enable = atoi(wrs_web_enable);
+		config.wrs_app.enable = atoi(wrs_app_enable);
+		
+		set_AiProtection_config(&config);
+		config_change = 1;
+		restart_bwdpi = 1;
+
+#ifdef TCSUPPORT_SWAP_FILE
+		if(config.wrs_web.enable == 1 ||
+			config.wrs_app.enable)
+		{
+			tcapi_set("SysInfo_Entry", "swap_enable", "1");
+			eval("/sbin/rc_call", "swap", "1");
+		}
+#endif
+	}
+	
+	if (config_change)
+	{
+		tcapi_save();
+	}
+
+	if (restart_bwdpi == 1)
+	{
+		system("bwdpi service restart");
+	}
+
+}
+
+static void ej_get_wrs_web_rulslist(asp_reent* reent, const asp_text* params, asp_text* ret)
+{
+	AiProtection_conf_t config;
+	char buf[1024]={0};
+	int i;
+
+	get_AiProtection_config(&config);
+	for (i=0; i < config.wrs_web.count; i++)
+	{
+		if (i > 0)
+		{
+			websWrite(buf, "<");
+		}
+		websWrite(buf, "%d>%s>%s>%s>%s>%s",
+			config.wrs_web.rule[i].enable,
+			config.wrs_web.rule[i].mac,
+			config.wrs_web.rule[i].catid1,
+			config.wrs_web.rule[i].catid2,
+			config.wrs_web.rule[i].catid3,
+			config.wrs_web.rule[i].catid4);
+	}
+}
+
+static void ej_get_wrs_app_rulslist(asp_reent* reent, const asp_text* params, asp_text* ret)
+{
+	AiProtection_conf_t config;
+	char buf[1024]={0};
+	int i;
+	
+	get_AiProtection_config(&config);
+	for (i=0; i < config.wrs_app.count; i++)
+	{
+		if (i > 0)
+		{
+			websWrite(buf, "<");
+		}
+		websWrite(buf, "%d>%s>%s>%s>%s>%s",
+			config.wrs_app.rule[i].enable,
+			config.wrs_app.rule[i].mac,
+			config.wrs_app.rule[i].catid1,
+			config.wrs_app.rule[i].catid2,
+			config.wrs_app.rule[i].catid3,
+			config.wrs_app.rule[i].catid4);
+			
+	}
+}
+
+static void ej_get_wrs_web_maxrule(asp_reent* reent, const asp_text* params, asp_text* ret)
+{
+	char buf[32]={0};
+	websWrite(buf, "%d", get_AiProtection_web_maxrule());
+}
+
+static void bwdpi_redirect_info(asp_reent* reent, const asp_text* params, asp_text* ret)
+{
+	char *mac = get_param(g_var_post, "mac");
+	char *cat_id = get_param(g_var_post, "cat_id");	
+	char *domain = get_param(g_var_post, "domain");	
+	char UpperMac[20] = {0};
+	char buf[1024]={0};
+	int domain_len = 0;
+	int i, j;
+
+	if (mac != NULL && cat_id != NULL && domain != NULL)
+	{
+		domain_len = strlen(domain);
+		if (domain[domain_len-1] == '/')
+		{
+			domain[domain_len-1] = '\0';
+		}
+
+		j = 0;
+		for(i = 0; mac[i]; i++)
+		{
+			if (i > 0 && (i % 2) == 0)
+			{
+				UpperMac[j] = ':';
+				j++;
+			}
+			
+			UpperMac[j] = toupper(mac[i]);
+			j++;
+		}
+		
+		websWrite(buf, "[\"%s\", \"%s\", \"%s\"]", UpperMac, domain, cat_id);
+	}
+	else
+	{
+		websWrite(buf, "[\"\", \"\", \"\"]");
+	}
+
+}
+
+#endif
+
+static void ej_bwdpi_engine_status(asp_reent* reent, const asp_text* params, asp_text* ret)
+{
+	AiProtection_status_t status;
+	char buf[1024]={0};
+
+	websWrite(buf, "{");
+#ifdef RTCONFIG_BWDPI
+	if (get_AiProtection_status(&status) == 0)
+	{
+		websWrite(buf, "\"DpiEngine\":%d, \"SigVersion\":\"%s\"", 
+			status.engine_insert, status.version.signature);
+	}
+#endif
+	websWrite(buf, "}");
+
+}
+
+static void ej_get_next_lanip(asp_reent* reent, const asp_text* params, asp_text* ret)
+{
+	char tmp[100], prefix[sizeof("wanXXXXXXXXXX_")], wp[2048];
+	char lan_ipaddr[20] = {0}, lan_netmask[20] = {0};
+	char wan_ipaddr[20] = {0}, wan_netmask[20] = {0};
+	struct in_addr addr;
+	int unit;
+
+	tcapi_get("Lan_Entry0", "IP", lan_ipaddr);
+	tcapi_get("Lan_Entry0", "netmask", lan_netmask);
+
+	unit = get_primaryif_dualwan_unit();
+	if (unit < 0)
+		goto error;
+
+	if (!dualwan_unit__usbif(unit)) {	
+		snprintf(prefix, sizeof(prefix), "wan%d_", unit);
+		tcapi_get("Wanduck_Common", strcat_rs(prefix, "ipaddr", tmp, sizeof(tmp)), wan_ipaddr);
+		tcapi_get("Wanduck_Common", strcat_rs(prefix, "netmask", tmp, sizeof(tmp)), wan_netmask);
+	} else {
+		/* force conflict per original design */
+		snprintf(wan_ipaddr, sizeof(wan_ipaddr), "%s",  lan_ipaddr);
+		snprintf(wan_netmask, sizeof(wan_netmask), "%s",  lan_netmask);
+	}
+
+	if (inet_deconflict(lan_ipaddr, lan_netmask, wan_ipaddr, wan_netmask, &addr))
+		snprintf(lan_ipaddr, sizeof(lan_ipaddr), "%s",  inet_ntoa(addr));
+
+error:
+	websWrite(wp, "{\"next_lanip\": \"%s\"}", lan_ipaddr);
+}
+
+static void ej_get_header_info(asp_reent* reent, const asp_text* params, asp_text* ret)
+{
+	char filename[128], wp[2048];
+	char host_name_temp[64];
+	char current_page_name_temp[128];
+	char current_page_name[64] = {0};
+	request *req;
+	char *p;
+
+	if(!reent || !reent->server_env)
+		return;
+	
+	req = reent->server_env;
+
+	memset(filename, 0, sizeof(filename));
+	memset(host_name_temp, 0, sizeof(host_name_temp));
+	memset(current_page_name_temp, 0, sizeof(current_page_name_temp));
+
+	//get current page form refer
+	if(req->header_referer)
+	{
+		p = strrchr(req->header_referer, '/');
+		if(p)
+		{
+			++p;
+			snprintf(current_page_name, sizeof(current_page_name), "%s", p);
+			snprintf(filename, sizeof(filename), "/www/%s", current_page_name);
+		}
+	}	
+	
+	if(!req->host || strncmp(DUT_DOMAIN_NAME, req->host, strlen(DUT_DOMAIN_NAME)) == 0) {
+		snprintf(host_name_temp, sizeof(host_name_temp), "%s", DUT_DOMAIN_NAME);
+	}
+	else {
+		snprintf(host_name_temp, sizeof(host_name_temp), "%s", req->host);
+	}
+
+	if(current_page_name[0] == '\0' || !check_if_file_exist(filename)) {
+		snprintf(current_page_name_temp, sizeof(current_page_name_temp), "index.asp");
+	}
+	else {
+		snprintf(current_page_name_temp, sizeof(current_page_name_temp), "%s", current_page_name);
+	}
+	
+	websWrite(wp, "{\"host\": \"%s\",\"current_page\":\"%s\"}", host_name_temp, current_page_name_temp);
+}
+
+static void ej_login_error_info(asp_reent* reent, const asp_text* params, asp_text* ret)
+{
+	char wp[2048];
+	long now;
+	request *req;
+	login_retry_t *retry_tmp = NULL;
+	struct json_object *item = NULL;
+
+	if(!reent || !reent->server_env)
+		return;
+	
+	req = reent->server_env;
+
+	retry_tmp = get_login_retry_by_url(req->remote_ip_addr);
+	item = json_object_new_object();
+
+	if(retry_tmp)
+	{
+		now = uptime();
+
+		/* lock time */
+		json_object_object_add(item,"lock_time", json_object_new_int(now - retry_tmp->last_login_timestamp));
+
+		/* error status */
+		json_object_object_add(item,"error_status", json_object_new_int(retry_tmp->err_status));
+	}
+	
+	/* url */
+	if(check_xss_blacklist(req->request_uri, 1)){
+		json_object_object_add(item,"page", json_object_new_string("index.asp"));
+	}else{
+		json_object_object_add(item,"page", json_object_new_string(req->request_uri));
+	}
+	websWrite(wp, "%s", json_object_to_json_string(item));
+	json_object_put(item);
+}
+
+static void ej_get_productid(asp_reent* reent, const asp_text* params, asp_text* ret)
+{
+	static char val[32];
+	char retVal[32];
+
+	snprintf(val, sizeof(val), "%s", get_productid());
+
+#if defined(TCSUPPORT_GUI_STRING_CONFIG) || defined(TCSUPPORT_GENERAL_MULTILANGUAGE)
+	//not from String_Entry
+	strQuotConvertHTML(val, retVal, sizeof(retVal));
+#endif
+	asp_send_response(NULL, retVal, strlen(retVal));
+}
+

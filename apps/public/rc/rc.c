@@ -416,6 +416,13 @@ int main(int argc, char **argv)
 
 		return asus_usb_interface(argv[1], argv[2]);
 	}
+	else if (!strcmp(base, "usb_notify")) {
+#if defined(RTCONFIG_APP_PREINSTALLED) || defined(RTCONFIG_APP_NETINSTALLED)
+		usb_notify();
+#endif
+
+		return 0;
+	}
 #endif
 	else if(!strcmp(base, "run_app_script")){
 		if(argc != 3){
@@ -428,15 +435,6 @@ int main(int argc, char **argv)
 		else
 			return run_app_script(argv[1], argv[2]);
 	}
-
-#if defined(RTCONFIG_PPTPD) || defined(RTCONFIG_ACCEL_PPTPD)
-	else if(!strcmp(base, "run_pptpd")) {
-		stop_pptpd();
-		sleep(1);
-		start_pptpd();
-		return 0;
-	}
-#endif
 #ifdef RTCONFIG_VPNC
 	else if(!strcmp(base, "run_vpnc")) {
 		stop_vpnc();
@@ -512,7 +510,7 @@ int main(int argc, char **argv)
 	}
 #ifdef RTCONFIG_OPENVPN
 	else if (!strcmp(base, "add_ovpn_fw_rules")) {
-		run_vpn_firewall_scripts();
+		run_ovpn_fw_scripts();
 	}
 #endif
 

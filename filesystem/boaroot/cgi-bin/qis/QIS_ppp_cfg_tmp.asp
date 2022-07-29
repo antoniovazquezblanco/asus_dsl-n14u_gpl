@@ -476,19 +476,19 @@ function pass_checked(obj){
   		</tr>
   
   		<tr id="tr_DE_Deutsche_id" style="display:none;">
-  			<th>ID Connection</th>
+  			<th><% tcWebApi_Get("String_Entry", "ppp_ID_Connection", "s") %></th>
   			<td>
 	  			<input type="text" name="pppoe_id_Deutsche" class="input_18_table" value="" maxlength="12" autocomplete="off" autocorrect="off" autocapitalize="off" autocapitalize="off">
   			</td>
   		</tr>	
   		<tr id="tr_DE_Deutsche_AN" style="display:none;">
-  			<th>Access Number</th>
+  			<th><% tcWebApi_Get("String_Entry", "ppp_Access_Number", "s") %></th>
   			<td>
 	  			<input type="text" name="pppoe_AN_Deutsche" class="input_18_table" value="" maxlength="12" autocomplete="off" autocorrect="off" autocapitalize="off" autocapitalize="off">
   			</td>
   		</tr>
   		<tr id="tr_DE_Deutsche_Co" style="display:none;">
-  			<th>Co-user Number</th>
+  			<th><% tcWebApi_Get("String_Entry", "ppp_CoUser_Number", "s") %></th>
   			<td>
 	  			<input type="text" name="pppoe_Co_Deutsche" class="input_6_table" value="" maxlength="4" autocomplete="off" autocorrect="off" autocapitalize="off" autocapitalize="off">
   			</td>
@@ -535,7 +535,7 @@ function pass_checked(obj){
 
 	<div class="apply_gen" style="margin-top:30px">
 		<input type="button" id="prevButton" value="<% tcWebApi_Get("String_Entry", "Manual_Setting_btn", "s") %>" tabindex="7" onclick="gotoprev(document.form);" class="button_gen_long">
-		<input type="button" id="nextButton" value="<% tcWebApi_Get("String_Entry", "btn_next", "s") %>" tabindex="6" onclick="submitForm();" class="button_gen">
+		<input type="button" id="nextButton" value="<% tcWebApi_Get("String_Entry", "btn_next", "s") %>" tabindex="6" onclick="submitForm();" class="button_gen_long">
 	</div>
 </div>
 </form>

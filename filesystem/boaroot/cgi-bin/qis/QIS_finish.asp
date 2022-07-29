@@ -54,6 +54,7 @@ var dsltmp_cfg_iptv_pvclist = decodeURIComponent('<%tcWebApi_char_to_ascii("GUIT
 var iptv_num_pvc_val = "<% tcWebApi_get("GUITemp_Entry0","dsltmp_cfg_iptv_num_pvc","s") %>";
 var dsltmp_cfg_ispservice = "<% tcWebApi_get("GUITemp_Entry0","dsltmp_cfg_ispservice","s") %>";
 var iptv_with_bridge = false;
+var dsltmp_auto_detect_bng_flag = "<%tcWebApi_get("GUITemp_Entry0","dsltmp_auto_detect_bng_flag","s")%>";
 
 //udpate iptv information
 if (iptv_num_pvc_val != "0" && iptv_num_pvc_val != "") {
@@ -288,6 +289,11 @@ function goHome(){
 	document.getElementById('loadingIcon').style.display = '';
 	document.getElementById("nextButton").disabled = true;
 	
+	//Deutsche Telekom IPTV detect
+	if(dsltmp_auto_detect_bng_flag == 1){
+		document.redirectForm.dsltmp_auto_detect_bng.value = 1;
+	}
+	
 	if(isWLclient()){		
 		setTimeout("showWlHint();", 3000);
 		document.redirectForm.submit();		
@@ -470,7 +476,7 @@ function showWlHint(updateFlag){
 		wlHintCss += "}}";
 		wlHintCss += "</style>";
 
-		var wlHintJs = '<script>setInterval(function(){var a;if(window.XMLHttpRequest)a=new XMLHttpRequest;else{if(!window.ActiveXObject)return!1;a=new ActiveXObject("Microsoft.XMLHTTP")}a.onreadystatechange=function(){4==a.readyState&&200==a.status&&(top.location.href="/index2.asp")},a.open("GET","/httpd_check.asp",!0),a.send(null)},3e3);<\x2Fscript>';
+		var wlHintJs = '<script>setInterval(function(){var a;if(window.XMLHttpRequest)a=new XMLHttpRequest;else{if(!window.ActiveXObject)return!1;a=new ActiveXObject("Microsoft.XMLHTTP")}a.onreadystatechange=function(){4==a.readyState&&200==a.status&&(top.location.href="/index2.asp")},a.open("GET","/cgi-bin/httpd_check.xml",!0),a.send(null)},3e3);<\x2Fscript>';
 
 		var wlHintHtml = '';
 		wlHintHtml += '<meta content="telephone=no" name="format-detection"><meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=yes">';
@@ -553,12 +559,15 @@ else
 <input type="hidden" name="dsltmp_cfg_dns1" value="<% tcWebApi_staticGet("GUITemp_Entry0","dsltmp_cfg_dns1","s") %>">
 <input type="hidden" name="dsltmp_cfg_dns2" value="<% tcWebApi_staticGet("GUITemp_Entry0","dsltmp_cfg_dns2","s") %>">
 <input type="hidden" name="dsltmp_dhcp_clientid" value="<% tcWebApi_staticGet("GUITemp_Entry0","dsltmp_dhcp_clientid","s") %>">
+<input type="hidden" name="dsltmp_dhcp_hostname" value="<% tcWebApi_staticGet("GUITemp_Entry0","dsltmp_dhcp_hostname","s") %>">
 
 <input type="hidden" name="dsltmp_cfg_iptv_rmvlan" value="<% tcWebApi_staticGet("GUITemp_Entry0","dsltmp_cfg_iptv_rmvlan","s") %>">
 <input type="hidden" name="dsltmp_cfg_iptv_mr" value="<% tcWebApi_staticGet("GUITemp_Entry0","dsltmp_cfg_iptv_mr","s") %>">
 <input type="hidden" name="dsltmp_cfg_iptv_num_pvc" value="<% tcWebApi_staticGet("GUITemp_Entry0","dsltmp_cfg_iptv_num_pvc","s") %>">
 <input type="hidden" name="dsltmp_cfg_iptv_pvclist" value="<% tcWebApi_staticGet("GUITemp_Entry0","dsltmp_cfg_iptv_pvclist","s") %>">
 <input type="hidden" name="dsltmp_cfg_iptv_enable" value="<% tcWebApi_staticGet("GUITemp_Entry0","dsltmp_cfg_iptv_enable","s") %>">
+<input type="hidden" name="dsltmp_auto_detect_bng" value="0">
+
 <!-- dsl -->
 <input type="hidden" name="dsltmp_cfg_ginp" value="<%tcWebApi_Get("GUITemp_Entry0","dsltmp_cfg_ginp","s")%>">
 

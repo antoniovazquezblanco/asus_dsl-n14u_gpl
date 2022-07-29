@@ -11,6 +11,7 @@
 <script type="text/Javascript" src="/state.js"></script>
 <script type="text/Javascript" src="/general.js"></script>
 <script type="text/Javascript" src="/form.js"></script>
+<script type="text/javascript" src="/validator.js"></script>
 <style>
 span{
 border:0px solid #FFFFFF;
@@ -38,6 +39,9 @@ var iptv_atm_pvc_str = "";
 var iptv_ptm_pvc_str = "";
 var dsltmp_cfg_iptv_pvclist = decodeURIComponent('<%tcWebApi_char_to_ascii("GUITemp_Entry0","dsltmp_cfg_iptv_pvclist", "s")%>');															
 var iptv_num_pvc_val = "<% tcWebApi_staticGet("GUITemp_Entry0","dsltmp_cfg_iptv_num_pvc","s") %>";
+var mac_addr_2g = "<%tcWebApi_get("WLan_Common","wl0_MacAddress","s")%>";
+var mac_addr_last_3bytes = "\"" + mac_addr_2g.substring(9, 11) + mac_addr_2g.substring(12, 14) + mac_addr_2g.substring(15, 17) + "\"";
+var model_name = "<%tcWebApi_get("SysInfo_Entry","ProductName","s")%>";
 
 //udpate iptv information
 if (iptv_num_pvc_val != "0" && iptv_num_pvc_val != "") {
@@ -110,6 +114,7 @@ function QKfinish_load_body(){
 	document.form.wan_dnsenable_x[1].checked = 1;
 	show_dhcpenable(1);
 
+	/* Renjie: Remove this field, we will use Option 61 and 12 for UK Sky.
 	if (country_str == "United Kingdom" && (ispname_str == "SKY (MER)" || ispname_str == "Sky - Fibre Broadband"))
 	{
 		//UK ISP SKY Broadband, MER requires some tweak.
@@ -119,6 +124,7 @@ function QKfinish_load_body(){
 		document.getElementById("ppp_password1").style.display = "";
 		document.getElementById("ppp_password2").style.display = "";
 	}
+	*/
 
 	if(transfer_mode == "ATM")
 		document.form.prev_page.value = "/cgi-bin/qis/QIS_manual_setting.asp";
@@ -231,12 +237,23 @@ function submitForm(){
 	if (country_str == "United Kingdom" && (ispname_str == "SKY (MER)" || ispname_str == "Sky - Fibre Broadband"))
 	{
 		//Only for UK ISP SKY Broadband
+		/* Renjie: Remove this field, we will use Option 61 and 12 for UK Sky.
 		if(document.form.ppp_username.value != "")
 			document.form.dsltmp_dhcp_clientid.value = document.form.ppp_username.value + "|" + document.form.ppp_password.value;
 
 		document.form.ppp_username.disabled = true;
 		document.form.ppp_password.disabled = true;
+		*/
+
+		document.form.dsltmp_dhcp_clientid.value = mac_addr_last_3bytes;
+		document.form.dsltmp_dhcp_hostname.value = model_name;
 	}
+	else
+	{
+		document.form.dsltmp_dhcp_clientid.value = "";
+		document.form.dsltmp_dhcp_hostname.value = "";
+	}
+
 	document.form.dsl_ipaddr.disabled = true;
 	document.form.dsl_netmask.disabled = true;
 	document.form.dsl_gateway.disabled = true;
@@ -264,7 +281,8 @@ function submitForm(){
 <input type="hidden" name="dsltmp_cfg_dnsenable" id="dsltmp_cfg_dnsenable" value="1">
 <input type="hidden" name="dsltmp_cfg_dns1" id="dsltmp_cfg_dns1" value="">
 <input type="hidden" name="dsltmp_cfg_dns2" id="dsltmp_cfg_dns2" value="">
-<input type="hidden" name="dsltmp_dhcp_clientid" id="dsltmp_dhcp_clientid" value="">
+<input type="hidden" name="dsltmp_dhcp_clientid" value="">
+<input type="hidden" name="dsltmp_dhcp_hostname" value="">
 <input type="hidden" name="dsltmp_wanTypeOption" value="">
 <input type="hidden" name="with_wan_setting" value="1">
 <div class="QISmain">
@@ -310,10 +328,10 @@ function submitForm(){
 <table id="tblsetting_2" class="QISform" width="400" border="0" align="center" cellpadding="3" cellspacing="0"><tr><td>
 <fieldset>
 <legend>
-<%tcWebApi_get("String_Entry","L3F_x_UseStaticIP_in","s")%>
+<%tcWebApi_get("String_Entry","L3F_x_DHCPClient_in","s")%>
 <span id="dhcp_info_radio">
-<input type="radio" name="x_DHCPClient" tabindex="1" class="input" value="0" onclick="show_dhcpenable(this.value);"><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
-<input type="radio" name="x_DHCPClient" tabindex="2" class="input" value="1" onclick="show_dhcpenable(this.value);"><%tcWebApi_get("String_Entry","checkbox_No","s")%>
+<input type="radio" name="x_DHCPClient" tabindex="1" class="input" value="0" onclick="show_dhcpenable(this.value);"><%tcWebApi_get("String_Entry","checkbox_No","s")%>
+<input type="radio" name="x_DHCPClient" tabindex="2" class="input" value="1" onclick="show_dhcpenable(this.value);"><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
 </span>
 </legend>
 <table id="tblsetting_2" class="QISform" width="400" border="0" align="center" cellpadding="3" cellspacing="0">
@@ -322,7 +340,7 @@ function submitForm(){
 <%tcWebApi_get("String_Entry","IPC_ExternalIPAddress_in","s")%>
 </th>
 <td class="QISformtd">
-<input type="hidden" id="dsl_ipaddr" name="dsl_ipaddr" value="" maxlength="15" onkeypress="return is_ipaddr(this);" onkeyup="change_ipaddr(this);" title="WAN IP">
+<input type="hidden" id="dsl_ipaddr" name="dsl_ipaddr" value="" maxlength="15" onkeypress="return validator.isIPAddr(this,event);" title="WAN IP">
 <div class="IPaddr" id="dsl_ipaddr_div">
 <input maxlength="3" tabindex="3"
 name="dsl_ipaddr1";
@@ -398,7 +416,7 @@ autocomplete="off" />
 <%tcWebApi_get("String_Entry","IPC_x_ExternalGateway_in","s")%>
 </th>
 <td class="QISformtd">
-<input type="hidden" id="dsl_gateway" name="dsl_gateway" value="" maxlength="15" onkeypress="return is_ipaddr(this);" onkeyup="return change_ipaddr(this);" class="input">
+<input type="hidden" id="dsl_gateway" name="dsl_gateway" value="" maxlength="15" onkeypress="return validator.isIPAddr(this,event);" class="input">
 <div class="IPaddr" id="dsl_gateway_div">
 <input maxlength="3"
 onkeypress="return checkIP(this,event);"
@@ -437,10 +455,10 @@ autocomplete="off" />
 <div id="dns_sec">
 <fieldset>
 <legend>
-<span id="dns_info_title"><%tcWebApi_get("String_Entry","qis_dns","s")%>:</span>
+<span id="dns_info_title"><%tcWebApi_get("String_Entry","IPC_x_DNSServerEnable_in","s")%>:</span>
 <span id="dns_info_radio">
-<input type="radio" name="wan_dnsenable_x" value="1" tabindex="6" onclick="show_dnsenable(this.value);" class="input"><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
-<input type="radio" name="wan_dnsenable_x" value="0" tabindex="7" onclick="show_dnsenable(this.value);" class="input"><%tcWebApi_get("String_Entry","checkbox_No","s")%>
+<input type="radio" name="wan_dnsenable_x" value="1" tabindex="6" onclick="show_dnsenable(this.value);" class="input"><%tcWebApi_get("String_Entry","checkbox_No","s")%>
+<input type="radio" name="wan_dnsenable_x" value="0" tabindex="7" onclick="show_dnsenable(this.value);" class="input"><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
 </span>
 </legend>
 <table id="tblsetting_4" class="QISform" width="400" border=0 align="center" cellpadding="5" cellspacing="0">
@@ -449,7 +467,7 @@ autocomplete="off" />
 <%tcWebApi_get("String_Entry","IPC_x_DNSServer1_in","s")%>:
 </th>
 <td class="QISformtd">
-<input type="hidden" id="dsl_dns1_x" name="dsl_dns1_x" value="" onkeypress="return is_ipaddr(this);" onkeyup="return change_ipaddr(this);" maxlength="15">
+<input type="hidden" id="dsl_dns1_x" name="dsl_dns1_x" value="" onkeypress="return validator.isIPAddr(this,event);" maxlength="15">
 <div class="IPaddr" id="dsl_dns1_x_div">
 <input maxlength="3" tabindex="8"
 name="dsl_dns1_x1"
@@ -488,7 +506,7 @@ autocomplete="off" />
 <%tcWebApi_get("String_Entry","IPC_x_DNSServer2_in","s")%>:
 </th>
 <td class="QISformtd">
-<input type="hidden" id="dsl_dns2_x" name="dsl_dns2_x" value="" maxlength="15" onkeypress="return is_ipaddr(this);" onkeyup="return change_ipaddr(this);">
+<input type="hidden" id="dsl_dns2_x" name="dsl_dns2_x" value="" maxlength="15" onkeypress="return validator.isIPAddr(this,event);">
 <div class="IPaddr" id="dsl_dns2_x_div">
 <input maxlength="3" tabindex="9"
 onkeypress="return checkIP(this,event);"
@@ -524,6 +542,7 @@ autocomplete="off" />
 </table>
 </fieldset>
 <br>
+<!-- Renjie: Remove this field, we will use Option 61 and 12 for UK Sky.
 <table id="tblsetting_2" class="QISform" width="400" border="0" align="center" cellpadding="3" cellspacing="0">
   <tr>
 	<th width="120"><span id="ppp_username1" style="display:none"><% tcWebApi_Get("String_Entry", "PPPC_UserName_in", "s") %>:</span></th>
@@ -542,10 +561,11 @@ autocomplete="off" />
 	</td>
   </tr>
 </table>
+-->
 </td></tr></table>
 <div class="apply_gen" style="margin-top:30px">
 <input type="button" id="prevButton" value="<% tcWebApi_Get("String_Entry", "Manual_Setting_btn", "s") %>" tabindex="13" onclick="gotoprev(document.form);" class="button_gen_long">
-<input type="button" id="nextButton" value="<% tcWebApi_Get("String_Entry", "btn_next", "s") %>" tabindex="12" onclick="submitForm();" class="button_gen">
+<input type="button" id="nextButton" value="<% tcWebApi_Get("String_Entry", "btn_next", "s") %>" tabindex="12" onclick="submitForm();" class="button_gen_long">
 </div>
 </div>
 </form>

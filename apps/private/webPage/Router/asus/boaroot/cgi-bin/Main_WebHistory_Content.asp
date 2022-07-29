@@ -1,11 +1,13 @@
 ﻿<%
-If Request_Form("flag") <> "0" Then
+If Request_Form("flag") = "1" Then
+	If Request_Form("usb_support_Flag") = "1" Then
+		TCWebApi_set("BackupLog_Entry", "log_bkp_nonhide","log_bkp_nonhide")
+	End if	
 	TCWebApi_set("WebHistory_Entry", "wh_enable","wh_enable")
-	TCWebApi_set("WebHistory_Entry", "wh_bkp","wh_bkp_x")
+	TCWebApi_set("WebHistory_Entry", "wh_bkp_enable","wh_bkp_enable_x")
 	TCWebApi_set("WebHistory_Entry", "wh_bkp_path","wh_bkp_path_x")
 	TCWebApi_set("WebHistory_Entry", "wh_clear","wh_clear")
-	TCWebApi_set("WebHistory_Entry", "wh_bkp_nonhide","wh_bkp_nonhide")
-	TCWebApi_set("WebHistory_Entry", "wh_bkp_period","wh_bkp_period_x")	
+	TCWebApi_set("WebHistory_Entry", "wh_bkp_period","wh_bkp_period_x")
 	tcWebApi_commit("WebHistory_Entry")
 End if
 %>
@@ -43,10 +45,11 @@ End if
 var $j = jQuery.noConflict();
 <% disk_pool_mapping_info(); %>
 <% available_disk_names_and_sizes(); %>
+<% check_log_path("WebHistory"); %>
 
 if(usb_support != -1){
 	var wh_bkp_path_orig = '<% tcWebApi_get("WebHistory_Entry", "wh_bkp_path","s") %>';
-	var wh_bkp_path_fail_flag = '<% tcWebApi_get("WebHistory_Entry", "wh_bkp_path_fail","s") %>';
+	var wh_bkp_path_fail_flag = '<% tcWebApi_get("Vram_Entry", "wh_bkp_path_fail","s") %>';
 	
 	var usb_device_index = disk_interface_names();
 	var usb_mnt_point = pool_names();
@@ -58,24 +61,25 @@ function initial(){
 	if(document.form.wh_enable.value == 1){
 		document.getElementById("log_field").style.display = "";
 		if(usb_support == -1){
-			inputCtrl(document.form.wh_bkp_x[0], 0);
-			inputCtrl(document.form.wh_bkp_x[1], 0);
+			inputCtrl(document.form.wh_bkp_enable_x[0], 0);
+			inputCtrl(document.form.wh_bkp_enable_x[1], 0);
 			inputCtrl(document.form.wh_bkp_period_x, 0);
 			document.getElementById("submitBtn").style.display = "none";
 		}
 		else{
 			usb_disk_options();
-			inputCtrl(document.form.wh_bkp_x[0], 1);
-			inputCtrl(document.form.wh_bkp_x[1], 1);			
-			change_wh_bkp_enable('<%tcWebApi_get("WebHistory_Entry","wh_bkp","s")%>');
+			inputCtrl(document.form.wh_bkp_enable_x[0], 1);
+			inputCtrl(document.form.wh_bkp_enable_x[1], 1);
+			change_wh_bkp_enable('<%tcWebApi_get("WebHistory_Entry","wh_bkp_enable","s")%>');
 			document.getElementById("submitBtn").style.display = "";
 		}
+		corrected_timezone(DAYLIGHT_orig, TZ_orig);
 	}
 	else{
 		document.getElementById("log_field").style.display = "none";
-		inputCtrl(document.form.wh_bkp_x[0], 0);
-		inputCtrl(document.form.wh_bkp_x[1], 0);
-		change_wh_bkp_enable('<%tcWebApi_get("WebHistory_Entry","wh_bkp","s")%>');
+		inputCtrl(document.form.wh_bkp_enable_x[0], 0);
+		inputCtrl(document.form.wh_bkp_enable_x[1], 0);
+		change_wh_bkp_enable('<%tcWebApi_get("WebHistory_Entry","wh_bkp_enable","s")%>');
 		document.getElementById("submitBtn").style.display = "none";
 	}		
 }
@@ -114,13 +118,13 @@ function change_wh_bkp_enable(flag){
 	if(flag == 1){
 		document.getElementById("wh_bkp_path_div").style.display = "";
 		document.getElementById("wh_clear_div").style.display = "";
-		document.getElementById("wh_bkp_nonhide_div").style.display = "";
+		document.getElementById("log_bkp_nonhide_div").style.display = "";
 		inputCtrl(document.form.wh_bkp_period_x, 1);
 	}
 	else{
 		document.getElementById("wh_bkp_path_div").style.display = "none";
 		document.getElementById("wh_clear_div").style.display = "none";
-		document.getElementById("wh_bkp_nonhide_div").style.display = "none";
+		document.getElementById("log_bkp_nonhide_div").style.display = "none";
 		inputCtrl(document.form.wh_bkp_period_x, 0);
 	}	
 }
@@ -128,17 +132,17 @@ function change_wh_bkp_enable(flag){
 function updateUSBStatus(){	
 	if((rc_support.search("usbX") == -1 || rc_support.search("usbX1") >= 0) && usb_path1.search("storage") == -1){	//single USB port		
 		document.getElementById("be_lack_storage").style.display = "";
-		document.form.wh_bkp_x[0].disabled = true;
-		document.form.wh_bkp_x[1].checked = true;
+		document.form.wh_bkp_enable_x[0].disabled = true;
+		document.form.wh_bkp_enable_x[1].checked = true;
 	}
 	else if(rc_support.search("usbX2") >= 0 && (usb_path1.search("storage") == -1 && usb_path2.search("storage") == -1)){	//two USBport
 		document.getElementById("be_lack_storage").style.display = "";
-		document.form.wh_bkp_x[0].disabled = true;
-		document.form.wh_bkp_x[1].checked = true;
+		document.form.wh_bkp_enable_x[0].disabled = true;
+		document.form.wh_bkp_enable_x[1].checked = true;
 	} 
 	else{		
 		document.getElementById("be_lack_storage").style.display = "none";
-		document.form.wh_bkp_x[0].disabled = false;
+		document.form.wh_bkp_enable_x[0].disabled = false;
 	}					
 }
 
@@ -147,16 +151,19 @@ function applyRule(){
 		document.form.wh_clear.value = 1;
 	else
 		document.form.wh_clear.value = 0;
-		
-	if(document.form.wh_bkp_nonhide_x.checked == true)
-		document.form.wh_bkp_nonhide.value = 1;
-	else
-		document.form.wh_bkp_nonhide.value = 0;	
-																					
-	document.form.flag.value = 1;	
+
+	if(usb_support != -1){
+		if(document.form.log_bkp_nonhide_x.checked == true)
+			document.form.log_bkp_nonhide.value = 1;
+		else
+			document.form.log_bkp_nonhide.value = 0;
+		document.form.usb_support_Flag.value = 1;
+	}
+
+	document.form.flag.value = 1;
 	showLoading(3);
 	setTimeout("redirect();", 3000);
-	document.form.submit();	
+	document.form.submit();
 }
 
 function clear_bkup_path_fail(){
@@ -179,9 +186,10 @@ function clear_bkup_path_fail(){
 <input type="hidden" name="current_page" value="/Main_WebHistory_Content.asp">
 <input type="hidden" name="next_page" value="/Main_WebHistory_Content.asp">
 <input type="hidden" name="flag" value="0">
+<input type="hidden" name="usb_support_Flag" value="0">
 <input type="hidden" name="wh_enable" value="<%tcWebApi_get("WebHistory_Entry","wh_enable","s")%>">
 <input type="hidden" name="wh_clear" value="<%tcWebApi_get("WebHistory_Entry","wh_clear","s")%>">
-<input type="hidden" name="wh_bkp_nonhide" value="<%tcWebApi_get("WebHistory_Entry","wh_bkp_nonhide","s")%>">
+<input type="hidden" name="log_bkp_nonhide" value="<%tcWebApi_get("BackupLog_Entry","log_bkp_nonhide","s")%>">
 <table class="content" align="center" cellpadding="0" cellspacing="0">
 	<tr>
 		<td width="17">&nbsp;</td>
@@ -227,13 +235,14 @@ function clear_bkup_path_fail(){
 																	}
 																);
 															</script>
+												<div style="margin-left:15px;"><br><br><span id="timezone_hint" onclick="location.href='Advanced_System_Content.asp?af=time_zone_select'" style="color:#FFCC00;text-decoration:underline;cursor:pointer;display:none;"></span></div>	
 												</td>
 											</tr>
 											<tr>
 												<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(20,7);">Auto Backup in USB Disk</a></th>	<!-- untranslated -->
 												<td>
-													<input type="radio" name="wh_bkp_x" class="input" value="1" onclick="change_wh_bkp_enable(1);" <% if tcWebApi_get("WebHistory_Entry","wh_bkp","h") = "1" then asp_Write("checked") end if %>><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
-													<input type="radio" name="wh_bkp_x" class="input" value="0" onclick="change_wh_bkp_enable(0);" <% if tcWebApi_get("WebHistory_Entry","wh_bkp","h") = "0" then asp_Write("checked") end if %>><%tcWebApi_get("String_Entry","checkbox_No","s")%>													
+													<input type="radio" name="wh_bkp_enable_x" class="input" value="1" onclick="change_wh_bkp_enable(1);" <% if tcWebApi_get("WebHistory_Entry","wh_bkp_enable","h") = "1" then asp_Write("checked") end if %>><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
+													<input type="radio" name="wh_bkp_enable_x" class="input" value="0" onclick="change_wh_bkp_enable(0);" <% if tcWebApi_get("WebHistory_Entry","wh_bkp_enable","h") = "0" then asp_Write("checked") end if %>><%tcWebApi_get("String_Entry","checkbox_No","s")%>
 													<span id="be_lack_storage" style="display:none;color:#FC0">* No USB disk plug-in.</span>													
 													<br>
 													<div id="wh_bkp_path_div">
@@ -241,17 +250,17 @@ function clear_bkup_path_fail(){
 														<span id="bkup_path_fail" style="display:none;color:#FC0"><br>* Current auto backup path is not exist. Make sure the USB disk is plugged in and setup again.</span>	<!-- untranslated -->
 													</div>													
 													<div id="wh_clear_div" style="display:none;"><input type="checkbox" name="wh_clear_x" id="wh_clear_x" value="1" <% if tcWebApi_get("WebHistory_Entry","wh_clear","h") = "1" then asp_Write("checked") end if %>> <label for="wh_clear_x">Clear Web History After Backup<label></div> <!-- untranslated -->
-													<div id="wh_bkp_nonhide_div" style="display:none;"><input type="checkbox" name="wh_bkp_nonhide_x" id="wh_bkp_nonhide_x" value="1" <% if tcWebApi_get("WebHistory_Entry","wh_bkp_nonhide","h") = "1" then asp_Write("checked") end if %>> <label for="wh_bkp_nonhide_x">Non-hidden backup files<label></div> <!-- untranslated -->
+													<div id="log_bkp_nonhide_div" style="display:none;"><input type="checkbox" name="log_bkp_nonhide_x" id="log_bkp_nonhide_x" value="1" <% if tcWebApi_get("BackupLog_Entry","log_bkp_nonhide","h") = "1" then asp_Write("checked") end if %>> <label for="log_bkp_nonhide_x">Non-hidden backup files<label></div> <!-- untranslated -->
 												</td>	
 											</tr>
 											<tr>
 												<th>Backup Period</th>	<!-- untranslated -->
 												<td>
 													<select name="wh_bkp_period_x" class="input_option">
-														<option value="1" <%if tcWebApi_get("WebHistory_Entry","wh_bkp_period","h") = "1" then asp_Write("selected") end if%> >1</option>
-														<option value="6" <%if tcWebApi_get("WebHistory_Entry","wh_bkp_period","h") = "6" then asp_Write("selected") end if%> >6</option>
-														<option value="12" <%if tcWebApi_get("WebHistory_Entry","wh_bkp_period","h") = "12" then asp_Write("selected") end if%> >12</option>
-														<option value="24" <%if tcWebApi_get("WebHistory_Entry","wh_bkp_period","h") = "24" then asp_Write("selected") end if%> >24</option>
+														<option value="3600" <%if tcWebApi_get("WebHistory_Entry","wh_bkp_period","h") = "3600" then asp_Write("selected") end if%> >1</option>
+														<option value="21600" <%if tcWebApi_get("WebHistory_Entry","wh_bkp_period","h") = "21600" then asp_Write("selected") end if%> >6</option>
+														<option value="43200" <%if tcWebApi_get("WebHistory_Entry","wh_bkp_period","h") = "43200" then asp_Write("selected") end if%> >12</option>
+														<option value="86400" <%if tcWebApi_get("WebHistory_Entry","wh_bkp_period","h") = "86400" then asp_Write("selected") end if%> >24</option>
 													</select>&nbsp;<%tcWebApi_get("String_Entry","Hour","s")%>
 												</td>	
 											</tr>
