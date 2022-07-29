@@ -126,7 +126,7 @@ elseif Request_Form("current_page") = "Advanced_SettingBackup_Content.asp" then
 	end if
 elseif Request_Form("current_page") = "Advanced_Feedback.asp" then
 	If Request_Form("DslDiagFlag") = "1" Then
-		tcWebApi_Set("DslDiag_Entry","dslx_diag_enable","dslx_diag_enable")
+		tcWebApi_Set("DslDiag_Entry","dslx_diag_mode","dslx_diag_mode")
 		tcWebApi_Set("DslDiag_Entry","dslx_diag_duration","dslx_diag_duration")
 		If Request_Form("chg2jffsFlag") = "1" Then
 			tcWebApi_Set("DslDiag_Entry","dslx_diag_log_path","dslx_diag_log_path")

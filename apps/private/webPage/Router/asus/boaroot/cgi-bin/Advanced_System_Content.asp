@@ -550,6 +550,11 @@ function uiSave() {
 			if(document.form.sshd_enable[0].checked){
 				if(!validate_range(document.form.sshd_port, 1, 65535))
 					return false;
+				else if(isPortConflict(document.form.sshd_port.value, "ssh")){
+					alert(isPortConflict(document.form.sshd_port.value, "ssh"));
+					document.form.sshd_port.focus();
+					return false;
+				}
 			}
 			else{
 				document.form.sshd_port.disabled = true;
@@ -558,7 +563,7 @@ function uiSave() {
 				document.form.sshd_authkeys.disabled = true;
 			}  
     	
-    			document.form.action_script.value = "restart_ssh";
+			document.form.action_script.value = "restart_ssh";
 			document.form.action_mode.value = "apply";
 			document.form.SaveSSHd.value = 1;
 		}	

@@ -2814,15 +2814,33 @@ function charToAscii(str){
 	return retAscii;
 }
 
-function isPortConflict(_val){
-	if(_val == '80')
-		return "<%tcWebApi_get("String_Entry","portConflictHint","s")%> HTTP LAN port.";
-	else if(_val == '<% TCWebApi_get("Apps_Entry","dm_http_port","s")%>')
-		return "<%tcWebApi_get("String_Entry","portConflictHint","s")%> Download Master.";
-	else if(_val == '<% TCWebApi_get("AiCloud_Entry","webdav_http_port","s")%>')
-		return "<%tcWebApi_get("String_Entry","portConflictHint","s")%> Cloud Disk.";
-	else if(_val == '<% TCWebApi_get("AoiCloud_Entry","webdav_https_port","s")%>')
-		return "<%tcWebApi_get("String_Entry","portConflictHint","s")%> Cloud Disk.";
+function isPortConflict(_val, service){
+	var str = '(' + _val + ') <%tcWebApi_get("String_Entry","portConflictHint","s")%>: ';
+
+	if(_val == '<%TCWebApi_get("Apps_Entry","dm_http_port","s")%>'){
+		str = str + "HTTP LAN port.";
+		return str;
+	}
+	else if(_val == '<%TCWebApi_get("AiCloud_Entry","webdav_http_port","s")%>'){
+		str = str + "Download Master.";
+		return str;
+	}
+	else if(_val == '<%TCWebApi_get("AoiCloud_Entry","webdav_https_port","s")%>'){
+		str = str + "Cloud Disk.";
+		return str;
+	}
+	else if(_val == '<%TCWebApi_get("AoiCloud_Entry","webdav_https_port","s")%>'){
+		str = str + "Cloud Disk.";
+		return str;
+	}
+	else if(service != "ssh" && _val == '<%TCWebApi_get("SSH_Entry","sshport","s")%>'){
+		str = str + "SSH.";
+		return str;
+	}
+	else if(service != "openvpn" && _val == '<%TCWebApi_get("OpenVPN_Entry","port","s")%>'){
+		str = str + "OpenVPN.";
+		return str;
+	}
 	else
 		return false;
 }

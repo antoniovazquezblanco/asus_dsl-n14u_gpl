@@ -108,6 +108,8 @@ var hmacarray = [
 	["RSA MD4", "RSA-MD4"]
 ];
 
+var port_suggestion = "* <%tcWebApi_Get("String_Entry","SSH_Port_Suggestion", "s")%>".replace("SSH", "OpenVPN").replace("22", "1194");
+
 function initial(){
 	var current_server_igncrt = "<%tcWebApi_Get("OpenVPN_Entry","igncrt", "s")%>";
 	var currentcipher = "<%tcWebApi_Get("OpenVPN_Entry","cipher", "s")%>";
@@ -119,6 +121,8 @@ function initial(){
 		document.getElementById("divSwitchMenu").style.display = "";
 	}
 
+	$j("#portSuggestionBasic").html(port_suggestion);
+	$j("#portSuggestionAdvanced").html(port_suggestion);
 	formShowAndHide(vpn_server_enable, "openvpn");
 
 	//check DUT is belong to private IP.
@@ -260,6 +264,7 @@ function formShowAndHide(server_enable, server_type) {
 	if(server_enable == 1 && server_type == "openvpn"){     //General View
 		document.getElementById("trVPNServerMode").style.display = "";		
 		document.getElementById("selSwitchMode").value = "1";
+		document.getElementById("trServerPortBasic").style.display = "";
 		document.getElementById("trRSAEncryptionBasic").style.display = ("<%tcWebApi_Get("OpenVPN_Entry","crypt","s")%>" == "secret")?"none":"";
 		document.getElementById("trClientWillUseVPNToAccess").style.display = "";
 		document.getElementById('OpenVPN_setting').style.display = ("<%tcWebApi_Get("OpenVPN_Entry","crypt","s")%>" == "secret")?"none":"";
@@ -286,6 +291,7 @@ function formShowAndHide(server_enable, server_type) {
 	}
 	else{
 		document.getElementById("trVPNServerMode").style.display = "none";
+		document.getElementById("trServerPortBasic").style.display = "none";
 		document.getElementById("trRSAEncryptionBasic").style.display = "none";
 		document.getElementById("trClientWillUseVPNToAccess").style.display = "none";
 		document.getElementById("openvpn_export").style.display = "none";
@@ -318,8 +324,29 @@ function openvpnd_connected_status(){
 
 function applyRule(){
 	var validForm = function() {
-		if(!validator.numberRange(document.form.vpn_server_port, 1, 65535)) {
-			return false;
+		if(document.getElementById("selSwitchMode").value =="1"){
+			if(!validator.numberRange(document.form.vpn_server_port_basic, 1, 65535)) {
+				return false;
+			}
+			else if(isPortConflict(document.form.vpn_server_port_basic.value, "openvpn")){
+				alert(isPortConflict(document.form.vpn_server_port_basic.value, "openvpn"));
+				document.form.vpn_server_port_basic.focus();
+				return false;
+			}
+			else
+				document.form.vpn_server_port.value = document.form.vpn_server_port_basic.value;
+		}
+		else if(document.getElementById("selSwitchMode").value =="2"){
+			if(!validator.numberRange(document.form.vpn_server_port_adv, 1, 65535)) {
+				return false;
+			}
+			else if(isPortConflict(document.form.vpn_server_port_adv.value, "openvpn")){
+				alert(isPortConflict(document.form.vpn_server_port_adv.value, "openvpn"));
+				document.form.vpn_server_port_adv.focus();
+				return false;
+			}
+			else
+				document.form.vpn_server_port.value = document.form.vpn_server_port_adv.value;
 		}
 		/*!-- rm 2017/06/28 
 		if(!validator.numberRange(document.form.vpn_server_poll, 0, 1440)) {
@@ -616,7 +643,7 @@ function validForm(){
 		valid_username.focus();
 		return false;
 	}
-	else if(!Block_chars(valid_username, [" ", "@", "*", "+", "|", ":", "?", "<", ">", ",", ".", "/", ";", "[", "]", "\\", "=", "\"", "&" ])) {
+	else if(!Block_chars(valid_username, [" ", "@", "*", "+", "|", ":", "?", "<", ">", ",", "/", ";", "[", "]", "\\", "=", "\"", "&" ])) {
 		return false;
 	}
 
@@ -832,7 +859,7 @@ function showMailPanel(){
 
 function switchMode(mode){
 	if(mode == "1"){		//general setting
-		
+		document.getElementById("trServerPortBasic").style.display = "";
 		document.getElementById("trRSAEncryptionBasic").style.display = ("<%tcWebApi_Get("OpenVPN_Entry","crypt","s")%>" == "secret")?"none":"";		
 		document.getElementById("trClientWillUseVPNToAccess").style.display = "";
 		document.getElementById('OpenVPN_setting').style.display = ("<%tcWebApi_Get("OpenVPN_Entry","crypt","s")%>" == "secret")?"none":"";		
@@ -846,6 +873,7 @@ function switchMode(mode){
 	}
 	else{
 
+		document.getElementById("trServerPortBasic").style.display = "none";
 		document.getElementById("trRSAEncryptionBasic").style.display = "none";
 		document.getElementById("trClientWillUseVPNToAccess").style.display = "none";
 		document.getElementById("OpenVPN_setting").style.display = "none";
@@ -1226,7 +1254,7 @@ function updateVpnServerClientAccess() {
 		<input type="hidden" name="vpn_crt_server1_dh" value="" disabled>
 		<input type="hidden" name="vpn_crt_server1_static" value="" disabled>
 		<input type="hidden" name="vpn_crt_server1_crl" value="" disabled>
-		<input type="hidden" name="formname" value="openvpnTLSKeyForm">
+		<input type="hidden" name="formname" value="openvpnTLSKeyForm">		
 		<tr>
 			<div class="description_down"><%tcWebApi_Get("String_Entry","vpn_openvpn_Keys_Cert","s")%></div>
 		</tr>
@@ -1369,6 +1397,7 @@ function updateVpnServerClientAccess() {
 <input type="hidden" name="vpn_serverx_dns" value="<%tcWebApi_Get("OpenVPN_Common", "vpn_serverx_dns", "s")%>">
 <input type="hidden" name="vpn_server_ccd_val" value="">
 <input type="hidden" name="vpn_server_tls_keysize" value="<% tcWebApi_Get("OpenVPN_Entry", "tls_keysize", "s") %>">
+<input type="hidden" name="vpn_server_port" value="<% tcWebApi_Get("OpenVPN_Entry", "port", "s") %>">
 <input type="hidden" name="formname" value="form">
 <table class="content" align="center" cellpadding="0" cellspacing="0">
 	<tr>
@@ -1432,6 +1461,13 @@ function updateVpnServerClientAccess() {
 													<option value="1" selected><%tcWebApi_Get("String_Entry","menu5_1_1","s")%></option>
 													<option value="2"><%tcWebApi_Get("String_Entry","menu5","s")%></option>
 												</select>
+											</td>
+										</tr>
+										<tr id="trServerPortBasic">
+											<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(32,6);"><%tcWebApi_Get("String_Entry","WA11a_ExAuthDBPortNumber_in","s")%></a></th>
+											<td>
+												<input type="text" maxlength="5" class="input_6_table" name="vpn_server_port_basic" onKeyPress="return validator.isNumber(this,event);" value="<% tcWebApi_Get("OpenVPN_Entry", "port", "s") %>" autocorrect="off" autocapitalize="off">
+												<div id="portSuggestionBasic" style="color: #FFCC00;"></div>
 											</td>
 										</tr>
 										<tr id="trRSAEncryptionBasic">
@@ -1599,8 +1635,8 @@ function updateVpnServerClientAccess() {
 											<tr>
 												<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(32,6);"><%tcWebApi_Get("String_Entry","WA11a_ExAuthDBPortNumber_in","s")%></a></th>
 												<td>
-													<input type="text" maxlength="5" class="input_6_table" name="vpn_server_port" onKeyPress="return validator.isNumber(this,event);" value="<% tcWebApi_Get("OpenVPN_Entry", "port", "s") %>" autocorrect="off" autocapitalize="off">
-													<span style="color:#FC0">(<%tcWebApi_Get("String_Entry","Setting_factorydefault_value","s")%> : 1194)</span>
+													<input type="text" maxlength="5" class="input_6_table" name="vpn_server_port_adv" onKeyPress="return validator.isNumber(this,event);" value="<% tcWebApi_Get("OpenVPN_Entry", "port", "s") %>" autocorrect="off" autocapitalize="off">
+													<div id="portSuggestionAdvanced" style="color: #FFCC00;"></div>
 												</td>
 											</tr>
 

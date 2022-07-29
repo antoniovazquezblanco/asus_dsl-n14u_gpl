@@ -5821,6 +5821,12 @@ ifneq ($(strip $(TCSUPPORT_DSL_LINE_DIAGNOSTIC)),)
 	ln -sf /tmp/TCC.log.c.gz $(FILESYSTEM_DIR)/boaroot/html/TCC.log.c.gz
 	ln -sf /tmp/TCC.log.d.gz $(FILESYSTEM_DIR)/boaroot/html/TCC.log.d.gz
 	ln -sf /tmp/TCC.log.e.gz $(FILESYSTEM_DIR)/boaroot/html/TCC.log.e.gz
+	ln -sf /tmp/WiFi.log.gz $(FILESYSTEM_DIR)/boaroot/html/WiFi.log.gz
+	ln -sf /tmp/WiFi.log.a.gz $(FILESYSTEM_DIR)/boaroot/html/WiFi.log.a.gz
+	ln -sf /tmp/WiFi.log.b.gz $(FILESYSTEM_DIR)/boaroot/html/WiFi.log.b.gz
+	ln -sf /tmp/WiFi.log.c.gz $(FILESYSTEM_DIR)/boaroot/html/WiFi.log.c.gz
+	ln -sf /tmp/WiFi.log.d.gz $(FILESYSTEM_DIR)/boaroot/html/WiFi.log.d.gz
+	ln -sf /tmp/WiFi.log.e.gz $(FILESYSTEM_DIR)/boaroot/html/WiFi.log.e.gz
 endif
 # ifneq ($(strip $(TCSUPPORT_SYSLOG_ENHANCE)),)
 	# ln -s /var/log/currLogFile $(FILESYSTEM_DIR)/boaroot/html/syslog.xlog

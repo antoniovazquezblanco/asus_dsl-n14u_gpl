@@ -23,6 +23,7 @@
 var fb_response = "<% tcWebApi_staticGet("PushMail_Entry","fb_state","s") %>";
 var diag_log_exist = "<% tcWebApi_staticGet("DslDiag_Entry","dslx_diag_log_link","s") %>";
 var WANConnCurState = "<% tcWebApi_staticGet("GUITemp_Entry0","WANConnCurState","s") %>";
+var diag_mode = "<% tcWebApi_staticGet("DslDiag_Entry", "dslx_diag_mode","s") %>";
 	
 function initial(){	
 	show_menu();	
@@ -78,8 +79,23 @@ function get_debug_log_info(){
 	desc += "DSL Driver Version:  <% tcWebApi_staticGet("Info_Adsl","fwVer","s") %>\n\n";
 
 	desc += "PIN Code: <% tcWebApi_get("WLan_Entry0", "WscVendorPinCode", "s") %>\n";
-	desc += "MAC Address: <% tcWebApi_Get("Info_Ether","mac","s") %>\n\n";
+	desc += "MAC Address: <% tcWebApi_Get("Info_Ether","mac","s") %>\n";
 
+	if(diag_mode==0){
+		desc += "DSL Line / Wifi Diagnostic: 0(disable)\n";
+	}
+	else if(diag_mode==1){
+		desc += "DSL Line / Wifi Diagnostic: 1(xDSL Line)\n";
+	}
+	else if(diag_mode==2){
+		desc += "DSL Line / Wifi Diagnostic: 2(Wi-Fi 2.4GHz)\n";
+	}
+	else if(diag_mode==3){
+		desc += "DSL Line / Wifi Diagnostic: 3(Wi-Fi 5GHz)\n";
+	}
+	else{
+		desc += "DSL Line / Wifi Diagnostic: (unknown mode)\n";
+	}
 	desc += "Diagnostic debug log capture duration: <% tcWebApi_staticGet("DslDiag_Entry","dslx_diag_duration","s") %> sec.\n";
 	desc += "DSL connection: <% tcWebApi_staticGet("GUITemp_Entry0","fb_tmp_availability","s") %>\n";
 
@@ -96,10 +112,12 @@ function applyRule(){
 }
 
 function reset_diag_state(unit){
+	var log_name = (diag_mode==2 || diag_mode==3)?"WiFi.log":"TCC.log";
+
 	if(unit == 0)
-		var cfg = '/TCC.log.gz';
+		var cfg = '/'+log_name+'.gz';
 	else
-		var cfg = '/TCC.log.'+unit+'.gz';
+		var cfg = '/'+log_name+'.'+unit+'.gz';
 	var code = 'location.assign(\"' + cfg + '\")';
 	eval(code);
 }

@@ -14489,7 +14489,7 @@ static void dump_fb_fail_content( void )
 
 #ifdef TCSUPPORT_DSL_LINE_DIAGNOSTIC
 	memset(tmp_val, 0, sizeof(tmp_val));
-	tcapi_get_string("DslDiag_Entry", "dslx_diag_enable", tmp_val);
+	tcapi_get_string("DslDiag_Entry", "dslx_diag_mode", tmp_val);
 	snprintf(buf, sizeof(buf), "DSL Line / Wifi Diagnostic: ");
 	switch(atoi(tmp_val))
 	{
@@ -16355,8 +16355,8 @@ static void disk_scan_result(asp_reent* reent, const asp_text* params, asp_text*
 #ifdef TCSUPPORT_DSL_LINE_DIAGNOSTIC
 static void stop_dsl_diag(asp_reent* reent, const asp_text* params, asp_text* ret)
 {
-	if(tcapi_match("DslDiag_Entry", "dslx_diag_enable", "1") || tcapi_match("DslDiag_Entry", "dslx_diag_state", "1")) {
-		tcapi_set("DslDiag_Entry", "dslx_diag_enable", "0"); /* DIAG_DISABLE_MODE */
+	if(tcapi_match("DslDiag_Entry", "dslx_diag_state", "1")) { /* DSL_DIAG_STATE_START */
+		tcapi_set("DslDiag_Entry", "dslx_diag_enable", "0"); /* DIAG Disable */
 		tcapi_set("DslDiag_Entry", "dslx_diag_state", "5"); /* DSL_DIAG_UI_CANCEL_DEBUG_CAPTURE */
 		tcapi_commit("DslDiag");
 	}

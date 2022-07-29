@@ -332,7 +332,7 @@ FwUpgradeDelay="0" FwUpgradeCfg="1" FwUpgradeRxCnt="50" RandomInform="0" SendHos
 	PM_attach_syslog="0" PM_attach_cfgfile="0" PM_attach_iptables="0" />
 </PushMail>
 <DslDiag>
-	<Entry dslx_diag_enable="0" dslx_diag_duration="0" dslx_diag_state="0" dslx_diag_end_uptime="0" dslx_diag_log_path="" dslx_diag_log_link="" />
+	<Entry dslx_diag_enable="0" dslx_diag_mode="0" dslx_diag_duration="0" dslx_diag_state="0" dslx_diag_end_uptime="0" dslx_diag_log_path="" dslx_diag_log_link="" />
 </DslDiag>
 <Timezone>
 	<Entry TYPE="0" TZ="GMT" DAYLIGHT="Disable" SERVER="pool.ntp.org" PCSyncFlag="0" TZ_second="" />

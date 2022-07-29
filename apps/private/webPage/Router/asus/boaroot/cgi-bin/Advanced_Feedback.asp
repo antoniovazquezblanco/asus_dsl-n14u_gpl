@@ -31,21 +31,21 @@ function initial(){
 	}
 
 	if(dsl_diag_support >= 0 && (Diag2jffs_support || usb_support >= 0) ){
-		change_dsl_diag_enable(0);
+		change_dsl_diag_mode(0);
 		check_dsl_diag_state();
 		if(!wl_info.band5g_support){		//single band
-			inputCtrl(document.adv_adsl.dslx_diag_enable[3], 0);
-			document.adv_adsl.dslx_diag_enable[3].style.display = "none";
+			inputCtrl(document.adv_adsl.dslx_diag_mode[3], 0);
+			document.adv_adsl.dslx_diag_mode[3].style.display = "none";
 			document.getElementById("5GHz_text").style.display = "none";
 		}
 	}
 	else{
-		inputCtrl(document.adv_adsl.dslx_diag_enable[0], 0);
-		inputCtrl(document.adv_adsl.dslx_diag_enable[1], 0);
-		inputCtrl(document.adv_adsl.dslx_diag_enable[2], 0);
-		inputCtrl(document.adv_adsl.dslx_diag_enable[3], 0);
+		inputCtrl(document.adv_adsl.dslx_diag_mode[0], 0);
+		inputCtrl(document.adv_adsl.dslx_diag_mode[1], 0);
+		inputCtrl(document.adv_adsl.dslx_diag_mode[2], 0);
+		inputCtrl(document.adv_adsl.dslx_diag_mode[3], 0);
 		inputCtrl(document.adv_adsl.dslx_diag_duration, 0);	
-		document.getElementById("dslx_diag_enable_tr").style.display = "none";
+		document.getElementById("dslx_diag_mode_tr").style.display = "none";
 		document.getElementById("dslx_diag_duration_tr").style.display = "none";
 	}
 
@@ -55,14 +55,14 @@ function initial(){
 
 function check_dsl_diag_state(){
 	if(wan_diag_state == 1){	//diagnostic log capturing
-		document.adv_adsl.dslx_diag_enable[0].disabled = "true";
-		document.adv_adsl.dslx_diag_enable[1].disabled = "true";
-		document.adv_adsl.dslx_diag_enable[2].disabled = "true";
+		document.adv_adsl.dslx_diag_mode[0].disabled = "true";
+		document.adv_adsl.dslx_diag_mode[1].disabled = "true";
+		document.adv_adsl.dslx_diag_mode[2].disabled = "true";
 		if(wl_info.band5g_support){
-			document.adv_adsl.dslx_diag_enable[3].disabled = "true";
+			document.adv_adsl.dslx_diag_mode[3].disabled = "true";
 		}
 		else{
-			document.adv_adsl.dslx_diag_enable[3].style.display = "none";
+			document.adv_adsl.dslx_diag_mode[3].style.display = "none";
 			document.getElementById("5GHz_text").style.display = "none";
 		}
 		document.adv_adsl.dslx_diag_duration.disabled = "true";
@@ -70,14 +70,14 @@ function check_dsl_diag_state(){
 		document.getElementById("diag_proceeding").innerHTML = "* Diagnostic debug log capture in progress. " +show_diagTime(boottime_update)+"<br><span onclick=\"cancel_diag();\" style=\"cursor:pointer;text-decoration:underline;\">Cancel debug capture</span>";
 	}
 	else{
-		document.adv_adsl.dslx_diag_enable[0].disabled = "";
-		document.adv_adsl.dslx_diag_enable[1].disabled = "";
-		document.adv_adsl.dslx_diag_enable[2].disabled = "";
+		document.adv_adsl.dslx_diag_mode[0].disabled = "";
+		document.adv_adsl.dslx_diag_mode[1].disabled = "";
+		document.adv_adsl.dslx_diag_mode[2].disabled = "";
 		if(wl_info.band5g_support){
-			document.adv_adsl.dslx_diag_enable[3].disabled = "";
+			document.adv_adsl.dslx_diag_mode[3].disabled = "";
 		}
 		else{
-			document.adv_adsl.dslx_diag_enable[3].style.display = "none";
+			document.adv_adsl.dslx_diag_mode[3].style.display = "none";
 			document.getElementById("5GHz_text").style.display = "none";
 		}
 		document.adv_adsl.dslx_diag_duration.disabled = "";
@@ -101,10 +101,10 @@ function check_wan_state(){
 		document.adv_adsl.attach_iptables.disabled = "true";
 		document.adv_adsl.attach_modemlog.disabled = "true";
 		if(dsl_diag_support >= 0){
-			document.adv_adsl.dslx_diag_enable[0].disabled = "true";
-			document.adv_adsl.dslx_diag_enable[1].disabled = "true";
-			document.adv_adsl.dslx_diag_enable[2].disabled = "true";
-			document.adv_adsl.dslx_diag_enable[3].disabled = "true";
+			document.adv_adsl.dslx_diag_mode[0].disabled = "true";
+			document.adv_adsl.dslx_diag_mode[1].disabled = "true";
+			document.adv_adsl.dslx_diag_mode[2].disabled = "true";
+			document.adv_adsl.dslx_diag_mode[3].disabled = "true";
 			document.adv_adsl.dslx_diag_duration.disabled = "true";
 		}
 		document.adv_adsl.fb_availability.disabled = "true";		
@@ -124,20 +124,20 @@ function check_wan_state(){
 		document.adv_adsl.attach_iptables.disabled = "";
 		document.adv_adsl.attach_modemlog.disabled = "";
 		if(dsl_diag_support >= 0 && wan_diag_state == 1){
-			document.adv_adsl.dslx_diag_enable[0].disabled = "true";
-			document.adv_adsl.dslx_diag_enable[1].disabled = "true";
-			document.adv_adsl.dslx_diag_enable[2].disabled = "true";
-			document.adv_adsl.dslx_diag_enable[3].disabled = "true";
+			document.adv_adsl.dslx_diag_mode[0].disabled = "true";
+			document.adv_adsl.dslx_diag_mode[1].disabled = "true";
+			document.adv_adsl.dslx_diag_mode[2].disabled = "true";
+			document.adv_adsl.dslx_diag_mode[3].disabled = "true";
 			document.adv_adsl.dslx_diag_duration.disabled = "true";
 			document.getElementById("diag_proceeding").style.display = "";
 			document.getElementById("diag_proceeding").innerHTML = "* Diagnostic debug log capture in progress. " +show_diagTime(boottime_update)+"<br><span onclick=\"cancel_diag();\" style=\"cursor:pointer;text-decoration:underline;\">Cancel debug capture</span>";
 		}
 		else if(dsl_diag_support >= 0){
-			document.adv_adsl.dslx_diag_enable[0].disabled = "";
-			document.adv_adsl.dslx_diag_enable[1].disabled = "";
-			document.adv_adsl.dslx_diag_enable[2].disabled = "";
+			document.adv_adsl.dslx_diag_mode[0].disabled = "";
+			document.adv_adsl.dslx_diag_mode[1].disabled = "";
+			document.adv_adsl.dslx_diag_mode[2].disabled = "";
 			if(wl_info.band5g_support){
-				document.adv_adsl.dslx_diag_enable[3].disabled = "";
+				document.adv_adsl.dslx_diag_mode[3].disabled = "";
 			}
 			document.adv_adsl.dslx_diag_duration.disabled = "";
 			document.getElementById("diag_proceeding").style.display = "none";
@@ -224,9 +224,9 @@ function applyRule(){
 		}
 		
 		document.adv_adsl.saveFlag.value = 1;
-		if(document.adv_adsl.dslx_diag_enable[1].checked == true ||
-			document.adv_adsl.dslx_diag_enable[2].checked == true ||
-			document.adv_adsl.dslx_diag_enable[3].checked == true)
+		if(document.adv_adsl.dslx_diag_mode[1].checked == true ||
+			document.adv_adsl.dslx_diag_mode[2].checked == true ||
+			document.adv_adsl.dslx_diag_mode[3].checked == true)
 		{
 			document.adv_adsl.DslDiagFlag.value = 1;
 			if(Diag2jffs_support){
@@ -268,21 +268,15 @@ function textCounter(field, cnt, upper) {
 		cnt.value = upper - field.value.length;
 }
 
-function change_dsl_diag_enable(value) {
+function change_dsl_diag_mode(value) {
 	if(value > 0) {
 		if(Diag2jffs_support){
-			document.adv_adsl.dslx_diag_duration[0].style.display = "none";
-			document.adv_adsl.dslx_diag_duration[1].selected = true;
-			document.adv_adsl.dslx_diag_duration[2].style.display = "none";
-			document.adv_adsl.dslx_diag_duration[3].style.display = "none";
-			document.adv_adsl.dslx_diag_duration[4].style.display = "none";
-			document.adv_adsl.dslx_diag_duration[5].style.display = "none";
 			showhide("dslx_diag_duration_tr",1);
 		}	
 		else if(rc_support.search("usbX") == -1 || rc_support.search("usbX1") >= 0){	//single USB port
 			if(usb_path1.search("storage") == -1){
 				alert("USB disk required in order to store the debug log, please plug-in a USB disk to <%tcWebApi_get("String_Entry","Web_Title2","s")%> and Enable DSL Line / Wi-Fi Diagnostic again.");
-				document.adv_adsl.dslx_diag_enable[0].checked = true;
+				document.adv_adsl.dslx_diag_mode[0].checked = true;
 				return;
 			}
 			else{
@@ -293,7 +287,7 @@ function change_dsl_diag_enable(value) {
 		else if(rc_support.search("usbX2") >= 0 ){	//two USB port
 			if(usb_path1.search("storage") == -1 && usb_path2.search("storage") == -1){
 				alert("USB disk required in order to store the debug log, please plug-in a USB disk to <%tcWebApi_get("String_Entry","Web_Title2","s")%> and Enable DSL Line / Wi-Fi Diagnostic again.");
-				document.adv_adsl.dslx_diag_enable[0].checked = true;
+				document.adv_adsl.dslx_diag_mode[0].checked = true;
 				return;
 			}
 			else{
@@ -344,7 +338,7 @@ function change_dsl_diag_enable(value) {
 <input type="hidden" name="saveFlag" value="0">
 <input type="hidden" name="DslDiagFlag" value="0">
 <input type="hidden" name="chg2jffsFlag" value="0">
-<input type="hidden" name="dslx_diag_log_path" value="/jffs">
+<input type="hidden" name="dslx_diag_log_path" value="/tmp">
 <table class="content" align="center" cellpadding="0" cellspacing="0">
 <tr>
 <td width="17">&nbsp;</td>
@@ -410,13 +404,13 @@ function change_dsl_diag_enable(value) {
 </td>
 </tr>
 
-<tr id="dslx_diag_enable_tr">
+<tr id="dslx_diag_mode_tr">
 	<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(25,19);">DSL Line / Wi-Fi Diagnostic *</a></th>
 	<td>
-		<input type="radio" name="dslx_diag_enable" class="input" value="0" onclick="change_dsl_diag_enable(0);" checked><%tcWebApi_get("String_Entry","btn_disable","s")%>
-		<input type="radio" name="dslx_diag_enable" class="input" value="1" onclick="change_dsl_diag_enable(1);">xDSL line
-		<input type="radio" name="dslx_diag_enable" class="input" value="2" onclick="change_dsl_diag_enable(2);">Wi-Fi 2.4GHz
-		<input type="radio" name="dslx_diag_enable" class="input" value="3" onclick="change_dsl_diag_enable(3);"><span id="5GHz_text" style="color:white;">Wi-Fi 5GHz</span>
+		<input type="radio" name="dslx_diag_mode" class="input" value="0" onclick="change_dsl_diag_mode(0);" checked><%tcWebApi_get("String_Entry","btn_disable","s")%>
+		<input type="radio" name="dslx_diag_mode" class="input" value="1" onclick="change_dsl_diag_mode(1);">xDSL line
+		<input type="radio" name="dslx_diag_mode" class="input" value="2" onclick="change_dsl_diag_mode(2);">Wi-Fi 2.4GHz
+		<input type="radio" name="dslx_diag_mode" class="input" value="3" onclick="change_dsl_diag_mode(3);"><span id="5GHz_text" style="color:white;">Wi-Fi 5GHz</span>
 		<br>
 		<span id="be_lack_storage" style="display:none;color:#FC0">* No USB disk plug-in.</span>
 		<span id="diag_proceeding" style="display:none;color:#FC0"></span>
