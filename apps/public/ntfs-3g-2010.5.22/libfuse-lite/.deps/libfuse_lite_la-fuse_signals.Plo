@@ -1,0 +1,170 @@
+libfuse_lite_la-fuse_signals.lo: fuse_signals.c ../config.h \
+  ../include/fuse-lite/fuse_lowlevel.h ../include/fuse-lite/fuse_common.h \
+  ../include/fuse-lite/fuse_opt.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/stdio.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/features.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/uClibc_config.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/uClibc_arch_features.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/sys/cdefs.h \
+  /home/user/socsw/svn/toolchain/trendchip/mips-linux-uclibc/usr/bin/../lib/gcc/mips-linux-uclibc/4.3.4/include/stddef.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/types.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/wordsize.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/kernel_types.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/typesizes.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/pthreadtypes.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/sched.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/uClibc_stdio.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/wchar.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/wchar.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/uClibc_mutex.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/pthread.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/sched.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/time.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/time.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/uClibc_clk_tck.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/signal.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/sigset.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/initspin.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/sigthread.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/uClibc_pthread.h \
+  /home/user/socsw/svn/toolchain/trendchip/mips-linux-uclibc/usr/bin/../lib/gcc/mips-linux-uclibc/4.3.4/include/stdarg.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/stdio_lim.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/stdint.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/utime.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/fcntl.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/fcntl.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/sgidefs.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/sys/types.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/endian.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/endian.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/sys/select.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/select.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/sys/sysmacros.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/uio.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/sys/stat.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/stat.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/sys/statvfs.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/statvfs.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/sys/uio.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/string.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/signum.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/siginfo.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/sigaction.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/sigcontext.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/bits/sigstack.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/ucontext.h \
+  /opt/trendchip/mips-linux-uclibc/usr/include/sys/ucontext.h
+
+../config.h:
+
+../include/fuse-lite/fuse_lowlevel.h:
+
+../include/fuse-lite/fuse_common.h:
+
+../include/fuse-lite/fuse_opt.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/stdio.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/features.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/uClibc_config.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/uClibc_arch_features.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/sys/cdefs.h:
+
+/home/user/socsw/svn/toolchain/trendchip/mips-linux-uclibc/usr/bin/../lib/gcc/mips-linux-uclibc/4.3.4/include/stddef.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/types.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/wordsize.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/kernel_types.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/typesizes.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/pthreadtypes.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/sched.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/uClibc_stdio.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/wchar.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/wchar.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/uClibc_mutex.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/pthread.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/sched.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/time.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/time.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/uClibc_clk_tck.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/signal.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/sigset.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/initspin.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/sigthread.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/uClibc_pthread.h:
+
+/home/user/socsw/svn/toolchain/trendchip/mips-linux-uclibc/usr/bin/../lib/gcc/mips-linux-uclibc/4.3.4/include/stdarg.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/stdio_lim.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/stdint.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/utime.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/fcntl.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/fcntl.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/sgidefs.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/sys/types.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/endian.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/endian.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/sys/select.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/select.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/sys/sysmacros.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/uio.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/sys/stat.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/stat.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/sys/statvfs.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/statvfs.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/sys/uio.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/string.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/signum.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/siginfo.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/sigaction.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/sigcontext.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/bits/sigstack.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/ucontext.h:
+
+/opt/trendchip/mips-linux-uclibc/usr/include/sys/ucontext.h:
