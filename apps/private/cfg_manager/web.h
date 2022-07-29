@@ -745,11 +745,19 @@ typedef struct _SITE_SURVEY_RT3352_iNIC
 	char authmode[15];	//security part1
 	char encryption[8];	//security part2 and need to shift data
 	char signal[9];
+#if defined(MT7612E)
+	char wmode[9];
+	char extch[7];
+	char nt[4];
+	char wps[3];
+	char dpid[4];
+#else
 	char wmode[8];
 	char extch[7];
 	char nt[3];
 	char wps[4];
 	char dpid[4];
+#endif
 	char newline;
 } SITE_SURVEY_RT3352_iNIC;
 

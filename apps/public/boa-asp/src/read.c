@@ -61,13 +61,18 @@ int read_header(request * req)
     }
 #endif
 
-		/* Paul add 2013/3/7, for retrieve Language type from HTTP header */
-		tcapi_get("LanguageSwitch_Entry", "Type", str_type);
+	/* Paul add 2013/3/7, for retrieve Language type from HTTP header */
+	tcapi_get("LanguageSwitch_Entry", "Type", str_type);
+	if(strlen(str_type))
+		nIndex = atoi(str_type);
+
+	if(nIndex == 0) /* Language never been set before, start checking */
+	{
+		tcapi_get("WebCurSet_Entry", "detected_lang_type", str_type);
 		if(strlen(str_type))
 			nIndex = atoi(str_type);
 
-		if(nIndex == 0) /* Language never been set before, start checking */
-		{
+		if(nIndex == 0) { // Language never been detect before, start checking
 			memset(str_lang, 0, sizeof(str_lang));
 			if(pstr = strstr(check,"Accept-Language:"))
 			{
@@ -91,91 +96,91 @@ int read_header(request * req)
 
 				if(!strcmp(str_lang, "en-us"))
 				{
-					tcapi_set("LanguageSwitch_Entry", "Type", "1");
+					tcapi_set("WebCurSet_Entry", "detected_lang_type", "1");
 				}
 				else if(!strcmp(str_lang, "ru-ru"))
 				{
-					tcapi_set("LanguageSwitch_Entry", "Type", "14");
+					tcapi_set("WebCurSet_Entry", "detected_lang_type", "14");
 				}
 				else if(!strcmp(str_lang, "fr-fr"))
 				{
-					tcapi_set("LanguageSwitch_Entry", "Type", "9");
+					tcapi_set("WebCurSet_Entry", "detected_lang_type", "9");
 				}
 				else if(!strcmp(str_lang, "de-at") || !strcmp(str_lang, "de-li") || !strcmp(str_lang, "de-lu") || !strcmp(str_lang, "de-de") || !strcmp(str_lang, "de-ch"))
 				{
-					tcapi_set("LanguageSwitch_Entry", "Type", "6");
+					tcapi_set("WebCurSet_Entry", "detected_lang_type", "6");
 				}
 				else if(!strcmp(str_lang, "cs-cz"))
 				{
-					tcapi_set("LanguageSwitch_Entry", "Type", "4");
+					tcapi_set("WebCurSet_Entry", "detected_lang_type", "4");
 				}
 				else if(!strcmp(str_lang, "pl-pl"))
 				{
-					tcapi_set("LanguageSwitch_Entry", "Type", "13");
+					tcapi_set("WebCurSet_Entry", "detected_lang_type", "13");
 				}
 				else if(!strcmp(str_lang, "zh-tw") || !strcmp(str_lang, "zh-hk") || !strcmp(str_lang, "zh-mo")) //Modify for Macau
 				{
-					tcapi_set("LanguageSwitch_Entry", "Type", "18");
+					tcapi_set("WebCurSet_Entry", "detected_lang_type", "18");
 				}
 				else if(!strcmp(str_lang, "zh-cn") || !strcmp(str_lang, "zh-sg")) //Modify for Singapore
 				{
-					tcapi_set("LanguageSwitch_Entry", "Type", "3");
+					tcapi_set("WebCurSet_Entry", "detected_lang_type", "3");
 				}
 				else if(!strcmp(str_lang, "ms-my") || !strcmp(str_lang, "ms-bn"))
 				{
-					tcapi_set("LanguageSwitch_Entry", "Type", "11");
+					tcapi_set("WebCurSet_Entry", "detected_lang_type", "11");
 				}
 				else if(!strcmp(str_lang, "th-th"))
 				{
-					tcapi_set("LanguageSwitch_Entry", "Type", "16");
+					tcapi_set("WebCurSet_Entry", "detected_lang_type", "16");
 				}
 				else if(!strcmp(str_lang, "tr-tr"))
 				{
-					tcapi_set("LanguageSwitch_Entry", "Type", "17");
+					tcapi_set("WebCurSet_Entry", "detected_lang_type", "17");
 				}
 				else if(!strcmp(str_lang, "da-dk"))
 				{
-					tcapi_set("LanguageSwitch_Entry", "Type", "5");
+					tcapi_set("WebCurSet_Entry", "detected_lang_type", "5");
 				}
 				else if(!strcmp(str_lang, "fi-fi"))
 				{
-					tcapi_set("LanguageSwitch_Entry", "Type", "8");
+					tcapi_set("WebCurSet_Entry", "detected_lang_type", "8");
 				}
 				else if(!strcmp(str_lang, "nb-no") || !strcmp(str_lang, "nn-no"))
 				{
-					tcapi_set("LanguageSwitch_Entry", "Type", "12");
+					tcapi_set("WebCurSet_Entry", "detected_lang_type", "12");
 				}
 				else if(!strcmp(str_lang, "sv-fi") || !strcmp(str_lang, "sv-se"))
 				{
-					tcapi_set("LanguageSwitch_Entry", "Type", "15");
+					tcapi_set("WebCurSet_Entry", "detected_lang_type", "15");
 				}
 				else if(!strcmp(str_lang, "pt-br"))
 				{
-					tcapi_set("LanguageSwitch_Entry", "Type", "2");
+					tcapi_set("WebCurSet_Entry", "detected_lang_type", "2");
 				}
 				else if(!strcmp(str_lang, "es-ec") || !strcmp(str_lang, "es-py") || !strcmp(str_lang, "es-pa") || !strcmp(str_lang, "es-ni") || !strcmp(str_lang, "es-gt"))
 				{
-					tcapi_set("LanguageSwitch_Entry", "Type", "7");
+					tcapi_set("WebCurSet_Entry", "detected_lang_type", "7");
 				}
 				else if(!strcmp(str_lang, "es-do") || !strcmp(str_lang, "es-es") || !strcmp(str_lang, "es-hn") || !strcmp(str_lang, "es-ve") || !strcmp(str_lang, "es-pr"))
 				{
-					tcapi_set("LanguageSwitch_Entry", "Type", "7");
+					tcapi_set("WebCurSet_Entry", "detected_lang_type", "7");
 				}
 				else if(!strcmp(str_lang, "es-ar") || !strcmp(str_lang, "es-bo") || !strcmp(str_lang, "es-us") || !strcmp(str_lang, "es-co") || !strcmp(str_lang, "es-cr"))
 				{
-					tcapi_set("LanguageSwitch_Entry", "Type", "7");
+					tcapi_set("WebCurSet_Entry", "detected_lang_type", "7");
 				}
 				else if(!strcmp(str_lang, "es-uy") || !strcmp(str_lang, "es-pe") || !strcmp(str_lang, "es-cl") || !strcmp(str_lang, "es-mx") || !strcmp(str_lang, "es-sv"))	
 				{
-					tcapi_set("LanguageSwitch_Entry", "Type", "7");
+					tcapi_set("WebCurSet_Entry", "detected_lang_type", "7");
 				}
 				else if(!strcmp(str_lang, "it-it") || !strcmp(str_lang, "it-ch"))
 				{
-					tcapi_set("LanguageSwitch_Entry", "Type", "10");
+					tcapi_set("WebCurSet_Entry", "detected_lang_type", "10");
 				}
 				else if(!strcmp(str_lang, "uk-ua")) /* Paul add 2013/12/4, for Ukrainian support*/
 				{
-					tcapi_set("LanguageSwitch_Entry", "Type", "19");
+					tcapi_set("WebCurSet_Entry", "detected_lang_type", "19");
 				}
 				else
 				{
@@ -184,80 +189,78 @@ int read_header(request * req)
 
 					if(!strcmp(str_lang, "en"))
 					{
-						tcapi_set("LanguageSwitch_Entry", "Type", "1");
+						tcapi_set("WebCurSet_Entry", "detected_lang_type", "1");
 					}
 					else if(!strcmp(str_lang, "ru"))
 					{
-						tcapi_set("LanguageSwitch_Entry", "Type", "14");
+						tcapi_set("WebCurSet_Entry", "detected_lang_type", "14");
 					}
 					else if(!strcmp(str_lang, "fr"))
 					{
-						tcapi_set("LanguageSwitch_Entry", "Type", "9");
+						tcapi_set("WebCurSet_Entry", "detected_lang_type", "9");
 					}
 					else if(!strcmp(str_lang, "de"))
 					{
-						tcapi_set("LanguageSwitch_Entry", "Type", "6");
+						tcapi_set("WebCurSet_Entry", "detected_lang_type", "6");
 					}
 					else if(!strcmp(str_lang, "cs"))
 					{
-						tcapi_set("LanguageSwitch_Entry", "Type", "4");
+						tcapi_set("WebCurSet_Entry", "detected_lang_type", "4");
 					}
 					else if(!strcmp(str_lang, "pl"))
 					{
-						tcapi_set("LanguageSwitch_Entry", "Type", "13");
+						tcapi_set("WebCurSet_Entry", "detected_lang_type", "13");
 					}
 					else if(!strcmp(str_lang, "ms"))
 					{
-						tcapi_set("LanguageSwitch_Entry", "Type", "11");
+						tcapi_set("WebCurSet_Entry", "detected_lang_type", "11");
 					}
 					else if(!strcmp(str_lang, "th"))
 					{
-						tcapi_set("LanguageSwitch_Entry", "Type", "16");
+						tcapi_set("WebCurSet_Entry", "detected_lang_type", "16");
 					}
 					else if(!strcmp(str_lang, "tr"))
 					{
-						tcapi_set("LanguageSwitch_Entry", "Type", "17");
+						tcapi_set("WebCurSet_Entry", "detected_lang_type", "17");
 					}
 					else if(!strcmp(str_lang, "da"))
 					{
-						tcapi_set("LanguageSwitch_Entry", "Type", "5");
+						tcapi_set("WebCurSet_Entry", "detected_lang_type", "5");
 					}
 					else if(!strcmp(str_lang, "fi"))
 					{
-						tcapi_set("LanguageSwitch_Entry", "Type", "8");
+						tcapi_set("WebCurSet_Entry", "detected_lang_type", "8");
 					}
 					else if(!strcmp(str_lang, "nb") || !strcmp(str_lang, "nn"))
 					{
-						tcapi_set("LanguageSwitch_Entry", "Type", "12");
+						tcapi_set("WebCurSet_Entry", "detected_lang_type", "12");
 					}
 					else if(!strcmp(str_lang, "sv"))
 					{
-						tcapi_set("LanguageSwitch_Entry", "Type", "15");
+						tcapi_set("WebCurSet_Entry", "detected_lang_type", "15");
 					}
 					else if(!strcmp(str_lang, "pt"))
 					{
-						tcapi_set("LanguageSwitch_Entry", "Type", "2");
+						tcapi_set("WebCurSet_Entry", "detected_lang_type", "2");
 					}
 					else if(!strcmp(str_lang, "es"))
 					{
-						tcapi_set("LanguageSwitch_Entry", "Type", "7");
+						tcapi_set("WebCurSet_Entry", "detected_lang_type", "7");
 					}
 					else if(!strcmp(str_lang, "it"))
 					{
-						tcapi_set("LanguageSwitch_Entry", "Type", "10");
+						tcapi_set("WebCurSet_Entry", "detected_lang_type", "10");
 					}
 					else if(!strcmp(str_lang, "uk"))
 					{
-						tcapi_set("LanguageSwitch_Entry", "Type", "19");
+						tcapi_set("WebCurSet_Entry", "detected_lang_type", "19");
 					}
 					else
 					{
-						tcapi_set("LanguageSwitch_Entry", "Type", "1");
+						tcapi_set("WebCurSet_Entry", "detected_lang_type", "1");
 					}
 				}
-				tcapi_set("WebCurSet_Entry", "lang_detected", "1");
 				initandparserfile();
-				tcapi_commit("LanguageSwitch_Entry");
 			}
 			/*else
 			{
@@ -265,6 +268,7 @@ int read_header(request * req)
 	                __FILE__, __LINE__);
 			}*/
 		}
+	}
 
     while (check < (buffer + bytes)) {
         switch (req->status) {

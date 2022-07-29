@@ -200,7 +200,7 @@ var timezones = [
 function load_timezones(){
 	free_options(document.form.uiViewdateToolsTZ);
 	for(var i = 0; i < timezones.length; i++){
-		if( (i==15 || i==17) && document.form.uiTimezoneSecond.value != 1){
+		if( (i==16 || i==18) && document.form.uiTimezoneSecond.value != 1){
 			add_option(document.form.uiViewdateToolsTZ,
 							timezones[i][1],
 							timezones[i][0],
@@ -395,7 +395,7 @@ function uiSave() {
                 document.form.uiViewSNTPServer.value = "0.0.0.0";
         }
 
-	if(document.form.uiViewdateToolsTZ[15].selected == true || document.form.uiViewdateToolsTZ[17].selected == true)
+	if(document.form.uiViewdateToolsTZ[16].selected == true || document.form.uiViewdateToolsTZ[18].selected == true)
 		document.form.uiTimezoneSecond.value = "1";
 	else
 		document.form.uiTimezoneSecond.value = "";
