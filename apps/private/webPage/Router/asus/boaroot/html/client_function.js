@@ -1,194 +1,218 @@
-﻿var selectedClientOrder;
-function getclients_noMonitor(flag){ // return the number of the client
-var clients = new Array();
-var wired_client_num = 0;
-/*for(var i = 0, wired_client_num = 0; i < arls.length; ++i, ++wired_client_num){
-clients[i] = new Array(5);
-clients[i][0] = ""; // hostname
-clients[i][1] = ""; // ip
-clients[i][2] = arls[i][0].toUpperCase(); // MAC
-clients[i][3] = parseInt(arls[i][1]); // where port the wired client is.
-clients[i][4] = null;
-clients[i][5] = null;
-clients[i][6] = "0";
-clients[i][7] = "0";
-clients[i][8] = "0";
-}*/
-for(var i = 0, wired_client_num = 0; i < arps.length; ++i, ++wired_client_num){
-clients[i] = new Array(5);
-clients[i][0] = ""; // hostname
-clients[i][1] = arps[i][0]; // ip
-clients[i][2] = arps[i][3]; // MAC
-clients[i][3] = "";
-clients[i][4] = null;
-clients[i][5] = null;
-clients[i][6] = "0";
-clients[i][7] = "0";
-clients[i][8] = "0";
-}
-/*// get wireless clients 2008.12 magic
-for(var i = wired_client_num; i < wired_client_num+wireless.length; ++i){
-var wireless_order = i-wired_client_num;
-clients[i] = new Array(5);
-clients[i][0] = ""; // hostname
-clients[i][1] = ""; // ip
-clients[i][2] = wireless[wireless_order][0]; // MAC
-clients[i][3] = 10; // 10 is meant the client is wireless.
-clients[i][4] = new Array(2);
-clients[i][4][0] = wireless[wireless_order][1];
-clients[i][4][1] = wireless[wireless_order][2];
-if(clients[i][4][0] == "Yes")
-clients[i][4][0] = "Associated";
-else
-clients[i][4][0] = "Disassociated";
-clients[i][5] = null;
-clients[i][6] = "0";
-clients[i][7] = "0";
-clients[i][8] = "0";
-}*/
-for(var i = 0; i < clients.length; ++i){
-for(var j = leases.length-1; j >= 0; --j){
-if(leases[j][3] == "Expired")
-continue;
-if(clients[i][2] == leases[j][1]){
-if(leases[j][0].length > 0)
-clients[i][0] = leases[j][0];
-if(leases[j][2].length > 0)
-clients[i][1] = leases[j][2];
-break;
-}
-}
-for(var j = 0; j < arps.length; ++j){
-if(clients[i][2] == arps[j][3]){
-if(arps[j][0].length > 0)
-clients[i][1] = arps[j][0];
-break;
-}
-}
-for(var j = 0; j < wireless.length; ++j){
-if(clients[i][2] == wireless[j][0]){
-clients[i][3] = 10; // 10 is meant the client is wireless.
-clients[i][4] = new Array(2);
-clients[i][4][0] = wireless[j][1];
-clients[i][4][1] = wireless[j][2];
-if(clients[i][4][0] == "Yes")
-clients[i][4][0] = "Associated";
-else
-clients[i][4][0] = "Disassociated";
-break;
-}
-}
-if(clients[i][1] == login_ip_str()
-&& clients[i][2] == login_mac_str()){
-if(clients[i][0] == null || clients[i][0].length <= 0)
-				clients[i][0] = "<%tcWebApi_get("String_Entry","CTL_localdevice","s")%>";
-else
-				clients[i][0] += "(<%tcWebApi_get("String_Entry","CTL_localdevice","s")%>)";
-}
-if(flag == 1)
-clients[i][2] = simplyMAC(clients[i][2]);
-}
-return clients;
-}
-function getclients_Monitor(flag){
-var clients = new Array();
-for(var i = 0; i < ipmonitor.length; ++i){
-clients[i] = new Array(9);
-clients[i][0] = ipmonitor[i][2]; // Device name
-for(var j = leases.length-1; j >= 0; --j){
-if(leases[j][3] == "Expired")
-continue;
-if(ipmonitor[i][0] == leases[j][2]){
-if(ipmonitor[i][2] != leases[j][0]){
-clients[i][0] = leases[j][0];
-}
-else{
-clients[i][0] = ipmonitor[i][2];
-}
-}
-}
-clients[i][1] = ipmonitor[i][0]; // IP
-clients[i][2] = ipmonitor[i][1]; // MAC
-clients[i][3] = null; // if this is a wireless client.
-clients[i][4] = null; // wireless information.
-clients[i][5] = ipmonitor[i][3]; // TYPE
-clients[i][6] = ipmonitor[i][4]; // if there's the HTTP service.
-clients[i][7] = ipmonitor[i][5]; // if there's the Printer service.
-clients[i][8] = ipmonitor[i][6]; // if there's the iTune service.
-/*for(var j = 0; j < arls.length; ++j){
-if(clients[i][2] == arls[j][0].toUpperCase()){
-clients[i][3] = parseInt(arls[j][1]); // where port the wired client is.
-break;
-}
-}*/
-for(var j = 0; j < wireless.length; ++j){
-if(clients[i][2] == wireless[j][0]){
-clients[i][3] = 10; // 10 is meant the client is wireless.
-clients[i][4] = new Array(2);
-clients[i][4][0] = wireless[j][1];
-clients[i][4][1] = wireless[j][2];
-if(clients[i][4][0] == "Yes")
-clients[i][4][0] = "Associated";
-else
-clients[i][4][0] = "Disassociated";
-break;
-}
-}
-if(clients[i][1] == login_ip_str()
-&& clients[i][2] == login_mac_str()){
-if(clients[i][0] == null || clients[i][0].length <= 0)
-				clients[i][0] = "<%tcWebApi_get("String_Entry","CTL_localdevice","s")%>";
-else
-				clients[i][0] += "(<%tcWebApi_get("String_Entry","CTL_localdevice","s")%>)";
-}
-if(flag == 1)
-clients[i][2] = simplyMAC(clients[i][2]);
-}
-return clients;
-}
-function getclients(flag){
-if(networkmap_fullscan == "done")
-return getclients_Monitor(flag);
-else
-return getclients_noMonitor(flag);
-}
-function simplyMAC(fullMAC){
-var ptr;
-var tempMAC;
-var pos1, pos2;
-ptr = fullMAC;
-tempMAC = "";
-pos1 = pos2 = 0;
-for(var i = 0; i < 5; ++i){
-pos2 = pos1+ptr.indexOf(":");
-tempMAC += fullMAC.substring(pos1, pos2);
-pos1 = pos2+1;
-ptr = fullMAC.substring(pos1);
-}
-tempMAC += fullMAC.substring(pos1);
-return tempMAC;
-}
-function test_all_clients(clients){
-var str = "";
-var Row;
-var Item;
-str += clients.length+"\n";
-Row = 1;
-for(var i = 0; i < clients.length; ++i){
-if(Row == 1)
-Row = 0;
-else
-str += "\n";
-Item = 1;
-for(var j = 0; j < 9; ++j){
-if(Item == 1)
-Item = 0;
-else
-str += ", ";
-str += clients[i][j];
-}
-str += "\n";
-}
-alert(str);
+﻿/* Plugin */
+var isJsonChanged = function(objNew, objOld){
+	for(var i in objOld){	
+		if(typeof objOld[i] == "object"){
+			if(objNew[i].join() != objOld[i].join()){
+				return true;
+			}
+		}
+		else{
+			if(typeof objNew[i] == "undefined" || objOld[i] != objNew[i]){
+				return true;				
+			}
+		}
+	}
+
+    return false;
+};
+
+var networkmap_fullscan = '<%tcWebApi_get("ClientList_Common","scan","s")%>';	/*1: scan, 0: done*/
+
+var originDataTmp;
+var originData = {
+	onlinelist: '<% get_client_list() %>',
+	onlinelist_cache: '<% get_client_list_cache() %>',
+	size: decodeURIComponent('<% get_client_list_cache() %>').split("<").length-1,
+	customList: '<% get_cl_userdef_list() %>',
+	asusDevice: '<% get_asus_dev_list() %>',
+	fromDHCPLease: '',
+	staticList: decodeURIComponent('<% get_static_dhcp_list() %>').replace(/&#62/g, ">").replace(/&#60/g, "<").split('<'),
+	fromNetworkmapd: '',
+	//fromBWDPI: '',
+	wlList_2g: [<% wl_sta_list_2g() %>],
+	wlList_5g: [<% wl_sta_list_5g() %>],
+	wlList_5g_2: [],
+	qosRuleList: '',
+	init: true
 }
 
+
+var totalClientNum = {
+	online: 0,
+	wireless: 0,
+	wired: 0,
+	wireless_1: 0,
+	wireless_2: 0,
+	wireless_3: 0
+}
+
+var setClientAttr = function(){
+	this.type = "";
+	this.Name = "";
+	this.IP = "offline";
+	this.MacAddr = "";
+	this.from = "";
+	this.macRepeat = 1;
+	this.group = "";
+	this.dpiType = "";
+	this.rssi = "";
+	this.ssid = "";
+	this.isWL = 0; // 0: wired, 1: 2.4GHz, 2: 5GHz/5GHz-1 3:5GHz-2.
+	this.qosLevel = "";
+	this.curTx = "";
+	this.curRx = "";
+	this.totalTx = "";
+	this.totalRx = "";
+	this.callback = "";
+	this.keeparp = "";
+	this.isGateway = false;
+	this.isWebServer = false;
+	this.isPrinter = false;
+	this.isITunes = false;
+	this.isASUS = false;
+	this.isLogin = false;
+	this.isOnline = false;
+	this.isStaticIP = false;
+}
+
+var Login_ip_str = '<% tcWebApi_get("WebCurSet_Entry","login_ip_tmp","s"); %>';
+var clientList = new Array(0);
+var ClientRow = new Array(0);
+function genClientList(){
+	clientList = [];
+	totalClientNum.wireless = 0;
+	totalClientNum.wireless_1 = 0;
+	totalClientNum.wireless_2 = 0;
+	totalClientNum.wireless_3 = 0;
+
+	if(networkmap_fullscan == 0){
+		
+		totalClientNum.online = originData.size;
+		ClientRow = originData.onlinelist.split("<");
+	}
+	else{
+		
+		totalClientNum.online = originData.size;
+		ClientRow = originData.onlinelist_cache.split("<");
+	}
+	
+	var ClientField;
+	if(typeof ClientRow != "undefined"){
+			for(var i=1; i<=totalClientNum.online; i++){
+				//[dev]:   IP     >  mac   >  name > type  > httpd  > isprinter  > itunes
+				//dev0=192.168.1.2>e8:9a:8f:04:af:31>KyCH-NB>6>0>0>0
+				ClientField = ClientRow[i].split(">");
+				thisClientMacAddr = ClientField[1].toUpperCase();
+				if(!thisClientMacAddr){
+					continue;
+				}
+				
+				if(typeof clientList[thisClientMacAddr] == "undefined"){
+					clientList.push(thisClientMacAddr);
+					clientList[thisClientMacAddr] = new setClientAttr();
+					clientList[thisClientMacAddr].from = "networkmapd";
+				}
+				else{
+					if(clientList[thisClientMacAddr].from == "networkmapd")
+						clientList[thisClientMacAddr].macRepeat++;
+					else
+						clientList[thisClientMacAddr].from = "networkmapd";
+				}
+				
+				/*if(typeof clientList[thisClientMacAddr] == "undefined"){
+					clientList.push(thisClientMacAddr);
+					clientList[thisClientMacAddr] = new setClientAttr();
+					clientList[thisClientMacAddr].from = "asusDevice";
+				}
+				else{
+					if(clientList[thisClientMacAddr].from == "asusDevice")
+						clientList[thisClientMacAddr].macRepeat++;
+					else
+						clientList[thisClientMacAddr].from = "asusDevice";
+				}*/
+				
+				clientList[thisClientMacAddr].IP = ClientField[0];
+				clientList[thisClientMacAddr].isLogin = (ClientField[0] == Login_ip_str) ? true : false;		
+				clientList[thisClientMacAddr].MacAddr = ClientField[1];
+				clientList[thisClientMacAddr].Name = ClientField[2];
+				clientList[thisClientMacAddr].type = ClientField[3];
+				clientList[thisClientMacAddr].dpiType = '';//for image_Type title
+				clientList[thisClientMacAddr].isGateway = (ClientField[0] == '<% tcWebApi_get("Lan_Dhcp","IP","s"); %>') ? true : false;
+				clientList[thisClientMacAddr].isWebServer = false;	//Viz: need to confirm if exists webserver for this IP
+				clientList[thisClientMacAddr].isHttp = ClientField[4];		
+				clientList[thisClientMacAddr].isPrinter = (ClientField[5] == 0) ? false : true; // Viz for temp : ClientField[5];
+				clientList[thisClientMacAddr].isITunes = (ClientField[6] == 0) ? false : true;  // Viz for temp : ClientField[6];
+				clientList[thisClientMacAddr].isOnline = true;		
+				//var thisClientMacisOnline = true;
+				
+			}
+	}
+	
+	for(var i=0; i<originData.wlList_2g.length; i++){
+		var wlClientMacAddr = (typeof originData.wlList_2g[i][0] == "undefined") ? false : originData.wlList_2g[i][0].toUpperCase();
+		if(!wlClientMacAddr || typeof clientList[thisClientMacAddr] == "undefined"){
+			continue;
+		}		
+		if(typeof clientList[wlClientMacAddr] != "undefined"){
+			clientList[wlClientMacAddr].rssi = originData.wlList_2g[i][1];	//Viz patched 2014.12.22
+			clientList[wlClientMacAddr].isWL = 1;														//Viz patched	2014.12.22
+			totalClientNum.wireless++;
+			totalClientNum.wireless_1++;		
+		}		
+	}	
+	
+	for(var i=0; i<originData.wlList_5g.length; i++){		
+		var wlClientMacAddr = (typeof originData.wlList_5g[i][0] == "undefined") ? false : originData.wlList_5g[i][0].toUpperCase();
+
+		if(!wlClientMacAddr || typeof clientList[thisClientMacAddr] == "undefined"){
+			continue;
+		}		
+		clientList[thisClientMacAddr].rssi = originData.wlList_5g[i][1];
+		clientList[thisClientMacAddr].isWL = 2;
+		totalClientNum.wireless++;
+		totalClientNum.wireless_2++;
+	}
+	
+	for(var i=0; i<originData.staticList.length; i++){
+		if(originData.staticList.length == "0") break;
+
+		var thisClient = originData.staticList[i].split(">");
+		var thisClientMacAddr = (typeof thisClient[1] == "undefined") ? false : thisClient[1].toUpperCase();
+
+		if(!thisClientMacAddr || typeof clientList[thisClientMacAddr] == "undefined"){
+			continue;
+		}
+
+		if(typeof clientList[thisClientMacAddr] != "undefined"){
+			clientList[thisClientMacAddr].isStaticIP = true;
+		}
+	}
+	
+	totalClientNum.wired = parseInt(totalClientNum.online - totalClientNum.wireless);
+}
+
+function getUserIcon(clientMac, custom_usericon) {	
+	var userIcon = "";
+	var custom_usericon_array = custom_usericon.split("<");
+	for(var i = 0; i < custom_usericon_array.length; i += 1) {
+		var custom_usericon_array_col = custom_usericon_array[i].split(">");
+		if(custom_usericon_array_col[0] == clientMac) {
+			userIcon = custom_usericon_array_col[1];
+			break;
+		}
+	}	
+	return userIcon;
+}
+
+function getUserIcon(clientMac, custom_usericon) {
+	var userIcon = "";
+	var custom_usericon_array = custom_usericon.split("<");
+	for(var i = 0; i < custom_usericon_array.length; i += 1) {		
+		var custom_usericon_array_col = custom_usericon_array[i].split(">");
+		if(custom_usericon_array_col[0] == clientMac) {
+			userIcon = custom_usericon_array_col[1];
+			break;
+		}
+	}
+	return userIcon;
+}

@@ -46,6 +46,9 @@
 #include "busybox.h"
 
 #include "init_shared.h"
+#ifdef TCSUPPORT_SYSLOG_ENHANCE    //Andy Chiu, 2014/12/18
+#include "../../mtd/tc_partition.h"
+#endif
 
 
 #ifdef CONFIG_SYSLOGD
@@ -90,8 +93,10 @@ struct serial_struct {
 #define _PATH_STDPATH   "/userfs/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 #endif
 
+#define _PATH_STDPATH	"/opt/usr/sbin:/opt/sbin:/opt/usr/bin:/opt/bin:/userfs/bin:/usr/sbin:/sbin:/usr/bin:/bin:/usr/script"
+
 #ifndef _PATH_STDPATH
-#define _PATH_STDPATH	"/opt/usr/bin:/opt/bin:/opt/usr/sbin:/opt/sbin:/userfs/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/script"
+#define _PATH_STDPATH	"/usr/bin:/bin:/usr/sbin:/sbin"
 #endif
 
 #if defined CONFIG_FEATURE_INIT_COREDUMPS
@@ -683,6 +688,126 @@ static void init_reboot(unsigned long magic)
 	waitpid (pid, NULL, 0);
 }
 
+//Andy Chiu, 2014/12/18
+#ifdef TCSUPPORT_SYSLOG_ENHANCE
+/*_____________________________________________________________________________
+**      function name: get_logfile_size
+**      descriptions:
+**           get log file size
+**
+**      parameters:
+**
+**      global:
+**             None
+**
+**      return:
+**            Success:        0
+**            Otherwise:     -1
+**
+**      call:
+**
+**      revision: 
+**			xyzhu_nj_20110407
+**		 		merge from ct branch
+**____________________________________________________________________________
+*/
+unsigned long get_logfile_size(char *fileName)
+{
+	unsigned long fileSize = 0;
+	FILE *fp = NULL;
+	
+	fp = fopen(fileName, "r");
+	if(fp == NULL) {
+		tcdbg_printf("\n==>Syslog Error, open file %s failed\n", fileName);
+		return 0;
+	}
+	
+	fseek(fp, 0, SEEK_END);		//seek to the file end
+	fileSize = ftell(fp);		//get the file size
+	fseek(fp, 0, SEEK_SET);		//seek back to the file beginning 
+
+	fclose(fp);
+	
+	return fileSize;	
+}
+
+/*_____________________________________________________________________________
+**      function name: write_logMsg_to_flash
+**      descriptions:
+**            write log file to flash every five minite, this time can be 
+**			  config of course
+**
+**      parameters:
+**
+**      global:
+**             None
+**
+**      return:
+**            Success:        0
+**            Otherwise:     -1
+**
+**      call:
+**
+**      revision: 
+**			xyzhu_nj_20110407
+**		 		merge from ct branch
+**____________________________________________________________________________
+*/
+char currLogFilePath[24] = "/var/log/currLogFile";
+#define MAXLINE         		1024	/* maximum line length */
+#define	SYSLOG_START_STRING		"StartOfTCSysLog"	/* the string in flash to indentify the start of log file */
+#define SYSLOG_END_STRING		"EndOfTCSysLog"		/* The string in flash to identify the end of log file */
+
+int  write_logMsg_to_flash()
+{
+	char cmds[128];
+	char tmpPath[32] = "/var/log/tmp_file"; 
+	FILE *fp = NULL;
+	FILE *curr_fp = NULL;
+	char buf[MAXLINE + 1] = {0};
+	unsigned long fileSize = 0;
+	/* append SYSLOG_END_STRING to currLogFile */
+	curr_fp = fopen(currLogFilePath, "r");
+	if(curr_fp == NULL){
+		printf("\n==>Syslog Error, write logMsg, open file %s failed \n", currLogFilePath);
+		return -1;
+	}
+	
+	fp = fopen(tmpPath, "w");
+	if(fp == NULL) {
+		printf("\n==>Syslog Error, write logMsg, read open file %s failed \n", tmpPath);
+		fclose(curr_fp);
+		return -1;
+	}
+	sprintf(buf, "%s\r\n", SYSLOG_START_STRING);
+	fputs(buf, fp);
+	/* Read log messages from currLogFile, and write into tmpFile */
+	while(fgets(buf, MAXLINE + 1, curr_fp)) {
+
+			fputs(buf, fp);
+	}
+	sprintf(buf, "%s\r\n", SYSLOG_END_STRING);
+	fputs(buf, fp);
+	
+	fclose(fp);
+	fclose(curr_fp);
+
+	/* Recaculate file size */
+	fileSize = get_logfile_size(tmpPath);
+
+	
+	/* Last, write syslog messages to flash */
+	memset(cmds, 0, sizeof(cmds));
+	//sprintf(cmds, TC_FLASH_WRITE_CMD, tmpPath, (unsigned long)fileSize, (unsigned long)SYSLOG_RA_OFFSET, RESERVEAREA_NAME);
+	sprintf(cmds, "/userfs/bin/mtd -c 0 writeflash %s %lu %lu %s", tmpPath, (unsigned long)fileSize, (unsigned long)SYSLOG_RA_OFFSET, RESERVEAREA_NAME);
+	message(CONSOLE, "\n===%s[%d] cmds=%s===\n", __FUNCTION__, __LINE__, cmds);	
+	system(cmds);
+	
+	unlink(tmpPath);
+	return 0;
+}
+#endif
+
 static void shutdown_system(void)
 {
 	sigset_t block_signals;
@@ -709,6 +834,9 @@ static void shutdown_system(void)
 	init_reboot(RB_ENABLE_CAD);
 
 	message(CONSOLE | LOG, "(1)The system is going down NOW !!");
+#ifdef TCSUPPORT_SYSLOG_ENHANCE	
+	write_logMsg_to_flash();	//Andy Chiu, 2014/12/18	
+#endif
 	sync();
 
 #if defined(TCSUPPORT_WLAN_RT6856)

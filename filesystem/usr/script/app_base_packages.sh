@@ -3,8 +3,6 @@
 
 
 apps_ipkg_old=`tcapi get Apps_Entry apps_ipkg_old`
-is_arm_machine=`uname -m |grep arm`
-
 autorun_file=.asusrouter
 nonautorun_file=$autorun_file.disabled
 APPS_INSTALL_FOLDER=`tcapi get Apps_Entry apps_install_folder`
@@ -17,17 +15,39 @@ wget_options="-q"	# since not support -t -T in current busybox version
 apps_from_internet=`tcapi get SysInfo_Entry rc_support |grep appnet`
 apps_local_space=`tcapi get Apps_Entry apps_local_space`
 apps_local_test=`tcapi get Apps_Entry apps_local_test`
-
 link_internet=`tcapi get Wanduck_Common link_internet`
-
-if [ -n "$is_arm_machine" ]; then
-	pkg_type="arm"
-else
-	pkg_type="mipsbig"
-	if [ -z "$apps_from_internet" ]; then
+f=`tcapi get Apps_Entry apps_install_folder`
+case $f in
+	"asusware.arm")
+		pkg_type=`echo $f|sed -e "s,asusware\.,,"`
+		third_lib="mbwe-bluering"
+		base_size=503297
+		;;
+	"asusware.big")
+		pkg_type="mipsbig"
+		third_lib=
+		base_size=2004975
+		;;
+	"asusware.mipsbig")
+		pkg_type=`echo $f|sed -e "s,asusware\.,,"`
+		third_lib=
+		base_size=2004975
+		;;
+	"asusware")
+		pkg_type="mipsel"
 		third_lib="oleg"
-	fi
-fi
+		if [ -n "$apps_ipkg_old" ] && [ "$apps_ipkg_old" = "1" ]; then
+			base_size=1042891
+		else
+			base_size=936886
+		fi
+		;;
+	*)
+		echo "Unknown apps_install_folder: $f"
+		exit 1
+		;;
+esac
+
 
 if [ -z "$APPS_DEV" ]; then
 	echo "Wrong"
@@ -55,6 +75,7 @@ if [ -L "$APPS_INSTALL_PATH" ] || [ ! -d "$APPS_INSTALL_PATH" ]; then
 fi
 
 if [ ! -f "$APPS_INSTALL_PATH/$nonautorun_file" ]; then
+	rm -rf $APPS_INSTALL_PATH/$autorun_file
 	cp -f $apps_local_space/$autorun_file $APPS_INSTALL_PATH
 	if [ "$?" != "0" ]; then
 		tcapi set Apps_Entry apps_state_error 10
@@ -78,7 +99,7 @@ if [ ! -f "$APPS_INSTALL_PATH/bin/ipkg" ] || [ -z "$had_uclibc" ]; then
 	if [ -n "$apps_local_test" ] && [ "$apps_local_test" -eq "1" ]; then
 		local=`tcapi get Info_Ether ip`
 		dl_path="http://$local"
-	elif [ -z "$is_arm_machine" ] && [ -n "$apps_ipkg_old" ] && [ "$apps_ipkg_old" = "1" ]; then
+	elif [ "$pkg_type" != "arm" ] && [ -n "$apps_ipkg_old" ] && [ "$apps_ipkg_old" = "1" ]; then
 		dl_path=http://dlcdnet.asus.com/pub/ASUS/LiveUpdate/Release/Wireless
 	else
 		dl_path=$ASUS_SERVER
@@ -94,20 +115,12 @@ if [ ! -f "$APPS_INSTALL_PATH/bin/ipkg" ] || [ -z "$had_uclibc" ]; then
 			exit 1
 		fi
 		cp -f $apps_local_space/optware.asus $APPS_INSTALL_PATH/lib/ipkg/lists/
-		if [ -z "$is_arm_machine" ]; then
+		if [ "$pkg_type" != "arm" ]; then
 			cp -f $apps_local_space/optware.$third_lib $APPS_INSTALL_PATH/lib/ipkg/lists/
 		fi
 		cd $CURRENT_PWD
 		rm -rf $target
 	else
-		if [ -n "$is_arm_machine" ]; then
-			base_size=503297
-		elif [ -n "$apps_ipkg_old" ] && [ "$apps_ipkg_old" = "1" ]; then
-			base_size=1042891
-		else
-			base_size=2003781
-		fi
-
 		if [ "$link_internet" != "1" ]; then
 			echo "Couldn't connect Internet to install the base apps!"
 			tcapi set Apps_Entry apps_state_error 5
@@ -176,7 +189,7 @@ if [ ! -f "$APPS_INSTALL_PATH/bin/ipkg" ] || [ -z "$had_uclibc" ]; then
 
 	if [ -n "$apps_local_test" ] && [ "$apps_local_test" -eq "1" ]; then
 		sed -i '3c src/gz optware.asus '"$dl_path" $APPS_INSTALL_PATH/etc/ipkg.conf
-	elif [ -z "$is_arm_machine" ] && [ -z "$apps_from_internet" ]; then
+	elif [ "$pkg_type" != "arm" ] && [ -z "$apps_from_internet" ]; then
 		if [ -z "$apps_ipkg_old" ] || [ "$apps_ipkg_old" != "1" ]; then
 			sed -i '3c src/gz optware.asus '"$ASUS_SERVER" $APPS_INSTALL_PATH/etc/ipkg.conf
 		fi

@@ -1,10 +1,44 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<% tcWebApi_set("Wan_Common","TransMode","USB") %>
+<% tcWebApi_set("WebCurSet_Entry","wan_pvc","11") %>
+
+<% disable_other_wan()%>
+<%
+If Request_Form("DvInfo_PVC") <> "" Then
+	tcWebApi_set("WebCurSet_Entry","dev_pvc","DvInfo_PVC")
+End If
+
+If request_Form("wanTransFlag") = "1" Then
+	tcWebApi_set("Wan_Common","TransMode","wan_TransMode")
+	tcWebApi_set("WebCurSet_Entry","wan_pvc","ptm_VC")
+End If
+
+If Request_Form("ModemSaveFlag")="1" Then
+	tcWebApi_set("Wan_PVC11","Active","PVC11_active")
+	tcWebApi_set("Wan_PVC11","DEFAULTROUTE","PVC11_DefaultRoute")
+	If should_wan_pvc_do_commit("DvInfo_PVC") = "1" Then
+		tcWebApi_commit("Wan_PVC11")
+	End If
+	tcWebApi_set("USBModem_Entry","modem_enable","modem_enable")
+	tcWebApi_set("USBModem_Entry","modem_country","modem_country")
+	tcWebApi_set("USBModem_Entry","modem_isp","modem_isp")
+	tcWebApi_set("USBModem_Entry","modem_apn","modem_apn")
+	tcWebApi_set("USBModem_Entry","modem_dialnum","modem_dialnum")
+	tcWebApi_set("USBModem_Entry","modem_pincode","modem_pincode")
+	tcWebApi_set("USBModem_Entry","modem_user","modem_user")
+	tcWebApi_set("USBModem_Entry","modem_pass","modem_pass")
+	tcWebApi_set("USBModem_Entry","Dev3G","Dev3G")
+	If should_wan_pvc_do_commit("DvInfo_PVC") = "1" Then
+		tcWebApi_commit("USBModem_Entry")
+	End If	
+End If
+%>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <html xmlns:v>
 
 <!--Advanced_Modem_Content.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -14,335 +48,602 @@
 <link rel="stylesheet" type="text/css" href="/index_style.css">
 <link rel="stylesheet" type="text/css" href="/form_style.css">
 <link rel="stylesheet" type="text/css" href="/other.css">
+<style>
+#ClientList_Block_PC{
+	border:1px outset #999;
+	background-color:#576D73;
+	position:absolute;
+	*margin-top:26px;	
+	margin-left:2px;
+	*margin-left:-189px;
+	width:181px;
+	text-align:left;	
+	height:auto;
+	overflow-y:auto;
+	z-index:200;
+	padding: 1px;
+	display:none;
+}
+#ClientList_Block_PC div{
+	background-color:#576D73;
+	height:auto;
+	*height:20px;
+	line-height:20px;
+	text-decoration:none;
+	font-family: Lucida Console;
+	padding-left:2px;
+}
+
+#ClientList_Block_PC a{
+	background-color:#EFEFEF;
+	color:#FFF;
+	font-size:12px;
+	font-family:Arial, Helvetica, sans-serif;
+	text-decoration:none;	
+}
+#ClientList_Block_PC div:hover, #ClientList_Block a:hover{
+	background-color:#3366FF;
+	color:#FFFFFF;
+	cursor:default;
+}	
+</style>
 <script type="text/javascript" src="/state.js"></script>
 <script type="text/javascript" src="/general.js"></script>
 <script type="text/javascript" src="/popup.js"></script>
 <script type="text/javascript" src="/help.js"></script>
 <script type="text/javascript" src="/detect.js"></script>
 <script type="text/javascript" src="/wcdma_list.js"></script>
-<script type="text/javascript" src="/cdma2000_list.js"></script>
-<script type="text/javascript" src="/td-scdma_list.js"></script>
-<script type="text/javascript" src="/wimax_list.js"></script>
+<script type="text/javaScript" src="/jquery.js"></script>
 <script>
-
+var $j = jQuery.noConflict();
 
 function login_ip_str() { return '<% tcWebApi_get("WebCurSet_Entry","login_ip_tmp","s"); %>'; }
 
 function login_mac_str() { return ''; }
 
 var wireless = []; // [[MAC, associated, authorized], ...]
-var modem = 'AUTO';
-var country = '';
-var isp = '';
-var apn = 'internet';
-var dialnum = '*99#';
-var user = '';
-var pass = '';
-var pin_opt = '1';
+var modem_card = '<% tcWebApi_get("USBModem_Entry","Dev3G","s")%>';
+var country = '<% tcWebApi_get("USBModem_Entry","modem_country","s")%>';
+var isp = '<% tcWebApi_get("USBModem_Entry","modem_isp","s")%>';
+var apn = '<% tcWebApi_get("USBModem_Entry","modem_apn","s")%>';
+var dialnum = '<% tcWebApi_get("USBModem_Entry","modem_dialnum","s")%>';
+var user = '<% tcWebApi_get("USBModem_Entry","modem_user","s")%>';
+var pass = '<% tcWebApi_get("USBModem_Entry","modem_pass","s")%>';
+var pin_opt = '<% tcWebApi_get("USBModem_Entry","modem_pincode_opt","s")%>';
 var modemlist = new Array();
 var countrylist = new Array();
+var protolist = new Array();
 var isplist = new Array();
 var apnlist = new Array();
 var daillist = new Array();
 var userlist = new Array();
 var passlist = new Array();
-var wans_dualwan = 'dsl usb';
+var wans_dualwan = '<% tcWebApi_get("Dualwan_Entry","wans_dualwan","s") %>';
+var wans_flag = (wans_dualwan.search("none") == -1) ? 1:0;
 
-if(dualWAN_support != -1){
-var wan_type_name = wans_dualwan.split(" ")[0];
-wan_type_name = wan_type_name.toUpperCase();
-switch(wan_type_name){
-case "DSL":
-location.href = "Advanced_DSL_Content.asp";
-break;
-case "WAN":
-case "LAN":
-location.href = "Advanced_WAN_Content.asp";
-break;
-default:
-break;
-}
-}
 function initial(){
-show_menu();
-genWANSoption();
-gen_country_list();
-gen_list();
-switch_modem_mode('1');
-show_ISP_list();
-show_APN_list();
-	$("option5").innerHTML = '<table><tbody><tr><td><div id="index_img5"></div></td><td><div style="width:120px;"><%tcWebApi_get("String_Entry","Menu_usb_application","s")%></div></td></tr></tbody></table>';
-$("option5").className = "m5_r";
+		show_menu();
+		
+		if(dualWAN_support != "-1" && wans_flag)
+			genWANSoption();				
+		
+		switch_modem_mode('<% tcWebApi_get("USBModem_Entry","modem_enable","s") %>');
+		gen_country_list();
+		reloadProfile();
+
+		if(wimax_support == -1){
+			for (var i = 0; i < document.form.modem_enable_option.options.length; i++) {
+					if (document.form.modem_enable_option.options[i].value == "4") {
+							document.form.modem_enable_option.options.remove(i);
+							break;
+					}
+			}
+		}		
+		
+		check_dongle_status();
 }
-if(pin_opt) {
-document.form.modem_pincode.disabled = false;
-inputHideCtrl(document.form.modem_pincode, 1);
-} else {
-document.form.modem_pincode.disabled = true;
-inputHideCtrl(document.form.modem_pincode, 0);
+
+function patchWANSoption(){
+	var opt4 = document.createElement('option');
+  opt4.value = "USB";
+  opt4.innerHTML = "USB Modem";
+  opt4.selected = true;
+  document.form.wan_TransMode.appendChild(opt4);	
 }
-}
+
+// "ATM"	ADSL WAN (ATM)
+// "PTM"	VDSL WAN (PTM)
+// "Ethernet"		Ethernet WAN
+// "USB"	USB Modem	selected>
 function genWANSoption(){
-for(i=0; i<wans_dualwan.split(" ").length; i++)
-document.form.wan_unit.options[i] = new Option(wans_dualwan.split(" ")[i].toUpperCase(), i);
-document.form.wan_unit.selectedIndex = '0';
-if(wans_dualwan.search(" ") < 0 || wans_dualwan.split(" ")[1] == 'none' || dualWAN_support == -1)
-$("WANscap").style.display = "none";
+		free_options(document.form.wan_TransMode);
+		for(i=0; i<wans_dualwan.split(" ").length; i++){
+				if(wans_dualwan.split(" ")[i].toUpperCase() == "DSL"){
+						<%if tcWebApi_get("WebCustom_Entry","haveAtm","h") = "Yes" then%>
+						var opt = document.createElement('option');
+    				opt.value = "ATM";
+    				opt.innerHTML = "ADSL WAN (ATM)";
+    				document.form.wan_TransMode.appendChild(opt);
+    				<%end if%>
+    				<%if tcWebApi_get("WebCustom_Entry","havePtm","h") = "Yes" then%>
+    				var opt1 = document.createElement('option');
+    				opt1.value = "PTM";
+    				opt1.innerHTML = "VDSL WAN (PTM)";
+				    document.form.wan_TransMode.appendChild(opt1);
+				    <%end if%>
+    		}
+    		if(wans_dualwan.split(" ")[i].toUpperCase() == "WAN"){
+    				var opt2 = document.createElement('option');
+    				opt2.value = "Ethernet";
+    				opt2.innerHTML = "Ethernet WAN";
+    				document.form.wan_TransMode.appendChild(opt2);
+    		}
+    		if(wans_dualwan.split(" ")[i].toUpperCase() == "USB"){
+    				var opt3 = document.createElement('option');
+    				opt3.value = "USB";
+    				opt3.innerHTML = "USB Modem";
+    				opt3.selected = true;
+    				document.form.wan_TransMode.appendChild(opt3);    			
+    		}
+			if(wans_dualwan.split(" ")[i].toUpperCase() == "LAN"){
+					var opt4 = document.createElement('option');
+					opt4.value = "LAN";
+					opt4.innerHTML = "Ethernet WAN";
+					document.form.wan_TransMode.appendChild(opt4);
+			}
+		}
+		if(wans_dualwan.split(" ")[0].toUpperCase() != "USB" && wans_dualwan.split(" ")[1].toUpperCase() != "USB"){
+				patchWANSoption();	
+		}
 }
-function change_wan_unit(){
-if(document.form.wan_unit.options[document.form.wan_unit.selectedIndex].text == "DSL")
-document.form.current_page.value = "Advanced_DSL_Content.asp";
-else if(document.form.wan_unit.options[document.form.wan_unit.selectedIndex].text == "WAN"||
-document.form.wan_unit.options[document.form.wan_unit.selectedIndex].text == "LAN")
-document.form.current_page.value = "Advanced_WAN_Content.asp";
-else
-return false;
-FormActions("apply.asp", "change_wan_unit", "", "");
-document.form.target = "";
-document.form.submit();
+
+function reloadProfile(){
+	if(document.form.modem_enable.value == 0)
+		return 0;
+
+	gen_list();
+	show_ISP_list();
+	show_APN_list();
 }
+
 function show_modem_list(mode){
-if(mode == "4")
-show_4G_modem_list();
-else
-show_3G_modem_list();
+		if(mode == "4")
+				show_4G_modem_list();
+		else
+				show_3G_modem_list();
 }
+
 function show_3G_modem_list(){
-modemlist = new Array(
-"AUTO"
-, "ASUS-T500"
-, "BandLuxe-C120"
-, "BandLuxe-C170"
-, "BandLuxe-C339"
-, "Huawei-E1550"
-, "Huawei-E160G"
-, "Huawei-E161"
-, "Huawei-E169"
-, "Huawei-E176"
-, "Huawei-E220"
-, "Huawei-K3520"
-, "Huawei-ET128"
-, "Huawei-E1800"
-, "Huawei-K4505"
-, "Huawei-E172"
-, "Huawei-E372"
-, "Huawei-E122"
-, "Huawei-E160E"
-, "Huawei-E1552"
-, "Huawei-E173"
-, "Huawei-E1823"
-, "Huawei-E1762"
-, "Huawei-E1750C"
-, "Huawei-E1752Cu"
-, "Alcatel-X200"
-, "Alcatel-Oune-touch-X220S"
-, "AnyData-ADU-510A"
-, "AnyData-ADU-500A"
-, "Onda-MT833UP"
-, "Onda-MW833UP"
-, "ZTE-AC5710"
-, "ZTE-MU351"
-, "ZTE-MF100"
-, "ZTE-MF636"
-, "ZTE-MF622"
-, "ZTE-MF626"
-, "ZTE-MF632"
-, "ZTE-MF112"
-, "ZTE-MFK3570-Z"
-, "CS15"
-, "CS17"
-, "ICON401"
-);
-free_options($("shown_modems"));
-for(var i = 0; i < modemlist.length; i++){
-$("shown_modems").options[i] = new Option(modemlist[i], modemlist[i]);
-if(modemlist[i] == modem)
-$("shown_modems").options[i].selected = "1";
+	modemlist = new Array(
+			"AUTO"
+			, "ASUS-T500"
+			, "BandLuxe-C120"
+			, "BandLuxe-C170"
+			, "BandLuxe-C339"
+			, "Huawei-E1550"
+			, "Huawei-E160G"
+			, "Huawei-E161"
+			, "Huawei-E169"
+			, "Huawei-E176"
+			, "Huawei-E220"
+			, "Huawei-K3520"
+			, "Huawei-ET128"
+			, "Huawei-E1800"
+			, "Huawei-K4505"
+			, "Huawei-E172"
+			, "Huawei-E372"
+			, "Huawei-E122"
+			, "Huawei-E160E"
+			, "Huawei-E1552"
+			, "Huawei-E173"
+			, "Huawei-E1823"
+			, "Huawei-E1762"
+			, "Huawei-E1750C"
+			, "Huawei-E1752Cu"
+			//, "MU-Q101"
+			, "Alcatel-X200"
+			, "Alcatel-Oune-touch-X220S"
+			, "AnyData-ADU-510A"
+			, "AnyData-ADU-500A"
+			, "Onda-MT833UP"
+			, "Onda-MW833UP"
+			, "MTS-AC2746"
+			, "ZTE-AC5710"
+			, "ZTE-MU351"
+			, "ZTE-MF100"
+			, "ZTE-MF636"
+			, "ZTE-MF622"
+			, "ZTE-MF626"
+			, "ZTE-MF632"
+			, "ZTE-MF112"
+			, "ZTE-MFK3570-Z"
+			, "CS15"
+			, "CS17"
+			, "ICON401"
+			);
+
+	free_options($("shown_modems"));
+	for(var i = 0; i < modemlist.length; i++){
+		if(modemlist[i] == "AUTO")
+			$("shown_modems").options[i] = new Option("<%tcWebApi_get("String_Entry","Auto","s")%>", modemlist[i]);
+		else	
+			$("shown_modems").options[i] = new Option(modemlist[i], modemlist[i]);
+			
+		if(modemlist[i] == modem_card)
+			$("shown_modems").options[i].selected = "1";
+	}
 }
-}
+
 function show_4G_modem_list(){
-modemlist = new Array(
-"AUTO"
-, "Samsung U200"
-);
-free_options($("shown_modems"));
-for(var i = 0; i < modemlist.length; i++){
-$("shown_modems").options[i] = new Option(modemlist[i], modemlist[i]);
-if(modemlist[i] == modem)
-$("shown_modems").options[i].selected = "1";
-}
+		modemlist = new Array(
+			"AUTO"
+			, "Samsung U200"
+		);
+
+		free_options($("shown_modems"));
+		for(var i = 0; i < modemlist.length; i++){
+				if(modemlist[i] == "AUTO")
+					$("shown_modems").options[i] = new Option("<%tcWebApi_get("String_Entry","Auto","s")%>", modemlist[i]);
+				else			
+					$("shown_modems").options[i] = new Option(modemlist[i], modemlist[i]);
+				if(modemlist[i] == modem)
+						$("shown_modems").options[i].selected = "1";
+		}
 }
 function switch_modem_mode(mode){
-show_modem_list(mode);
-if(mode == "1"){ // WCDMA
-inputCtrl(document.form.Dev3G, 1);
-inputCtrl(document.form.modem_country, 1);
-inputCtrl(document.form.modem_apn, 1);
-inputCtrl(document.form.modem_dialnum, 1);
-inputCtrl(document.form.modem_user, 1);
-inputCtrl(document.form.modem_pass, 1);
-inputCtrl(document.form.modem_ttlsid, 0);
+		document.form.modem_enable.value = mode;
+		show_modem_list(mode);
+		
+	if(mode == "1"){ // WCDMA
+		inputCtrl(document.form.Dev3G, 1);
+		inputCtrl(document.form.modem_country, 1);
+		inputCtrl(document.form.modem_isp, 1);
+		inputCtrl(document.form.modem_apn, 1);
+		if(pin_opt) inputCtrl(document.form.modem_pincode, 1);
+		inputCtrl(document.form.modem_dialnum, 1);
+		inputCtrl(document.form.modem_user, 1);
+		inputCtrl(document.form.modem_pass, 1);
+		inputCtrl(document.form.modem_ttlsid, 0);
+		//$("hsdpa_hint").style.display = "";
+	}
+	else if(mode == "2"){ // CDMA2000
+		inputCtrl(document.form.Dev3G, 1);
+		inputCtrl(document.form.modem_country, 1);
+		inputCtrl(document.form.modem_isp, 1);
+		inputCtrl(document.form.modem_apn, 1);
+		if(pin_opt) inputCtrl(document.form.modem_pincode, 1);
+		inputCtrl(document.form.modem_dialnum, 1);
+		inputCtrl(document.form.modem_user, 1);
+		inputCtrl(document.form.modem_pass, 1);
+		inputCtrl(document.form.modem_ttlsid, 0);
+		//$("hsdpa_hint").style.display = "";
+	}
+	else if(mode == "3"){ // TD-SCDMA
+		inputCtrl(document.form.Dev3G, 1);
+		inputCtrl(document.form.modem_country, 1);
+		inputCtrl(document.form.modem_isp, 1);
+		inputCtrl(document.form.modem_apn, 1);
+		if(pin_opt) inputCtrl(document.form.modem_pincode, 1);
+		inputCtrl(document.form.modem_dialnum, 1);
+		inputCtrl(document.form.modem_user, 1);
+		inputCtrl(document.form.modem_pass, 1);
+		inputCtrl(document.form.modem_ttlsid, 0);
+		//$("hsdpa_hint").style.display = "";
+	}
+	else if(mode == "4"){	// WiMAX
+		inputCtrl(document.form.Dev3G, 1);
+		inputCtrl(document.form.modem_country, 1);
+		inputCtrl(document.form.modem_isp, 1);
+		inputCtrl(document.form.modem_apn, 0);
+		if(pin_opt) inputCtrl(document.form.modem_pincode, 1);
+		inputCtrl(document.form.modem_dialnum, 0);
+		inputCtrl(document.form.modem_user, 1);
+		inputCtrl(document.form.modem_pass, 1);
+		inputCtrl(document.form.modem_ttlsid, 1);
+		//$("hsdpa_hint").style.display = "";
+	}
+	else{	// Disable (mode == 0)
+		inputCtrl(document.form.Dev3G, 0);
+		inputCtrl(document.form.modem_enable_option, 0);
+		inputCtrl(document.form.modem_country, 0);
+		inputCtrl(document.form.modem_isp, 0);
+		inputCtrl(document.form.modem_apn, 0);
+		if(pin_opt) inputCtrl(document.form.modem_pincode, 0);
+		inputCtrl(document.form.modem_dialnum, 0);
+		inputCtrl(document.form.modem_user, 0);
+		inputCtrl(document.form.modem_pass, 0);
+		inputCtrl(document.form.modem_ttlsid, 0);
+		//$("hsdpa_hint").style.display = "none";
+		document.form.modem_enable.value = "0";
+	}
 }
-else if(mode == "2"){ // CDMA2000
-inputCtrl(document.form.Dev3G, 1);
-inputCtrl(document.form.modem_country, 1);
-inputCtrl(document.form.modem_apn, 1);
-inputCtrl(document.form.modem_dialnum, 1);
-inputCtrl(document.form.modem_user, 1);
-inputCtrl(document.form.modem_pass, 1);
-inputCtrl(document.form.modem_ttlsid, 0);
-}
-else if(mode == "3"){ // TD-SCDMA
-inputCtrl(document.form.Dev3G, 1);
-inputCtrl(document.form.modem_country, 1);
-inputCtrl(document.form.modem_apn, 1);
-inputCtrl(document.form.modem_dialnum, 1);
-inputCtrl(document.form.modem_user, 1);
-inputCtrl(document.form.modem_pass, 1);
-inputCtrl(document.form.modem_ttlsid, 0);
-}
-else if(mode == "4"){ //Wi-max
-inputCtrl(document.form.Dev3G, 1);
-inputCtrl(document.form.modem_country, 1);
-inputCtrl(document.form.modem_apn, 0);
-inputCtrl(document.form.modem_dialnum, 0);
-inputCtrl(document.form.modem_user, 1);
-inputCtrl(document.form.modem_pass, 1);
-inputCtrl(document.form.modem_ttlsid, 0);
-}
-else{ //stop
-inputCtrl(document.form.Dev3G, 0);
-inputCtrl(document.form.modem_country, 0);
-inputCtrl(document.form.modem_isp, 0);
-inputCtrl(document.form.modem_apn, 0);
-inputCtrl(document.form.modem_dialnum, 0);
-inputCtrl(document.form.modem_user, 0);
-inputCtrl(document.form.modem_pass, 0);
-inputCtrl(document.form.modem_ttlsid, 0);
-}
-}
-function gen_country_list(mode){
-/*if(mode == "1"){
-show_wcdma_country_list();
-}
-else if(mode == "2"){
-show_cdma2000_country_list();
-}
-else if(mode == "3"){
-show_tdscdma_country_list();
-}
-else if(mode == "4"){
-show_4G_country_list();
-}*/
-show_wcdma_country_list();
-}
-function gen_list(mode){
-/*if(mode == "1"){
-gen_wcdma_list();
-}
-else if(mode == "2"){
-gen_cdma2000_list();
-}
-else if(mode == "3"){
-gen_tdscdma_list();
-}
-else if(mode == "4"){
-gen_4G_list();
-}*/
-gen_wcdma_list();
-}
+
 function show_ISP_list(){
-free_options($("modem_isp"));
-$("modem_isp").options.length = isplist.length;
-for(var i = 0; i < isplist.length; i++){
-$("modem_isp").options[i] = new Option(isplist[i], isplist[i]);
-if(isplist[i] == isp)
-$("modem_isp").options[i].selected = 1;
+	var removeItem = 0;
+	free_options(document.form.modem_isp);
+	document.form.modem_isp.options.length = isplist.length;
+
+	for(var i = 0; i < isplist.length; i++){
+	  if(protolist[i] == 4 && wimax_support == -1){
+			document.form.modem_isp.options.length = document.form.modem_isp.options.length - 1;
+
+			if(document.form.modem_isp.options.length > 0)
+				continue;
+			else{
+				alert(Untranslated.ISP_not_support);
+				document.form.modem_country.focus();
+				document.form.modem_country.selectedIndex = countrylist.length-1;
+				break;
+			}
+		}
+		else
+			document.form.modem_isp.options[i] = new Option(isplist[i], isplist[i]);
+
+		if(isplist[i] == isp)
+			document.form.modem_isp.options[i].selected = 1;
+	}
 }
-}
+
 function show_APN_list(){
-var ISPlist = $("modem_isp").value;
-var isp_order = -1;
-for(isp_order = 0; isp_order < isplist.length; ++isp_order){
-if(isplist[isp_order] == ISPlist)
-break;
-else if(isp_order == isplist.length-1){
-isp_order = -1;
-break;
+	var ISPlist = document.form.modem_isp.value;
+	var Countrylist = document.form.modem_country.value;
+
+	var isp_order = -1;
+	for(isp_order = 0; isp_order < isplist.length; ++isp_order){
+		if(isplist[isp_order] == ISPlist)
+			break;
+		else if(isp_order == isplist.length-1){
+			isp_order = -1;
+			break;
+		}
+	}
+
+	if(isp_order == -1){
+		alert("system error");
+		return;
+	}
+	
+	/* use manual or location */
+	if(document.form.modem_country.value == ""){
+		inputCtrl(document.form.modem_isp, 0);
+		inputCtrl(document.form.modem_enable_option, 1);
+	}
+	else{
+		inputHideCtrl(document.form.modem_isp, 1);
+		inputHideCtrl(document.form.modem_enable_option, 0);
+		if(protolist[isp_order] == "")
+			protolist[isp_order] = 1;
+	}
+
+	if(Countrylist == ""){
+		if('<% tcWebApi_get("USBModem_Entry","modem_enable","s") %>' == $('modem_enable_option').value){
+			$("modem_apn").value = apn;
+			$("modem_dialnum").value = dialnum;
+			$("modem_user").value = user;
+			$("modem_pass").value = pass;
+		}
+		else{
+			$("modem_apn").value = apnlist[isp_order];
+			$("modem_dialnum").value = daillist[isp_order];
+			$("modem_user").value = userlist[isp_order];
+			$("modem_pass").value = passlist[isp_order];
+		}
+	}
+	else if(protolist[isp_order] != "4"){
+		if(ISPlist == isp && Countrylist == country && (apn != "" || dialnum != "" || user != "" || pass != "")){
+			if(typeof(apnlist[isp_order]) == 'object' && apnlist[isp_order].constructor == Array){
+				//Viz temp $("pull_arrow").style.display = '';
+				showLANIPList(isp_order);
+			}
+			else{
+				//Viz temp $("pull_arrow").style.display = 'none';
+				//Viz temp $('ClientList_Block_PC').style.display = 'none';
+			}
+
+			$("modem_apn").value = apn;
+			$("modem_dialnum").value = dialnum;
+			$("modem_user").value = user;
+			$("modem_pass").value = pass;
+		}
+		else{
+			if(typeof(apnlist[isp_order]) == 'object' && apnlist[isp_order].constructor == Array){
+				//Viz temp $("pull_arrow").style.display = '';
+				showLANIPList(isp_order);
+			}
+			else{
+				//Viz temp $("pull_arrow").style.display = 'none';
+				//Viz temp $('ClientList_Block_PC').style.display = 'none';
+				$("modem_apn").value = apnlist[isp_order];
+			}
+
+			$("modem_dialnum").value = daillist[isp_order];
+			$("modem_user").value = userlist[isp_order];
+			$("modem_pass").value = passlist[isp_order];
+		}
+	}
+	else{
+		$("modem_apn").value = "";
+		$("modem_dialnum").value = "";
+
+		if(ISPlist == isp	&& (user != "" || pass != "")){
+			$("modem_user").value = user;
+			$("modem_pass").value = pass;
+		}
+		else{
+			$("modem_user").value = userlist[isp_order];
+			$("modem_pass").value = passlist[isp_order];
+		}
+	}
+
+	if(document.form.modem_country.value != ""){
+		document.form.modem_enable.value = protolist[isp_order];
+		switch_modem_mode(document.form.modem_enable.value);
+	}
 }
-}
-if(isp_order == -1){
-alert("system error");
-return;
-}
-if(document.form.modem_country.value == ""){
-inputHideCtrl(document.form.modem_isp, 0);
-inputHideCtrl(document.form.modem_enable, 1);
-}
-else{
-inputHideCtrl(document.form.modem_isp, 1);
-inputHideCtrl(document.form.modem_enable, 0);
-if(document.form.modem_isp.value == "China Mobile")
-document.form.modem_enable.value = "3";
-else if(document.form.modem_isp.value == "Yota")
-document.form.modem_enable.value = "4";
-else if(daillist[isp_order] == "#777")
-document.form.modem_enable.value = "2";
-else
-document.form.modem_enable.value = "1";
-}
-if(document.form.modem_enable.value == "1"
-|| document.form.modem_enable.value == "2"
-|| document.form.modem_enable.value == "3"
-){
-if(ISPlist == isp
-&& (apn != "" || dialnum != "" || user != "" || pass != "")){
-$("modem_apn").value = apn;
-$("modem_dialnum").value = dialnum;
-$("modem_user").value = user;
-$("modem_pass").value = pass;
-}
-else{
-$("modem_apn").value = apnlist[isp_order];
-$("modem_dialnum").value = daillist[isp_order];
-$("modem_user").value = userlist[isp_order];
-$("modem_pass").value = passlist[isp_order];
-}
-}
-else if(document.form.modem_enable.value == "4"){
-$("modem_apn").value = "";
-$("modem_dialnum").value = "";
-if(ISPlist == isp
-&& (user != "" || pass != "")){
-$("modem_user").value = user;
-$("modem_pass").value = pass;
-}
-else{
-$("modem_user").value = userlist[isp_order];
-$("modem_pass").value = passlist[isp_order];
-}
-}
-}
+
 function applyRule(){
-var mode = document.form.modem_enable.value;
-if(document.form.modem_pincode.value != "") {
-if(document.form.modem_pincode.value.search(/^\d{4,8}$/)==-1) {
-alert("Invalid PIN Code.");
-return;
+	if(validForm()){
+		document.form.modem_enable.value = (document.form.modem_enable_radio.value == 0)?0:document.form.modem_enable.value;
+		if(document.form.modem_enable.value == 0)
+				document.form.PVC11_active.value = "No";
+		else
+				document.form.PVC11_active.value = "Yes";
+		
+		if(document.form.modem_pincode.value != "") {
+				if(document.form.modem_pincode.value.search(/^\d{4,8}$/)==-1) {
+						alert("<%tcWebApi_get("String_Entry","JS_InvalidPIN","s")%>");
+						return;
+				}
+		}
+		document.form.wanTransFlag.value = 1;
+		document.form.ModemSaveFlag.value = 1;
+		document.form.wanVCFlag.value = 3;
+		showLoading(10);
+		setTimeout("redirect();", 10000);
+		document.form.submit();
+	}
+	else
+		return;
 }
+
+function redirect(){
+	document.location.href = "/cgi-bin/Advanced_Modem_Content.asp";
 }
-if(document.form.modem_enable.value != "0"){
-showLoading();
-document.form.submit();
+
+function validForm(){
+
+		return true;
 }
-else{
-showLoading();
-document.form.submit();
-}
-}
+
 function done_validating(action){
-refreshpage();
+		refreshpage();
 }
+
+function check_dongle_status(){
+	 $j.ajax({
+    	url: '/ajax_ddnscode.asp',
+    	dataType: 'script', 
+
+    	error: function(xhr){
+      		check_dongle_status();
+    	},
+    	success: function(response){
+			if(pin_status != "" && pin_status != "0")
+				$("pincode_status").style.display = "";
+			else	
+				$("pincode_status").style.display = "none";
+				
+			setTimeout("check_dongle_status();",5000);
+       }
+   });
+}
+
+function doTransChange() {
+	var pvc, transModeSupport = 0;
+
+	pvc=document.form.wan_TransMode.selectedIndex;
+
+<%if tcWebApi_get("WebCustom_Entry","haveAtm","h") = "Yes" then%>
+	transModeSupport += 1;
+<%end if%>
+<%if tcWebApi_get("WebCustom_Entry","havePtm","h") = "Yes" then%>
+	transModeSupport += 2;
+<%end if%>
+<%if tcWebApi_get("WebCustom_Entry","haveWan0","h") = "Yes" then%>
+	transModeSupport += 4;
+<%end if%>
+<%if tcWebApi_get("WebCustom_Entry","haveUSBModem","h") = "Yes" then%>
+	transModeSupport += 8;
+<%end if%>
+<%if tcWebApi_get("WebCustom_Entry","haveLanWan","h") = "Yes" then%>
+	transModeSupport += 16;
+<%end if%>
+
+	switch(transModeSupport) {
+		case 5:	//ATM + ETHER, ex. DSL-N17VPN
+			if(pvc==1) //ether
+				pvc = 10;
+			break;
+		case 7:	//ATM + PTM + ETHER, ex. DSL-N66U
+			if(pvc==1) //ptm
+				pvc = 8;
+			else if(pvc==2) //ether
+				pvc = 10;
+			break;
+		case 9: //ATM + USB, ex. DSL-N12U-C1
+			if(pvc==1) //USB
+				pvc = 11;
+			break;	
+		case 13:	//ATM + ETHER + USB, ex.
+			if(pvc==1) //ether
+				pvc = 10;
+			else if(pvc==2) //USB
+				pvc = 11;				
+			break;	
+		case 15:	//ATM + PTM + ETHER + USB, ex.
+			if(pvc==1) //ptm
+				pvc = 8;
+			else if(pvc==2) //ether
+				pvc = 10;
+			else if(pvc==3) //USB
+				pvc = 11;				
+			break;
+		case 17:	//ATM + ETHER_LAN
+			if(pvc==1) //ETHER_LAN
+				pvc = 12;
+			break;
+		case 19:	//ATM + PTM + ETHER_LAN
+			if(pvc==1) //PTM
+				pvc = 8;
+			else if(pvc==2) //ETHER_LAN
+				pvc = 12;
+			break;
+		case 25:	//ATM + USB + ETHER_LAN
+			if(pvc==1) //USB
+				pvc = 11;
+			else if(pvc==2) //ETHER_LAN
+				pvc = 12;
+			break;
+		case 26:	//ATM + PTM + USB + ETHER_LAN
+			if(pvc==1) //PTM
+				pvc = 8;
+			else if(pvc==2) //USB
+				pvc = 11;
+			else if(pvc==3) //ETHER_LAN
+				pvc = 12;
+			break;
+		//add other case for other product if necessary
+	}
+	if(document.form.wan_TransMode.value == "ATM"){
+		document.formUSB.ModemInfo_PVC.value = "0";
+		document.formUSB.ModemTransMode.value = document.form.wan_TransMode.value;
+	}
+	else if(document.form.wan_TransMode.value == "PTM"){
+		document.formUSB.ModemInfo_PVC.value = "8";
+		document.formUSB.ModemTransMode.value = document.form.wan_TransMode.value;
+	}
+	else if(document.form.wan_TransMode.value == "USB"){
+		document.formUSB.ModemInfo_PVC.value = "11";
+		document.formUSB.ModemTransMode.value = document.form.wan_TransMode.value;
+		return;
+	}
+	else if(document.form.wan_TransMode.value == "LAN"){
+		document.formUSB.ModemInfo_PVC.value = "12";
+		document.formUSB.ModemTransMode.value = document.form.wan_TransMode.value;
+	}
+	else{
+		document.formUSB.ModemInfo_PVC.value = "10";
+		document.formUSB.ModemTransMode.value = document.form.wan_TransMode.value;
+	}
+
+	document.formUSB.submit();
+	return;
+}
+
+function redirect_DSL(){
+	document.location.href = "/cgi-bin/Advanced_DSL_Content.asp";
+}
+
 </script>
 </head>
 <body onload="initial();" onunLoad="return unload_body();">
@@ -363,7 +664,7 @@ refreshpage();
 </div>
 <div id="Loading" class="popup_bg"></div>
 <iframe name="hidden_frame" id="hidden_frame" src="" width="0" height="0" frameborder="0"></iframe>
-<form method="post" name="form" id="ruleForm" action="start_apply.asp" target="hidden_frame">
+<form method="post" name="form" id="ruleForm" action="Advanced_Modem_Content.asp" target="hidden_frame">
 <input type="hidden" name="productid" value="<% tcWebApi_staticGet("SysInfo_Entry","ProductName","s") %>">
 <input type="hidden" name="current_page" value="Advanced_Modem_Content.asp">
 <input type="hidden" name="next_page" value="Advanced_Modem_Content.asp">
@@ -374,6 +675,14 @@ refreshpage();
 <input type="hidden" name="action_wait" value="10">
 <input type="hidden" name="preferred_lang" id="preferred_lang" value="EN">
 <input type="hidden" name="firmver" value="<% tcWebApi_staticGet("DeviceInfo","FwVer","s") %>">
+<input type="hidden" name="modem_enable" value="<% tcWebApi_staticGet("USBModem_Entry","modem_enable","s") %>">
+<input type="hidden" name="PVC11_active" value="<% tcWebApi_staticGet("Wan_PVC11","Active","s") %>">
+<input type="hidden" name="PVC11_DefaultRoute" value="Yes">
+<input type="hidden" name="DvInfo_PVC" value="11">
+<input type="hidden" name="wanTransFlag" value="0">
+<input type="hidden" name="wanVCFlag" value="0">
+<input type="hidden" name="ModemSaveFlag" value="0">
+
 <table class="content" align="center" cellpadding="0" cellspacing="0">
 <tr>
 <td width="17">&nbsp;</td>
@@ -405,20 +714,37 @@ refreshpage();
 </div>
 <div style="margin:5px;"><img src="/images/New_ui/export/line_export.png"></div>
 <div class="formfontdesc"><%tcWebApi_get("String_Entry","HSDPAC_hsdpa_enable_hint1","s")%></div>
-<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable" id="WANscap">
-<thead>
-<tr>
-<td colspan="2"><%tcWebApi_get("String_Entry","wan_index","s")%></td>
-</tr>
-</thead>
-<tr>
-<th><%tcWebApi_get("String_Entry","wan_type","s")%></th>
-<td align="left">
-<select id="" class="input_option" name="wan_unit" onchange="change_wan_unit();">
-</select>
-</td>
-</tr>
-</table>
+
+						<table  width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
+						<thead>
+						<tr>
+							<td colspan="2"><%tcWebApi_get("String_Entry","WAN_Transfer_Mode","s")%></td>
+						</tr>
+						</thead>
+						<tr>
+							<th><%tcWebApi_get("String_Entry","Transfer_Mode","s")%></th>
+							<td align="left">
+								<select class="input_option" name="wan_TransMode" onchange="doTransChange();">
+								<%if tcWebApi_get("WebCustom_Entry","haveAtm","h") = "Yes" then%>
+									<option value="ATM">ADSL WAN (ATM)</option>
+								<%end if%>
+								<%if tcWebApi_get("WebCustom_Entry","havePtm","h") = "Yes" then%>
+									<option value="PTM">VDSL WAN (PTM)</option>
+								<%end if%>
+								<%if tcWebApi_get("WebCustom_Entry","haveWan0","h") = "Yes" then%>
+									<option value="Ethernet">Ethernet WAN</option>
+								<%end if%>
+								<%if tcWebApi_get("WebCustom_Entry","haveUSBModem","h") = "Yes" then%>
+									<option value="USB" selected>USB Modem</option>
+								<%end if%>
+								<%if tcWebApi_get("WebCustom_Entry","haveLanWan","h") = "Yes" then%>
+									<option value="LAN">Ethernet WAN</option>
+								<%end if%>
+								</select>
+							</td>
+						</tr>
+						</table>
+												
 <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable" style="margin-top:8px">
 <thead>
 <tr>
@@ -426,10 +752,17 @@ refreshpage();
 </tr>
 </thead>
 <tr>
-          	<th><a class="hintstyle"  href="javascript:void(0);" onClick="openHint(21,9);"><%tcWebApi_get("String_Entry","HSDPAC_Country_in","s")%></a></th>
-<td>
-<select name="modem_country" id="isp_countrys" class="input_option" onfocus="parent.showHelpofDrSurf(21,9);" onchange="gen_list(document.form.modem_enable.value);show_ISP_list();show_APN_list();"></select>
-</td>
+		<th><%tcWebApi_get("String_Entry","HSDPAC_hsdpa_enable_in","s")%></th>
+		<td>
+				<input type="radio" name="modem_enable_radio" value="1" onclick="switch_modem_mode(document.form.modem_enable_option.value);reloadProfile();" <%if tcWebApi_get("USBModem_Entry","modem_enable","h") <> "0" then asp_write("checked") end if%>><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
+				<input type="radio" name="modem_enable_radio" value="0" onclick="switch_modem_mode(0);reloadProfile();" <%if tcWebApi_get("USBModem_Entry","modem_enable","h") = "0" then asp_write("checked") end if%>><%tcWebApi_get("String_Entry","checkbox_No","s")%>
+		</td>
+</tr>
+<tr>
+	<th><a class="hintstyle"  href="javascript:void(0);" onClick="openHint(21,9);"><%tcWebApi_get("String_Entry","HSDPAC_Country_in","s")%></a></th>
+	<td>
+			<select name="modem_country" class="input_option" onfocus="parent.showHelpofDrSurf(21,9);" onchange="switch_modem_mode(document.form.modem_enable_option.value);reloadProfile();"></select>
+	</td>
 </tr>
 <tr>
           	<th><a class="hintstyle"  href="javascript:void(0);" onClick="openHint(21,8);"><%tcWebApi_get("String_Entry","HSDPAC_ISP_in","s")%></a></th>
@@ -442,8 +775,8 @@ refreshpage();
 							<a class="hintstyle" href="javascript:void(0);" onclick="openHint(21,1);"><%tcWebApi_get("String_Entry","menu5_4_4","s")%></a>
 </th>
 <td>
-<select name="modem_enable" class="input_option" onchange="switch_modem_mode(this.value);gen_list(this.value);show_ISP_list();show_APN_list();">
-<option value="0" ><%tcWebApi_get("String_Entry","WC11b_WirelessCtrl_buttonname","s")%></option>
+<select name="modem_enable_option" id="modem_enable_option" class="input_option" onchange="switch_modem_mode(this.value);reloadProfile();">
+<!--option value="0" ><%tcWebApi_get("String_Entry","WC11b_WirelessCtrl_buttonname","s")%></option-->
 <option value="1" selected>WCDMA (UMTS)</option>
 <option value="2" >CDMA2000 (EVDO)</option>
 <option value="3" >TD-SCDMA</option>
@@ -456,44 +789,45 @@ refreshpage();
 <tr>
 						<th><a class="hintstyle"  href="javascript:void(0);" onClick="openHint(21,3);"><%tcWebApi_get("String_Entry","HSDPAC_private_apn_in","s")%></a></th>
 <td>
-<input id="modem_apn" name="modem_apn" class="input_20_table" type="text" value=""/>
+<input id="modem_apn" name="modem_apn" class="input_20_table" maxlength="32" type="text" value="<%if tcWebApi_get("USBModem_Entry","modem_apn","h") <> "" then tcWebApi_get("USBModem_Entry","modem_apn","s") else asp_Write("internet") end if%>"/>
 </td>
 </tr>
 <tr>
 <th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(21,10);"><%tcWebApi_get("String_Entry","HSDPAC_DialNum_in","s")%></a></th>
 <td>
-<input id="modem_dialnum" name="modem_dialnum" class="input_20_table" type="text" value=""/>
+<input id="modem_dialnum" name="modem_dialnum" class="input_20_table" maxlength="32" type="text" value="<%if tcWebApi_get("USBModem_Entry","modem_dialnum","h") <> "" then tcWebApi_get("USBModem_Entry","modem_dialnum","s") else asp_Write("*99#") end if%>"/>
 </td>
 </tr>
 <tr>
-<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(21,2);"><%tcWebApi_get("String_Entry","HSDPAC_PIN_in","s")%></a></th>
-<td>
-<input id="modem_pincode" name="modem_pincode" class="input_20_table" type="password" maxLength="8" value=""/>
-</td>
+		<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(21,2);"><%tcWebApi_get("String_Entry","PIN_code","s")%></a></th>
+		<td>
+				<input id="modem_pincode" name="modem_pincode" class="input_20_table" type="password" maxLength="8" autocapitalization="off" autocomplete="off" value="<%if tcWebApi_get("USBModem_Entry","modem_pincode","h") <> "" then tcWebApi_get("USBModem_Entry","modem_pincode","s") else asp_Write("") end if%>"/>
+				<br><span id="pincode_status" style="display:none;"><%tcWebApi_get("String_Entry","pincode_wrong","s")%></span>
+		</td>
 </tr>
 <tr>
-						<th><a class="hintstyle"  href="javascript:void(0);" onClick="openHint(21,11);"><%tcWebApi_get("String_Entry","HSDPAC_Username_in","s")%></a></th>
-<td>
-<input id="modem_user" name="modem_user" class="input_20_table" type="text" value=""/>
-</td>
+		<th><a class="hintstyle"  href="javascript:void(0);" onClick="openHint(21,11);"><%tcWebApi_get("String_Entry","HSDPAC_Username_in","s")%></a></th>
+		<td>
+				<input id="modem_user" name="modem_user" class="input_20_table" maxlength="32" type="text" autocapitalization="off" autocomplete="off" value="<%if tcWebApi_get("USBModem_Entry","modem_user","h") <> "" then tcWebApi_get("USBModem_Entry","modem_user","s") else asp_Write("") end if%>"/>
+		</td>
 </tr>
 <tr>
-						<th><a class="hintstyle"  href="javascript:void(0);" onClick="openHint(21,12);"><%tcWebApi_get("String_Entry","PPPC_Password_in","s")%></a></th>
-<td>
-<input id="modem_pass" name="modem_pass" class="input_20_table" type="password" value=""/>
-</td>
+		<th><a class="hintstyle"  href="javascript:void(0);" onClick="openHint(21,12);"><%tcWebApi_get("String_Entry","PPPC_Password_in","s")%></a></th>
+		<td>
+				<input id="modem_pass" name="modem_pass" class="input_20_table" maxlength="32" type="password" autocapitalization="off" autocomplete="off" value="<%if tcWebApi_get("USBModem_Entry","modem_pass","h") <> "" then tcWebApi_get("USBModem_Entry","modem_pass","s") else asp_Write("") end if%>"/>
+		</td>
 </tr>
 <tr>
-<th>E-mail</th>
-<td>
-<input id="modem_ttlsid" name="modem_ttlsid" class="input_20_table" value=""/>
-</td>
+		<th>E-mail</th>
+		<td>
+				<input id="modem_ttlsid" name="modem_ttlsid" type="text" class="input_20_table" maxlength="64" value=""/>
+		</td>
 </tr>
 <tr>
-						<th><a class="hintstyle"  href="javascript:void(0);" onClick="openHint(21,13);"><%tcWebApi_get("String_Entry","HSDPAC_USBAdapter_in","s")%></a></th>
-<td>
-<select name="Dev3G" id="shown_modems" class="input_option" disabled="disabled"></select>
-</td>
+		<th><a class="hintstyle"  href="javascript:void(0);" onClick="openHint(21,13);"><%tcWebApi_get("String_Entry","HSDPAC_USBAdapter_in","s")%></a></th>
+		<td>
+				<select name="Dev3G" id="shown_modems" class="input_option" disabled="disabled"></select>
+		</td>
 </tr>
 </table>
 <div class="apply_gen">
@@ -510,6 +844,12 @@ refreshpage();
 <td width="10" align="center" valign="top">&nbsp;</td>
 </tr>
 </table>
+</form>
+<form method="post" name="formUSB" action="/cgi-bin/start_apply.asp" target="hidden_frame">
+<input type="hidden" name="current_page" value="Advanced_Modem_Content.asp">
+<input type="hidden" name="next_page" value="Advanced_DSL_Content.asp">
+<input type="hidden" name="ModemInfo_PVC" value="0">
+<input type="hidden" name="ModemTransMode" value="ATM">
 </form>
 <div id="footer"></div>
 </body>

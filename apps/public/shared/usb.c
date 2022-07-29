@@ -21,9 +21,9 @@
 #include <sys/sysinfo.h>
 #include <sys/types.h>
 
-// #include <bcmnvram.h>
-// #include <bcmdevs.h>
-// #include <wlutils.h>
+#include <bcmnvram.h>
+//#include <bcmdevs.h>
+//#include <wlutils.h>
 
 #include "shutils.h"
 #include "shared.h"
@@ -32,50 +32,30 @@
 /* Serialize using fcntl() calls 
  */
 
-int file_lock(char *tag)
-{
-	char fn[64];
-	struct flock lock;
-	int lockfd = -1;
-	pid_t lockpid;
-
-	sprintf(fn, "/var/lock/%s.lock", tag);
-	if ((lockfd = open(fn, O_CREAT | O_RDWR, 0666)) < 0)
-		goto lock_error;
-
-	pid_t pid = getpid();
-	if (read(lockfd, &lockpid, sizeof(pid_t))) {
-		// check if we already hold a lock
-		if (pid == lockpid) {
-			// don't close the file here as that will release all locks
-			return -1;
-		}
+int check_magic(char *buf, char *magic){
+	if(!strncmp(magic, "ext3_chk", 8)){
+		if(!((*buf)&4))
+			return 0;
+		if(*(buf+4) >= 0x40)
+			return 0;
+		if(*(buf+8) >= 8)
+			return 0;
+		return 1;
+	}
+ 
+	if(!strncmp(magic, "ext4_chk", 8)){
+		if(!((*buf)&4))
+			return 0;
+		if(*(buf+4) > 0x3F)
+			return 1;
+		if(*(buf+4) >= 0x40)
+			return 0;
+		if(*(buf+8) <= 7)
+			return 0;
+		return 1;
 	}
 
-	memset(&lock, 0, sizeof(lock));
-	lock.l_type = F_WRLCK;
-	lock.l_pid = pid;
-
-	if (fcntl(lockfd, F_SETLKW, &lock) < 0) {
-		close(lockfd);
-		goto lock_error;
-	}
-
-	lseek(lockfd, 0, SEEK_SET);
-	write(lockfd, &pid, sizeof(pid_t));
-	return lockfd;
-lock_error:
-	// No proper error processing
-	syslog(LOG_DEBUG, "Error %d locking %s, proceeding anyway", errno, fn);
-	return -1;
-}
-
-void file_unlock(int lockfd)
-{
-	if (lockfd >= 0) {
-		ftruncate(lockfd, 0);
-		close(lockfd);
-	}
+	return 0;
 }
 
 char *detect_fs_type(char *device)
@@ -110,11 +90,26 @@ char *detect_fs_type(char *device)
 	{
 		return "swap";
 	}
-	/* detect ext2/3 */
+	/* detect ext2/3/4 */
 	else if (buf[0x438] == 0x53 && buf[0x439] == 0xEF)
 	{
-		return ((buf[0x460] & 0x0008 /* JOURNAL_DEV */) != 0 ||
-			(buf[0x45c] & 0x0004 /* HAS_JOURNAL */) != 0) ? "ext3" : "ext2";
+		if(check_magic((char *) &buf[0x45c], "ext3_chk"))
+			return "ext3";
+		else if(check_magic((char *) &buf[0x45c], "ext4_chk"))
+			return "ext4";
+		else
+			return "ext2";
+	}
+	/* detect hfs */
+	else if(buf[1024] == 0x48){
+		if(!memcmp(buf+1032, "HFSJ", 4)){
+			if(buf[1025] == 0x58) // with case-sensitive
+				return "hfs+jx";
+			else
+				return "hfs+j";
+		}
+		else
+			return "hfs";
 	}
 	/* detect ntfs */
 	else if (buf[510] == 0x55 && buf[511] == 0xAA && /* signature */
@@ -124,10 +119,19 @@ char *detect_fs_type(char *device)
 	}
 	/* detect vfat */
 	else if (buf[510] == 0x55 && buf[511] == 0xAA && /* signature */
-		buf[11] == 0 && buf[12] >= 0x02 && buf[12] <= 0x10 /* sector size 512 - 4096 */ &&
+		buf[11] == 0 && buf[12] >= 1 && buf[12] <= 8 /* sector size 512 - 4096 */ &&
 		buf[13] != 0 && (buf[13] & (buf[13] - 1)) == 0) /* sectors per cluster */
 	{
-		return "vfat";
+		if(buf[6] == 0x20 && buf[7] == 0x20 && !memcmp(buf+71, "EFI        ", 11))
+			return "apple_efi";
+		else
+			return "vfat";
+	}
+	/* detect exfat */
+	else if (buf[510] == 0x55 && buf[511] == 0xAA && /* signature */
+		 !memcmp(buf + 3, "EXFAT   ", 8))
+	{
+		return "exfat";
 	}
 
 	return "unknown";
@@ -472,6 +476,7 @@ void add_remove_usbhost(char *host, int add)
 /* Probe for label the same way that mount does.    */
 /****************************************************/
 
+#ifdef VOLUME_NAME
 #define VOLUME_ID_LABEL_SIZE		64
 #define VOLUME_ID_UUID_SIZE		36
 #define SB_BUFFER_SIZE			0x11000
@@ -495,14 +500,15 @@ extern int volume_id_probe_ext();
 extern int volume_id_probe_vfat();
 extern int volume_id_probe_ntfs();
 extern int volume_id_probe_linux_swap();
+extern int volume_id_probe_hfs_hfsplus(struct volume_id *id);
+extern int volume_id_probe_exfat(struct volume_id *id);
 
 /* Put the label in *label and uuid in *uuid.
  * Return 0 if no label/uuid found, NZ if there is a label or uuid.
  */
 int find_label_or_uuid(char *dev_name, char *label, char *uuid)
 {
-	return 0;	//tmp, since busybox 1.00 not support volume_id_xxx
-/*	struct volume_id id;
+	struct volume_id id;
 
 	memset(&id, 0x00, sizeof(id));
 	if (label) *label = 0;
@@ -520,6 +526,14 @@ int find_label_or_uuid(char *dev_name, char *label, char *uuid)
 		goto ret;
 	if (volume_id_probe_ntfs(&id) == 0 || id.error)
 		goto ret;
+#if defined(RTCONFIG_HFS)
+	if(volume_id_probe_hfs_hfsplus(&id) == 0 || id.error)
+		goto ret;
+#endif
+#if defined(RTCONFIG_EXFAT)
+	if(volume_id_probe_exfat(&id) == 0 || id.error)
+		goto ret;
+#endif
 ret:
 	volume_id_free_buffer(&id);
 	if (label && (*id.label != 0))
@@ -528,19 +542,19 @@ ret:
 		strcpy(uuid, id.uuid);
 	close(id.fd);
 	return (label && *label != 0) || (uuid && *uuid != 0);
-*/
 }
+#endif
 
 void *xmalloc(size_t siz)
 {
 	return (malloc(siz));
 }
-
+#if 0
 static void *xrealloc(void *old, size_t size)
 {
 	return realloc(old, size);
 }
-
+#endif
 ssize_t full_read(int fd, void *buf, size_t len)
 {
 	return read(fd, buf, len);

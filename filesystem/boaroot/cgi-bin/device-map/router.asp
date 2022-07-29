@@ -61,13 +61,20 @@ function redirectParent(){
 }
 
 function tabclickhandler(wl_unit){
-	if(band5g_support == -1)
-		return false;
-
-	document.form_band.wl_unit.value = wl_unit;
-	parent.showLoading(2);
-	setTimeout("redirect();", 2000);
-	document.form_band.submit();
+	if(wl_unit == 2){
+		location.href = "router_status.asp";
+	}
+	else{
+		if(band5g_support == -1){
+			redirect();
+		}
+		else{
+			document.form_band.wl_unit.value = wl_unit;
+			parent.showLoading(2);
+			setTimeout("redirect();", 2000);
+			document.form_band.submit();
+		}
+	}
 }
 
 //javi
@@ -305,20 +312,25 @@ function clean_input(obj){
 <input type="hidden" name="w_Setting" value="1">
 <table border="0" cellpadding="0" cellspacing="0">
 <tr>
-<td>
-<table width="100px" border="0" align="left" style="margin-left:8px;" cellpadding="0" cellspacing="0">
-<td>
-<div id="t0" class="tabclick_NW" align="center" style="display:none; margin-right:2px; width:90px;" onclick="tabclickhandler(0)">
-<span id="span1" style="cursor:pointer;">2.4GHz</span>
-</div>
-</td>
-<td>
-<div id="t1" class="tab_NW" align="center" style="display:none; margin-right:2px; width:90px;" onclick="tabclickhandler(1)">
-<span id="span1" style="cursor:pointer;">5GHz</span>
-</div>
-</td>
-</table>
-</td>
+	<td>
+	<table width="100px" border="0" align="left" style="margin-left:8px;" cellpadding="0" cellspacing="0">
+	<td>
+		<div id="t0" class="tabclick_NW" align="center" style="display:none; margin-right:2px; width:90px;" onclick="tabclickhandler(0)">
+			<span id="span1" style="cursor:pointer;">2.4GHz</span>
+		</div>
+	</td>
+	<td>
+		<div id="t1" class="tab_NW" align="center" style="display:none; margin-right:2px; width:90px;" onclick="tabclickhandler(1)">
+			<span id="span1" style="cursor:pointer;">5GHz</span>
+		</div>
+	</td>
+	<td>
+		<div id="t2" class="tab_NW" align="center" style="font-weight: bolder; margin-right:2px; width:90px;" onclick="tabclickhandler(2)">
+			<span id="span1" style="cursor:pointer;font-weight: bolder;">Status</span>
+		</div>
+	</td>
+	</table>
+	</td>
 </tr>
 <tr>
 <td>

@@ -35,3 +35,16 @@ extern char *xreadlink(const char *path)
 
 	return buf;
 }
+
+extern char *xrealpath(const char *path)
+{
+	static const int GROWBY = 80; /* how large we will grow strings by */
+
+	char *buf = NULL;
+	int bufsize = 0;
+
+	buf = xcalloc(buf, 1024);
+	realpath(path, buf);
+
+	return buf;
+}

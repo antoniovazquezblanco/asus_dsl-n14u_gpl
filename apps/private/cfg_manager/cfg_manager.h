@@ -47,6 +47,7 @@
 #include "web.h"
 #include "tcapi_proc.h"
 #include "apps.h"
+#include "defaults.h"
 
 #if VOIP
 #include "voip.h"
@@ -80,6 +81,12 @@
 #define ROMFILE_TAG	"ROMFILE"
 #define ROMFILE_PATH 	"/tmp/var/romfile.cfg"
 #define DEF_ROMFILE_PATH 	"/userfs/romfile.cfg"
+
+//Andy Chiu, 2015/03/09
+#define CFG_RESTORE_DIR	"/tmp/var/cfgrestore"
+#define WEBTYPE_ROMFILE_PATH	"/tmp/var/cfgrestore/%s_romfile.cfg"
+#define CC_RESTORE_PATH	"/tmp/var/cfgrestore/restore_cc"
+
 #define UPDATE_ROMFILE_CMD	"/userfs/bin/mtd write %s romfile"
 #if 1 //def TCSUPPORT_BACKUPROMFILE
 #define BR_FILE_NAME "/tmp/tc_backupromfile"
@@ -127,7 +134,11 @@
 #define DEFAULT_MTU 1500 //Ren
 
 #ifndef PURE_BRIDGE
-#if defined(TCSUPPORT_WAN_ETHER)
+#if defined(TCSUPPORT_WAN_ETHER_LAN)
+	#define PVC_NUM 13
+#elif defined(TCSUPPORT_USB_3G_DONGLE)
+	#define PVC_NUM 12
+#elif defined(TCSUPPORT_WAN_ETHER)
 	#define PVC_NUM 11
 #elif defined(TCSUPPORT_WAN_PTM)
     #define PVC_NUM 10
@@ -429,6 +440,9 @@ struct PRE_SYS_STATE{
 	char Wds_MAC[MAX_WDS_ENTRY][18];
 	char WepKeyStr[4][27];
 #endif
+#if defined(TCSUPPORT_CPU_MT7510) || defined(TCSUPPORT_CPU_MT7520)
+	char cc_is_run;
+#endif
 	//unsigned int  ebtable_status;
 //	char l7filter_state;/*system load l7filter module*/
 }pre_sys_state;
@@ -478,4 +492,19 @@ void lanaccess_wl( int freq);
 
 extern char *get_nas_ifname_of_WAN(int wan_pvc_index, char *resultValue); //Ren: get wan interface name, ex: nas0(ATM), nas8(PTM), nas9(PTM1), nas10(ETHERNET WAN) etc.
 void setup_rtsp_conntrack(void); //Ren
+
+typedef struct log_record_s{
+	unsigned long counter;
+	char *str;
+	struct log_record_s* next;
+}log_record_t;
+
+#define WIFI_LOG_FILE "/tmp/wifilog.txt"
+#define IPTABLES_LOG_FILE "/tmp/iptables_save.txt"
+#define SYNC_LOG_FILE "/tmp/sync_log.txt"
+#define SNR_LOG_FILE "/tmp/snr_crc_log.txt"
+
+#define LOG_CRC_SNR_PERIOD 30
+#define LOG_MAX_ENTRY 6000
+
 #endif

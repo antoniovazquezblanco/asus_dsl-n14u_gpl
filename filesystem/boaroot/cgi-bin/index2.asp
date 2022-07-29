@@ -4,7 +4,7 @@
 
 <!--index.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -16,6 +16,85 @@
 <link rel="stylesheet" type="text/css" href="/form_style.css">
 <link rel="stylesheet" type="text/css" href="/NM_style.css">
 <link rel="stylesheet" type="text/css" href="/other.css">
+<style type="text/css">
+.contentM_qis{
+	position:absolute;
+	-webkit-border-radius: 5px;
+	-moz-border-radius: 5px;
+	border-radius: 5px;
+	z-index:20000;
+	background-color:#2B373B;
+	display:block;
+	margin-left: 23%;
+	margin-top: 20px;
+	width:420px;
+	height:250px;
+}
+.contentM_qis_manual{
+	position:absolute;
+	-webkit-border-radius: 5px;
+	-moz-border-radius: 5px;
+	border-radius: 5px;
+	z-index:200;
+	background-color:#2B373B;
+	margin-left: -30px;
+	margin-left: -100px \9; 
+	margin-top:-400px;
+	width:740px;
+	box-shadow: 3px 3px 10px #000;
+}
+#client_image{
+	cursor: pointer;
+	width: 102px;
+	height: 77px;
+	background-image: url('/images/New_ui/networkmap/client-list.png');
+	background-repeat: no-repeat;
+	background-position:50% 61.10%;
+}
+#client_image:hover{
+	background-image: url('/images/New_ui/networkmap/client-listover.png');
+}
+#custom_image table{
+	border: 1px solid #000000;
+	border-collapse: collapse;
+}
+#custom_image div{
+	background-image:url('/images/New_ui/networkmap/client-list.png');
+	background-repeat:no-repeat;
+	height:55px;
+	width:55px;
+	cursor:pointer;
+	background-position:-21px 0%;
+}
+#custom_image div:hover{
+	background-image:url('/images/New_ui/networkmap/client-listover.png');
+}
+#custom_image td:hover{
+	border-radius: 7px;
+	background-color:#84C1FF;
+}
+.disabled{
+	background:#475a5f;
+	width:200px;
+	height:15px;
+	padding:5px 0px 5px 5px;
+	margin-left:2px;
+	border-radius:5px;
+}
+#ipLockIcon{
+	cursor: pointer;
+	margin-top:-2px;
+	background-repeat:no-repeat;
+	height: 25px;
+	width: 25px;
+}
+.dhcp{
+	background-image: url('/images/New_ui/networkmap/unlock.png');
+}
+.static{
+	background-image: url('/images/New_ui/networkmap/lock.png');
+}
+</style>
 <script type="text/javascript" src="/md5.js"></script>
 <script type="text/javascript" src="/state.js"></script>
 <script type="text/javascript" src="/popup.js"></script>
@@ -25,39 +104,43 @@
 <script type="text/javascript" src="/detect.js"></script>
 <script language="JavaScript" type="text/javascript" src="/jquery.js"></script>
 <script>
+var $j = jQuery.noConflict();
+	
 if(location.pathname == "/"){
 if('1' == '0')
 location.href = 'QIS_wizard.asp?flag=welcome';
 else if('1' == '0' && sw_mode != 2)
 location.href = 'QIS_wizard.asp?flag=wireless';
 }
+<% login_state_hook(); %>
 
-
-function login_ip_str() { return '<% tcWebApi_get("WebCurSet_Entry","login_ip_tmp","s"); %>'; }
-
-function login_mac_str() { return ''; }
-
+<% wanlink(); %>
 wan_route_x = '';
 wan_nat_x = '1';
 wan_proto = 'pppoe';
 var wanstate = -1;
 var wansbstate = -1;
 var wanauxstate = -1;
-var Dev3G = '';
+
 var flag = '';
 var usb_path1_index = '<% tcWebApi_Get("USB_Entry", "usb_path1", "s") %>';
 var usb_path2_index = '<% tcWebApi_Get("USB_Entry", "usb_path2", "s") %>';
-function wanlink_status() { return 0;}
-function wanlink_statusstr() { return '<% tcWebApi_Get("String_Entry", "Disconnected", "s") %>';}
-function wanlink_type() { return 'pppoe';}
-function wanlink_ipaddr() { return '0.0.0.0';}
-function wanlink_netmask() { return '0.0.0.0';}
-function wanlink_gateway() { return '0.0.0.0';}
-function wanlink_dns() { return '';}
-function wanlink_lease() { return ;}
-function is_private_subnet() { return '0';}
+
+var wan_primary_pvcunit = '<% get_wan_primary_pvcunit() %>';
+var wan_secondary_pvcunit = '<% get_wan_secondary_pvcunit() %>';
+var wans_dualwan_orig = '<% tcWebApi_Get("Dualwan_Entry", "wans_dualwan", "s") %>';
+var wans_mode = '<%tcWebApi_Get("Dualwan_Entry", "wans_mode", "s")%>';
+if(wans_dualwan_orig.search(" ") == -1)
+	var wans_flag = 0;
+else
+	var wans_flag = (wans_dualwan_orig.search("none") == -1) ? 1:0;
 
 <% get_printer_info() %>
+
+
+var usb_path0_product = '<% tcWebApi_get("USB_Entry","usb_path1_product","s") %>';
+var usb_path1_product = '<% tcWebApi_get("USB_Entry","usb_path2_product","s") %>';
+var dongle_name;
 
 var all_disks;
 var all_disk_interface;
@@ -70,15 +153,25 @@ var arps = []; // [[ip, x, x, MAC, x, type], ...]
 var arls = []; // [[MAC, port, x, x], ...]
 var wireless = []; // [[MAC, associated, authorized], ...]
 var ipmonitor = []; // [[IP, MAC, DeviceName, Type, http, printer, iTune], ...]
-var networkmap_fullscan = 'done'; //2008.07.24 Add. 1 stands for complete, 0 stands for scanning.;
 var client_list_array = '';
-var $j = jQuery.noConflict();
+
 function initial(){
 	setTimeout('update_wan_status2();', 1000);
 	show_menu();
+	var isIE6 = navigator.userAgent.search("MSIE 6") > -1;
+	if(isIE6)
+		alert("<% tcWebApi_get("String_Entry","ALERT_TO_CHANGE_BROWSER","s") %>");
+
+	if(dualWAN_support != -1 && sw_mode == 1){
+		check_dualwan(wans_flag);	//Enable/DisableDual WAN
+	}
+
 	show_middle_status(document.form.wl_auth_mode_x.value, document.form.wl_wep_x.value);
+
 	set_default_choice();
-	show_client_status();
+
+	show_client_status(originData.size);
+
 	if(parent.usb_support == -1){
 		$("line3_td").height = '20px';
 		$("line3_img").src = '/images/New_ui/networkmap/line_one.png';
@@ -93,18 +186,19 @@ function initial(){
 	if(rc_support.search("usbX") == -1 || rc_support.search("usbX1") > -1){
 		$("deviceIcon_1").style.display = "none";
 		$("deviceDec_1").style.display = "none";
+		$("usb1_image").style.display = "none";
 	}
-	show_device();
+	show_USBDevice();
 	//showMapWANStatus();
+	
+	check_usb3();	
 
 	var NM_table_img = getCookie("NM_table_img");
 	if(NM_table_img != "" && NM_table_img != null){
 		customize_NM_table(NM_table_img);
 		$("bgimg").options[NM_table_img[4]].selected = 1;
 	}
-	var isIE6 = navigator.userAgent.search("MSIE 6") > -1;
-	if(isIE6)
-		alert("We've detected that you're using IE6. Please Try Chrome, IE7 or higher for best browsing experience.");
+	update_wan_status();
 }
 
 function update_wan_status2(){
@@ -130,7 +224,7 @@ function detectUSBStatusIndex(){
 			detectUSBStatusIndex();
 		},
 		success: function(){
-			if((tmp_mount_0 == 0 && tmp_mount_0 != foreign_disk_total_mounted_number()[0]) 
+			if((tmp_mount_0 == 0 && tmp_mount_0 != foreign_disk_total_mounted_number()[0])
 						|| (tmp_mount_1 == 0 && tmp_mount_1 != foreign_disk_total_mounted_number()[1])){
 						location.href = "/cgi-bin/index2.asp";
 						return 0;
@@ -158,95 +252,98 @@ return unescape(document.cookie.substring(c_start,c_end))
 }
 return null
 }
+
 function set_default_choice(){
-var icon_name;
-if(flag && flag.length > 0 && wan_route_x != "IP_Bridged"){
-if(flag == "Internet")
-$("statusframe").src = "/cgi-bin/device-map/internet.asp";
-else if(flag == "Client")
-$("statusframe").src = "/cgi-bin/device-map/clients.asp";
-else if(flag == "Router2g")
-$("statusframe").src = "/cgi-bin/device-map/router.asp";
-else{
-clickEvent($("iconRouter"));
-return;
+	var icon_name;
+	if(flag && flag.length > 0 && wan_route_x != "IP_Bridged"){
+		if(flag == "Internet")
+			$("statusframe").src = "/cgi-bin/device-map/internet.asp";
+		else if(flag == "Client")
+			$("statusframe").src = "/cgi-bin/device-map/clients.asp";
+		else if(flag == "Router2g")
+			$("statusframe").src = "/cgi-bin/device-map/router.asp";
+		else{
+			clickEvent($("iconRouter"));
+			return;
+		}
+
+		if(flag == "Router2g")
+			icon_name = "iconRouter";
+		else
+			icon_name = "icon"+flag;
+
+		clickEvent($(icon_name));
+	}
+	else
+		clickEvent($("iconRouter"));
 }
-if(flag == "Router2g")
-icon_name = "iconRouter";
-else
-icon_name = "icon"+flag;
-clickEvent($(icon_name));
-}
-else
-clickEvent($("iconRouter"));
-}
+
 function showMapWANStatus(){
 showtext($("NM_connect_status"), "AP Mode");
 }
+
 function show_middle_status(auth_mode, wep){
-	$("wanIP_status").innerHTML = '<span style="word-break:break-all;"> <%tcWebApi_staticGet("DeviceInfo_PVC","WanIP","s")%> </span>'		
+	$("wanIP_status").innerHTML = '<span style="word-break:break-all;"> <%tcWebApi_staticGet("DeviceInfo_PVC","WanIP","s")%> </span>'
 	if("<%tcWebApi_staticGet("DeviceInfo_PVC","WanIP","s")%>" == "0.0.0.0" || "<%tcWebApi_staticGet("DeviceInfo_PVC","WanIP","s")%>" == "")
 			$("wanIP_div").style.display = "none";
-			
+
 	setTimeout("show_ddns_status();", 2000);
-	
-var security_mode;
-switch (auth_mode){
-	case "OPEN":
-	security_mode = "Open System";
-	break;
-	case "SHARED":
-	security_mode = "Shared Key";
-	break;
-	case "WPAPSK":
-	security_mode = "WPA-Personal";
-	break;
-	case "WPA2PSK":
-	security_mode = "WPA2-Personal";
-	break;
-	case "WPAPSKWPA2PSK":
-	security_mode = "WPA-Auto-Personal";
-	$("wl_securitylevel_span").style.fontSize = "16px";
-	break;
-	case "WPA":
-	security_mode = "WPA-Enterprise";
-	break;
-	case "WPA2":
-	security_mode = "WPA2-Enterprise";
-	break;
-	case "WPA1WPA2":
-	security_mode = "WPA-Auto-Enterprise";
-	$("wl_securitylevel_span").style.fontSize = "16px";
-	break;
-	case "Radius":
-	security_mode = "Radius WEP-64";
-	$("wl_securitylevel_span").style.fontSize = "16px";
-	break;
-	default:
-	//alert("case default");
-	security_mode = "Unknown Auth";
-}
-$("wl_securitylevel_span").innerHTML = security_mode;
-if(auth_mode == "OPEN")
-{
-	if(wep == "1" || wep == "2")
-		$("iflock").src = "/images/New_ui/networkmap/lock.png"
+
+	var security_mode;
+	switch (auth_mode){
+		case "OPEN":
+		security_mode = "Open System";
+		break;
+		case "SHARED":
+		security_mode = "Shared Key";
+		break;
+		case "WPAPSK":
+		security_mode = "WPA-Personal";
+		break;
+		case "WPA2PSK":
+		security_mode = "WPA2-Personal";
+		break;
+		case "WPAPSKWPA2PSK":
+		security_mode = "WPA-Auto-Personal";
+		$("wl_securitylevel_span").style.fontSize = "16px";
+		break;
+		case "WPA":
+		security_mode = "WPA-Enterprise";
+		break;
+		case "WPA2":
+		security_mode = "WPA2-Enterprise";
+		break;
+		case "WPA1WPA2":
+		security_mode = "WPA-Auto-Enterprise";
+		$("wl_securitylevel_span").style.fontSize = "16px";
+		break;
+		case "Radius":
+		security_mode = "Radius WEP-64";
+		$("wl_securitylevel_span").style.fontSize = "16px";
+		break;
+		default:
+		//alert("case default");
+		security_mode = "Unknown Auth";
+	}
+	$("wl_securitylevel_span").innerHTML = security_mode;
+	if(auth_mode == "OPEN")
+	{
+		if(wep == "1" || wep == "2")
+			$("iflock").src = "/images/New_ui/networkmap/lock.png"
+		else
+			$("iflock").src = "/images/New_ui/networkmap/unlock.png";
+	}
 	else
-		$("iflock").src = "/images/New_ui/networkmap/unlock.png";
+		$("iflock").src = "/images/New_ui/networkmap/lock.png"
 }
-else
-	$("iflock").src = "/images/New_ui/networkmap/lock.png"
+
+function show_client_status(num){
+	var client_str = "";
+	client_str += "<% tcWebApi_Get("String_Entry", "Full_Clients", "s") %>";
+	client_str += ": <span id='_clientNumber'>"+num+"</span>";
+	document.getElementById("clientNumber").innerHTML = client_str;
 }
-function show_client_status(){
-var client_list_row = client_list_array.split('<');
-var client_number = client_list_row.length - 1;
-var client_str = "";
-var wired_num = 0, wireless_num = 0;
-//client_str += "Clients: <span id='_clientNumber'>"+client_number+"</span>";
-client_str += "<% tcWebApi_Get("String_Entry", "Full_Clients", "s") %>";
-$("clientNumber").innerHTML = client_str;
-}
-function show_device(){
+function show_USBDevice(){
 	if(usb_support == -1){
 		usb_path1_index = "";
 		usb_path2_index = "";
@@ -296,6 +393,7 @@ function show_device(){
 			no_device_html(1);
 	}
 }
+
 function disk_html(device_order, all_disk_order){
 	var device_icon = $("deviceIcon_"+device_order);
 	var device_dec = $("deviceDec_"+device_order);
@@ -336,6 +434,7 @@ function disk_html(device_order, all_disk_order){
 	device_icon.innerHTML = icon_html_code;
 	device_dec.innerHTML = dec_html_code;
 }
+
 function printer_html(device_seat, printer_order){
 	var printer_name = printer_manufacturers()[printer_order]+" "+printer_models()[printer_order];
 	var printer_status = "";
@@ -354,8 +453,15 @@ function printer_html(device_seat, printer_order){
 	device_icon.innerHTML = icon_html_code;
 	device_dec.innerHTML = dec_html_code;
 }
+
 function modem_html(device_seat, modem_order){
-var modem_name = Dev3G;
+
+if(device_seat)
+	dongle_name = usb_path1_product;
+else
+	dongle_name = usb_path0_product;	
+	
+var modem_name = dongle_name;
 var modem_status = "<% tcWebApi_Get("String_Entry", "Connected", "s") %>";
 var device_icon = $("deviceIcon_"+device_seat);
 var device_dec = $("deviceDec_"+device_seat);
@@ -388,91 +494,119 @@ var lastClicked;
 var lastName;
 var clicked_device_order;
 function get_clicked_device_order(){
-return clicked_device_order;
+	return clicked_device_order;
 }
 function clickEvent(obj){
-var icon;
-var stitle;
-var seat;
-clicked_device_order = -1;
-if(obj.id.indexOf("Internet") > 0){
-icon = "iconInternet";
-stitle = "<% tcWebApi_Get("String_Entry", "statusTitle_Internet", "s") %>";
-$("statusframe").src = "/cgi-bin/device-map/internet.asp";
+	var icon;
+	var stitle;
+	var seat;
+	clicked_device_order = -1;
+
+	if(obj.id.indexOf("Internet") > 0){
+		if(dualWAN_support == -1){
+			check_wan_unit();
+		}
+
+		icon = "iconInternet";
+		stitle = "<% tcWebApi_Get("String_Entry", "statusTitle_Internet", "s") %>";
+
+		$("statusframe").src = "/cgi-bin/device-map/internet_dual.asp";
+
+		if(parent.wans_flag){
+			$("statusframe").src = "/cgi-bin/device-map/internet_dual.asp";
+
+			if(obj.id.indexOf("primary") != -1) {
+				stitle = "Primary WAN status";
+				change_wan_unit(0);
+			}
+			else {
+				stitle = "Secondary WAN status";
+				change_wan_unit(1);
+			}
+		}
+		else {
+			$("statusframe").src = "/cgi-bin/device-map/internet.asp";
+		}
+	}
+	else if(obj.id.indexOf("Router") > 0){
+		icon = "iconRouter";
+		stitle = "<%tcWebApi_get("String_Entry","menu5_7_1","s")%>";
+	}
+	else if(obj.id.indexOf("Client") > 0){
+		icon = "iconClient";
+		stitle = "<% tcWebApi_Get("String_Entry", "statusTitle_Client", "s") %>";
+	}
+	else if(obj.id.indexOf("USBdisk") > 0){
+		icon = "iconUSBdisk";
+		stitle = "<% tcWebApi_Get("String_Entry", "statusTitle_USB_Disk", "s") %>";
+		$("statusframe").src = "/device-map/disk.asp";
+	}
+	else if(obj.id.indexOf("Modem") > 0){
+		seat = obj.id.indexOf("Modem")+5;
+		clicked_device_order = parseInt(obj.id.substring(seat, seat+1));
+		icon = "iconmodem";
+		stitle = "USB Modem";
+		$("statusframe").src = "/device-map/modem.asp";
+	}
+	else if(obj.id.indexOf("Printer") > 0){
+		seat = obj.id.indexOf("Printer")+7;
+		clicked_device_order = parseInt(obj.id.substring(seat, seat+1));
+		icon = "iconPrinter";
+		stitle = "<% tcWebApi_Get("String_Entry", "statusTitle_Printer", "s") %>";
+	}
+	else if(obj.id.indexOf("Remote") > 0){
+		icon = "iconRemote";
+		stitle = "Access Point status";
+		$("statusframe").src = "/device-map/remote.asp";
+	}
+	else if(obj.id.indexOf("No") > 0){
+		icon = "iconNo";
+	}
+	else
+		alert("mouse over on wrong place!");
+
+	if(lastClicked){
+		lastClicked.style.background = 'url(/images/New_ui/networkmap/map-'+lastName+'.png) no-repeat 0% 0%';
+	}
+	obj.style.background = 'url(/images/New_ui/networkmap/map-'+icon+'.png) no-repeat 0% 101%';
+
+	$('helpname').innerHTML = stitle;
+	avoidkey = icon;
+	lastClicked = obj;
+	lastName = icon;
 }
-else if(obj.id.indexOf("Router") > 0){
-icon = "iconRouter";
-stitle = "<%tcWebApi_get("String_Entry","menu5_7_1","s")%>";
-}
-else if(obj.id.indexOf("Client") > 0){
-icon = "iconClient";
-stitle = "<% tcWebApi_Get("String_Entry", "statusTitle_Client", "s") %>";
-}
-else if(obj.id.indexOf("USBdisk") > 0){
-icon = "iconUSBdisk";
-stitle = "<% tcWebApi_Get("String_Entry", "statusTitle_USB_Disk", "s") %>";
-$("statusframe").src = "/device-map/disk.asp";
-}
-else if(obj.id.indexOf("Modem") > 0){
-seat = obj.id.indexOf("Modem")+5;
-clicked_device_order = parseInt(obj.id.substring(seat, seat+1));
-icon = "iconmodem";
-stitle = "USB Modem";
-$("statusframe").src = "/device-map/modem.asp";
-}
-else if(obj.id.indexOf("Printer") > 0){
-seat = obj.id.indexOf("Printer")+7;
-clicked_device_order = parseInt(obj.id.substring(seat, seat+1));
-icon = "iconPrinter";
-stitle = "<% tcWebApi_Get("String_Entry", "statusTitle_Printer", "s") %>";
-}
-else if(obj.id.indexOf("Remote") > 0){
-icon = "iconRemote";
-stitle = "Access Point status";
-$("statusframe").src = "/device-map/remote.asp";
-}
-else if(obj.id.indexOf("No") > 0){
-icon = "iconNo";
-}
-else
-alert("mouse over on wrong place!");
-if(lastClicked){
-lastClicked.style.background = 'url(/images/New_ui/networkmap/map-'+lastName+'.png) no-repeat 0% 0%';
-}
-obj.style.background = 'url(/images/New_ui/networkmap/map-'+icon+'.png) no-repeat 0% 101%';
-$('helpname').innerHTML = stitle;
-avoidkey = icon;
-lastClicked = obj;
-lastName = icon;
-}
+
 function mouseEvent(obj, key){
-var icon;
-if(obj.id.indexOf("Internet") > 0)
-icon = "iconInternet";
-else if(obj.id.indexOf("Router") > 0)
-icon = "iconRouter";
-else if(obj.id.indexOf("Client") > 0){
-if(wan_route_x == "IP_Bridged")
-return;
-icon = "iconClient";
-}
-else if(obj.id.indexOf("USBdisk") > 0)
-icon = "iconUSBdisk";
-else if(obj.id.indexOf("Printer") > 0)
-icon = "iconPrinter";
-else if(obj.id.indexOf("No") > 0)
-icon = "iconNo";
-else
-alert("mouse over on wrong place!");
-if(avoidkey != icon){
-if(key){ //when mouseover
-obj.style.background = 'url("/images/map-'+icon+'_r.gif") no-repeat';
-}
-else { //when mouseout
-obj.style.background = 'url("/images/map-'+icon+'.gif") no-repeat';
-}
-}
+	var icon;
+
+	if(obj.id.indexOf("Internet") > 0)
+		icon = "iconInternet";
+	else if(obj.id.indexOf("Router") > 0)
+		icon = "iconRouter";
+	else if(obj.id.indexOf("Client") > 0){
+		if(wan_route_x == "IP_Bridged")
+			return;
+		icon = "iconClient";
+	}
+	else if(obj.id.indexOf("USBdisk") > 0)
+		icon = "iconUSBdisk";
+	else if(obj.id.indexOf("Printer") > 0)
+		icon = "iconPrinter";
+	else if(obj.id.indexOf("No") > 0)
+		icon = "iconNo";
+	else
+		alert("mouse over on wrong place!");
+
+	if(avoidkey != icon){
+		if(key){ //when mouseover
+			obj.style.background = 'url("/images/map-'+icon+'_r.gif") no-repeat';
+		}
+		else { //when mouseout
+			obj.style.background = 'url("/images/map-'+icon+'.gif") no-repeat';
+		}
+	}
 }//end of mouseEvent
+
 function MapUnderAPmode(){// if under AP mode, disable the Internet icon and show hint when mouseover.
 $("iconInternet").style.background = "url(/images/New_ui/networkmap/map-iconInternet-d.png) no-repeat";
 $("iconInternet").style.cursor = "default";
@@ -490,18 +624,44 @@ $("clientStatusLink").style.cursor = "default";
 $("iconClient").style.background = "url(/images/New_ui/networkmap/map-iconClient-d.png) no-repeat";
 $("iconClient").style.cursor = "default";
 }
+
 function showstausframe(page){
-clickEvent($("icon"+page));
-if(page == "Client")
-page = "clients";
-else
-page
-window.open("/cgi-bin/device-map/"+page.toLowerCase()+".asp","statusframe");
+	clickEvent($("icon"+page));
+	if(page == "Client")
+		page = "clients";
+	else if(page.indexOf('Internet') == 0){
+		if(page == "Internet_secondary")
+			document.form.dual_wan_flag.value = 1;
+		else
+			document.form.dual_wan_flag.value = 0;
+		if(parent.wans_flag)
+			page = "Internet_dual";
+		else
+			page = "Internet";
+	}
+
+	window.open("/cgi-bin/device-map/"+page.toLowerCase()+".asp","statusframe");
+}
+
+
+function check_wan_unit(){   //To check wan_unit, if USB Modem plug in change wan_unit to 1
+	if(wan0_primary == 1 && document.form.wan_unit.value == 1)
+		change_wan_unit(0);
+	else if(wan1_primary == 1 && document.form.wan_unit.value == 0)
+		change_wan_unit(1);
+}
+
+function change_wan_unit(wan_unit_flag){
+	document.form.wan_unit.value = wan_unit_flag;
+//	document.form.wl_auth_mode_x.disabled = true;
+//	document.form.wl_wep_x.disabled = true;
+	FormActions("/cgi-bin/apply.asp", "change_wan_unit", "", "");
+	document.form.submit();
 }
 
 function show_ddns_fail_hint() {
 	var str="";
-	if(!(link_status == "2" && link_auxstatus == "0"))
+	if(!((link_status == "2" && (link_auxstatus == "0" || link_auxstatus == "2")) || (secondary_link_status == "2" && (secondary_link_auxstatus == "0" || secondary_link_auxstatus == "2"))))	//Both link down
 		str = "<%tcWebApi_get("String_Entry","Disconnected","s")%>";
 	else if(ddns_server = 'WWW.ASUS.COM') {
 			if(ddns_return_code == 'register,203')
@@ -535,7 +695,7 @@ function show_ddns_fail_hint() {
       else if(ddns_return_code =='auth_fail')
           str = "<% tcWebApi_get("String_Entry","qis_fail_desc1", "s") %>";
 	}
-	else 
+	else
 		str = "<% tcWebApi_get("String_Entry","LHC_x_DDNS_alarm_2", "s") %>";
 
 	overlib(str);
@@ -556,7 +716,7 @@ function show_ddns_status(){
         else{
                 $("ddnsHostName").innerHTML = '<span>'+ ddnsName +'</span>';
                 if( ddns_enable == '1' ) {
-										if(!(link_status == "2" && link_auxstatus == "0")) //link down
+										if(!((link_status == "2" && (link_auxstatus == "0" || link_auxstatus == "2")) || (secondary_link_status == "2" && (secondary_link_auxstatus == "0" || secondary_link_auxstatus == "2")))) //Both link down
 													$("ddns_fail_hint").className = "notificationon";
 										if( ddns_server_x == 'WWW.ASUS.COM' ) { //ASUS DDNS
 			    								if( (ddns_return_code.indexOf('200')==-1) && (ddns_return_code.indexOf('220')==-1) && (ddns_return_code.indexOf('230')==-1))
@@ -575,31 +735,162 @@ var isMD5DDNSName = function(){
 	var macAddr = '<% tcWebApi_Get("Info_Ether","mac","s") %>'.toUpperCase().replace(/:/g, "");
 	return "A"+hexMD5(macAddr).toUpperCase()+".asuscomm.com";
 }
+
+
+function check_dualwan(flag){
+	if(flag == 0){		//single wan
+		$('single_wan_icon').style.display = "";
+		$('single_wan_status').style.display = "";
+		$('single_wan_line').style.display = "";
+		$('primary_wan_icon').style.display = "none";
+		$('secondary_wan_icon').style.display = "none";
+		$('primary_wan_line').style.display = "none";
+		$('secondary_wan_line').style.display = "none";
+		$('dual_wan_gap').style.display = "none";
+	}
+	else{
+		$('single_wan_icon').style.display = "none";
+		$('single_wan_status').style.display = "none";
+		$('single_wan_line').style.display = "none";
+		$('primary_wan_icon').style.display = "";
+		$('secondary_wan_icon').style.display = "";
+		$('primary_wan_line').style.display = "";
+		$('secondary_wan_line').style.display = "";
+		$('dual_wan_gap').style.display = "";
+	}
+}
+
+function update_wan_status(e) {
+	if(stopFlag == 1) return false;
+
+	$j.ajax({
+		url: '/cgi-bin/status.asp',
+		dataType: 'script',
+
+		error: function(xhr) {
+			setTimeout("update_wan_status();", 3000);
+		},
+		success: function(response) {
+			wanlink_status = wanlink_statusstr();
+			wanlink_ipaddr = wanlink_ipaddr();
+			secondary_wanlink_status = secondary_wanlink_statusstr();
+			secondary_wanlink_ipaddr = secondary_wanlink_ipaddr();
+			change_wan_state(wanlink_status,secondary_wanlink_status);
+			setTimeout("update_wan_status();", 3000);
+		}
+	});
+}
+
+function change_wan_state(primary_status, secondary_status){
+	if (dualWAN_support == -1)
+		return true;
+
+	if(wans_mode == "fo" || wans_mode == "fb"){
+		if(wan_unit == 0){
+			$('primary_status').innerHTML = primary_status;
+			if(primary_status == "Disconnected"){
+				$('primary_line').className = "primary_wan_disconnected";
+			}
+			else{
+				$('primary_line').className = "primary_wan_connected";
+			}
+
+			/*if(secondary_wanlink_ipaddr != '0.0.0.0' && secondary_status != 'Disconnected')
+				secondary_status = "Standby";*/
+
+			$('seconday_status').innerHTML = secondary_status;
+			if(secondary_status == 'Disconnected'){
+				$('secondary_line').className = "secondary_wan_disconnected";
+			}
+			else if(secondary_status == 'Standby'){
+				$('secondary_line').className = "secondary_wan_standby";
+			}
+			else{
+				$('secondary_line').className = "secondary_wan_connected";
+			}
+		}
+		else{	//wan_unit : 1
+			/*if(wanlink_ipaddr != '0.0.0.0' && primary_status != 'Disconnected')
+				primary_status = "Standby";*/
+
+			$('primary_status').innerHTML = primary_status;
+			if(primary_status == 'Disconnected'){
+				$('primary_line').className = "primary_wan_disconnected";
+			}
+			else if(primary_status == 'Standby'){
+				$('primary_line').className = "primary_wan_standby";
+			}
+			else{
+				$('primary_line').className = "primary_wan_connected";
+			}
+
+			$('seconday_status').innerHTML = secondary_status;
+			if(secondary_status == "Disconnected"){
+				$('secondary_line').className = "secondary_wan_disconnected";
+			}
+			else{
+				$('secondary_line').className = "secondary_wan_connected";
+			}
+		}
+	}
+	else{	//lb
+		$('primary_status').innerHTML = primary_status;
+		$('seconday_status').innerHTML = secondary_status;
+		if(primary_status == "Disconnected"){
+			$('primary_line').className = "primary_wan_disconnected";
+		}
+		else{
+			$('primary_line').className = "primary_wan_connected";
+		}
+
+		if(secondary_status == "Disconnected"){
+			$('secondary_line').className = "secondary_wan_disconnected";
+		}
+		else{
+			$('secondary_line').className = "secondary_wan_connected";
+		}
+	}
+}
+
+function check_usb3(){
+	/*Viz : Not support USB 3.0 model yet
+	if(based_modelid == "DSL-AC68U" || based_modelid == "RT-AC3200" || based_modelid == "RT-AC87U" || based_modelid == "RT-AC69U" || based_modelid == "RT-AC68U" || based_modelid == "RT-AC68U_V2" || based_modelid == "RT-AC56S" || based_modelid == "RT-AC56U" || based_modelid == "RT-AC55U" || based_modelid == "RT-N18U" || based_modelid == "TM-AC1900"){
+		document.getElementById('usb0_image').src = "images/New_ui/networkmap/USB3.png";
+	}
+	else if(based_modelid == "RT-N65U"){
+		document.getElementById('usb0_image').src = "images/New_ui/networkmap/USB3.png";
+		document.getElementById('usb1_image').src = "images/New_ui/networkmap/USB3.png";
+	}*/
+	return;
+}
 </script>
 </head>
 <body onunload="return unload_body();">
 <noscript>
-<div class="popup_bg" style="visibility:visible; z-index:999;">
-<div style="margin:200px auto; width:300px; background-color:#006699; color:#FFFFFF; line-height:150%; border:3px solid #FFF; padding:5px;"><%tcWebApi_get("String_Entry","not_support_script","s")%></p></div>
-</div>
+	<div class="popup_bg" style="visibility:visible; z-index:999;">
+	<div style="margin:200px auto; width:300px; background-color:#006699; color:#FFFFFF; line-height:150%; border:3px solid #FFF; padding:5px;"><%tcWebApi_get("String_Entry","not_support_script","s")%></p></div>
+	</div>
 </noscript>
 <div id="TopBanner"></div>
 <div id="Loading" class="popup_bg"></div>
 <div id="hiddenMask" class="popup_bg">
-<table cellpadding="5" cellspacing="0" id="dr_sweet_advise" class="dr_sweet_advise" align="center">
-<tr>
-<td>
-<div class="drword" id="drword">Please wait, Proceeding...
-<br>
-<br>
-</div>
-<div class="drImg"><img src="/images/alertImg.png"></div>
-<div style="height:70px; "></div>
-</td>
-</tr>
-</table>
+	<table cellpadding="5" cellspacing="0" id="dr_sweet_advise" class="dr_sweet_advise" align="center">
+		<tr>
+			<td>
+				<div class="drword" id="drword"><%tcWebApi_get("String_Entry","Main_alert_proceeding_desc4","s")%> <%tcWebApi_get("String_Entry","Main_alert_proceeding_desc1","s")%>
+					<br>
+					<br>
+				</div>
+				<div class="drImg"><img src="/images/alertImg.png"></div>
+				<div style="height:70px; "></div>
+			</td>
+		</tr>
+	</table>
 </div>
 <iframe name="hidden_frame" id="hidden_frame" width="0" height="0" frameborder="0" scrolling="no"></iframe>
+<form method="POST" name="update_form" action="/start_apply.asp" target="hidden_frame">
+<input type="hidden" name="update_networkmap_Flag" value="0">	
+</form>
 <form method="post" name="form" id="ruleForm" action="start_apply.asp" target="hidden_frame">
 <input type="hidden" name="current_page" value="index.asp">
 <input type="hidden" name="preferred_lang" id="preferred_lang" value="EN">
@@ -613,108 +904,151 @@ var isMD5DDNSName = function(){
 <input type="hidden" name="apps_path" value="">
 <input type="hidden" name="apps_name" value="">
 <input type="hidden" name="apps_flag" value="">
+<input type="hidden" name="wan_unit" value="0">
+<input type="hidden" name="dual_wan_flag" value="">
 </form>
 <table class="content" align="center" cellpadding="0" cellspacing="0">
-<tr>
-<td valign="top" width="17">&nbsp;</td>
-<td valign="top" width="204">
-<div id="mainMenu"></div>
-<div id="subMenu"></div>
-</td>
-<td align="left" valign="top" class="bgarrow">
-<div id="tabMenu"></div><br>
-<div id="NM_shift" style="margin-top:-160px;"></div>
-<div id="NM_table" class="NM_table">
-<table cellspacing="0"><!--  id="_NM_table" -->
-<tr>
-<td width="40" rowspan="11" valign="center">
-</td>
-<td height="100" align="right" class="NM_radius_left" valign="middle" bgcolor="#444f53" onclick="showstausframe('Internet');">
-<a href="/cgi-bin/device-map/internet.asp" target="statusframe"><div id="iconInternet" onclick="clickEvent(this);"></div></a>
-</td>
-<td colspan="2" valign="middle" bgcolor="#444f53" class="NM_radius_right" onclick="showstausframe('Internet');">
-	<div>
-		<span id="NM_connect_title" style="font-size:12px;font-family: Verdana, Arial, Helvetica, sans-serif;"><% tcWebApi_Get("String_Entry", "statusTitle_Internet", "s") %>:</span>
-		<strong id="NM_connect_status" class="index_status" style="font-size:14px;"><% tcWebApi_Get("String_Entry", "QKS_Internet_Setup_fail_method1", "s") %>...</strong>
-	</div>
-	<div id="wanIP_div" style="margin-top:5px;">
-		<span style="font-size:12px;font-family: Verdana, Arial, Helvetica, sans-serif;">WAN IP:</span>
-		<strong id="wanIP_status" class="index_status" style="font-size:14px;"></strong>
-	</div>
-	<div id="ddnsHostName_div" style="margin-top:5px;word-break:break-all;word-wrap:break-word;">
-		<span style="font-size:12px;font-family: Verdana, Arial, Helvetica, sans-serif;">DDNS:</span>
-		<strong id="ddnsHostName" class="index_status" style="font-size:14px;"><% tcWebApi_Get("String_Entry", "QIS_detectWAN_desc2", "s") %></strong>
-		<span id="ddns_fail_hint" class="notificationoff" style="position: absolute;margin-top:-5px;" onClick="show_ddns_fail_hint();" onMouseOut="nd();"></span>
-	</div>
-</td>
-<td width="40" rowspan="11" valign="center">
-<div class="statusTitle">
-<div id="helpname" style="padding-top:10px;font-size:16px;"></div>
-</div>
-<div>
-<iframe id="statusframe" class="NM_radius_bottom" style="margin-left:45px;margin-top:-2px;" name="statusframe" width="320" height="630" frameborder="0" allowtransparency="true" style="background-color:transparent; margin-left:10px;" src="/cgi-bin/device-map/router.asp"></iframe>
-</div>
-</td>
-</tr>
-<tr>
-<td id="single_wan_line" colspan="5" height="19px">
-<div id="single_wan" class="single_wan_connected"></div>
-</td>
-<!--td colspan="5" height="20" align="center">
-<img style="margin-left:-391px;*margin-left:-351px;" src="/images/New_ui/networkmap/line_one.png">
-</td-->
-</tr>
-<tr>
-<td height="100" align="right" bgcolor="#444f53" class="NM_radius_left" onclick="showstausframe('Router');">
-<a href="/cgi-bin/device-map/router.asp" target="statusframe"><div id="iconRouter" onclick="clickEvent(this);"></div></a>
-</td>
-<td colspan="2" valign="middle" bgcolor="#444f53" class="NM_radius_right" onclick="showstausframe('Router');">
-ASUS <%tcWebApi_get("String_Entry","Web_Title2","s")%><br/><%tcWebApi_get("String_Entry","Security_Level","s")%>: <br/><br/><strong id="wl_securitylevel_span" class="index_status"></strong>
-<img id="iflock">
-</td>
-</tr>
-<tr>
-<td id="line3_td" colspan="3" align="center" height="52px">
-<img id="line3_img" src="/images/New_ui/networkmap/line_two.png">
-</td>
-<!--td id="line3_td" colspan="3" height="55" align="center" background="/images/New_ui/networkmap/line_two.png" style="background-repeat: no-repeat;"></td-->
-</tr>
-<tr>
-<td id="clients_tr" width="150" height="170" bgcolor="#444f53" align="center" valign="top" class="NM_radius_top" onclick="showstausframe('Client');">
-<a id="clientStatusLink" href="/cgi-bin/device-map/clients.asp" target="statusframe"><div id="iconClient" style="margin-top:20px;" onclick="clickEvent(this);"></div>
-</a>
-<div class="clients" id="clientNumber" style="cursor:pointer;"></div>
-</td>
-<td width="36" rowspan="6" id="clientspace_td"></td>
-<td id="usb1_tr" width="160" bgcolor="#444f53" align="center" valign="top" class="NM_radius_top">
-<div style="margin-top:20px;" id="deviceIcon_0"></div><div id="deviceDec_0"></div>
-</td>
-</tr>
-<tr id="usb2_tr">
-<td bgcolor="#444f53" align="center" valign="top" class="NM_radius_bottom">
-</td>
-<td height="150" bgcolor="#444f53" align="center" valign="top" class="NM_radius_bottom">
-<div style="margin-top:10px;" id="deviceIcon_1"></div>
-<div id="deviceDec_1"></div>
-</td>
-</tr>
-<tr id="bottomspace_tr" style="display:none">
-<td colspan="3" height="200px"></td>
-</tr>
-</table>
-</div>
-</tr>
+	<tr>
+		<td valign="top" width="17">&nbsp;</td>
+		<td valign="top" width="204">
+			<div id="mainMenu"></div>
+			<div id="subMenu"></div>
+		</td>
+		<td align="left" valign="top" class="bgarrow">
+			<div id="tabMenu"></div><br>
+			<div id="NM_shift" style="margin-top:-160px;"></div>
+			<div id="NM_table" class="NM_table">
+				<table cellspacing="0"><!--  id="_NM_table" -->
+					<tr>
+						<td width="40" rowspan="11" valign="center">
+						</td>
+						<!--== Dual WAN ==-->
+						<td id="primary_wan_icon" width="160px;" height="155" align="center" class="NM_radius" valign="middle" bgcolor="#444f53" onclick="showstausframe('Internet_primary');" style="display:none">
+							<a href="/device-map/internet_dual.asp" target="statusframe"><div id="iconInternet_primary" onclick="clickEvent(this);"></div></a>
+							<div><%tcWebApi_Get("String_Entry", "dualwan_primary", "s")%>:</div>
+							<div><strong id="primary_status"></strong></div>
+						</td>
+						<td id="dual_wan_gap" width="40px" style="display:none">
+						</td>
+						<td id="secondary_wan_icon" width="160px;" height="155" align="center" class="NM_radius" valign="middle" bgcolor="#444f53" onclick="showstausframe('Internet_secondary');" style="display:none">
+							<a href="/device-map/internet_dual.asp" target="statusframe"><div id="iconInternet_secondary" onclick="clickEvent(this);"></div></a>
+							<div><%tcWebApi_Get("String_Entry", "dualwan_secondary", "s")%>:</div>
+							<div><strong id="seconday_status"></strong></div>
+						</td>
+						<!--== single WAN ==-->
+						<td id="single_wan_icon" height="115" align="right" class="NM_radius_left" valign="middle" bgcolor="#444f53" onclick="showstausframe('Internet');" >
+							<a href="/cgi-bin/device-map/internet.asp" target="statusframe"><div id="iconInternet" onclick="clickEvent(this);"></div></a>
+						</td>
+						<td id="single_wan_status" colspan="2" valign="middle" bgcolor="#444f53" class="NM_radius_right" onclick="showstausframe('Internet');">
+							<div>
+								<span id="NM_connect_title" style="font-size:12px;font-family: Verdana, Arial, Helvetica, sans-serif;"><% tcWebApi_Get("String_Entry", "statusTitle_Internet", "s") %>:</span>
+								<strong id="NM_connect_status" class="index_status" style="font-size:14px;"><% tcWebApi_Get("String_Entry", "QKS_Internet_Setup_fail_method1", "s") %>...</strong>
+							</div>
+							<div id="wanIP_div" style="margin-top:5px;">
+								<span style="font-size:12px;font-family: Verdana, Arial, Helvetica, sans-serif;">WAN IP:</span>
+								<strong id="wanIP_status" class="index_status" style="font-size:14px;"></strong>
+							</div>
+							<div id="ddnsHostName_div" style="margin-top:5px;word-break:break-all;word-wrap:break-word;">
+								<span style="font-size:12px;font-family: Verdana, Arial, Helvetica, sans-serif;">DDNS:</span>
+								<strong id="ddnsHostName" class="index_status" style="font-size:14px;"><% tcWebApi_Get("String_Entry", "QIS_detectWAN_desc2", "s") %></strong>
+								<span id="ddns_fail_hint" class="notificationoff" style="position: absolute;margin-top:-5px;" onClick="show_ddns_fail_hint();" onMouseOut="nd();"></span>
+							</div>
+						</td>
+						<td width="40" rowspan="11" valign="center">
+							<div class="statusTitle">
+							<div id="helpname" style="padding-top:10px;font-size:16px;"></div>
+							</div>
+							<div>
+								<iframe id="statusframe" class="NM_radius_bottom" style="margin-left:45px;margin-top:-2px;" name="statusframe" width="320" height="735" frameborder="0" allowtransparency="true" style="background-color:transparent; margin-left:10px;" src="/cgi-bin/device-map/router.asp"></iframe>
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<!--==line of dual wan==-->
+						<td id="primary_wan_line"  height="40px" style="display:none;">
+							<div id="primary_line" class="primary_wan_connected"></div>
+						</td>
+						<td id="secondary_wan_line" colspan="2" height="40px"  style="display:none;">
+							<div id="secondary_line" class="secondary_wan_connected"></div>
+						</td>
+						<!--==line of single wan==-->
+						<td id="single_wan_line" colspan="5" height="19px">
+							<div id="single_wan" class="single_wan_connected"></div>
+						</td>
+					</tr>
+					<tr>
+						<td height="115" align="right" bgcolor="#444f53" class="NM_radius_left" onclick="showstausframe('Router');">
+							<a href="/cgi-bin/device-map/router.asp" target="statusframe"><div id="iconRouter" onclick="clickEvent(this);"></div></a>
+						</td>
+						<td colspan="2" valign="middle" bgcolor="#444f53" class="NM_radius_right" onclick="showstausframe('Router');">
+							ASUS <%tcWebApi_get("String_Entry","Web_Title2","s")%><br/><%tcWebApi_get("String_Entry","Security_Level","s")%>: <br/><br/><strong id="wl_securitylevel_span" class="index_status"></strong>
+							<img id="iflock">
+						</td>
+					</tr>
+					<tr>
+						<td id="line3_td" colspan="3" align="center" height="52px">
+							<img id="line3_img" src="/images/New_ui/networkmap/line_two.png">
+						</td>
+						<!--td id="line3_td" colspan="3" height="55" align="center" background="/images/New_ui/networkmap/line_two.png" style="background-repeat: no-repeat;"></td-->
+					</tr>
+					<tr>
+						<td id="clients_tr" width="150" height="170" bgcolor="#444f53" align="center" valign="top" class="NM_radius_top" onclick="showstausframe('Client');">
+							<a id="clientStatusLink" href="/cgi-bin/device-map/clients.asp" target="statusframe"><div id="iconClient" style="margin-top:20px;" onclick="clickEvent(this);"></div>
+							</a>
+							<div class="clients" id="clientNumber" style="cursor:pointer;"></div>
+						</td>
+						<td width="36" rowspan="6" id="clientspace_td"></td>
+						<td id="usb1_tr" width="160" bgcolor="#444f53" align="center" valign="top" class="NM_radius_top">
+							<div style="margin-top:20px;" id="deviceIcon_0"></div>
+							<div><img id="usb0_image" src="/images/New_ui/networkmap/USB2.png"></div>
+							<div style="margin:10px 0px;">
+								<span id="deviceText_0"></span>
+								<select id="deviceOption_0" class="input_option" style="display:none;height:20px;width:130px;font-size:12px;"></select>	
+							</div>
+							<div id="deviceDec_0"></div>
+						</td>
+					</tr>
+					<tr id="usb2_tr">
+						<td bgcolor="#444f53" align="center" valign="top" class="NM_radius_bottom">
+						</td>
+						<td height="150" bgcolor="#444f53" align="center" valign="top" class="NM_radius_bottom">
+							<div style="margin-top:10px;" id="deviceIcon_1"></div>
+							<div><img id="usb1_image" src="/images/New_ui/networkmap/USB2.png"></div>
+							<div style="margin:10px 0px;">
+								<span id="deviceText_1"></span>
+								<select id="deviceOption_1" class="input_option" style="display:none;height:20px;width:130px;font-size:12px;"></select>	
+							</div>
+							<div id="deviceDec_1"></div>
+						</td>
+					</tr>
+					<tr id="bottomspace_tr" style="display:none">
+						<td colspan="3" height="200px"></td>
+					</tr>
+					</table>
+			</div>
+	</tr>
 </table>
 <div id="navtxt" class="navtext" style="position:absolute; top:50px; left:-100px; visibility:hidden; font-family:Arial, Verdana"></div>
 <div id="footer"></div>
 <select id="bgimg" onChange="customize_NM_table(this.value);" class="input_option_left" style="display:none;">
-<option value="wall0.gif">dark</option>
-<option value="wall1.gif">light</option>
+	<option value="wall0.gif">dark</option>
+	<option value="wall1.gif">light</option>
 </select>
 <script>
-if(flag == "Internet" || flag == "Client")
-$("statusframe").src = "";
-initial();
+	if(flag == "Internet" || flag == "Client")
+		document.getElementById("statusframe").src = "";
+
+	initial();			
+	var manualUpdate = false;
+	
+	if(parseInt((JS_timeObj.getTime()-cookie.get("nwmapRefreshTime"))/60000) > 1){								
+                setTimeout(function(){
+                		 manualUpdate = true;
+                     document.update_form.update_networkmap_Flag.value = 1;										 
+										 document.update_form.submit();
+                }, 3500);
+	}
+	cookie.set("nwmapRefreshTime", JS_timeObj.getTime(), 1);
 </script>
 </body>
 

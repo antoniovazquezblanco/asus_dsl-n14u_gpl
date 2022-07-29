@@ -141,7 +141,7 @@ function init()
 	showHours();
 	initCommon(1, 0, 0, 1);	   //Viz 2010.09
 	ref.initX();
-	addOnlineHelp($("faq0"), ["ASUSWRT", "Traffic", "Monitor"]);
+	document.getElementById("faq0").href = "http://www.asus.com/us/support/Search-Result-Detail/69B50762-C9C0-15F1-A5B8-C7B652F50ACF/?keyword=ASUSWRT%20Traffic%20Monitor" ;
 }
 
 function switchPage(page){
@@ -249,7 +249,7 @@ function Zoom(func){
         			<tr>
           				<td align="left" valign="middle">
 							<table width="95%" border="1" align="left" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="DescTable">
-								<tr><th width="16%"></th><th width="26%"><% tcWebApi_Get("String_Entry", "tm_internet", "s") %></th><th width="29%"><% tcWebApi_Get("String_Entry", "tm_wired", "s") %></th><th width="29%"><% tcWebApi_Get("String_Entry", "tm_wireless", "s") %></th></tr>
+								<tr><th width="16%"></th><th width="26%"><% tcWebApi_Get("String_Entry", "Internet", "s") %></th><th width="29%"><% tcWebApi_Get("String_Entry", "tm_wired", "s") %></th><th width="29%"><% tcWebApi_Get("String_Entry", "tm_wireless", "s") %></th></tr>
 								<tr><th><% tcWebApi_Get("String_Entry", "tm_reception", "s") %></th><td style="color:#FF9000;"><% tcWebApi_Get("String_Entry", "tm_recp_int", "s") %></td><td style="color:#3CF;"><% tcWebApi_Get("String_Entry", "tm_recp_wired", "s") %></td><td style="color:#3CF;"><% tcWebApi_Get("String_Entry", "tm_recp_wireless", "s") %></td></tr>
 								<tr><th><% tcWebApi_Get("String_Entry", "tm_transmission", "s") %></th><td style="color:#3CF;"><% tcWebApi_Get("String_Entry", "tm_trans_int", "s") %></td><td style="color:#FF9000;"><% tcWebApi_Get("String_Entry", "tm_trans_wired", "s") %></td><td style="color:#FF9000;"><% tcWebApi_Get("String_Entry", "tm_trans_wireless", "s") %></td></tr>
 							</table>

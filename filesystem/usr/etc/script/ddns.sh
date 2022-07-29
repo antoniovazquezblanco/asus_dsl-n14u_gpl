@@ -11,7 +11,7 @@ SERVER_DNSOMATIC=WWW.DNSOMATIC.COM
 SERVER_TUNNELBROKER=WWW.TUNNELBROKER.COM
 SERVER_NOIP=WWW.NO-IP.COM
 SERVER_ASUS=WWW.ASUS.COM
-
+SERVER_SELFHOST=WWW.SELFHOST.DE
 IPUPDATE_CONF=/etc/ipupdate.conf
 DDNS_CONF=/etc/ddns.conf
 IPUPDATE_PID=/var/run/ez-ipupdate.pid
@@ -76,6 +76,8 @@ IPUPDATE_PID=/var/run/ez-ipupdate.pid
 		echo "max-interval=2073600" >>$IPUPDATE_CONF
 	elif [  "$SERVERNAME" = "$SERVER_ASUS" ] ; then
 		echo "service-type=dyndns" >>$IPUPDATE_CONF
+	elif [  "$SERVERNAME" = "$SERVER_SELFHOST" ] ; then
+		echo "service-type=selfhost" >>$IPUPDATE_CONF	
 	else
 		echo "error:$SERVERNAME"
 		exit 1

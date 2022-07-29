@@ -31,22 +31,24 @@ parent.document.title = "ASUS <%tcWebApi_get("String_Entry","Web_Title2","s")%> 
 //parent.set_step("t3");
 }
 function submitForm(){
-	document.form.next_page.value = "/cgi-bin/qis/QIS_detect.asp";
-	document.form.submit();
+	if(validForm()){
+			document.form.next_page.value = "/cgi-bin/qis/QIS_detect.asp";
+			document.form.submit();
+	}		
+}
+function validForm(){
+		if(document.form.AnnexTypeA[0].checked == false && document.form.AnnexTypeA[1].checked == false){
+				alert("<%tcWebApi_get("String_Entry","QIS_chooseAnnex_yet","s")%>");
+				document.form.AnnexTypeA[0].focus();
+				return false;
+		}
+		return true;
 }
 function gotomanual() {
 	document.form.action = "/cgi-bin/qis/QIS_manual_setting.asp";
 	document.form.submit();
 }
 
-function gotoIndex(){
-	if (w_Setting == "0") {
-		alert("<% tcWebApi_Get("String_Entry", "QIS_recommand_encryption", "s") %>");
-		location.href = '/cgi-bin/qis/QIS_wireless.asp';
-	}
-	else
-		parent.location.href = '../index2.asp';
-}
 </script>
 </head>
 <body onLoad="QKfinish_load_body();" >
@@ -64,9 +66,9 @@ function gotoIndex(){
 		<td align="left">
 			<span class="description_down"><%tcWebApi_get("String_Entry","dslsetting_disc2_setting","s")%></span>
 		</td>
-		<td align="right">
+		<!--td align="right">
 			<img onclick="gotoIndex();" style="cursor:pointer;" align="right" title="Go to Home" src="/images/backtohome.png" onMouseOver="this.src='/images/backtohomeclick.png'" onMouseOut="this.src='/images/backtohome.png'">
-		</td>
+		</td-->
 	</tr>
 </table>
 </div>
@@ -75,9 +77,9 @@ function gotoIndex(){
 <table id="tblsetting_1" class="QISform" width="400" border=0 align="center" cellpadding="5" cellspacing="0">
 	<tr>
 		<td>
-			<input type="radio" value="ANNEX A/I/J/L/M" name="AnnexTypeA" class="input" checked>Annex A
+			<input type="radio" value="ANNEX A/I/J/L/M" name="AnnexTypeA"  tabindex="1" class="input">Annex A
 		<br><br>
-			<input type="radio" value="ANNEX B/J/M" name="AnnexTypeA" class="input">Annex B
+			<input type="radio" value="ANNEX B/J/M" name="AnnexTypeA"  tabindex="2" class="input">Annex B
 		<br><br><br>
 		<%tcWebApi_get("String_Entry","QIS_chooseAnnex_desc1","s")%><br><br>
 		<%tcWebApi_get("String_Entry","ADSL_FW_note","s")%> <%tcWebApi_get("String_Entry","QIS_NoCable_desc","s")%> <%tcWebApi_get("String_Entry","QIS_chooseAnnex_desc2","s")%>
@@ -86,7 +88,7 @@ function gotoIndex(){
 </table>
 <div class="apply_gen" style="margin-top:30px">
 	<!--<input type="button" id="prevButton" value="Manual Setting" onclick="gotomanual(document.form);" class="button_gen" >-->
-	<input type="button" id="nextButton" value="<% tcWebApi_Get("String_Entry", "btn_next", "s") %>" onclick="submitForm();" class="button_gen">
+	<input type="button" id="nextButton" value="<% tcWebApi_Get("String_Entry", "btn_next", "s") %>"  tabindex="3" onclick="submitForm();" class="button_gen">
 </div>
 </div>
 </form>

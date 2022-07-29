@@ -51,6 +51,17 @@ function QKfinish_load_body(){
 		document.form.prev_page.value = "/cgi-bin/qis/QIS_manual_setting.asp";
 	else //PTM
 		document.form.prev_page.value = "/cgi-bin/qis/QIS_PTM_manual_setting.asp";
+
+	if (country_str == "France" && ispname_str == "Free Degroupe"){
+				document.form.dsl_dns1_x1.value = "212";
+				document.form.dsl_dns1_x2.value = "27";
+				document.form.dsl_dns1_x3.value = "40";
+				document.form.dsl_dns1_x4.value = "240";
+				document.form.dsl_dns2_x1.value = "212";
+				document.form.dsl_dns2_x2.value = "27";
+				document.form.dsl_dns2_x3.value = "40";
+				document.form.dsl_dns2_x4.value = "241";
+	}
 }
 
 function validate_ip(){
@@ -104,14 +115,6 @@ function submitForm(){
 	document.form.submit();
 }
 
-function gotoIndex(){
-	if (w_Setting == "0") {
-		alert("<% tcWebApi_Get("String_Entry", "QIS_recommand_encryption", "s") %>");
-		location.href = '/cgi-bin/qis/QIS_wireless.asp';
-	}
-	else
-		parent.location.href = '../index2.asp';
-}
 </script>
 </head>
 <body onLoad="QKfinish_load_body();" >
@@ -137,9 +140,9 @@ function gotoIndex(){
 		<td align="left">
 			<span class="description_down"><% tcWebApi_Get("String_Entry", "Manual_Setting_Title", "s") %></span>
 		</td>
-		<td align="right">
+		<!--td align="right">
 			<img onclick="gotoIndex();" style="cursor:pointer;" align="right" title="Go to Home" src="/images/backtohome.png" onMouseOver="this.src='/images/backtohomeclick.png'" onMouseOut="this.src='/images/backtohome.png'">
-		</td>
+		</td-->
 	</tr>
 </table>
 </div>
@@ -180,7 +183,7 @@ function gotoIndex(){
 <td class="QISformtd">
 <input type="hidden" id="dsl_ipaddr" name="dsl_ipaddr" value="" maxlength="15" onkeypress="return is_ipaddr(this);" onkeyup="change_ipaddr(this);" title="WAN IP">
 <div class="IPaddr" id="dsl_ipaddr_div">
-<input maxlength="3"
+<input maxlength="3" tabindex="1"
 name="dsl_ipaddr1";
 onkeypress="return checkIP(this,event);"
 onkeyup="return checkWord(this,event);"
@@ -217,7 +220,7 @@ autocomplete="off" />
 <td class="QISformtd">
 <input type="hidden" id="dsl_netmask" name="dsl_netmask" value="" maxlength="15" title="WAN Subnet Mask">
 <div class="IPaddr" id="dsl_netmask_div">
-<input maxlength="3"
+<input maxlength="3" tabindex="2"
 name="dsl_netmask1"
 onkeypress="return checkIP(this,event);"
 onkeyup="return checkWord(this,event);"
@@ -256,7 +259,7 @@ autocomplete="off" />
 <td class="QISformtd">
 <input type="hidden" id="dsl_gateway" name="dsl_gateway" value="" maxlength="15" onkeypress="return is_ipaddr(this);" onkeyup="return change_ipaddr(this);" class="input">
 <div class="IPaddr" id="dsl_gateway_div">
-<input maxlength="3"
+<input maxlength="3" tabindex="3"
 onkeypress="return checkIP(this,event);"
 onkeyup="return checkWord(this,event);"
 onblur="validateIP(this);"
@@ -303,22 +306,21 @@ autocomplete="off" />
 <td class="QISformtd">
 <input type="hidden" id="dsl_dns1_x" name="dsl_dns1_x" value="" onkeypress="return is_ipaddr(this);" onkeyup="return change_ipaddr(this);" maxlength="15">
 <div class="IPaddr" id="dsl_dns1_x_div">
-<input maxlength="3"
-name="dsl_dns1_x1"
+<input maxlength="3" tabindex="4" name="dsl_dns1_x1"
 onkeypress="return checkIP(this,event);"
 onkeyup="return checkWord(this,event);"
 onblur="validateIP(this);"
 onpaste="return !clipboardData.getData('text').match(/\D/)"
 ondragenter="return false"
 autocomplete="off" />.
-<input maxlength="3"
+<input maxlength="3" name="dsl_dns1_x2"
 onkeypress="return checkIP(this,event);"
 onkeyup="return checkWord(this,event);"
 onblur="validateIP(this);"
 onpaste="return !clipboardData.getData('text').match(/\D/)"
 ondragenter="return false"
 autocomplete="off" />.
-<input maxlength="3"
+<input maxlength="3" name="dsl_dns1_x3"
 onkeypress="return checkIP(this,event);"
 onkeyup="return checkWord(this,event);"
 onblur="validateIP(this);"
@@ -342,21 +344,21 @@ autocomplete="off" />
 <td class="QISformtd">
 <input type="hidden" id="dsl_dns2_x" name="dsl_dns2_x" value="" maxlength="15" onkeypress="return is_ipaddr(this);" onkeyup="return change_ipaddr(this);">
 <div class="IPaddr" id="dsl_dns2_x_div">
-<input maxlength="3"
+<input maxlength="3" tabindex="5" name="dsl_dns2_x1"
 onkeypress="return checkIP(this,event);"
 onkeyup="return checkWord(this,event);"
 onblur="validateIP(this);"
 onpaste="return !clipboardData.getData('text').match(/\D/)"
 ondragenter="return false"
 autocomplete="off" />.
-<input maxlength="3"
+<input maxlength="3" name="dsl_dns2_x2"
 onkeypress="return checkIP(this,event);"
 onkeyup="return checkWord(this,event);"
 onblur="validateIP(this);"
 onpaste="return !clipboardData.getData('text').match(/\D/)"
 ondragenter="return false"
 autocomplete="off" />.
-<input maxlength="3"
+<input maxlength="3" name="dsl_dns2_x3"
 onkeypress="return checkIP(this,event);"
 onkeyup="return checkWord(this,event);"
 onblur="validateIP(this);"
@@ -376,9 +378,12 @@ autocomplete="off" />
 </table>
 </fieldset>
 </td></tr></table>
+
+<div class="test_css" style="margin-top:20px;margin-left:55px;">Note:  If you are not sure about the IP/DNS address setting, then please contact with your ISP.</div>
+
 <div class="apply_gen" style="margin-top:30px">
-<input type="button" id="prevButton" value="<% tcWebApi_Get("String_Entry", "Manual_Setting_btn", "s") %>" onclick="gotoprev(document.form);" class="button_gen" >
-<input type="button" id="nextButton" value="<% tcWebApi_Get("String_Entry", "btn_next", "s") %>" onclick="submitForm();" class="button_gen">
+<input type="button" id="prevButton" value="<% tcWebApi_Get("String_Entry", "Manual_Setting_btn", "s") %>" tabindex="7" onclick="gotoprev(document.form);" class="button_gen" >
+<input type="button" id="nextButton" value="<% tcWebApi_Get("String_Entry", "btn_next", "s") %>" tabindex="6" onclick="submitForm();" class="button_gen">
 </div>
 </div>
 </form>

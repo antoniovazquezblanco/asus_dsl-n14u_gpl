@@ -37,7 +37,8 @@ match(const struct sk_buff *skb,
     const struct xt_mac_info *info = matchinfo;
 
     /* Is mac pointer valid? */
-    return (skb_mac_header(skb) >= skb->head &&
+    return (in != NULL &&	// added for OUTPUT experiment -- zzz
+	    skb_mac_header(skb) >= skb->head &&
 	    (skb_mac_header(skb) + ETH_HLEN) <= skb->data
 	    /* If so, compare... */
 	    && ((!compare_ether_addr(eth_hdr(skb)->h_source, info->srcaddr))
@@ -50,9 +51,11 @@ static struct xt_match xt_mac_match[] = {
 		.family		= AF_INET,
 		.match		= match,
 		.matchsize	= sizeof(struct xt_mac_info),
+#if 0	// removed for OUTPUT experiment --jz
 		.hooks		= (1 << NF_IP_PRE_ROUTING) |
 				  (1 << NF_IP_LOCAL_IN) |
 				  (1 << NF_IP_FORWARD),
+#endif
 		.me		= THIS_MODULE,
 	},
 	{
@@ -60,9 +63,11 @@ static struct xt_match xt_mac_match[] = {
 		.family		= AF_INET6,
 		.match		= match,
 		.matchsize	= sizeof(struct xt_mac_info),
+#if 0	// removed for OUTPUT experiment --jz
 		.hooks		= (1 << NF_IP6_PRE_ROUTING) |
 				  (1 << NF_IP6_LOCAL_IN) |
 				  (1 << NF_IP6_FORWARD),
+#endif
 		.me		= THIS_MODULE,
 	},
 };

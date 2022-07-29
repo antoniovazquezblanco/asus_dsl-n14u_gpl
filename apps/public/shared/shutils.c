@@ -225,7 +225,7 @@ EXIT:
 
 	// p = nvram_safe_get("env_path");
 	// snprintf(s, sizeof(s), "%s%s/sbin:/bin:/usr/sbin:/usr/bin:/userfs/bin", *p ? p : "", *p ? ":" : "");
-	snprintf(s, sizeof(s), "/opt/usr/bin:/opt/bin:/opt/usr/sbin:/opt/sbin:/userfs/bin:/sbin:/bin:/usr/sbin:/usr/bin:/usr/script");
+	snprintf(s, sizeof(s), "/opt/usr/sbin:/opt/sbin:/opt/usr/bin:/opt/bin:/userfs/bin:/usr/sbin:/sbin:/usr/bin:/bin:/usr/script");
 	setenv("PATH", s, 1);
 
 	alarm(timeout);

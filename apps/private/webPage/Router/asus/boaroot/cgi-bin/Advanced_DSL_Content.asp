@@ -1,11 +1,16 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<%
+	if tcWebApi_get("WebCustom_Entry","havePtm","h") = "Yes" then
+		set_dsl_restart_flag()
+	end if
+%>
 <% disable_other_wan()%>
 <%
 If Request_Form("DvInfo_PVC") <> "" Then
 	tcWebApi_set("WebCurSet_Entry","dev_pvc","DvInfo_PVC")
 End If
 
-If Request_Form("isIPv6Supported") <> "1" Then
+If Request_Form("isIPv6Supported") = "0" Then
 	tcWebApi_set("Wan_PVC","IPVERSION","IPVERSION_IPv4")
 End If
 
@@ -20,7 +25,7 @@ If request_Form("wanVCFlag") = "3" Then
 		tcWebApi_set("Wan_PVC","SCR","wan_SCR")
 		tcWebApi_set("Wan_PVC","MBS","wan_MBS")
 	else
-		tcWebApi_set("WebCurSet_Entry","wan_pvc","ptm_VC")
+		tcWebApi_set("WebCurSet_Entry","wan_pvc","DvInfo_PVC")
 		tcWebApi_set("Wan_PVC","Active","wan_TransStatus")
 	end if
 
@@ -35,6 +40,9 @@ If request_Form("wanVCFlag") = "3" Then
 			tcWebApi_set("Wan_PVC","dot1q","wan_dot1q")
 			if Request_Form("wan_dot1q") = "Yes" then
 				tcWebApi_set("Wan_PVC","VLANID","wan_vid")
+				if tcWebApi_get("WebCustom_Entry","isdot1pSupport","h") = "Yes" then
+					tcWebApi_set("Wan_PVC","DOT1P","wan_dot1p")
+				end if
 				if Request_Form("isWanTagChk") = "Yes" then
 					tcWebApi_set("Wan_PVC", "TAG", "TAGSEL")
 				end if
@@ -62,7 +70,7 @@ If request_Form("wanVCFlag") = "3" Then
 
 		tcWebApi_set("Wan_PVC","DNS_type","dnsTypeRadio")
 		tcWebApi_set("Wan_PVC","Primary_DNS","PrimaryDns")
-                tcWebApi_set("Wan_PVC","Secondary_DNS","SecondDns")
+		tcWebApi_set("Wan_PVC","Secondary_DNS","SecondDns")
 		tcWebApi_set("Wan_Common","NATENABLE","wan_NAT")
 		tcWebApi_set("Wan_PVC","DEFAULTROUTE","WAN_DefaultRoute")
 		tcWebApi_set("Wan_PVC","MTU","wan_TCPMTU")
@@ -74,9 +82,9 @@ If request_Form("wanVCFlag") = "3" Then
 			tcWebApi_set("Wan_PVC","IPVERSION","ipVerRadio")
 			tcWebApi_set("Wan_PVC","EnableDynIPv6","DynIPv6EnableRadio")
 			if request_Form("DynIPv6EnableRadio") = "1" then
-				tcWebApi_set("Wan_PVC","MLDproxy","wan_MLD")
+				tcWebApi_set("Wan_PVC","MLDproxy","wan_MLD0")
 			else
-				tcWebApi_set("Wan_PVC","MLDproxy","No")
+				tcWebApi_set("Wan_PVC","MLDproxy","String_Value_No")
 			end if
 			if request_Form("IPv6PrivacyAddrsSupportedFlag") = "Yes" then
 				if request_Form("DynIPv6EnableRadio") = "0" then
@@ -134,7 +142,7 @@ If request_Form("wanVCFlag") = "3" Then
 		tcWebApi_set("Wan_PVC","GATEWAY","wan_StaticIpGateway")
 		TCWebApi_set("Wan_PVC","DNS_type","dnsTypeRadio")
 		TCWebApi_set("Wan_PVC","Primary_DNS","PrimaryDns")
-                TCWebApi_set("Wan_PVC","Secondary_DNS","SecondDns")
+		TCWebApi_set("Wan_PVC","Secondary_DNS","SecondDns")
 		tcWebApi_set("Wan_Common","NATENABLE","wan_NAT")
 		tcWebApi_set("Wan_PVC","DEFAULTROUTE","WAN_DefaultRoute")
 		tcWebApi_set("Wan_PVC","MTU","wan_TCPMTU")
@@ -149,7 +157,7 @@ If request_Form("wanVCFlag") = "3" Then
 			tcWebApi_set("Wan_PVC","DEFGATEWAY6","wan_IPv6DefGw")
 			tcWebApi_set("Wan_PVC","DNSIPv61st","wan_IPv6DNS1")
 			tcWebApi_set("Wan_PVC","DNSIPv62nd","wan_IPv6DNS2")
-			tcWebApi_set("Wan_PVC","MLDproxy","wan_MLD1")
+			tcWebApi_set("Wan_PVC","MLDproxy","wan_MLD0")
 
 			if tcwebApi_get("WebCustom_Entry","isRipngSupported","h") = "Yes" then
 				TCWebApi_set("Wan_PVC","RIPNGENABLE","ripngEnableRadio")
@@ -238,7 +246,7 @@ If request_Form("wanVCFlag") = "3" Then
 					 tcWebApi_set("Wan_PVC","IPv6Extension","privacyaddrsradio")
 				end if
 			end if
-			tcWebApi_set("Wan_PVC","MLDproxy","wan_MLD")
+			tcWebApi_set("Wan_PVC","MLDproxy","wan_MLD0")
 
 			if tcwebApi_get("WebCustom_Entry","isRipngSupported","h") = "Yes" then
 				TCWebApi_set("Wan_PVC","RIPNGENABLE","ripngEnableRadio")
@@ -267,18 +275,23 @@ If request_Form("wanVCFlag") = "3" Then
 	end if
 
 	TCWebApi_set("Upnpd_Entry","Active","UPnP_active")
-	TCWebApi_set("Upnpd_Entry","autoconf","UPnP_auto")
 
-	If request_Form("wanSaveFlag") = "1" Then
-		tcWebApi_CommitWithoutSave("Wan_PVC")
-		tcWebApi_CommitWithoutSave("Upnpd_Entry")
-	End If
+	if tcWebApi_get("Wan_Common","TransMode","h") = "LAN" then
+		tcWebApi_set("Dualwan_Entry", "wans_lanport", "wans_lanport")
+	end if
 
-	tcWebApi_commit("Route")
+	If should_wan_pvc_do_commit("DvInfo_PVC") = "1" Then
+		If request_Form("wanSaveFlag") = "1" Then
+			tcWebApi_CommitWithoutSave("Wan_PVC")
+			tcWebApi_CommitWithoutSave("Upnpd_Entry")
+		End If
+
+		tcWebApi_commit("Route")
+	End If	
 ElseIf Request_Form("wanVCFlag")="1" Then
 	if request_Form("wanTransFlag") = "1" Then
 		tcWebApi_set("Wan_Common","TransMode","wan_TransMode")
-		tcWebApi_set("WebCurSet_Entry","wan_pvc","ptm_VC")
+		tcWebApi_set("WebCurSet_Entry","wan_pvc","DvInfo_PVC")
 
 	elseif request_Form("wanBarrierFlag") = "1" Then
 		tcWebApi_set("WebCurSet_Entry","wan_pvc","ptm_VC")
@@ -308,20 +321,26 @@ ElseIf Request_Form("wanVCFlag")="2" Then
 		tcWebApi_set("Wan_PVC","ENCAP","DefaultWan_ENCAP")
 		tcWebApi_set("Wan_PVC","MLDproxy","DefaultWan_MLDproxy")
 	end if
-	tcWebApi_commit("Wan_PVC")
-
+	If should_wan_pvc_do_commit("DvInfo_PVC") = "1" Then
+		tcWebApi_commit("Wan_PVC")
+	End If
 End If
 
 If Request_Form("wanSaveFlag")="1" Then
-	tcWebApi_commit("Adsl_Entry")
+	If should_wan_pvc_do_commit("DvInfo_PVC")="1" Then
+		If should_dsl_do_commit()="1" Then
+			tcWebApi_commit("Adsl_Entry")
+		End If
+	End If
 End If
+
 %>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <html xmlns:v>
 
 <!--Advanced_DSL_Content.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -336,34 +355,20 @@ End If
 <script type="text/javascript" src="/help.js"></script>
 <script type="text/javascript" src="/detect.js"></script>
 <script>
-var wans_dualwan = 'dsl usb';
-
 
 <% login_state_hook(); %>
 
 var wireless = []; // [[MAC, associated, authorized], ...]
 var dsl_pvc_selected = '0';
 var dsl_pvc_enabled = ["0", "0", "0", "0", "0", "0", "0", "0"];
-var wans_dualwan = 'dsl usb';
+var wans_dualwan = '<%tcWebApi_Get("Dualwan_Entry", "wans_dualwan", "s")%>';
+var wans_TransMode = '<%tcWebApi_get("Wan_Common","TransMode","s")%>';
+var wans_dualwan_orig = '<%tcWebApi_Get("Dualwan_Entry", "wans_dualwan", "s")%>';
+var wans_flag = (wans_dualwan_orig.search("none") == -1) ? 1:0;
+var switch_stb_x = "<%tcWebApi_get("IPTV_Entry","switch_stb_x","s")%>";
 
 var pppoe_username = "<% tcWebApi_get("Wan_PVC","USERNAME","s")%>";
 var pppoe_password = "<% tcWebApi_get("Wan_PVC","PASSWORD","s")%>";
-
-if(dualWAN_support != -1){
-	var wan_type_name = wans_dualwan.split(" ")[0];
-	wan_type_name = wan_type_name.toUpperCase();
-	switch(wan_type_name){
-	case "WAN":
-	case "LAN":
-		location.href = "Advanced_WAN_Content.asp";
-		break;
-	case "USB":
-		location.href = "Advanced_Modem_Content.asp";
-		break;
-	default:
-		break;
-	}
-}
 
 var DSLWANList = [<% get_DSL_WAN_list() %>];
 
@@ -501,8 +506,63 @@ function showDSLWANList(){
 <%end if%>
 <%end if%>
 }
+
+// "ATM"	ADSL WAN (ATM)
+// "PTM"	VDSL WAN (PTM)
+// "Ethernet"		Ethernet WAN
+// "USB"	USB Modem
+// "LAN"	Ethernet LAN
+function genWANSoption(){
+	free_options(document.form.wan_TransMode);
+	for(i=0; i<wans_dualwan.split(" ").length; i++){
+		if(wans_dualwan.split(" ")[i].toUpperCase() == "DSL"){
+		<%if tcWebApi_get("WebCustom_Entry","haveAtm","h") = "Yes" then%>
+			var opt = document.createElement('option');
+			opt.value = "ATM";
+			opt.innerHTML = "ADSL WAN (ATM)";
+			if(wans_TransMode == "ATM")
+					opt.selected = true;
+			document.form.wan_TransMode.appendChild(opt);
+		<%end if%>
+		<%if tcWebApi_get("WebCustom_Entry","havePtm","h") = "Yes" then%>
+			var opt1 = document.createElement('option');
+			opt1.value = "PTM";
+			opt1.innerHTML = "VDSL WAN (PTM)";
+			if(wans_TransMode == "PTM")
+					opt1.selected = true;
+			document.form.wan_TransMode.appendChild(opt1);
+		<%end if%>
+		}
+		if(wans_dualwan.split(" ")[i].toUpperCase() == "WAN"){
+			var opt2 = document.createElement('option');
+			opt2.value = "Ethernet";
+			opt2.innerHTML = "Ethernet WAN";
+			if(wans_TransMode == "Ethernet")
+				opt2.selected = true;
+			document.form.wan_TransMode.appendChild(opt2);
+		}
+		if(wans_dualwan.split(" ")[i].toUpperCase() == "USB"){
+			var opt3 = document.createElement('option');
+			opt3.value = "USB";
+			opt3.innerHTML = "USB Modem";
+			document.form.wan_TransMode.appendChild(opt3);
+		}
+		if(wans_dualwan.split(" ")[i].toUpperCase() == "LAN"){
+			var opt4 = document.createElement('option');
+			opt4.value = "LAN";
+			opt4.innerHTML = "Ethernet WAN";
+			if(wans_TransMode == "LAN")
+				opt4.selected = true;
+			document.form.wan_TransMode.appendChild(opt4);
+		}
+	}
+}
+
 function initial(){
 	show_menu();
+
+	if(dualWAN_support != "-1" && wans_flag)
+		genWANSoption();
 
 <%if tcWebApi_get("Wan_Common","sharepvc","h") = "1" then%>
 <%if tcWebApi_get("Wan_Common","TransMode","h") = "ATM" then%>
@@ -532,6 +592,8 @@ function initial(){
 	}
 
 	<%if tcWebApi_get("Wan_Common","TransMode","h") = "Ethernet" then%>
+	showhide("div_8021q", 0);
+	<%elseif tcWebApi_get("Wan_Common","TransMode","h") = "LAN" then%>
 	showhide("div_8021q", 0);
 	<%end if%>
 
@@ -566,52 +628,42 @@ function initial(){
 			}
 		<%else%>
 			showhide("SummaryTable", 0);
-			if(document.form.wan_TransMode.value == "Ethernet")
+			if(document.form.wan_TransMode.value == "Ethernet" || document.form.wan_TransMode.value == "LAN")
 				document.form.wanTypeOption.remove(3);	//remove BRIDGE
 		<%end if%>
-		
+
 	<%end if%>
 
 	if(document.form.wanTypeOption.selectedIndex == 2)	//pppoa, pppoe
 		pppStaticCheck();
 
 	doConTypeChange();
-	
+
 	if(pppoe_username != "")
 		document.form.wan_PPPUsername.value = pppoe_username;
-		
-	if(pppoe_password != "")	
+
+	if(pppoe_password != "")
 		document.form.wan_PPPPassword.value = pppoe_password;
 }
-/*
-function change_wan_unit(){
-	if(document.form.wan_unit.options[document.form.wan_unit.selectedIndex].text == "LAN") {
-		document.form.current_page.value = "Advanced_WAN_Content.asp";
+
+function addWANOption(obj, wanscapItem){
+	free_options(obj);
+
+	for(i=0; i<wanscapItem.length; i++){
+		if(wanscapItem[i].length > 0){
+			var wanscapName = wanscapItem[i].toUpperCase();
+			if(wanscapName == "LAN")
+				wanscapName = "Ethernet WAN";
+			else if(wanscapName == "WAN")
+				wanscapName = "Ethernet WAN";
+			obj.options[i] = new Option(wanscapName, wanscapItem[i]);
+		}
 	}
-	else if(document.form.wan_unit.options[document.form.wan_unit.selectedIndex].text == "USB") {
-		document.form.current_page.value = "Advanced_Modem_Content.asp";
-	}
-	else {
-		return false;
-	}
-	FormActions("apply.asp", "change_wan_unit", "", "");
-	document.form.target = "";
-	document.form.submit();
 }
 
-function genWANSoption(){
-	for(i=0; i<wans_dualwan.split(" ").length; i++)
-	document.form.wan_unit.options[i] = new Option(wans_dualwan.split(" ")[i].toUpperCase(), i);
-	document.form.wan_unit.selectedIndex = '0';
-	if(wans_dualwan.search(" ") < 0 || wans_dualwan.split(" ")[1] == 'none')
-	$("WANscap").style.display = "none";
-}
-*/
 function applyRule(){
 	var form = document.form;
 	var transModeSupport = 0;
-
-	pvc=form.wan_TransMode.selectedIndex;
 
 <%if tcWebApi_get("WebCustom_Entry","haveAtm","h") = "Yes" then%>
 	transModeSupport += 1;
@@ -622,27 +674,89 @@ function applyRule(){
 <%if tcWebApi_get("WebCustom_Entry","haveWan0","h") = "Yes" then%>
 	transModeSupport += 4;
 <%end if%>
+<%if tcWebApi_get("WebCustom_Entry","haveUSBModem","h") = "Yes" then%>
+	transModeSupport += 8;
+<%end if%>
+<%if tcWebApi_get("WebCustom_Entry","haveLanWan","h") = "Yes" then%>
+	transModeSupport += 16;
+<%end if%>
 
-	switch(transModeSupport) {
-		case 5:	//ATM + ETHER, ex. DSL-N17VPN
-			if(pvc==1) //ether
-				pvc = 10;
-			break;
-		case 7:	//ATM + PTM + ETHER, ex. DSL-N66U
-			if(pvc==1) {//ptm
-				if(form.ptm_Barrier.selectedIndex == 0)
+	if(dualWAN_support == "-1" || !wans_flag){		//no support Dualwan or disabled
+		pvc=form.wan_TransMode.selectedIndex;
+
+		switch(transModeSupport) {
+			case 5:	//ATM + ETHER, ex. DSL-N17VPN
+				if(pvc==1) //ether
+					pvc = 10;
+				break;
+			case 7:	//ATM + PTM + ETHER, ex. DSL-N66U
+				if(pvc==1) {//ptm
+					if(form.ptm_Barrier.selectedIndex == 0)
+						pvc = 8;
+					else
+						pvc = 9;
+				}
+				else if(pvc==2) //ether
+					pvc = 10;
+				break;
+			case 9: //ATM + USB, ex. DSL-N12U-C1
+				if(pvc==1) //USB
+					pvc = 11;
+				break;
+			case 13:	//ATM + ETHER + USB, ex.
+				if(pvc==1) //ether
+					pvc = 10;
+				else if(pvc==2) //USB
+					pvc = 11;
+				break;
+			case 15:	//ATM + PTM + ETHER + USB, ex.
+				if(pvc==1) //ptm
 					pvc = 8;
-				else
-					pvc = 9;
-			}
-			else if(pvc==2) //ether
-				pvc = 10;
-			break;
+				else if(pvc==2) //ether
+					pvc = 10;
+				else if(pvc==3) //USB
+					pvc = 11;
+				break;
+			case 17:	//ATM + ETHER_LAN
+				if(pvc==1) //ETHER_LAN
+					pvc = 12;
+				break;
+			case 19:	//ATM + PTM + ETHER_LAN
+				if(pvc==1) //PTM
+					pvc = 8;
+				else if(pvc==2) //ETHER_LAN
+					pvc = 12;
+				break;
+			case 25:	//ATM + USB + ETHER_LAN
+				if(pvc==1) //USB
+					pvc = 11;
+				else if(pvc==2) //ETHER_LAN
+					pvc = 12;
+				break;
+			case 26:	//ATM + PTM + USB + ETHER_LAN
+				if(pvc==1) //PTM
+					pvc = 8;
+				else if(pvc==2) //USB
+					pvc = 11;
+				else if(pvc==3) //ETHER_LAN
+					pvc = 12;
+				break;
+			//add other case for other product if necessary
+		}
+		form.DvInfo_PVC.value = pvc;
 
-		//add other case for other product if necessary
+
 	}
-
-	form.ptm_VC.value = pvc;
+	else{		//DualWAN enabled
+		if(form.wan_TransMode.value == "ATM")
+			form.DvInfo_PVC.value = "0";
+		else if(form.wan_TransMode.value == "PTM")
+			form.DvInfo_PVC.value = "8";
+		else if(form.wan_TransMode.value == "LAN")
+			form.DvInfo_PVC.value = "12";
+		else
+			form.DvInfo_PVC.value = "10";
+	}
 
 <%if tcWebApi_get("Wan_Common","TransMode","h") = "ATM" then%>
 	if(!validPVC())
@@ -651,16 +765,28 @@ function applyRule(){
 		return;
 <%end if%>
 
+<%if tcWebApi_get("WebCustom_Entry","haveLanWan","h") = "Yes" then%>
+	if(form.wan_TransMode.value == "LAN") {
+		var port_conflict = false;
+		var lan_port_num = form.wans_lanport.value;
+
+		if(switch_stb_x == lan_port_num)
+			port_conflict = true;
+		else if (switch_stb_x == '5' && (lan_port_num == '1' || lan_port_num == '2'))
+			port_conflict = true;
+		else if (switch_stb_x == '6' && (lan_port_num == '3' || lan_port_num == '4'))
+			port_conflict = true;
+
+		if (port_conflict) {
+			alert("<%tcWebApi_get("String_Entry","RC_IPTV_conflict","s")%>");
+			return;
+		}
+	}
+<%end if%>
+
 	if(validForm()){
 		form.wanSaveFlag.value = 1;
-		form.wanVCFlag.value = "3";
-
-		if(form.wan_TransMode.value == "ATM")
-			form.DvInfo_PVC.value = "0";
-		else if(form.wan_TransMode.value == "PTM")
-			form.DvInfo_PVC.value = "8";
-		else
-			form.DvInfo_PVC.value = "10";
+		form.wanVCFlag.value = 3;
 
 <%if tcWebApi_get("WebCustom_Entry","isMultiSerSupported","h") = "Yes" then%>
 		if(form.wan_dot1q.value == "Yes")
@@ -852,7 +978,7 @@ function inValidIPv6Addr(Address1)
 	var Address = trim(Address1);
 	var address = Address.match(regExp);
 	if(address == null){
-		alert("Invalid IPv6 Address: " + Address);
+		alert(Untranslated.IPv6_addr_validation + ": " + Address);
  		return true;
 	}
 	return false;
@@ -864,12 +990,12 @@ function inValidIPv6Prefix(Prefix1)
 	var IPv6Prefix = Prefix.match("^[0-9]{1,3}$");
 
 	if(IPv6Prefix == null) {
- 		alert("Invalid IPv6 Prefix: " + Prefix);
+ 		alert(Untranslated.IPv6_prefix_validation + ": " + Prefix);
  		return true;
 	}
 
 	if((Number(Prefix) > 128 ) || (Number(Prefix) < 1 )){
-		alert("Invalid IPv6 Prefix: " + Prefix);
+		alert(Untranslated.IPv6_prefix_validation + ": " + Prefix);
 		return true;
 	}
 
@@ -881,14 +1007,7 @@ function validForm(){
 	switch(form.wanTypeOption.selectedIndex) {
 		case 0:	//dynamic
 			//mtu
-			mtu = form.wan_TCPMTU.value;
-			if(!validInteger(mtu)) {
-				alert('<%tcWebApi_get("String_Entry","WANJS24Text","s")%>');
-				return false;
-			}
-			mtu_num = Number(mtu);
-			if((mtu_num > 1500 || mtu_num < 576) && mtu_num != 0) {
-				alert("<%tcWebApi_get("String_Entry","WANJS7Text","s")%>");
+			if(!validate_range(form.wan_TCPMTU, 576, 1500)) {
 				return false;
 			}
 
@@ -906,14 +1025,7 @@ function validForm(){
 			break;
 		case 1:	//static
 			//mtu
-			mtu = form.wan_TCPMTU.value;
-			if(!validInteger(mtu)) {
-				alert('<%tcWebApi_get("String_Entry","WANJS24Text","s")%>');
-				return false;
-			}
-			mtu_num = Number(mtu);
-			if((mtu_num > 1500 || mtu_num < 100) && mtu_num != 0) {
-				alert("<%tcWebApi_get("String_Entry","WANJS8Text","s")%>");
+			if(!validate_range(form.wan_TCPMTU, 100, 1500)) {
 				return false;
 			}
 
@@ -925,6 +1037,16 @@ function validForm(){
 					return false;
 				if(inValidSubnetMask(form.wan_StaticIPSubMask.value))
 					return false;
+				if(form.wan_StaticIPaddr.value == form.wan_StaticIpGateway.value) {
+					form.wan_StaticIPaddr.focus();
+					alert("<%tcWebApi_get("String_Entry","IPC_warning_WANIPEQUALGatewayIP","s")%>");
+					return false;
+				}
+				if(form.PrimaryDns.value == "" && form.SecondDns.value == "") {
+					form.PrimaryDns.focus();
+					alert("<%tcWebApi_get("String_Entry","IPC_x_DNSServer_blank","s")%>");
+					return false;
+				}
 				if(!valid_IP(form.PrimaryDns, "DNS"))
 					return false;
 				if(!valid_IP(form.SecondDns, "DNS"))
@@ -977,14 +1099,8 @@ function validForm(){
 			}
 
 			//MTU
-			mtu = form.wan_TCPMTU.value;
-			if(!validInteger(mtu)) {
-				alert('<%tcWebApi_get("String_Entry","WANJS24Text","s")%>');
-				return false;
-			}
-			mtu_num = Number(mtu);
-			if((mtu_num > 1492 || mtu_num < 100) && mtu_num != 0) {
-				alert("<%tcWebApi_get("String_Entry","WANJS11Text","s")%>");
+			var mtu_num = Number(form.wan_TCPMTU.value);
+			if(!validate_range(form.wan_TCPMTU, 100, 1492)) {
 				return false;
 			}
 
@@ -1014,8 +1130,18 @@ function validForm(){
 						return false;
 					if(inValidSubnetMask(form.wan_StaticIPSubMask.value))
 						return false;
+					if(form.wan_StaticIPaddr.value == form.wan_StaticIpGateway.value) {
+						form.wan_StaticIPaddr.focus();
+						alert("<%tcWebApi_get("String_Entry","IPC_warning_WANIPEQUALGatewayIP","s")%>");
+						return false;
+					}
 				}
 				if(form.dnsTypeRadio[1].checked) {
+					if(form.PrimaryDns.value == "" && form.SecondDns.value == "") {
+						form.PrimaryDns.focus();
+						alert("<%tcWebApi_get("String_Entry","IPC_x_DNSServer_blank","s")%>");
+						return false;
+					}
 					if(!valid_IP(form.PrimaryDns, "DNS"))
 						return false;
 					if(!valid_IP(form.SecondDns, "DNS"))
@@ -1038,7 +1164,7 @@ function validForm(){
 
         if(document.form.wan_hostname.value.length > 0){
                 var alert_str = validate_hostname(document.form.wan_hostname);
-        
+
                 if(alert_str != ""){
                         showtext($("alert_msg1"), alert_str);
                         $("alert_msg1").style.display = "";
@@ -1057,8 +1183,7 @@ function validForm(){
 				document.form.wan_hwaddr_x.focus();
 			return false;
 		}
-	}	
-			
+	}
 
 	return true;
 }
@@ -1078,8 +1203,6 @@ function doDelete() {
 function doTransChange() {
 	var pvc, transModeSupport = 0;
 
-	pvc=document.form.wan_TransMode.selectedIndex;
-
 <%if tcWebApi_get("WebCustom_Entry","haveAtm","h") = "Yes" then%>
 	transModeSupport += 1;
 <%end if%>
@@ -1089,29 +1212,91 @@ function doTransChange() {
 <%if tcWebApi_get("WebCustom_Entry","haveWan0","h") = "Yes" then%>
 	transModeSupport += 4;
 <%end if%>
+<%if tcWebApi_get("WebCustom_Entry","haveUSBModem","h") = "Yes" then%>
+	transModeSupport += 8;
+<%end if%>
+<%if tcWebApi_get("WebCustom_Entry","haveLanWan","h") = "Yes" then%>
+	transModeSupport += 16;
+<%end if%>
 
-	switch(transModeSupport) {
-		case 5:	//ATM + ETHER, ex. DSL-N17VPN
-			if(pvc==1) //ether
-				pvc = 10;
-			break;
-		case 7:	//ATM + PTM + ETHER, ex. DSL-N66U
-			if(pvc==1) //ptm
-				pvc = 8;
-			else if(pvc==2) //ether
-				pvc = 10;
-			break;
+	if(dualWAN_support == "-1" || !wans_flag){		//no support Dualwan or disabled
+		pvc=document.form.wan_TransMode.selectedIndex;
+		switch(transModeSupport) {
+			case 5:	//ATM + ETHER
+				if(pvc==1) //ether
+					pvc = 10;
+				break;
+			case 7:	//ATM + PTM + ETHER
+				if(pvc==1) //ptm
+					pvc = 8;
+				else if(pvc==2) //ether
+					pvc = 10;
+				break;
+			case 9: //ATM + USB
+				if(pvc==1) //USB
+					pvc = 11;
+				break;
+			case 13:	//ATM + ETHER + USB
+				if(pvc==1) //ether
+					pvc = 10;
+				else if(pvc==2) //USB
+					pvc = 11;
+				break;
+			case 15:	//ATM + PTM + ETHER + USB
+				if(pvc==1) //ptm
+					pvc = 8;
+				else if(pvc==2) //ether
+					pvc = 10;
+				else if(pvc==3) //USB
+					pvc = 11;
+				break;
+			case 17:	//ATM + ETHER_LAN
+				if(pvc==1) //ETHER_LAN
+					pvc = 12;
+				break;
+			case 19:	//ATM + PTM + ETHER_LAN
+				if(pvc==1) //PTM
+					pvc = 8;
+				else if(pvc==2) //ETHER_LAN
+					pvc = 12;
+				break;
+			case 25:	//ATM + USB + ETHER_LAN
+				if(pvc==1) //USB
+					pvc = 11;
+				else if(pvc==2) //ETHER_LAN
+					pvc = 12;
+				break;
+			case 26:	//ATM + PTM + USB + ETHER_LAN
+				if(pvc==1) //PTM
+					pvc = 8;
+				else if(pvc==2) //USB
+					pvc = 11;
+				else if(pvc==3) //ETHER_LAN
+					pvc = 12;
+				break;
+		}
+		document.form.DvInfo_PVC.value = pvc;
+		if(document.form.wan_TransMode.value == "USB"){
+			document.usbform.submit();
+			return;
+		}
 
-		//add other case for other product if necessary
 	}
-	if(document.form.wan_TransMode.value == "ATM")
-		document.form.DvInfo_PVC.value = "0";
-	else if(document.form.wan_TransMode.value == "PTM")
-		document.form.DvInfo_PVC.value = "8";
-	else
-		document.form.DvInfo_PVC.value = "10";
+	else{		//DualWAN enabled
+		if(document.form.wan_TransMode.value == "ATM")
+			document.form.DvInfo_PVC.value = "0";
+		else if(document.form.wan_TransMode.value == "PTM")
+			document.form.DvInfo_PVC.value = "8";
+		else if(document.form.wan_TransMode.value == "USB"){
+			document.usbform.submit();
+			return;
+		}
+		else if(document.form.wan_TransMode.value == "LAN")
+			document.form.DvInfo_PVC.value = "12";
+		else
+			document.form.DvInfo_PVC.value = "10";
+	}
 
-	document.form.ptm_VC.value = pvc;
 	document.form.wanVCFlag.value = 1;
 	document.form.wanTransFlag.value = 1;
 	document.form.submit();
@@ -1222,7 +1407,6 @@ function doConTypeChange() {
 		switch(wanTypeOption.selectedIndex) {
 			case 0:	//dynamic
 				showhide("UPnP", 1);
-				doUPnP();
 				if (is8021xsupport.value == "1") {
 					showhide("div_802_1x", 1);
 				}
@@ -1279,7 +1463,6 @@ function doConTypeChange() {
 				break;
 			case 1:	//static
 				showhide("UPnP", 1);
-				doUPnP();
 				if (is8021xsupport.value == "1") {
 					showhide("div_802_1x", 1);
 				}
@@ -1341,7 +1524,6 @@ function doConTypeChange() {
 				break;
 			case 2:	//pppoa, pppoe
 				showhide("UPnP", 1);
-				doUPnP();
 				showhide("div_802_1x", 0);
 
 				//ip common setting
@@ -1362,6 +1544,9 @@ function doConTypeChange() {
 				showhide("wan_StaticIPSubMask", 1);
 				showhide("wan_StaticIpGateway", 1);
 				showhide("dnsTypeRadio", 1);
+				<%if tcWebApi_get("Wan_PVC","DNS_type","h") = "0" then%>
+				dnsTypeRadio[0].checked = true;
+				<%end if%>
 				dnsCheck();
 				showhide("wan_NAT", 1);
 				//showhide("wan_DynamicRoute", 1);
@@ -1395,7 +1580,6 @@ function doConTypeChange() {
 				break;
 			case 3:	//bridge
 				showhide("UPnP", 0);
-				showhide("AutoCfgUPnP", 0);
 				showhide("div_802_1x", 0);
 
 				//ip common setting
@@ -1424,7 +1608,7 @@ function doConTypeChange() {
 
 				break;
 			default:
-				wanTypeOption.selectedIndex = <% tcWebApi_get("Wan_PVC","ISP","s") %>;
+				wanTypeOption.selectedIndex = "<% tcWebApi_get("Wan_PVC","ISP","s") %>";
 				doConTypeChange();
 				return;
 		}
@@ -1556,13 +1740,6 @@ function doDSLiteModeManual()
 	inputCtrl(document.form.DSLITEAddr, 1);
 }
 
-function doUPnP() {
-	if(document.form.UPnP_active[0].checked)
-		showhide("AutoCfgUPnP", 1);
-	else
-		showhide("AutoCfgUPnP", 0);
-}
-
 function WANChkIdleTimeT() {
     var form=document.form;
     if (form.wan_ConnectSelect[1].checked)
@@ -1659,6 +1836,7 @@ function check_macaddr(obj,flag){ //control hint of input mac address
 <input type="hidden" name="lan_ipaddr" value="<%If tcWebApi_get("Lan_Entry","IP","h") <> "" then tcWebApi_get("Lan_Entry","IP","s") end if%>" />
 <input type="hidden" name="lan_netmask" value="<%If tcWebApi_get("Lan_Entry","netmask","h") <> "" then tcWebApi_get("Lan_Entry","netmask","s") end if%>" />
 
+<INPUT TYPE="HIDDEN" NAME="String_Value_No" VALUE="No">
 <INPUT TYPE="HIDDEN" NAME="wanSaveFlag" VALUE="0">
 <INPUT TYPE="HIDDEN" NAME="wanTransFlag" VALUE="0"/>
 <INPUT TYPE="HIDDEN" NAME="wanBarrierFlag" VALUE="0"/>
@@ -1715,24 +1893,6 @@ function check_macaddr(obj,flag){ //control hint of input mac address
 					<div class="formfontdesc"><%tcWebApi_get("String_Entry","L3F_x_ConnectionType_sd","s")%></div>
 					</td>
 				</tr>
-				<!--tr id="WANscap" height="10px">
-					<td bgcolor="#4D595D" valign="top">
-						<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
-						<thead>
-						<tr>
-							<td colspan="2">*<%tcWebApi_get("String_Entry","wan_index","s")%></td>
-						</tr>
-						</thead>
-						<tr>
-							<th><%tcWebApi_get("String_Entry","wan_type","s")%></th>
-							<td align="left">
-								<select id="" class="input_option" name="wan_unit" onchange="change_wan_unit();">
-								</select>
-							</td>
-						</tr>
-						</table>
-					</td>
-				</tr-->
 				<tr height="10px" id="SummaryTable">
 					<td bgcolor="#4D595D" valign="top">
 						<table id="ATMPVCTable" width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
@@ -1756,11 +1916,11 @@ function check_macaddr(obj,flag){ //control hint of input mac address
 						<table id="MultiServiceTable"width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable" id="ATMPVCTable">
 						<thead>
 						<tr>
-							<td colspan="8">MultiService Summary</td>
+							<td colspan="8"><%tcWebApi_get("String_Entry","DSL_multiserv_summary","s")%></td>
 						</tr>
 						</thead>
 						<tr>
-							<th style="width: 20%;"><center>Service Unit</center></th>
+							<th style="width: 20%;"><center><%tcWebApi_get("String_Entry","service_unit","s")%></center></th>
 							<th style="width: 15%;"><center>802.1Q Enable</center></th>
 							<th style="width: 15%;"><center>VLAN ID</center></th>
 							<th style="width: 20%;"><center><% tcWebApi_Get("String_Entry", "IPC_VServerProto_in", "s") %></center></th>
@@ -1782,7 +1942,7 @@ function check_macaddr(obj,flag){ //control hint of input mac address
 						<tr>
 							<th><%tcWebApi_get("String_Entry","Transfer_Mode","s")%></th>
 							<td align="left">
-								<select class="input_option" name="wan_TransMode" onchange="doTransChange(this.selectedIndex);">
+								<select class="input_option" name="wan_TransMode" onchange="doTransChange();">
 								<%if tcWebApi_get("WebCustom_Entry","haveAtm","h") = "Yes" then%>
 									<option value="ATM" <%if tcWebApi_get("Wan_Common","TransMode","h") = "ATM" then asp_write("selected") end if%>>ADSL WAN (ATM)</option>
 								<%end if%>
@@ -1792,7 +1952,21 @@ function check_macaddr(obj,flag){ //control hint of input mac address
 								<%if tcWebApi_get("WebCustom_Entry","haveWan0","h") = "Yes" then%>
 									<option value="Ethernet" <% if tcWebApi_get("Wan_Common","TransMode","h") = "Ethernet" then asp_Write("selected") end if %>>Ethernet WAN</option>
 								<%end if%>
+								<%if tcWebApi_get("WebCustom_Entry","haveUSBModem","h") = "Yes" then%>
+									<option value="USB">USB Modem</option>
+								<%end if%>
+								<%if tcWebApi_get("WebCustom_Entry","haveLanWan","h") = "Yes" then%>
+									<option value="LAN" <% if tcWebApi_get("Wan_Common","TransMode","h") = "LAN" then asp_Write("selected") end if %>>Ethernet WAN</option>
+								<%end if%>
 								</select>
+							<%if tcWebApi_get("Wan_Common","TransMode","h") = "LAN" then%>
+								<select class="input_option" name="wans_lanport">
+									<option value="1" <% if tcWebApi_get("Dualwan_Entry","wans_lanport","h") = "1" then asp_Write("selected") end if %>>LAN Port 1</option>
+									<option value="2" <% if tcWebApi_get("Dualwan_Entry","wans_lanport","h") = "2" then asp_Write("selected") end if %>>LAN Port 2</option>
+									<option value="3" <% if tcWebApi_get("Dualwan_Entry","wans_lanport","h") = "3" then asp_Write("selected") end if %>>LAN Port 3</option>
+									<option value="4" <% if tcWebApi_get("Dualwan_Entry","wans_lanport","h") = "4" then asp_Write("selected") end if %>>LAN Port 4</option>
+								</select>
+							<%end if%>
 							</td>
 						</tr>
 					<%if tcWebApi_get("Wan_Common","TransMode","h") <> "ATM" then%>
@@ -1809,7 +1983,7 @@ function check_macaddr(obj,flag){ //control hint of input mac address
 					<% end if %> <!--PTM-->
 					<%if tcWebApi_get("WebCustom_Entry","isMultiSerSupported","h") = "Yes" then%>
 						<tr>
-							<th>Service Unit</th>
+							<th><%tcWebApi_get("String_Entry","service_unit","s")%></th>
 							<td align="left">
 								<select class="input_option" name="service_num" onchange="doServiceChange();">
 									<option value= "0" <% if tcWebApi_get("WebCurSet_Entry","wan_pvc_ext","h") = "0" then asp_Write("selected") end if %>>Internet</option>
@@ -1832,18 +2006,7 @@ function check_macaddr(obj,flag){ //control hint of input mac address
 							</td>
 						</tr>
 					<% end if %><!--none atm-->
-						</table>
-					</td>
-				</tr>
-			<%if tcWebApi_get("Wan_Common","TransMode","h") = "ATM" then %>
-				<tr id="atmpvc" height="10px">
-					<td bgcolor="#4D595D" valign="top">
-						<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
-						<thead>
-						<tr>
-							<td colspan="2">PVC</td>
-						</tr>
-						</thead>
+					<%if tcWebApi_get("Wan_Common","TransMode","h") = "ATM" then%>
 						<tr>
 							<th>PVC unit</th>
 							<td align="left">
@@ -1870,9 +2033,12 @@ function check_macaddr(obj,flag){ //control hint of input mac address
 								<INPUT TYPE="RADIO" NAME="wan_VCStatus" VALUE="No" <% if tcWebApi_get("Wan_PVC","Active","h") <> "Yes" then asp_Write("checked") end if %> ><%tcWebApi_get("String_Entry","checkbox_No","s")%>
 							</td>
 						</tr>
+					<% end if %><!--atm-->
 						</table>
 					</td>
 				</tr>
+			<%if tcWebApi_get("Wan_Common","TransMode","h") = "ATM" then %>
+
 				<tr id="atmSettings" height="10px">
 					<td bgcolor="#4D595D" valign="top">
 						<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
@@ -1951,20 +2117,10 @@ function check_macaddr(obj,flag){ //control hint of input mac address
 						<tr id="UPnP">
 							<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(7,23);"><%tcWebApi_get("String_Entry","WC11b_WirelessCtrl_button1name","s")%> UPnP?</a></th>
 							<td>
-								<INPUT TYPE="RADIO" NAME="UPnP_active" class="input" VALUE="Yes" onClick="doUPnP()" <% If TCWebApi_get("Upnpd_Entry","Active","h") = "Yes" then asp_Write("checked") end if%> ><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
-								<INPUT TYPE="RADIO" NAME="UPnP_active" class="input" VALUE="No" onClick="doUPnP()" <% If TCWebApi_get("Upnpd_Entry","Active","h") = "No" then asp_Write("checked") end if%> ><%tcWebApi_get("String_Entry","checkbox_No","s")%>
+								<INPUT TYPE="RADIO" NAME="UPnP_active" class="input" VALUE="Yes" onClick="" <% If TCWebApi_get("Upnpd_Entry","Active","h") = "Yes" then asp_Write("checked") end if%> ><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
+								<INPUT TYPE="RADIO" NAME="UPnP_active" class="input" VALUE="No" onClick="" <% If TCWebApi_get("Upnpd_Entry","Active","h") = "No" then asp_Write("checked") end if%> ><%tcWebApi_get("String_Entry","checkbox_No","s")%>
 							</td>
 						</tr>
-						<tr id="AutoCfgUPnP">
-							<th>Auto-configured UPnP?</th>
-							<td>
-								<INPUT TYPE="RADIO" NAME="UPnP_auto" class="input" VALUE="1" <% If TCWebApi_get("Upnpd_Entry","autoconf","h") = "1" then asp_Write("checked") end if%> ><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
-								<INPUT TYPE="RADIO" NAME="UPnP_auto" class="input" VALUE="0" <% If TCWebApi_get("Upnpd_Entry","autoconf","h") = "0" then asp_Write("checked") end if%> ><%tcWebApi_get("String_Entry","checkbox_No","s")%>
-							</td>
-						</tr>
-						<script language="JavaScript" type="text/JavaScript">
-							doUPnP();
-						</script>
 						</table>
 					</td>
 				</tr>
@@ -1973,7 +2129,7 @@ function check_macaddr(obj,flag){ //control hint of input mac address
 						<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
 						<thead>
 						<tr>
-							<td colspan="2"><%tcWebApi_get("String_Entry","WAN8021qText","s")%></td>
+							<td colspan="2">802.1Q</td>
 						</tr>
 						</thead>
 						<tr>
@@ -1986,9 +2142,17 @@ function check_macaddr(obj,flag){ //control hint of input mac address
 						<tr>
 							<th><%tcWebApi_get("String_Entry","WANVLANIDText","s")%></th>
 							<td align="left">
-								<input type="text" name="wan_vid" maxlength="4" class="input_6_table" value=<%if tcWebApi_get("Wan_PVC","VLANID","h") <> "" then tcWebApi_get("Wan_PVC","VLANID","s") else asp_Write("0") end if%> ><%tcWebApi_get("String_Entry","WANVLANIDrangeText","s")%>
+								<input type="text" name="wan_vid" maxlength="4" class="input_6_table" value=<%if tcWebApi_get("Wan_PVC","VLANID","h") <> "" then tcWebApi_get("Wan_PVC","VLANID","s") else asp_Write("0") end if%> > ( 0 ~ 4095 )
 							</td>
 						</tr>
+					<%if tcWebApi_get("WebCustom_Entry","isdot1pSupport","h") = "Yes" then %>
+						<tr>
+							<th>802.1P</th>
+							<td align="left">
+								<input type="text" name="wan_dot1p" maxlength="4" class="input_6_table" value=<%if tcWebApi_get("Wan_PVC","DOT1P","h") <> "" then tcWebApi_get("Wan_PVC","DOT1P","s") else asp_Write("0") end if%> > ( 0 ~ 7 )
+							</td>
+						</tr>
+					<%end if%>
 						</table>
 					</td>
 				</tr>
@@ -2081,7 +2245,7 @@ function check_macaddr(obj,flag){ //control hint of input mac address
 						<tr id="wan_TCPMTU">
 							<th>MTU</th>
 							<td align="left">
-								<input type="text" name="wan_TCPMTU" maxlength="4" class="input_6_table" value=<% if tcWebApi_get("Wan_PVC","MTU","h") = "" then asp_write("0") else tcWebApi_get("Wan_PVC","MTU","s")  end if%> onKeyPress="return is_number(this,event);"><%tcWebApi_get("String_Entry","WAN_TCPMTU","s")%>
+								<input type="text" name="wan_TCPMTU" maxlength="4" class="input_6_table" value=<% if tcWebApi_get("Wan_PVC","MTU","h") = "" then asp_write("1492") elseif tcWebApi_get("Wan_PVC","MTU","h") = "0" then asp_write("1492") else tcWebApi_get("Wan_PVC","MTU","s")  end if%> onKeyPress="return is_number(this,event);"> <%tcWebApi_get("String_Entry","WAN_TCPMTU","s")%>
 							</td>
 						</tr>
 
@@ -2328,11 +2492,11 @@ function check_macaddr(obj,flag){ //control hint of input mac address
 						</thead>
 						<tr>
 							<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(7,4);"><% tcWebApi_Get("String_Entry", "PPPC_UserName_in", "s") %></a></th>
-							<td><input type="text" maxlength="64" class="input_32_table" name="wan_PPPUsername" onkeypress="return is_string(this, event)" value=""></td>
+							<td><input type="text" maxlength="64" class="input_32_table" name="wan_PPPUsername" onkeypress="return is_string(this, event)" value="" autocapitalization="off" autocomplete="off"></td>
 						</tr>
 						<tr>
 							<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(7,5);"><% tcWebApi_Get("String_Entry", "PPPC_Password_in", "s") %></a></th>
-							<td><input type="password" maxlength="64" class="input_32_table" name="wan_PPPPassword" value=""></td>
+							<td><input type="password" maxlength="64" class="input_32_table" name="wan_PPPPassword" value="" autocapitalization="off" autocomplete="off"></td>
 						</tr>
 						<% if tcWebApi_get("WebCustom_Entry","isPPPAuthen","h") = "Yes" then %>
 						<tr>
@@ -2428,6 +2592,12 @@ function check_macaddr(obj,flag){ //control hint of input mac address
 	<td width="10" align="center" valign="top">&nbsp;</td>
 </tr>
 </table>
+</form>
+<form method="post" name="usbform" action="/cgi-bin/start_apply.asp" target="hidden_frame">
+<input type="hidden" name="current_page" value="Advanced_DSL_Content.asp">
+<input type="hidden" name="next_page" value="Advanced_Modem_Content.asp">
+<input type="hidden" name="USBInfo_PVC" value="11">
+<input type="hidden" name="USB_TransMode" value="USB">
 </form>
 <div id="footer"></div>
 </body>

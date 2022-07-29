@@ -1,5 +1,10 @@
 <%
+	If Request_Form("pvcFlag")="1" then
 	tcWebApi_set("WebCurSet_Entry","dev_pvc","DvInfo_PVC")
+	else
+	set_primary_pvc();
+	END If
+
 	If Request_Form("Saveflag")="1" then
 		tcWebApi_set("DeviceInfo_PVC","DispConnBtnType","DipConnFlag")
 		If Request_Form("Dipflag")="1" then
@@ -40,13 +45,23 @@
 <link rel="stylesheet" type="text/css" href="/NM_style.css">
 <link rel="stylesheet" type="text/css" href="/form_style.css">
 <script language="JavaScript" type="text/javascript" src="/jquery.js"></script>
+
 <script>
+<% wanlink(); %>
+
+var wan_type = wanlink_type();
+var wan_IP = wanlink_ipaddr();
+var wandns = wanlink_dns();
+var wan_Gateway = wanlink_gateway();
+	
 function initial()
 {
+	update_all_info();
 	setTimeout('update_wan_status();', 1000);
 }
 
 function doSave() {
+	document.DvInfo_Form.pvcFlag.value = 1;
 	document.DvInfo_Form.submit();
 }
 function renewrelease(ip){
@@ -65,49 +80,76 @@ function reconnect(flag){
   document.DvInfo_Form.submit();
 }
 
+function update_all_info()
+{
+	wan_type = wanlink_type();
+	wan_IP = wanlink_ipaddr();
+	wandns = wanlink_dns();
+	wan_Gateway = wanlink_gateway();
+	var dnsArray = wandns.split(" ");
+
+	var dns_ip = "";
+	var dns_ip_2 = "";
+	if (typeof(dnsArray[0]) !== "undefined")
+		dns_ip = dnsArray[0];
+	if (typeof(dnsArray[1]) !== "undefined")
+		dns_ip_2 = dnsArray[1];
+
+	if(wan_type == "dhcp")
+		wan_type = "<%tcWebApi_Get("String_Entry", "BOP_ctype_title1", "s")%>";
+	else if(wan_type == "static")
+		wan_type = "<%tcWebApi_Get("String_Entry", "BOP_ctype_title5", "s")%>"+"IPoA";
+	else if(wan_type == "pppoe" || wan_type == "PPPOE")
+		wan_type = "PPPoE/PPPoA";
+	else if(wan_type == "pptp")
+		wan_type = "PPTP";
+	else if(wan_type == "l2tp")
+		wan_type = "L2TP";
+	else if(wan_type == "pppoa")
+		wan_type = "PPPoA";
+	else if(wan_type == "ipoa")
+		wan_type = "IPoA";
+
+	document.getElementById("div_wanType").innerHTML = '<p style="padding-left:10px; margin-top:3px; background-color:#444f53; line-height:20px;">' + wan_type + '</p>';
+	document.getElementById("div_wanIP").innerHTML = '<p style="padding-left:10px; margin-top:3px; background-color:#444f53; line-height:20px;">' + wan_IP + '</p>';
+
+	if("<%tcWebApi_get("Wan_PVC","DNS_type","s")%>" == "1")
+	{
+		var pri_dns = "<%tcWebApi_get("Wan_PVC","Primary_DNS","s")%>";
+		var scnd_dns = "<%tcWebApi_get("Wan_PVC","Secondary_DNS","s")%>";
+		if(pri_dns != "")
+			dns_ip = pri_dns;
+		else if(scnd_dns != "")
+			dns_ip = scnd_dns;
+		else
+			dns_ip = "";
+
+		if((dns_ip == pri_dns) && scnd_dns != "")
+			document.getElementById("div_wanDNS").innerHTML = '<p style="padding-left:10px; margin-top:3px; background-color:#444f53; line-height:20px;">' + dns_ip + '<br>' + scnd_dns + '</p>';
+		else
+			document.getElementById("div_wanDNS").innerHTML = '<p style="padding-left:10px; margin-top:3px; background-color:#444f53; line-height:20px;">' + dns_ip + '</p>';
+	}
+	else{
+		if(dns_ip_2 == "")
+			document.getElementById("div_wanDNS").innerHTML = '<p style="padding-left:10px; margin-top:3px; background-color:#444f53; line-height:20px;">' + dns_ip + '</p>';
+		else
+			document.getElementById("div_wanDNS").innerHTML = '<p style="padding-left:10px; margin-top:3px; background-color:#444f53; line-height:20px;">' + dns_ip + '<br>' + dns_ip_2 + '</p>';
+	}
+
+	document.getElementById("div_wanGateway").innerHTML = '<p style="padding-left:10px; margin-top:3px; background-color:#444f53; line-height:20px;">' + wan_Gateway + '</p>';
+}
+
 function update_wan_status(){
 	$.ajax({
-		url: '/cgi-bin/query_wan_status.asp',
+		url: '/status.asp',
 		dataType: 'script',
 
 		error: function(xhr){
-			setTimeout("update_wan_status();", 2000);
+			setTimeout("update_wan_status();", 3000);
 		},
 		success: function(response){
-			document.getElementById("div_wanType").innerHTML = '<p style="padding-left:10px; margin-top:3px; background-color:#444f53; line-height:20px;">' + wan_type + '</p>';
-			document.getElementById("div_wanIP").innerHTML = '<p style="padding-left:10px; margin-top:3px; background-color:#444f53; line-height:20px;">' + wan_IP + '</p>';
-
-			var dns_ip = ""; 
-			var dns_ip_2 = "";
-			dns_ip = str_DevDNS;
-			dns_ip_2 = str_DevDNS2;
-
-			if("<%tcWebApi_get("Wan_PVC","DNS_type","s")%>" == "1")
-			{
-				var pri_dns = "<%tcWebApi_get("Wan_PVC","Primary_DNS","s")%>";
-				var scnd_dns = "<%tcWebApi_get("Wan_PVC","Secondary_DNS","s")%>";
-				if(pri_dns != "")
-					dns_ip = pri_dns;
-				else if(scnd_dns != "")
-					dns_ip = scnd_dns;
-				else
-					dns_ip = "";
-
-				if((dns_ip == pri_dns) && scnd_dns != "")
-					document.getElementById("div_wanDNS").innerHTML = '<p style="padding-left:10px; margin-top:3px; background-color:#444f53; line-height:20px;">' + dns_ip + '<br>' + scnd_dns + '</p>';
-				else
-					document.getElementById("div_wanDNS").innerHTML = '<p style="padding-left:10px; margin-top:3px; background-color:#444f53; line-height:20px;">' + dns_ip + '</p>';
-			}
-			else{
-				if(dns_ip_2 == "")
-					document.getElementById("div_wanDNS").innerHTML = '<p style="padding-left:10px; margin-top:3px; background-color:#444f53; line-height:20px;">' + dns_ip + '</p>';
-				else
-					document.getElementById("div_wanDNS").innerHTML = '<p style="padding-left:10px; margin-top:3px; background-color:#444f53; line-height:20px;">' + dns_ip + '<br>' + dns_ip_2 + '</p>';
-			}
-
-			document.getElementById("div_wanGateway").innerHTML = '<p style="padding-left:10px; margin-top:3px; background-color:#444f53; line-height:20px;">' + wan_Gateway + '</p>';
-
-			setTimeout("update_wan_status();", 2000);
+			update_all_info();
+			setTimeout("update_wan_status();", 3000);
 		}
 	});
 }
@@ -119,6 +161,7 @@ function update_wan_status(){
 	<INPUT TYPE="HIDDEN" NAME="Dipflag" VALUE="0">
 	<INPUT TYPE="HIDDEN" NAME="IPv6PrivacyAddrsSupportedFlag" value="<%tcWebApi_get("WebCustom_Entry","isIPv6PrivacyAddrsSupported","s")%>" >
 	<INPUT TYPE="HIDDEN" NAME="DipConnFlag" VALUE="0">
+	<INPUT TYPE="HIDDEN" NAME="pvcFlag" VALUE="0">
 <table border="0" cellpadding="0" cellspacing="0">
 <tr>
 <td>
@@ -155,6 +198,12 @@ function update_wan_status(){
 	<%end if%>
 	<%if tcWebApi_get("WebCustom_Entry","haveWan0","h") = "Yes" then%>
 		<OPTION value="10" <% if tcWebApi_staticGet("WebCurSet_Entry","dev_pvc","h") = "10" then asp_Write("selected") end if %>>Ethernet WAN&nbsp;&nbsp;</OPTION>
+	<%end if%>
+	<%if tcWebApi_get("WebCustom_Entry","haveUSBModem","h") = "Yes" then%>
+		<OPTION value="11" <% if tcWebApi_staticGet("WebCurSet_Entry","dev_pvc","h") = "11" then asp_Write("selected") end if %>>USB Modem&nbsp;&nbsp;</OPTION>
+	<%end if%>
+	<%if tcWebApi_get("WebCustom_Entry","haveLanWan","h") = "Yes" then%>
+		<OPTION value="12" <% if tcWebApi_staticGet("WebCurSet_Entry","dev_pvc","h") = "12" then asp_Write("selected") end if %>>Ethernet WAN&nbsp;&nbsp;</OPTION>
 	<%end if%>
 <%end if%>
 </SELECT>
@@ -199,6 +248,14 @@ function update_wan_status(){
 				<% if tcWebApi_staticGet("Wan_Common","TransMode","h") = "Ethernet" then%>
 					<INPUT TYPE="button" NAME="renewIP" class="button_gen" VALUE="Connect" onClick="reconnect(1)" >
 					<INPUT TYPE="button" NAME="releaseIP" class="button_gen" VALUE="Disconnect" onClick="reconnect(2)" >
+				<%End if%>
+			<%End if%>
+			<%if tcWebApi_get("WebCustom_Entry","haveLanWan","h") = "Yes" then%>
+				<% if tcWebApi_staticGet("WebCurSet_Entry","dev_pvc","h") = "12" then%>
+					<% if tcWebApi_staticGet("Wan_Common","TransMode","h") = "LAN" then%>
+						<INPUT TYPE="button" NAME="renewIP" class="button_gen" VALUE="Connect" onClick="reconnect(1)" >
+						<INPUT TYPE="button" NAME="releaseIP" class="button_gen" VALUE="Disconnect" onClick="reconnect(2)" >
+					<%End if%>
 				<%End if%>
 			<%End if%>
 		<%End if%>

@@ -1,7 +1,7 @@
 # include ../common.mak
 
 CFLAGS = -Os -Wall $(EXTRACFLAGS) -fPIC
-# CFLAGS += -I. -I$(TOP)/shared -I$(SRCBASE)/include 
+#CFLAGS += -I. -I$(TOP)/shared -I$(SRCBASE)/include
 CFLAGS += -I. $(TC_CFLAGS)
 CFLAGS += -I$(APP_TCAPILIB_DIR)
 
@@ -17,7 +17,8 @@ CFLAGS += -I$(APP_TCAPILIB_DIR)
 OBJS = shutils.o model.o rtstate.o
 # OBJS += misc.o version.o files.o strings.o process.o 
 OBJS += misc.o files.o strings.o process.o
-# OBJS += bin_sem_asus.o semaphore.o pids.o notify_rc.o discover.o
+# OBJS += bin_sem_asus.o semaphore.o pids.o discover.o
+OBJS += notify_rc.o
 OBJS += bin_sem_asus.o semaphore.o pids.o
 OBJS += base64.o
 OBJS += tcutils.o

@@ -4,7 +4,7 @@
 
 <!--Feedback_Info.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -98,7 +98,9 @@ function redirect(){
 	<br>
 	<%if tcWebApi_get("PushMail_Entry","fb_state","h") = "2" then %>
 	<div class="feedback_info_1">However system currently experiencing issue connecting to mail server, it could be caused by your ISP blocked SMTP port 25. Thus please send us an email directly (<a href="mailto:xdsl_feedback@asus.com?Subject=<%tcWebApi_get("String_Entry","Web_Title2","s")%>" style="color:#FFCC00;" target="_top">xdsl_feedback@asus.com</a>). Simply copy from following text area and paste as mail content.
-		<textarea name="fb_comment" maxlength="2000" cols="55" rows="8" style="font-family:'Courier New', Courier, mono; font-size:13px;background:#475A5F;color:#FFFFFF;"><% nvram_dump("fb_fail_content", "") %></textarea>
+	<br>
+	<br>	
+	<textarea name="fb_comment" maxlength="2000" cols="55" rows="8" style="font-family:'Courier New', Courier, mono; font-size:13px;background:#475A5F;color:#FFFFFF;"><% nvram_dump("fb_fail_content", "") %></textarea>
 	</div>
 	<br>
 	<br>

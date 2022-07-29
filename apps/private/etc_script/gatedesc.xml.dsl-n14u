@@ -3,8 +3,8 @@
 		<friendlyName>ASUS DSL-N14U</friendlyName>
 		<manufacturer>ASUSTeK Computer Inc.</manufacturer>
 		<manufacturerURL>http://www.asus.com/</manufacturerURL>
-		<modelDescription>ASUS DSL-N14U Wireless-N300 ADSL2/2+ Modem VPN Router</modelDescription>
-		<modelName>Wireless-N300 ADSL2/2+ Modem VPN Router</modelName>
+		<modelDescription>ASUS DSL-N14U Wireless-N300 ADSL2/2+ Modem Router</modelDescription>
+		<modelName>Wireless-N300 ADSL2/2+ Modem Router</modelName>
 		<modelNumber>DSL-N14U</modelNumber>
 		<serialNumber>00000001</serialNumber>
 		<UDN>uuid:11111111-0000-c0a8-0102-00aabb071106</UDN>
@@ -32,8 +32,8 @@
 				<friendlyName>ASUS DSL-N14U</friendlyName>
 				<manufacturer>ASUSTeK Computer Inc.</manufacturer>
 				<manufacturerURL>http://www.asus.com/</manufacturerURL>
-				<modelDescription>ASUS DSL-N14U Wireless-N300 ADSL2/2+ Modem VPN Router</modelDescription>
-				<modelName>Wireless-N300 ADSL2/2+ Modem VPN Router</modelName>
+				<modelDescription>ASUS DSL-N14U Wireless-N300 ADSL2/2+ Modem Router</modelDescription>
+				<modelName>Wireless-N300 ADSL2/2+ Modem Router</modelName>
 				<modelNumber>DSL-N14U</modelNumber>
 				<modelURL>http://www.asus.com/</modelURL>
 				<serialNumber>00000001</serialNumber>
@@ -54,8 +54,8 @@
 						<friendlyName>ASUS DSL-N14U</friendlyName>
 						<manufacturer>ASUSTeK Computer Inc.</manufacturer>
 						<manufacturerURL>http://www.asus.com/</manufacturerURL>
-						<modelDescription>Wireless-N300 ADSL2/2+ Modem VPN Router</modelDescription>
-						<modelName>Wireless-N300 ADSL2/2+ Modem VPN Router</modelName>
+						<modelDescription>Wireless-N300 ADSL2/2+ Modem Router</modelDescription>
+						<modelName>Wireless-N300 ADSL2/2+ Modem Router</modelName>
 						<modelNumber>DSL-N14U</modelNumber>
 						<modelURL>http://www.asus.com/</modelURL>
 						<serialNumber>00000001</serialNumber>

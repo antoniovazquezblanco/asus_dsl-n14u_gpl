@@ -257,8 +257,7 @@ int process_get(request * req)
 	}
 #if defined(TCSUPPORT_WEBSERVER_SSL)
 	else{
-		int retCode = 0;
-		bytes_written = boa_sslWrite(req->ssl, req->data_mem + req->filepos, bytes_to_write,&retCode);
+		bytes_written = boa_sslWrite(req->ssl, req->data_mem + req->filepos, bytes_to_write);
 	}
 #endif
         handle_sigbus = 0;

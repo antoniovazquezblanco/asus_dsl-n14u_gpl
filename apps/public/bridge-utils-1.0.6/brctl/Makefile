@@ -1,5 +1,5 @@
 
-KERNEL_HEADERS=-I../../../linux/include
+KERNEL_HEADERS=-I$(KERNEL_DIR)/include
 
 #CC=mips-linux-gcc
 CFLAGS= -Wall -s -Os
@@ -13,11 +13,16 @@ endif
 
 ifeq ($(TCSUPPORT_IGMP_SNOOPING),1)
      CFLAGS+= -DTCSUPPORT_IGMP_SNOOPING
+     ifeq ($(TCSUPPORT_IGMPSNOOPING_ENHANCE),1)
+     CFLAGS+= -DTCSUPPORT_IGMPSNOOPING_ENHANCE
+     endif
 endif
 ifeq ($(TCSUPPORT_IGMP_SNOOPING_V3),1)
      CFLAGS+= -DTCSUPPORT_IGMP_SNOOPING_V3
 endif
-
+ifeq ($(TCSUPPORT_IGMP_SET_GROUP),1)
+     CFLAGS+= -DTCSUPPORT_IGMP_SET_GROUP
+endif
 prefix=/usr/local
 exec_prefix=${prefix}
 bindir=${exec_prefix}/bin

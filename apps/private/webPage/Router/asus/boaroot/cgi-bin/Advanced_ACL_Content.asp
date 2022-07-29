@@ -26,7 +26,7 @@ load_parameters_to_generic()
 
 <!--Advanced_ACL_Content.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -39,9 +39,10 @@ load_parameters_to_generic()
 <script language="JavaScript" type="text/javascript" src="/help.js"></script>
 <script language="JavaScript" type="text/javascript" src="/general.js"></script>
 <script language="JavaScript" type="text/javascript" src="/popup.js"></script>
+<script language="JavaScript" type="text/javascript" src="/client_function.js"></script>
 <script language="JavaScript" type="text/javascript" src="/detect.js"></script>
-<script type="text/javascript" src="/jquery.js"></script>
-<script type="text/javascript" src="/switcherplugin/jquery.iphone-switch.js"></script>
+<script language="JavaScript" type="text/javascript" src="/jquery.js"></script>
+<script language="JavaScript" type="text/javascript" src="/switcherplugin/jquery.iphone-switch.js"></script>
 <style>
 #pull_arrow{
  	float:center;
@@ -60,7 +61,7 @@ load_parameters_to_generic()
 	*margin-top:27px;	
 	margin-left:231px;
 	*margin-left:-133px;
-	width:145px;
+	width:340px;
 	text-align:left;	
 	height:auto;
 	overflow-y:auto;
@@ -93,8 +94,7 @@ load_parameters_to_generic()
 </style>
 <script>
 var $j = jQuery.noConflict();
-</script>
-<script>
+
 wan_route_x = '';
 wan_nat_x = '1';
 
@@ -293,27 +293,37 @@ function hideClients_Block(){
 }
 
 function showWLMACList(){
+	if(clientList.length == 0){
+		setTimeout(function() {
+			genClientList();
+			showWLMACList();
+		}, 500);
+		return false;
+	}
+	
 	var code = "";
 	var show_macaddr = "";
-	var wireless_list_array = [<% wl_auth_list(); %>];	// [[MAC, associated, authorized], ...]
-
-	if(wireless_list_array == "[]" || wireless_list_array == null || wireless_list_array == ""){
-			document.getElementById("pull_arrow").style.display = "none";
-	}else{
-		document.getElementById("pull_arrow").style.display = "";
-		for(var i = 0; i < wireless_list_array.length; i++){
-			var client_list_row = wireless_list_array[i];
-			if(client_list_row[0]){
-				show_macaddr = client_list_row[0];
-				code += '<a><div onmouseover="over_var=1;" onmouseout="over_var=0;" onclick="setClientmac(\''+client_list_row[0]+'\');"><strong>'+client_list_row[0]+'</strong> ';
-				code += ' </div></a>';
-			}else{
-				code += '<div onmouseover="over_var=1;" onmouseout="over_var=0;"><strong>No Wireless Client.</strong>';
-			}
+	var wireless_flag = 0;
+	for(i=0;i<clientList.length;i++){
+		if(clientList[clientList[i]].isWL != 0 && (clientList[clientList[i]].isWL == (parseInt('<% tcWebApi_get("WLan_Common","wl_unit","s"); %>')+1))){		//0: wired, 1: 2.4GHz, 2: 5GHz, filter clients under current band
+			wireless_flag = 1;
+			
+			if(clientList[clientList[i]].Name.length > 30) clientList[clientList[i]].Name = clientList[clientList[i]].Name.substring(0, 27) + "...";
+			
+			code += '<a><div onmouseover="over_var=1;" onmouseout="over_var=0;" onclick="setClientmac(\'';
+			code += clientList[i];
+			code += '\');"><strong>'+clientList[clientList[i]].Name+'</strong> ( '+clientList[i]+' )';
+			code += ' </div></a>';
 		}
-		code +='<!--[if lte IE 6.5]><iframe class="hackiframe2"></iframe><![endif]-->';	
-		$("WL_MAC_List_Block").innerHTML = code;
-	}		
+	}
+			
+	code +='<!--[if lte IE 6.5]><iframe class="hackiframe2"></iframe><![endif]-->';	
+	document.getElementById("WL_MAC_List_Block").innerHTML = code;
+	
+	if(wireless_flag == 0)
+		document.getElementById("pull_arrow").style.display = "none";
+	else
+		document.getElementById("pull_arrow").style.display = "";
 }
 
 function setClientmac(macaddr){
@@ -404,7 +414,7 @@ function setClientmac(macaddr){
 <table id="MainTable2" width="100%" border="1" align="center" cellpadding="4" cellspacing="0" class="FormTable_table">
 	<thead>
 	<tr>
-				<td colspan="2"><%tcWebApi_get("String_Entry","FC_MFList_groupitemname","s")%>(list limit:31)</td>
+				<td colspan="2"><%tcWebApi_get("String_Entry","FC_MFList_groupitemname","s")%> (<%tcWebApi_get("String_Entry","List_limit","s")%> 31)</td>
 	</tr>
 	</thead>
 	<tr>

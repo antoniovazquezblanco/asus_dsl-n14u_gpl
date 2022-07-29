@@ -221,8 +221,8 @@ endif
 endif
 LDFLAGS+= $(INCLUDE)
 
-#ifeq ($(SSL),1)
-#CFLAGS += -DSSL
+#ifeq ($(USE_SSL),1)
+#CFLAGS += -DUSE_SSL
 #endif
 #ifeq ($(CWMP_MULTI_CA),1)
 #CFLAGS += -DCWMP_MULTI_CA

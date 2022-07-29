@@ -25,7 +25,7 @@ load_parameters_to_generic()
 
 <!--Advanced_WSecurity_Content.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -194,7 +194,7 @@ function _change_wl_unit(wl_unit){
 				<%tcWebApi_get("String_Entry","WA11a_ExAuthDBPassword_in","s")%></a>
 		</th>
 		<td>
-			<input type="password" maxlength="64" class="input_32_table" name="wl_radius_key" value="<% If tcWebApi_get("WLan_Entry","RADIUS_Key1","h") <> "" then  tcWebApi_get("WLan_Entry","RADIUS_Key1","s") end if %>">
+			<input type="password" maxlength="64" class="input_32_table" name="wl_radius_key" autocapitalization="off" autocomplete="off" value="<% If tcWebApi_get("WLan_Entry","RADIUS_Key1","h") <> "" then  tcWebApi_get("WLan_Entry","RADIUS_Key1","s") end if %>">
 		</td>
 	</tr>
 </table>

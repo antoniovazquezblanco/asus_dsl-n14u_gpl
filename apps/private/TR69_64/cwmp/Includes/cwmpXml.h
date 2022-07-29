@@ -12,12 +12,12 @@
 //#include "global.h"
 
 #ifndef ULONG
-#define	CHAR			char
-#define	INT				int
+//#define	CHAR			char
+//#define	INT				int
 #define	UINT			unsigned int
-#define ULONG			unsigned int
-#define USHORT			unsigned short
-#define UCHAR			unsigned char
+//#define ULONG			unsigned int
+//#define USHORT			unsigned short
+//#define UCHAR			unsigned char
 
 #define BOOLEAN			unsigned char
 #define BOOL				unsigned char//add by hqfeng,2006.04.18
@@ -34,10 +34,10 @@
 #define VOID			void
 #define	LONG			int
 typedef VOID	        *PVOID;
-typedef CHAR	        *PCHAR;
-typedef UCHAR	        *PUCHAR;
+typedef char	        *PCHAR;
+typedef unsigned char  *PUCHAR;
 typedef LONG	        *PLONG;
-typedef ULONG	        *PULONG;
+typedef unsigned int   *PULONG;
 
 #endif
 

@@ -4,17 +4,16 @@ If Request_Form("lanFlag") <> "" Then
 	TCWebApi_set("Lan_Dhcp","type","dhcpTypeRadio")
 
   If Request_Form("dhcpFlag") ="0" Then
-		tcWebApi_save()
-		tcWebApi_commit("Lan")
+		tcWebApi_CommitWithoutSave("Lan")
   End If
 
   If Request_Form("dhcpTypeRadio")="0" Then
     TCWebApi_unset("DhcpRelay_Entry")
     TCWebApi_unset("Dproxy_Entry")
     If Request_Form("dhcpFlag") ="0" Then
-      tcWebApi_commit("DhcpRelay_Entry")
-      tcWebApi_commit("Dhcpd_Common")
-      tcWebApi_commit("Dproxy_Entry")
+      tcWebApi_CommitWithoutSave("DhcpRelay_Entry")
+      tcWebApi_CommitWithoutSave("Dhcpd_Common")
+      tcWebApi_CommitWithoutSave("Dproxy_Entry")
     End If
   End If
 
@@ -45,11 +44,13 @@ If Request_Form("lanFlag") <> "" Then
 
     TCWebApi_unset("DhcpRelay_Entry")
     If Request_Form("dhcpFlag") ="0" Then
-      tcWebApi_commit("DhcpRelay_Entry")
-      tcWebApi_commit("Dhcpd_Common")
-      tcWebApi_commit("Dproxy_Entry")
+      tcWebApi_CommitWithoutSave("DhcpRelay_Entry")
+      tcWebApi_CommitWithoutSave("Dhcpd_Common")
+      tcWebApi_CommitWithoutSave("Dproxy_Entry")
     End If
   End If
+
+  tcWebApi_Save()
 End If
 %>
 
@@ -59,7 +60,7 @@ End If
 
 <!--Advanced_DHCP_Content.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -71,9 +72,10 @@ End If
 <script language="JavaScript" type="text/javascript" src="/state.js"></script>
 <script language="JavaScript" type="text/javascript" src="/general.js"></script>
 <script language="JavaScript" type="text/javascript" src="/popup.js"></script>
-<script type="text/javascript" language="JavaScript" src="/help.js"></script>
-<script type="text/javascript" language="JavaScript" src="/detect.js"></script>
+<script language="JavaScript" type="text/javascript" src="/help.js"></script>
+<script language="JavaScript" type="text/javascript" src="/detect.js"></script>
 <script language="JavaScript" type='text/javascript' src="/js/ip_new.js"></script>
+<script language="JavaScript" type="text/javascript" src="/client_function.js"></script>
 <style>
 #ClientList_Block_PC{
 border:1px outset #999;
@@ -82,8 +84,7 @@ position:absolute;
 *margin-top:27px;
 margin-left:10px;
 *margin-left:-263px;
-width:255px;
-*width:275px;
+width:340px;
 text-align:left;
 height:auto;
 overflow-y:auto;
@@ -237,18 +238,16 @@ function initial(){
 }
 
 function doValidateRange(startIP,endIP) {
-    var staddress;
-    var edaddress;
-    var cnt;
 
-    staddress=startIP.split(".");
-    edaddress=endIP.split(".");
-    for(cnt=0; cnt < 4; cnt++) {
-        if(Number(edaddress[cnt])<Number(staddress[cnt])) {
-            alert("End IP address is less than Start IP address");
-	return false;
-}
-    }
+	var dhcp_start_num = inet_network(startIP);
+	var dhcp_end_num = inet_network(endIP);
+	
+	if(dhcp_start_num > dhcp_end_num){
+			var tmp = startIP;
+			document.uiViewLanForm.StartIp.value = endIP;
+			document.uiViewLanForm.EndIp.value = tmp;
+	}
+
     return true;
 }
 
@@ -263,21 +262,15 @@ function StringCheck(val)
 
 function doValidateServer() {
     var Element;
-    var ElementValue,ElementValue1,ElementValue2;
+    var ElementValue1,ElementValue2;
 
     Element = document.uiViewLanForm.dhcp_LeaseTime;
-    ElementValue = Element.value;
-    if(ElementValue.match("[^0-9]") != null) {
-        alert("Lease Time needs to be an positive integer");
-        return true;
-    }
-    if(!StringCheck(ElementValue))
-		{
-				alert("Empty Lease Time!!");
-				return true;
-		}
-		if(!parseInt(ElementValue))
-				document.uiViewLanForm.dhcp_LeaseTime.value = 86400;
+
+	//validate range
+	if(!validate_range(Element, 120, 604800)) {
+		return true;
+	}
+
     Element = document.uiViewLanForm.StartIp;
     ElementValue1 = Element.value;
     if(inValidIPAddr(ElementValue1)) return true;
@@ -414,23 +407,7 @@ function doStaticTableRange()
 			return false;
 		}
 	}
-/*
-	var table=document.getElementById("client_list").contentWindow.document.getElementById("dhcplist");
 
-	for(j=1; j<=leaseTotal; j++)
-	{
-		if(table.rows[j].cells[2].innerText == document.uiViewLanForm.IpAddr.value)
-		{
-			   alert("DHCP Client IP has existed in the list!");
-			 return false;
-		 }
-		 if(table.rows[j].cells[3].innerText == document.uiViewLanForm.MACAddr.value)
-		{
-			   alert("DHCP Client MAC address has existed in the list!");
-			 return false;
-		 }
-	}
-*/
 	return true;
 }
 
@@ -472,13 +449,8 @@ function doAdminUiMgmtIpValidate()
 			if(document.uiViewLanForm.tmpStartIp.value != document.uiViewLanForm.StartIp.value)
 			{
 				if(confirm("Change Start IP may lead to reservation item be deleted!\nContinue?") == false)
-					return false;
-			}
-			/*if(document.uiViewLanForm.tmpPoolCount.value != document.uiViewLanForm.PoolSize.value)
-			{
-				if(confirm("Change IP pool count may lead to reservation item be deleted!\nContinue?") == false)
-					return false;
-			}*/
+						return false;
+			}			
 		}
 	}
 }
@@ -498,42 +470,24 @@ function applyRule(){
 	else
 	{
 		form.dnsTypeRadio.value = "1";
-  	if(inValidIPAddr(form.PrimaryDns.value))
-      	return false;
+  		if(inValidIPAddr(form.PrimaryDns.value))
+		      	return false;
 	}
 
 	if (form.winsIP.value != "")
 	{
-  	if(inValidIPAddr(form.winsIP.value))
-      	return false;
+	  	if(inValidIPAddr(form.winsIP.value))
+      			return false;
 	}
 
 	document.uiViewLanForm.dhcpFlag.value = 0;
-	showLoading(17);
-	setTimeout("redirect();", 17000);
+	showLoading(42);	//Extend from 17 to 42 to restore_webtype
+	setTimeout("redirect();", 42000);
 	if(navigator.appName.indexOf("Microsoft") >= 0){ 		// Jieming added at 2013/05/21, to avoid browser freeze when submitting form on IE
 		stopFlag = 1;
 	}
 	document.uiViewLanForm.submit();
 
-	/*if(validForm()){
-		var rule_num = $('dhcp_staticlist_table').rows.length;
-		var item_num = $('dhcp_staticlist_table').rows[0].cells.length;
-		var tmp_value = "";
-		for(i=0; i<rule_num; i++){
-		tmp_value += "<"
-		for(j=0; j<item_num-1; j++){
-		tmp_value += $('dhcp_staticlist_table').rows[i].cells[j].innerHTML;
-		if(j != item_num-2)
-		tmp_value += ">";
-		}
-		}
-		if(tmp_value == "<"+"No data in table." || tmp_value == "<")
-		tmp_value = "";
-		document.form.dhcp_staticlist.value = tmp_value;
-		showLoading();
-		document.form.submit();
-	}*/
 }
 
 function doAdd()
@@ -574,47 +528,6 @@ function validate_dhcp_range(ip_obj){
 	return 1;
 }
 
-function validForm(){
-	var re = new RegExp('^[a-zA-Z0-9][a-zA-Z0-9\-\_\.]*[a-zA-Z0-9\-\_]$','gi');
-	if(!re.test(document.form.lan_domain.value) && document.form.lan_domain.value != ""){
-      alert("<%tcWebApi_get("String_Entry","JS_validchar","s")%>");
-	document.form.lan_domain.focus();
-	document.form.lan_domain.select();
-	return false;
-	}
-	if(!validate_ipaddr_final(document.form.dhcp_gateway_x, 'dhcp_gateway_x') ||
-	!validate_ipaddr_final(document.form.dhcp_dns1_x, 'dhcp_dns1_x') ||
-	!validate_ipaddr_final(document.form.dhcp_wins_x, 'dhcp_wins_x'))
-	return false;
-	if(!validate_dhcp_range(document.form.dhcp_start)
-	|| !validate_dhcp_range(document.form.dhcp_end))
-	return false;
-	var dhcp_start_num = inet_network(document.form.dhcp_start.value);
-	var dhcp_end_num = inet_network(document.form.dhcp_end.value);
-	if(dhcp_start_num > dhcp_end_num){
-	var tmp = document.form.dhcp_start.value;
-	document.form.dhcp_start.value = document.form.dhcp_end.value;
-	document.form.dhcp_end.value = tmp;
-	}
-	var default_pool = new Array();
-	default_pool =get_default_pool(document.form.lan_ipaddr.value, document.form.lan_netmask.value);
-	if((inet_network(document.form.dhcp_start.value) < inet_network(default_pool[0])) || (inet_network(document.form.dhcp_end.value) > inet_network(default_pool[1]))){
-			if(confirm("<%tcWebApi_get("String_Entry","JS_DHCP3","s")%>")){ //Acceptable DHCP ip pool : "+default_pool[0]+"~"+default_pool[1]+"\n
-	document.form.dhcp_start.value=default_pool[0];
-	document.form.dhcp_end.value=default_pool[1];
-	}else{return false;}
-	}
-	if(!validate_range(document.form.dhcp_lease, 120, 604800))
-	return false;
-	if(!validate_ipaddr(document.form.dhcp_wins_x, 'dhcp_wins_x'))
-	return false;
-	return true;
-}
-
-function done_validating(action){
-	refreshpage();
-}
-
 function get_default_pool(ip, netmask){
 	z=0;
 	tmp_ip=0;
@@ -651,58 +564,34 @@ function get_default_pool(ip, netmask){
 	}
 }
 
-function showLANIPList(){
-	var code = "";
-	var show_name = "";
+function showLANIPList(){	
+	if(clientList.length == 0){
+		setTimeout(function() {
+			genClientList();
+			showLANIPList();
+		}, 500);
+		return false;
+	}
+	
+	var htmlCode = "";		
+	for(var i=0; i<clientList.length;i++){
+		var clientObj = clientList[clientList[i]];
 
-	//var arp_list = [['192.168.1.8','00:60:6E:92:EC:53'],['192.168.1.2','84:38:35:C0:C4:33'],['','']];
-	var arp_list = [<% tcWebApi_get_arp_list() %>['','']];
-	for(var i =0; i<tableData.length; i++){
-		if(tableData[i][2] != ""){
-			if(tableData[i][3] == "00:00:00:00:00:00")	//Viz add special case, remove it after tableData fixed
-				continue;
-			else{
-				if(tableData[i][1] && tableData[i][1].length > 20)
-					show_name = tableData[i][1].substring(0, 16) + "..";
-				else
-					show_name = tableData[i][1];
+		if(clientObj.IP == "offline") clientObj.IP = "";
+		if(clientObj.Name.length > 30) clientObj.Name = clientObj.Name.substring(0, 27) + "...";
 
-				//tableData = [["1", "BVA-NB","192.168.177.168","00:22:15:A5:03:68"], [xx], ..]
-				code += '<a><div onmouseover="over_var=1;" onmouseout="over_var=0;" onclick="setClientIP(\''+tableData[i][3]+'\', \''+tableData[i][2]+'\');"><strong>'+tableData[i][3]+'</strong> ';
-
-				if(show_name && show_name.length > 0 && show_name != "N/A")
-					code += '( '+show_name+')';
-				code += ' </div></a>';
-			}
-		}
+		htmlCode += '<a><div onmouseover="over_var=1;" onmouseout="over_var=0;" onclick="setClientIP(\'';
+		htmlCode += clientObj.MacAddr;
+		htmlCode += '\', \'';
+		htmlCode += clientObj.IP;
+		htmlCode += '\');"><strong>';
+		htmlCode += clientObj.Name;
+		htmlCode += '</strong> ( ';
+		htmlCode += clientObj.MacAddr;
+		htmlCode += ' )</div></a><!--[if lte IE 6.5]><iframe class="hackiframe2"></iframe><![endif]-->';	
 	}
 
-	for(var i =0; i<arp_list.length; i++){
-		var found = "0";
-		
-		if(arp_list[i][0] != ""){
-			for(var j =0; j<tableData.length; j++){
-				if(arp_list[i][0] == tableData[j][2]){
-					found = "1";
-					
-					//Viz add special case, remove it after tableData fixed
-						if(tableData[j][3] == "00:00:00:00:00:00")
-								found = "0";
-					
-					break;				
-				}
-			}
-		}	
-		if(found == "0"){
-			if(arp_list[i][0] != ""){
-				code += '<a><div onmouseover="over_var=1;" onmouseout="over_var=0;" onclick="setClientIP(\''+arp_list[i][1]+'\', \''+arp_list[i][0]+'\');"><strong>'+arp_list[i][1]+'</strong>';
-				code += ' </div></a>';
-			}
-		}
-	}
-
-	code +='<!--[if lte IE 6.5]><iframe class="hackiframe2"></iframe><![endif]-->';
-	$("ClientList_Block_PC").innerHTML = code;
+	$("ClientList_Block_PC").innerHTML = htmlCode;
 }
 
 function setClientIP(macaddr, ipaddr){
@@ -794,7 +683,7 @@ $("check_mac").innerHTML="The format for the MAC address is six groups of two he
 <div class="formfontdesc"><%tcWebApi_get("String_Entry","LHC_DHCPServerConfigurable_sd","s")%></div>
 <div id="router_in_pool" class="formfontdesc" style="color:#FFCC00;display:none;">#LHC_DHCPServerConfigurable_sd2","s")%>  <span id="LANIP"></span></div>
 <div id="VPN_conflict" class="formfontdesc" style="color:#FFCC00;display:none;"><span id="VPN_conflict_span"></span></div>
-<div class="formfontdesc" style="margin-top:-10px;">
+<div class="formfontdesc" style="margin-top:-10px;display:none;">
 <a id="faq" href="" target="_blank" style="font-family:Lucida Console;text-decoration:underline;"><% tcWebApi_Get("String_Entry", "LHC_MnlDHCPList_groupitemdesc", "s") %> FAQ</a>
 </div>
 <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
@@ -832,7 +721,7 @@ $("check_mac").innerHTML="The format for the MAC address is six groups of two he
             <th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(5,5);"><%tcWebApi_get("String_Entry","LHC_LeaseTime_in","s")%></a></th>
 <td>
 	<INPUT TYPE="TEXT" NAME="dhcp_LeaseTime" class="input_15_table" SIZE="6" MAXLENGTH="6" VALUE="<%If tcWebApi_get("Dhcpd_Common","lease","h") <> "" then tcWebApi_get("Dhcpd_Common","lease","s") else asp_Write("0") end if%>"  onKeyPress="return is_number(this,event)">
-	 seconds
+	 <%tcWebApi_get("String_Entry","Second","s")%>
 </td>
 </tr>
 <tr>
@@ -870,7 +759,7 @@ $("check_mac").innerHTML="The format for the MAC address is six groups of two he
 <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" class="FormTable_table" style="margin-top:8px;" >
 <thead>
 	<tr>
-		<td colspan="3" id="GWStatic"><%tcWebApi_get("String_Entry","LHC_MnlDHCPList_groupitemdesc","s")%></td>
+		<td colspan="3" id="GWStatic"><%tcWebApi_get("String_Entry","LHC_MnlDHCPList_groupitemdesc","s")%>  (<%tcWebApi_get("String_Entry","List_limit","s")%> 32)</td>
 	</tr>
 </thead>
 	<tr>

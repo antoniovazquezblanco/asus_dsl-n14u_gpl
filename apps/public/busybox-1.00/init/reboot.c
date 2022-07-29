@@ -27,6 +27,12 @@
 #include <sys/reboot.h>
 #include "busybox.h"
 #include "init_shared.h"
+#include <sys/ioctl.h>
+#include <net/if.h>
+#include <errno.h>
+#include <string.h>
+#include <asm/unistd.h>
+#include <asm/fcntl.h>
 
 #if defined(TCSUPPORT_START_TRAP) || defined(TCSUPPORT_SYSLOG_ENHANCE)
 #define		SIGNAL_PATH		"/var/tmp/signal_reboot"
@@ -77,6 +83,36 @@ static int syslogd_quit_signal(void)
 }
 #endif
 
+int if_down(char* ifname)
+{
+	struct ifreq ifr;
+	int fd;
+
+	if(!ifname)
+		return -1;
+	strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
+
+	fd = socket(PF_INET, SOCK_DGRAM, 0);
+	if (fd < 0) {
+		//_dprintf("%s: %d %s", __FUNCTION__, __LINE__, strerror(errno));
+		return -1;
+	}
+
+	//down
+	if (ioctl(fd, SIOCGIFFLAGS, &ifr) < 0) {
+		//_dprintf("%s: %d SIOCGIFFLAGS: %s", __FUNCTION__, __LINE__, strerror(errno));
+		close(fd);
+		return -1;
+	}
+	ifr.ifr_flags &= ~IFF_UP;
+	if (ioctl(fd, SIOCSIFFLAGS, &ifr) < 0) {
+		//_dprintf("%s: %d SIOCSIFFLAGS: %s", __FUNCTION__, __LINE__, strerror(errno));
+		close(fd);
+		return -1;
+	}
+	return 0;
+}
+
 extern int reboot_main(int argc, char **argv)
 {
 	char *delay; /* delay in seconds before rebooting */
@@ -89,6 +125,7 @@ extern int reboot_main(int argc, char **argv)
 	}
 	
 #if defined(TCSUPPORT_START_TRAP) || defined(TCSUPPORT_SYSLOG_ENHANCE)	
+	system("killall -9 monitorcfgmgr");	//Andy Chiu, 2015/03/18. stop monitorcfgmgr before stop cfg_manager
 	system("killall -SIGUSR1 cfg_manager");
 	/* wait cfg_manager done */
 	while (!quit_signal() && count++ < 10)
@@ -101,6 +138,30 @@ extern int reboot_main(int argc, char **argv)
 	/* wait syslogd storing system log */
 	while (!syslogd_quit_signal() && count++ < 10)
 		sleep(1);
+#endif
+#if defined(TCSUPPORT_CPU_MT7510) || defined(TCSUPPORT_CPU_MT7520)
+#if defined(MT7592)
+	if_down("wds0");
+	if_down("wds1");
+	if_down("wds2");
+	if_down("wds3");
+	if_down("ra0");
+	if_down("ra1");
+	if_down("ra2");
+	if_down("ra3");
+	syscall(__NR_delete_module, "mt7603eap", O_NONBLOCK|O_EXCL);
+#endif
+#if defined(MT7612E)
+	if_down("wdsi0");
+	if_down("wdsi1");
+	if_down("wdsi2");
+	if_down("wdsi3");
+	if_down("rai0");
+	if_down("rai1");
+	if_down("rai2");
+	if_down("rai3");
+	syscall(__NR_delete_module, "mt7662e_ap", O_NONBLOCK|O_EXCL);
+#endif
 #endif
 
 #ifndef CONFIG_INIT

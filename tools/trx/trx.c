@@ -108,7 +108,12 @@ void usage(void)
 #else
 	//fprintf(stderr, "Usage: trx [-p] [-k kernellen] [-o outfile] [-m maxlen] [-a align] [-b offset] [-f file] [-f file [-f file]]\n");
 //	fprintf(stderr, "Usage: trx [-p] [-o outfile] [-m maxlen] [-a align] [-b offset] [-c config_file] [-f file] [-f file [-f file]] \n");
+	//fprintf(stderr, "Usage: trx [-p] [-k kernel_len] [-r rootfs_len] [-o outfile] [-m maxlen] [-a align] [-b offset] [-c config_file] [-f file] [-f file [-f file]] [-t boot_file]\n");
+#if defined (TCSUPPORT_2_6_36_KERNEL)
+	fprintf(stderr, "Usage: trx [-p] [-k kernel_len] [-r rootfs_len] [-o outfile] [-m maxlen] [-a align] [-b offset] [-u start_addr] [-c config_file] [-f file] [-f file [-f file]] [-t boot_file]\n");
+#else
 	fprintf(stderr, "Usage: trx [-p] [-k kernel_len] [-r rootfs_len] [-o outfile] [-m maxlen] [-a align] [-b offset] [-c config_file] [-f file] [-f file [-f file]] [-t boot_file]\n");
+#endif
 #endif
 	exit(EXIT_FAILURE);
 }
@@ -151,7 +156,11 @@ int main(int argc, char **argv)
 	in = NULL;
 	i = 0;
 
+#if defined (TCSUPPORT_2_6_36_KERNEL)
+	while ((c = getopt(argc, argv, "-:k:r:o:m:a:b:u:c:d:f:p:t:g")) != -1) {
+#else
 	while ((c = getopt(argc, argv, "-:k:r:o:m:a:b:c:d:f:p:t:g")) != -1) {
+#endif
 		switch (c) {
 			/*pork 20090313 added*/
 #ifdef TRENDCHIP
@@ -324,6 +333,17 @@ int main(int argc, char **argv)
 					cur_len = n;
 				}
 				break;
+#if defined (TCSUPPORT_2_6_36_KERNEL)
+			case 'u':
+				errno = 0;
+				n = strtoul(optarg, &e, 0);
+				if (errno || (e == optarg) || *e) {
+					fprintf(stderr, "illegal numeric string\n");
+					usage();
+				}
+				p->decompAddr= STORE32_LE(n);
+		       	break;
+#endif
            		case 'g':
 				if (!(in = fopen("tclinux_allinone", "r+"))) {
 					fprintf(stderr, "can not open file tclinux_allinone for writing\n");
@@ -347,7 +367,7 @@ int main(int argc, char **argv)
 
 				fwrite(buf+count, 4, 1, in);					
 				fclose(in);
-				return 0;		
+				return 0;
 			default:
 				usage();
 		}
@@ -387,30 +407,10 @@ int main(int argc, char **argv)
 	}else{
 		fprintf(stderr,"no config file\n");	
 	}	
+
 	//write Model Name, Sam 2013/3/6
-#if defined DSL_N66U
-	strcpy((char*)(p->reserved), "DSL-N66U");
-#elif defined DSL_N16U
-	strcpy((char*)(p->reserved), "DSL-N16U");
-#elif defined DSL_N55U_C1
-	strcpy((char*)(p->reserved), "DSL-N55U-C1");
-#elif defined DSL_N12
-	strcpy((char*)(p->reserved), "DSL-N12");
-#elif defined DSL_N12E_C1
-	strcpy((char*)(p->reserved), "DSL-N12E-C1");
-#elif defined DSL_N12U_C1
-	strcpy((char*)(p->reserved), "DSL-N12U-C1");
-#elif defined DSL_N10_C1
-	strcpy((char*)(p->reserved), "DSL-N10-C1");
-#elif defined DSL_N14U
-	strcpy((char*)(p->reserved), "DSL-N14U");
-#elif defined DSL_N10_C1_DODO
-	strcpy((char*)(p->reserved), "DSL-N10-C1");
-#elif defined DSL_N12E_C1_DODO
-	strcpy((char*)(p->reserved), "DSL-N12E-C1");
-#elif defined DSL_N12U_C1_DODO
-	strcpy((char*)(p->reserved), "DSL-N12U-C1");
-#endif
+	strcpy((char*)(p->reserved), PRODUCTNAME);
+
 	p->len = STORE32_LE(cur_len);
 	if (!fwrite(buf, cur_len, 1, out) || fflush(out)) {
 		fprintf(stderr, "fwrite failed\n");

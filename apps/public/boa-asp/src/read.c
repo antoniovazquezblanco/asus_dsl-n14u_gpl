@@ -429,8 +429,7 @@ int read_header(request * req)
 	}
 #if defined(TCSUPPORT_WEBSERVER_SSL)
 	else{
-		int retCode = 0;
-		bytes = boa_sslRead(req->ssl, buffer + req->client_stream_pos, buf_bytes_left,&retCode);
+		bytes = boa_sslRead(req->ssl, buffer + req->client_stream_pos, buf_bytes_left);
 	}
 #endif 
         if (bytes < 0) {
@@ -520,8 +519,7 @@ int read_body(request * req)
 	}
 #if defined(TCSUPPORT_WEBSERVER_SSL)
 	else{
-		int retCode =0;
-		bytes_read = boa_sslRead(req->ssl,req->header_end ,bytes_to_read,&retCode );
+		bytes_read = boa_sslRead(req->ssl,req->header_end ,bytes_to_read);
 	}
 #endif
 

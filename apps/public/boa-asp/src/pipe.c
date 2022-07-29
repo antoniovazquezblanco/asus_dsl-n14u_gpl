@@ -124,8 +124,7 @@ int write_from_pipe(request * req)
 	}
 #if defined(TCSUPPORT_WEBSERVER_SSL)
 	else {
-		int retCode = 0;
-		bytes_written = boa_sslWrite(req->ssl, req->header_line, bytes_to_write,&retCode);
+		bytes_written = boa_sslWrite(req->ssl, req->header_line, bytes_to_write);
 	}
 #endif
     if (bytes_written == -1) {

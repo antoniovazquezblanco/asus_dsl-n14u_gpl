@@ -102,14 +102,6 @@ function submitForm(){
 	}
 }
 
-function gotoIndex(){
-	if (w_Setting == "0") {
-		alert("<% tcWebApi_Get("String_Entry", "QIS_recommand_encryption", "s") %>");
-		location.href = '/cgi-bin/qis/QIS_wireless.asp';
-	}
-	else
-		parent.location.href = '../index2.asp';
-}
 </script>
 </head>
 <body onLoad="QKfinish_load_body();">
@@ -128,9 +120,9 @@ function gotoIndex(){
 		<td align="left">
 			<span class="description_down"><% tcWebApi_Get("String_Entry", "Manual_Setting_Title", "s") %></span>
 		</td>
-		<td align="right">
+		<!--td align="right">
 			<img onclick="gotoIndex();" style="cursor:pointer;" align="right" title="Go to Home" src="/images/backtohome.png" onMouseOver="this.src='/images/backtohomeclick.png'" onMouseOut="this.src='/images/backtohome.png'">
-		</td>
+		</td-->
 	</tr>
 </table>
 </div>
@@ -163,13 +155,13 @@ function gotoIndex(){
 <tr>
 <th width="120"><% tcWebApi_Get("String_Entry", "PPPC_UserName_in", "s") %></th>
 <td>
-<input type="text" name="dsltmp_cfg_pppoe_username" value="" maxlength="64" class="input_32_table">
+<input type="text" name="dsltmp_cfg_pppoe_username" value="" tabindex="1" maxlength="64" class="input_32_table" autocapitalization="off" autocomplete="off">
 </td>
 </tr>
 <tr>
 <th width="120"><% tcWebApi_Get("String_Entry", "PPPC_Password_in", "s") %></th>
 <td>
-<input type="password" name="dsltmp_cfg_pppoe_passwd" value="" maxlength="64" class="input_32_table">
+<input type="password" name="dsltmp_cfg_pppoe_passwd" value="" tabindex="2" maxlength="64" class="input_32_table" autocapitalization="off" autocomplete="off">
 </td>
 </tr>
 <!--<tr>
@@ -182,8 +174,8 @@ function gotoIndex(){
 </tr>-->
 </table>
 <div class="apply_gen" style="margin-top:30px">
-<input type="button" id="prevButton" value="<% tcWebApi_Get("String_Entry", "Manual_Setting_btn", "s") %>" onclick="gotoprev(document.form);" class="button_gen">
-<input type="button" id="nextButton" value="<% tcWebApi_Get("String_Entry", "btn_next", "s") %>" onclick="submitForm();" class="button_gen">
+<input type="button" id="prevButton" value="<% tcWebApi_Get("String_Entry", "Manual_Setting_btn", "s") %>" tabindex="4" onclick="gotoprev(document.form);" class="button_gen">
+<input type="button" id="nextButton" value="<% tcWebApi_Get("String_Entry", "btn_next", "s") %>" tabindex="3" onclick="submitForm();" class="button_gen">
 </div>
 </div>
 </form>

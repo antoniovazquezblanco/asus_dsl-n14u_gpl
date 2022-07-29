@@ -20,7 +20,7 @@ end if
 
 <head>
     <meta name="generator" content="HTML Tidy for Linux/x86 (vers 25 March 2009), see www.w3.org">
-    <meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7">
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge">
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="-1">
@@ -173,18 +173,8 @@ end if
     var wireless = []; // [[MAC, associated, authorized], ...]
     var ipmonitor = []; // [[IP, MAC, DeviceName, Type, http, printer, iTune], ...]
     var networkmap_fullscan = 'done'; //2008.07.24 Add. 1 stands for complete, 0 stands for scanning.;
-    var clients_info = getclients();
     var parental2_support = rc_support.search("PARENTAL2");
-/*
-    var MULTIFILTER_ENABLE = ''.replace(/&#62/g, ">");
-    var MULTIFILTER_MAC = ''.replace(/&#62/g, ">");
-    var MULTIFILTER_DEVICENAME = ''.replace(/&#62/g, ">");
-    var MULTIFILTER_MACFILTER_DAYTIME = ''.replace(/&#62/g, ">").replace(/&#60/g, "<");
-    var MULTIFILTER_LANTOWAN_ENABLE = ''.replace(/&#62/g, ">").replace(/&#60/g, "<");
-    var MULTIFILTER_LANTOWAN_DESC = ''.replace(/&#62/g, ">").replace(/&#60/g, "<");
-    var MULTIFILTER_LANTOWAN_PORT = ''.replace(/&#62/g, ">").replace(/&#60/g, "<");
-    var MULTIFILTER_LANTOWAN_PROTO = ''.replace(/&#62/g, ">").replace(/&#60/g, "<");
-*/
+
     var MULTIFILTER_ENABLE = '<%TCWebApi_get("Parental_Entry","MULTIFILTER_ENABLE","s")%>'.replace(/&#62/g, ">");
     var MULTIFILTER_MAC = '<%TCWebApi_get("Parental_Entry","MULTIFILTER_MAC","s")%>'.replace(/&#62/g, ">");
     var MULTIFILTER_DEVICENAME = decodeURIComponent('<%tcWebApi_char_to_ascii("Parental_Entry","MULTIFILTER_DEVICENAME","s")%>').replace(/&#62/g, ">");
@@ -206,10 +196,10 @@ end if
     var _client;
     var StopTimeCount;
     function initial(){
-    show_menu();
-    show_footer();
-    gen_mainTable();
-    showLANIPList();
+    		show_menu();
+    		show_footer();
+    		gen_mainTable();
+    		showLANIPList();
     }
     /*------------ Mouse event of fake LAN IP select menu {-----------------*/
     function setClientIP(devname, macaddr){
@@ -218,68 +208,35 @@ end if
 		hideClients_Block();
 		over_var = 0;
     }
-    function showLANIPList(){
-			var code = "";
-			var show_name = "";
+function showLANIPList(){
+	if(clientList.length == 0){
+		setTimeout(function() {
+			genClientList();
+			showLANIPList();
+		}, 500);
+		return false;
+	}
+	
+	var htmlCode = "";
+	for(var i=0; i<clientList.length;i++){
+		var clientObj = clientList[clientList[i]];
 
-			//var arp_list = [['192.168.1.8','00:60:6E:92:EC:53'],['192.168.1.2','84:38:35:C0:C4:33'],['','']];
-			var arp_list = [<% tcWebApi_get_arp_list() %>['','']];
-			for(var i =0; i<tableData.length; i++){				
-				if(tableData[i][2] != ""){
-					if(tableData[i][3] == "00:00:00:00:00:00")	//Viz add special case, remove it after tableData fixed
-						continue;
-					else{
-						if(tableData[i][1] && tableData[i][1].length > 20)
-							show_name = tableData[i][1].substring(0, 16) + "..";
-						else
-						{
-							if(tableData[i][1] == "N/A")
-								show_name = tableData[i][3];
-							else
-								show_name = tableData[i][1];
-						}
-						//tableData = [["1", "BVA-NB","192.168.177.168","00:22:15:A5:03:68"], [xx], ..]
-						if(tableData[i][1] && tableData[i][1] != "N/A")
-							code += '<a><div onmouseover="over_var=1;" onmouseout="over_var=0;" onclick="setClientIP(\''+tableData[i][1]+'\', \''+tableData[i][3]+'\');"><strong>'+tableData[i][2]+'</strong>';
-						else
-							code += '<a><div onmouseover="over_var=1;" onmouseout="over_var=0;" onclick="setClientIP(\''+tableData[i][3]+'\', \''+tableData[i][3]+'\');"><strong>'+tableData[i][2]+'</strong>';
+		if(clientObj.IP == "offline") clientObj.IP = "";
+		if(clientObj.Name.length > 30) clientObj.Name = clientObj.Name.substring(0, 27) + "...";
 
-						if(show_name && show_name.length > 0)
-							code += '( '+show_name+')';
-						code += ' </div></a>';
-					}	
-				}
-			}
+		htmlCode += '<a><div onmouseover="over_var=1;" onmouseout="over_var=0;" onclick="setClientIP(\'';
+		htmlCode += clientObj.Name;
+		htmlCode += '\', \'';
+		htmlCode += clientObj.MacAddr;
+		htmlCode += '\');"><strong>';
+		htmlCode += clientObj.Name;
+		htmlCode += "</strong> (";
+		htmlCode += clientObj.MacAddr;
+		htmlCode += " )</div></a><!--[if lte IE 6.5]><script>alert(\"<#ALERT_TO_CHANGE_BROWSER#>\");</script><![endif]-->";	
+	}
 
-			for(var i =0; i<arp_list.length; i++){
-				var found = "0";
-				
-				if(arp_list[i][0] != ""){
-					for(var j =0; j<tableData.length; j++){
-						if(arp_list[i][0] == tableData[j][2]){
-							found = "1";
-						
-							//Viz add special case, remove it after tableData fixed
-							if(tableData[j][3] == "00:00:00:00:00:00")
-								found = "0";						
-						
-							break;
-						}
-					}
-				}
-					
-				if(found == "0"){
-					if(arp_list[i][0] != ""){
-						code += '<a><div onmouseover="over_var=1;" onmouseout="over_var=0;" onclick="setClientIP(\''+arp_list[i][1]+'\', \''+arp_list[i][1]+'\');"><strong>'+arp_list[i][0]+'</strong>';
-						code += '( '+arp_list[i][1]+')';
-						code += ' </div></a>';
-					}
-				}
-			}
-
-			code +='<!--[if lte IE 6.5]><iframe class="hackiframe2"></iframe><![endif]-->';
-			$("ClientList_Block_PC").innerHTML = code;
-    }
+	$("ClientList_Block_PC").innerHTML = htmlCode;
+}
 
     function pullLANIPList(obj){
 		if(isMenuopen == 0){
@@ -304,7 +261,8 @@ end if
     function gen_mainTable(){
 		var code = "";
 		code +='<table width="100%" border="1" cellspacing="0" cellpadding="4" align="center" class="FormTable_table" id="mainTable_table">';
-		code +='<tr><th width="5%" height="30px" title="Select all"><input type=\"checkbox\" onclick=\"selectAll(this, 0);\" value=\"\"/><\/th>';
+		code +='<thead><tr><td colspan="5"><%tcWebApi_get("String_Entry","ConnectedClient","s")%>&nbsp;(<%tcWebApi_get("String_Entry","List_limit","s")%>&nbsp;7)</td></tr></thead>';
+		code +='<tr><th width="5%" height="30px" title="<%tcWebApi_get("String_Entry","select_all","s")%>"><input type=\"checkbox\" onclick=\"selectAll(this, 0);\" value=\"\"/><\/th>';
 		code +='<th width="40%"><% tcWebApi_Get("String_Entry", "ParentalCtrl_username", "s") %><\/th>';
 		code +='<th width="25%"><% tcWebApi_Get("String_Entry", "ParentalCtrl_hwaddr", "s") %><\/th>';
 		code +='<th width="10%"><% tcWebApi_Get("String_Entry", "ParentalCtrl_time", "s") %><\/th>';
@@ -314,7 +272,7 @@ end if
 		code +='<img id="pull_arrow" height="14px;" src="/images/arrow-down.gif" onclick="pullLANIPList(this);" title="<% tcWebApi_Get("String_Entry", "select_client", "s") %>" onmouseover="over_var=1;" onmouseout="over_var=0;"><\/td>';
 		code +='<td style="border-bottom:2px solid #000;"><input type="text" maxlength="17" class="input_macaddr_table" name="PC_mac" onKeyPress="return is_hwaddr(this,event)"><\/td>';
 		code +='<td style="border-bottom:2px solid #000;">--<\/td>';
-		code +='<td style="border-bottom:2px solid #000;"><input class="url_btn" type="button" onClick="addRow_main(7)" value=""><\/td><\/tr>';
+		code +='<td style="border-bottom:2px solid #000;"><input class="url_btn" type="button" onClick="addRow_main(10)" value=""><\/td><\/tr>';
 		if(MULTIFILTER_DEVICENAME == "" && MULTIFILTER_MAC == "")
 		code +='<tr><td style="color:#FFCC00;" colspan="10"><%tcWebApi_get("String_Entry","IPC_VSList_Norule","s")%></td>';
 		else{
@@ -571,7 +529,7 @@ end if
 			)
 				return false;
 			if(starttime > endtime || starttime == endtime){
-				alert("The start time must be earlier than end time.");
+				alert("<%tcWebApi_get("String_Entry","FC_URLActiveTime_itemhint","s")%>");
 				return false;
 			}
 			MULTIFILTER_MACFILTER_DAYTIME_row[client] = "";
@@ -630,8 +588,8 @@ end if
 		var rule_num = $('mainTable_table').rows.length;
 		var item_num = $('mainTable_table').rows[0].cells.length;
 
-		if(rule_num >= upper){
-			alert("<%tcWebApi_get("String_Entry","JS_itemlimit1","s")%> 5 <%tcWebApi_get("String_Entry","JS_itemlimit2","s")%>");
+		if(rule_num >= upper){	//minus 3 rows for editing
+			alert("<%tcWebApi_get("String_Entry","JS_itemlimit1","s")%> 7 <%tcWebApi_get("String_Entry","JS_itemlimit2","s")%>");
 			return false;
 		}
 		if(!validate_string(document.form.PC_devicename))
@@ -704,36 +662,42 @@ end if
 		document.form.PC_mac.value = "";
 		gen_mainTable();
     }
-    function deleteRow_main(r){
-    var j=r.parentNode.parentNode.rowIndex;
-    $(r.parentNode.parentNode.parentNode.parentNode.id).deleteRow(j);
-    var MULTIFILTER_ENABLE_tmp = "";
-    var MULTIFILTER_MAC_tmp = "";
-    var MULTIFILTER_DEVICENAME_tmp = "";
-    for(i=2; i<$('mainTable_table').rows.length; i++){
-    MULTIFILTER_ENABLE_tmp += $('mainTable_table').rows[i].cells[0].title;
-    MULTIFILTER_DEVICENAME_tmp += $('mainTable_table').rows[i].cells[1].title;
-    MULTIFILTER_MAC_tmp += $('mainTable_table').rows[i].cells[2].title;
-    if(i != $('mainTable_table').rows.length-1){
-    MULTIFILTER_ENABLE_tmp += ">";
-    MULTIFILTER_DEVICENAME_tmp += ">";
-    MULTIFILTER_MAC_tmp += ">";
-    }
-    }
-    MULTIFILTER_ENABLE = MULTIFILTER_ENABLE_tmp;
-    MULTIFILTER_MAC = MULTIFILTER_MAC_tmp;
-    MULTIFILTER_DEVICENAME = MULTIFILTER_DEVICENAME_tmp;
-    MULTIFILTER_ENABLE_row = MULTIFILTER_ENABLE.split('>');
-    MULTIFILTER_MAC_row = MULTIFILTER_MAC.split('>');
-    MULTIFILTER_DEVICENAME_row = MULTIFILTER_DEVICENAME.split('>');
-    MULTIFILTER_LANTOWAN_ENABLE_row.splice(j-2,1);
-    MULTIFILTER_LANTOWAN_DESC_row.splice(j-2,1);
-    MULTIFILTER_LANTOWAN_PORT_row.splice(j-2,1);
-    MULTIFILTER_LANTOWAN_PROTO_row.splice(j-2,1);
-    MULTIFILTER_MACFILTER_DAYTIME_row.splice(j-2,1);
-    regen_lantowan();
-    gen_mainTable();
-    }
+    function deleteRow_main(r) {
+		var j = r.parentNode.parentNode.rowIndex;
+		$(r.parentNode.parentNode.parentNode.parentNode.id).deleteRow(j);
+
+		var MULTIFILTER_ENABLE_tmp = "";
+		var MULTIFILTER_MAC_tmp = "";
+		var MULTIFILTER_DEVICENAME_tmp = "";
+		for(i = 3; i < $('mainTable_table').rows.length; i++) {
+			MULTIFILTER_ENABLE_tmp += $('mainTable_table').rows[i].cells[0].title;
+			MULTIFILTER_DEVICENAME_tmp += $('mainTable_table').rows[i].cells[1].title;
+			MULTIFILTER_MAC_tmp += $('mainTable_table').rows[i].cells[2].title;
+
+			if(i != $('mainTable_table').rows.length-1) {
+				MULTIFILTER_ENABLE_tmp += ">";
+				MULTIFILTER_DEVICENAME_tmp += ">";
+				MULTIFILTER_MAC_tmp += ">";
+			}
+		}
+
+		MULTIFILTER_ENABLE = MULTIFILTER_ENABLE_tmp;
+		MULTIFILTER_MAC = MULTIFILTER_MAC_tmp;
+		MULTIFILTER_DEVICENAME = MULTIFILTER_DEVICENAME_tmp;
+
+		MULTIFILTER_ENABLE_row = MULTIFILTER_ENABLE.split('>');
+		MULTIFILTER_MAC_row = MULTIFILTER_MAC.split('>');
+		MULTIFILTER_DEVICENAME_row = MULTIFILTER_DEVICENAME.split('>');
+
+		MULTIFILTER_LANTOWAN_ENABLE_row.splice(j-3,1);
+		MULTIFILTER_LANTOWAN_DESC_row.splice(j-3,1);
+		MULTIFILTER_LANTOWAN_PORT_row.splice(j-3,1);
+		MULTIFILTER_LANTOWAN_PROTO_row.splice(j-3,1);
+		MULTIFILTER_MACFILTER_DAYTIME_row.splice(j-3,1);
+
+		regen_lantowan();
+		gen_mainTable();
+	}
     function addRow_lantowan(client){
 		var invalid_char = "";
 		if(MULTIFILTER_LANTOWAN_DESC_row[client] != "" || MULTIFILTER_LANTOWAN_PROTO_row[client] != "" || MULTIFILTER_LANTOWAN_PORT_row[client] != ""){
@@ -871,8 +835,9 @@ end if
 																	<li><%tcWebApi_get("String_Entry","ParentalCtrl_Desc2","s")%></li>
 																	<li><%tcWebApi_get("String_Entry","ParentalCtrl_Desc3","s")%></li>
 																	<li><%tcWebApi_get("String_Entry","ParentalCtrl_Desc4","s")%></li>
-
-                                                                    <li style="font-weight: bolder;text-decoration: underline; cursor:pointer;"><span onclick="location.href=&#39;#&#39;;document.body.style.overflow=&#39;hidden&#39;;document.getElementById(&#39;ParentalCtrlHelp&#39;).style.display=&#39;&#39;;"><% tcWebApi_Get("String_Entry", "Video_Link1", "s") %></span></li>
+																	<li>
+																		<a target="_blank" style="cursor:pointer;text-decoration: underline;" href="http://www.youtube.com/v/IbsuvSjG0xM"><% tcWebApi_Get("String_Entry", "Video_Link1", "s") %></a>
+																	</li>
                                                                 </ol>
 																<ol style="color:#FC0;margin:-5px 0px 3px -18px;*margin-left:18px;"><%tcWebApi_get("String_Entry","ParentalCtrl_default","s")%></ol>
 

@@ -33,6 +33,28 @@ if [ "$TCSUPPORT_MULTISERVICE_ON_WAN" != "" ] && [ "$TCSUPPORT_WAN_PTM" != "" -o
 	fi	
 fi
 
+if [ "$TCSUPPORT_MULTISERVICE_ON_WAN" != "" ] && [ "$TCSUPPORT_WAN_PTM" != "" -o "$TCSUPPORT_WAN_ETHER" != "" ] ;then
+	if [ "$isPTMETHER" = "1" ] ; then
+		if [ "$serv_num" != "0" ]; then
+			isIPTV=1
+		else
+			isIPTV=0
+		fi
+	else
+		if [ "$i" != "0" ]; then
+			isIPTV=1
+		else
+			isIPTV=0
+		fi
+	fi
+else
+	if [ "$i" != "0"  -a "$isPTMETHER" = "0" ]; then
+		isIPTV=1
+	else
+		isIPTV=0
+	fi
+fi
+
 CONFFILE=/etc/isp$i.conf
 if [ -f $CONFFILE ]; then
 	chmod 777 $CONFFILE
@@ -75,7 +97,24 @@ fi
 # flush ipfilter rule
 # iptables -F PKT_FLT
 
+#Stop vpn client
+killall run_vpnc
+if [ -f /var/run/l2tpd-vpnc.pid ] ; then
+	kill -15 `cat /var/run/l2tpd-vpnc.pid`
+	sleep 1
+fi
+if [ -f /var/run/ppp20.pid ] ; then
+	kill -15 `cat /var/run/ppp20.pid`
+        sleep 2 
+	if [ -f /var/run/ppp20.pid ] ; then
+        	kill -9 `cat /var/run/ppp20.pid`
+        	rm -f /var/run/ppp20.pid
+	fi
+fi
+
 if [ -f /var/run/ppp$k.pid ] ; then
+	echo "Kill ppp10"
+	echo 1 > /tmp/kill-ppp10
         kill -15 `cat /var/run/ppp$k.pid`
         sleep 2 
 	if [ -f /var/run/ppp$k.pid ] ; then
@@ -193,16 +232,23 @@ if [ -f $IPTV_CFG ] ; then
     . $IPTV_CFG
 fi
 
+if [ "$TCSUPPORT_MULTISERVICE_ON_WAN" != "" ] && [ "$TCSUPPORT_WAN_PTM" != "" -o "$TCSUPPORT_WAN_ETHER" != "" ] ;then
+/sbin/ifconfig nas$i down
+else
 if ! [ "$i" = "10" -a "$switch_stb_x" != "0" -a "$switch_stb_x" != "" ]; then
 /sbin/ifconfig nas$i down
+fi
 fi
 
 # power down Ethernet Wan
 #if [ "$i" = "10" -a "$TCSUPPORT_MTK_INTERNAL_ETHER_SWITCH" = "" -a "$switch_stb_x" != "7" ]; then
 	#rtkethcmd down wan
 #fi
-
+if [ "$isIPTV" = "1" ]; then
+brctl delif br1 nas$i
+else
 brctl delif br0 nas$i
+fi
 
 if [ -f /var/run/nas$i.pid ] ; then
 	kill -9 `cat /var/run/nas$i.pid`
@@ -242,7 +288,7 @@ fi
 
 # qoscmd use tc to control nas device, influence smuxctl unregister nas device
 # so use forground mode to run this command
-/usr/bin/qoscmd dev del nas$i 
+#/usr/bin/qoscmd dev del nas$i 
 
 #FW_CONF=/etc/firewall.conf
 #if [ -f $FW_CONF ]; then

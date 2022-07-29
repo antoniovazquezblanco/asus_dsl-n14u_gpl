@@ -152,10 +152,7 @@ function clickevent(){
 				<span id="dummyShareStr"></span>
 			</li>
 			<span id="haveDDNS">
-				<li>
-					<%tcWebApi_get("String_Entry","AiDisk_linktoFTP_fromInternet","s")%>
-					<a target="_blank" href="ftp:///">ftp://</a>
-				</li>
+				<li>Internet FTP address: <a target="_blank" style="text-decoration: underline; font-family:Lucida Console;">ftp://<%tcWebApi_get("Ddns_Entry","MYHOST","s")%></a></li>
 			</span>
 			<span id="priv_wan_ip" style="color:#FFCC00;">
        <li><%tcWebApi_get("String_Entry","LHC_x_DDNSEnable_sd2","s")%></li>

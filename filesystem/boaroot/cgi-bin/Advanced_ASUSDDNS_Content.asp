@@ -1,10 +1,8 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <html xmlns:v>
-
-<!--Advanced_ASUSDDNS_Content.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -106,7 +104,7 @@ function ddns_load_body(){
 	if(ddns_return_code == 'register,-1')
 		alert("<%tcWebApi_get("String_Entry","LHC_x_DDNS_alarm_2","s")%>");
 	else if(ddns_return_code.indexOf('200')!=-1){
-		alert("Registration is successful.");
+		alert("<%tcWebApi_get("String_Entry","LHC_x_DDNS_alarm_3","s")%>");
 		showhide("wan_ip_hide2", 0);
 		if(ddns_server_x == "WWW.ASUS.COM")
 			showhide("wan_ip_hide3", 1);   
@@ -198,13 +196,13 @@ function validForm(){
 				return false;
 			}
 			else if(document.form.ddns_server_x.selectedIndex != 0 && document.form.ddns_username_x.value == ""){
-				alert("Account name cannot be blank.");
+				alert("<%tcWebApi_get("String_Entry","QKS_account_nameblank","s")%>");
 				document.form.ddns_username_x.focus();
 				document.form.ddns_username_x.select();
 				return false;
 			}
 			else if(document.form.ddns_server_x.selectedIndex != 0 && document.form.ddns_passwd_x.value == ""){
-				alert("Password cannot be blank.");
+				alert("<%tcWebApi_get("String_Entry","File_Pop_content_alert_desc6","s")%>");
 				document.form.ddns_passwd_x.focus();
 				document.form.ddns_passwd_x.select();
 				return false;
@@ -294,16 +292,12 @@ function cleandef(){
 								<option value="WWW.ASUS.COM" <% if tcWebApi_get("Ddns_Entry","SERVERNAME","h") = "WWW.ASUS.COM" then asp_Write("selected") end if %>>WWW.ASUS.COM</option>
 								<option value="WWW.DYNDNS.ORG" <% if tcWebApi_get("Ddns_Entry","SERVERNAME","h") = "WWW.DYNDNS.ORG" then asp_Write("selected") end if %>>WWW.DYNDNS.ORG</option>
 								<option value="WWW.DYNDNS.ORG_CUSTOM" <% if tcWebApi_get("Ddns_Entry","SERVERNAME","h") = "WWW.DYNDNS.ORG_CUSTOM" then asp_Write("selected") end if %>>WWW.DYNDNS.ORG(CUSTOM)</option>
-								<option value="WWW.DYNDNS.ORG_STATIC" <% if tcWebApi_get("Ddns_Entry","SERVERNAME","h") = "WWW.DYNDNS.ORG_STATIC" then asp_Write("selected") end if %>>WWW.DYNDNS.ORG(STATIC)</option>
-								<option value="WWW.TZO.COM" <% if tcWebApi_get("Ddns_Entry","SERVERNAME","h") = "WWW.TZO.COM" then asp_Write("selected") end if %>>WWW.TZO.COM</option>
+								<option value="WWW.DYNDNS.ORG_STATIC" <% if tcWebApi_get("Ddns_Entry","SERVERNAME","h") = "WWW.DYNDNS.ORG_STATIC" then asp_Write("selected") end if %>>WWW.DYNDNS.ORG(STATIC)</option>								
+								<option value="WWW.SELFHOST.DE" <% if tcWebApi_get("Ddns_Entry","SERVERNAME","h") = "WWW.SELFHOST.DE" then asp_Write("selected") end if %>>WWW.SELFHOST.DE</option>
 								<option value="WWW.ZONEEDIT.COM" <% if tcWebApi_get("Ddns_Entry","SERVERNAME","h") = "WWW.ZONEEDIT.COM" then asp_Write("selected") end if %>>WWW.ZONEEDIT.COM</option>
 								<option value="WWW.DNSOMATIC.COM" <% if tcWebApi_get("Ddns_Entry","SERVERNAME","h") = "WWW.DNSOMATIC.COM" then asp_Write("selected") end if %>>WWW.DNSOMATIC.COM</option>
 								<option value="WWW.TUNNELBROKER.NET" <% if tcWebApi_get("Ddns_Entry","SERVERNAME","h") = "WWW.TUNNELBROKER.NET" then asp_Write("selected") end if %>>WWW.TUNNELBROKER.NET</option>
-								<option value="WWW.NO-IP.COM" <% if tcWebApi_get("Ddns_Entry","SERVERNAME","h") = "WWW.NO-IP.COM" then asp_Write("selected") end if %>>WWW.NO-IP.COM</option>
-								<!--
-								<option value="WWW.JUSTLINUX.COM" <% if tcWebApi_get("Ddns_Entry","SERVERNAME","h") = "WWW.JUSTLINUX.COM" then asp_Write("selected") end if %>>WWW.JUSTLINUX.COM</option>
-								<option value="WWW.EASYDNS.COM" <% if tcWebApi_get("Ddns_Entry","SERVERNAME","h") = "WWW.EASYDNS.COM" then asp_Write("selected") end if %>>WWW.EASYDNS.COM</option>
-								-->
+								<option value="WWW.NO-IP.COM" <% if tcWebApi_get("Ddns_Entry","SERVERNAME","h") = "WWW.NO-IP.COM" then asp_Write("selected") end if %>>WWW.NO-IP.COM</option>								
 							</select>
 							<a id="link" href="javascript:openLink('x_DDNSServer')" style=" margin-left:5px; text-decoration: underline;"><%tcWebApi_get("String_Entry","LHC_x_DDNSServer_linkname","s")%></a>
 							<a id="linkToHome" href="javascript:openLink('x_DDNSServer')" style=" margin-left:5px; text-decoration: underline;display:none;"><%tcWebApi_get("String_Entry","ddns_home_link","s")%></a>
@@ -313,7 +307,7 @@ function cleandef(){
 						<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(5,13);"><%tcWebApi_get("String_Entry","LHC_x_DDNSHostNames_in","s")%></a></th>
 						<td>
 							<div id="ddnsname_input" style="display:none;">
-								<input type="text" maxlength="63" class="input_25_table" name="ddns_hostname_x" id="ddns_hostname_x" value="<% If tcWebApi_get("Ddns_Entry","MYHOST","h") <> "" then  tcWebApi_get("Ddns_Entry","MYHOST","s") end if %>" onKeyPress="return is_string(this, event)">
+								<input type="text" maxlength="64" class="input_25_table" name="ddns_hostname_x" id="ddns_hostname_x" value="<% If tcWebApi_get("Ddns_Entry","MYHOST","h") <> "" then  tcWebApi_get("Ddns_Entry","MYHOST","s") end if %>" onKeyPress="return is_string(this, event)">
 							</div>
 							<div id="asusddnsname_input" style="display:none;">
 								<input type="text" maxlength="32" class="input_32_table" name="DDNSName" id="DDNSName" class="inputtext" onKeyPress="return is_string(this, event)" OnClick="cleandef();">.asuscomm.com
@@ -325,11 +319,11 @@ function cleandef(){
 					</tr>
 					<tr>
 						<th><%tcWebApi_get("String_Entry","LHC_x_DDNSUserName_in","s")%></th>
-						<td><input type="text" maxlength="32" class="input_25_table" name="ddns_username_x" value="<% If tcWebApi_get("Ddns_Entry","USERNAME","h") <> "" then  tcWebApi_get("Ddns_Entry","USERNAME","s") end if %>" onKeyPress="return is_string(this, event)"></td>
+						<td><input type="text" maxlength="64" class="input_25_table" name="ddns_username_x" value="<% If tcWebApi_get("Ddns_Entry","USERNAME","h") <> "" then  tcWebApi_get("Ddns_Entry","USERNAME","s") end if %>" onKeyPress="return is_string(this, event)" autocapitalization="off" autocomplete="off"></td>
 					</tr>
 					<tr>
 						<th><%tcWebApi_get("String_Entry","LHC_x_DDNSPassword_in","s")%></th>
-						<td><input type="password" maxlength="64" class="input_25_table" name="ddns_passwd_x" value="<% If tcWebApi_get("Ddns_Entry","PASSWORD","h") <> "" then  tcWebApi_get("Ddns_Entry","PASSWORD","s") end if %>"></td>
+						<td><input type="password" maxlength="64" class="input_25_table" name="ddns_passwd_x" value="<% If tcWebApi_get("Ddns_Entry","PASSWORD","h") <> "" then  tcWebApi_get("Ddns_Entry","PASSWORD","s") end if %>" autocapitalization="off" autocomplete="off"></td>
 					</tr>
 					<tr id="wildcard_field">
 						<th><%tcWebApi_get("String_Entry","LHC_x_DDNSWildcard_in","s")%>?</th>
@@ -363,6 +357,4 @@ function cleandef(){
 </form>
 <div id="footer"></div>
 </body>
-
-<!--Advanced_ASUSDDNS_Content.asp-->
 </html>

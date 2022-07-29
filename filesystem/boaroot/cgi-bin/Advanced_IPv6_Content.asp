@@ -1,4 +1,5 @@
 <%
+if Request_Form("apply_flag") <> "" Then
 	TCWebApi_set("ipv6rd_Entry","Active","tunnelEnable")
 	if TCWebAPI_get("ipv6rd_Entry", "Active", "h") = "Yes" then
 		TCWebApi_set("ipv6rd_Entry","Prefix","ipv6rd_prefix")
@@ -8,6 +9,7 @@
 		TCWebApi_set("ipv6rd_Entry","BRIPv4Addr","BRipv4Addr")
 	end if
 	tcWebApi_commit("ipv6rd_Entry")
+end if
 %>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -15,7 +17,7 @@
 
 <!--Advanced_IPv6_Content.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -109,12 +111,12 @@ function inValidIPv6Prefix(Prefix1)
 	var IPv6Prefix = Prefix.match("^[0-9]{1,3}$");
 	
 	if(IPv6Prefix == null) { 
- 		alert("Invalid IPv6 Prefix: " + Prefix);
+ 		alert(Untranslated.IPv6_prefix_validation+ ": " + Prefix);
  		return true;
 	}
 	
 	if((Number(Prefix) > 128 ) || (Number(Prefix) < 1 )){
-		alert("Invalid IPv6 Prefix: " + Prefix);
+		alert(Untranslated.IPv6_prefix_validation+ ": " + Prefix);
 		return true;
 	}
 	
@@ -230,6 +232,7 @@ function applyRule(){
 <input type="hidden" name="wan_unit" value="0">
 <input type="hidden" name="ipv6_dhcppd" value="">
 <input type="hidden" name="ipv6_accept_ra" value="1"-->
+<input type="hidden" name="apply_flag" value="1">
 <table class="content" align="center" cellpadding="0" cellspacing="0">
 <tr>
 	<td width="17">&nbsp;</td>

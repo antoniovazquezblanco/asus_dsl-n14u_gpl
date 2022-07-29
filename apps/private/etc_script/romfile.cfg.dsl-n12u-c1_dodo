@@ -12,6 +12,7 @@
 	<PVC8 Active="No" ISP="2" IPVERSION="IPv4" PPPv6Mode="1" PPPv6PD="Yes" MLDproxy="No" IPv6Extension="0" IPADDR6="" PREFIX6="" DEFGATEWAY6="" DEFAULTROUTE="Yes" />
 	<PVC9 Active="No" ISP="3" IPVERSION="IPv4" PPPv6Mode="1" PPPv6PD="Yes" MLDproxy="No" IPv6Extension="0"/>
 	<PVC10 Active="No" ISP="0" IPVERSION="IPv4" PPPv6Mode="1" PPPv6PD="Yes" MLDproxy="No" IPv6Extension="0" DEFAULTROUTE="Yes" IPOE_DOT1X_STATUS="Disabled" />
+	<PVC11 Active="No" ISP="0" IPVERSION="IPv4" PPPv6Mode="1" PPPv6PD="Yes" MLDproxy="No" IPv6Extension="0" DEFAULTROUTE="Yes" />
 </Wan>
 <WanExt>
 	<PVC8e0 Active="No" ISP="3" IPVERSION="IPv4/IPv6" PPPv6Mode="1" PPPv6PD="Yes" MLDproxy="No"/>
@@ -99,6 +100,10 @@ RekeyMethod="DISABLE" PMKCachePeriod="10" EAPifname="br0"
 PreAuthifname="br0" HT_RDG="1" HT_LinkAdapt="0" HT_OpMode="0"
 HT_MpduDensity="5" HT_AutoBA="1" HT_AMSDU="0" HT_BAWinSize="64"
 HT_TxStream="2" HT_RxStream="2" HT_DisallowTKIP="1" PhyRateLimit="0"
+EDCCA_AP_STA_TH="255" EDCCA_AP_AP_TH="255" EDCCA_FALSE_CCA_TH="3000"
+EDCCA_ED_TH="90" EDCCA_BLOCK_CHECK_TH="2" EDCCA_AP_RSSI_TH="-80"
+DIS_EDCCA_AP_STA_TH="1" DIS_EDCCA_AP_AP_TH="1" DIS_EDCCA_FALSE_CCA_TH="100"
+DIS_EDCCA_ED_TH="100" DIS_EDCCA_BLOCK_CHECK_TH="2" DIS_EDCCA_AP_RSSI_TH="-80"
 editFlag="0" wps_enable="1" wl_unit="0" 11nMode="1" wl0_APOn="1"
 wl_ifnames="ra0 ra1 ra2 ra3"
 wl0_ifname="ra0"
@@ -122,6 +127,10 @@ wl0_PreAuthifname="br0" wl0_HT_HTC="0" wl0_HT_RDG="1" wl0_HT_EXTCHA="0"
 wl0_HT_LinkAdapt="0" wl0_HT_OpMode="0" wl0_HT_MpduDensity="5"
 wl0_HT_BW="1" wl0_HT_AutoBA="1" wl0_HT_AMSDU="0" wl0_HT_BAWinSize="64"
 wl0_HT_GI="1" wl0_HT_TxStream="2" wl0_HT_RxStream="2" wl0_PhyRateLimit="0"
+wl0_EDCCA_AP_STA_TH="255" wl0_EDCCA_AP_AP_TH="255" wl0_EDCCA_FALSE_CCA_TH="3000"
+wl0_EDCCA_ED_TH="90" wl0_EDCCA_BLOCK_CHECK_TH="2" wl0_EDCCA_AP_RSSI_TH="-80"
+wl0_DIS_EDCCA_AP_STA_TH="1" wl0_DIS_EDCCA_AP_AP_TH="1" wl0_DIS_EDCCA_FALSE_CCA_TH="100"
+wl0_DIS_EDCCA_ED_TH="100" wl0_DIS_EDCCA_BLOCK_CHECK_TH="2" wl0_DIS_EDCCA_AP_RSSI_TH="-80"
 wl0_MacAddress="00:11:22:33:44:00" wl0_HT_BSSCoexistence="1" wl0_CarrierDetect="0" wl0_GreenAP="0" />
 	<WDS WdsEnable="0" Wds_MAC0="" Wds_MAC1="" Wds_MAC2=""
 Wds_MAC3="" WdsEncrypType="NONE" WdsKey="" WdsList="" WdsDefaultKeyID="1"
@@ -129,7 +138,7 @@ wl0_Wds_MAC0="" wl0_Wds_MAC1="" wl0_Wds_MAC2="" wl0_Wds_MAC3=""
 wl0_WdsEnable="0" wl0_WdsEncrypType="NONE" wl0_WdsList="" wl0_WdsKey="" />
 	<Entry0 EnableSSID="1" HideSSID="0" RADIUS_Server="" RADIUS_Port="1812" RADIUS_Key="" BAK_RADIUS_Server=""
 BAK_RADIUS_Port="" BAK_RADIUS_Key="" AccessPolicy="0" WMM="0" HT_MCS="33"
-WPSConfStatus="2" WPSMode="0" WscDefaultSSID1="ASUS_AP" WPSKeyASCII="8"
+WPSConfStatus="1" WPSMode="0" WscDefaultSSID1="ASUS_AP" WPSKeyASCII="8"
 WPSConfMode="7" WscV2Support="1" IgmpSnEn="1" KeyPassphrase=""
 RekeyInterval="3600" WEPAuthType="" HT_RATE="0"
 enrolleePinCode="" WLan_MAC0="" WLan_MAC1="" WLan_MAC2="" WLan_MAC3=""
@@ -164,7 +173,7 @@ wl1.3_wpa_psk="" wl1.3_wep_x="0" wl1.3_key="1" wl1.3_key1="" wl1.3_key2="" wl1.3
 wl1.3_expire="0" wl1.3_lanaccess="off" wl1.3_expire_tmp="0" wl1.3_phrase_x=""
 wl0_ssid="ASUS" wl0_auth_mode_x="OPEN" wl0_crypto="NONE" wl0_wpa_psk="" wl0_wep_x="0" 
 wl0_key="1" wl0_key1="" wl0_key2="" wl0_key3="" wl0_key4="" wl0_expire="0" wl0_phrase_x=""
-wl0_WPSConfMode="7" wl0_WPSConfStatus="2"
+wl0_WPSConfMode="7" wl0_WPSConfStatus="1"
 wl0_WPSMode="0" wl0_enrolleePinCode="" wl0_BAK_RADIUS_Server=""
 wl0_BAK_RADIUS_Port="" wl0_BAK_RADIUS_Key=""
 wl0_WLan_MAC0="" wl0_WLan_MAC1="" wl0_WLan_MAC2="" wl0_WLan_MAC3=""
@@ -288,7 +297,7 @@ wl0_wl_wep_type="0" wl0_wl_phrase="" wl0_radio_on="1" wl0_radio_flag="1" wl0_wl_
 <Entry Active="No" />
 </VlanTag>
 <Adsl>
-	<Entry MODULATIONTYPE="Auto Sync-Up" ANNEXTYPEA="ANNEX A/I/J/L/M" SRAActive="Yes" dslx_sra="1" dslx_snrm_offset="0" dslx_bitswap="1" />
+	<Entry MODULATIONTYPE="Auto Sync-Up" ANNEXTYPEA="ANNEX A/I/J/L/M" SRAActive="Yes" dslx_sra="1" dslx_snrm_offset="0" dslx_bitswap="1" dslx_testlab="disable" adsl_rx_agc="Default" dslx_dla_enable="1"/>
 </Adsl>
 <Alg>
 	<Entry SiproxdEnable="Yes" />
@@ -306,7 +315,8 @@ ManufacturerOUI="" ProductClass="" SerialNum="" PrvCode="" conReqPort="7547" Per
 FwUpgradeDelay="0" FwUpgradeCfg="1" FwUpgradeRxCnt="50" RandomInform="0" SendHostPortNumFlag="0" noValueTypeFlag="0" arrayType="0"/>
 </Cwmp>
 <Upnpd>
-	<Entry autoconf="0" Active="No" HostName="DSL-N12U-C1" Manufacturer="ASUSTeK Computer Inc." ModelName="DSL-N12U-C1" ModelNumber="DSL-N12U-C1" Description="DSL-N12U-C1" ManufacturerURL="http://www.asus.com" ModelURL="http://www.asus.com" WANmanufacturerURL="http://www.asus.com" WANconnection_manufacturerURL="http://www.asus.com" LANmanufacturerURL="http://www.asus.com" WANmodelURL="http://www.asus.com" WANconnection_modelURL="http://www.asus.com" LANmodelURL="http://www.asus.com" />
+	<Entry autoconf="0" Active="Yes" HostName="DSL-N12U-C1" Manufacturer="ASUSTeK Computer Inc." ModelName="DSL-N12U-C1" ModelNumber="DSL-N12U-C1" Description="DSL-N12U-C1" ManufacturerURL="http://www.asus.com" ModelURL="http://www.asus.com" WANmanufacturerURL="http://www.asus.com" WANconnection_manufacturerURL="http://www.asus.com" LANmanufacturerURL="http://www.asus.com" WANmodelURL="http://www.asus.com" WANconnection_modelURL="http://www.asus.com" LANmodelURL="http://www.asus.com" />
+	<Miniupnpd secure_mode="yes" upnp_port="2869" natpmp="yes" sys_uptime="yes" notify_interval="30" clean="yes" clean_interval="600" clean_threshold="20" uuid="de92cf00-6979-11e4-9803-0800200c9a66" />
 </Upnpd>
 <Ddns>
 	<Entry Active="0" SERVERNAME="WWW.ASUS.COM" MYHOST="" USERNAME="" PASSWORD="" WILDCARD="0" />
@@ -332,7 +342,7 @@ FwUpgradeDelay="0" FwUpgradeCfg="1" FwUpgradeRxCnt="50" RandomInform="0" SendHos
 	<Entry RestoreLinos="1"
 	Vendor="ASUSTeK Computer Inc."
 	ProductName="DSL-N12U-C1"
-	InnerVersion="1.0.7.4"
+	InnerVersion="1.0.9.2"
 	ProductTitle="Wireless-N300 ADSL2/2+ Modem Router"
 	SWVer="V100R001B012" FWVer="3.10.0.24" PubDate="2013/06/06" BatchNum="STC20P0.012.310024" SerialNum="1234" Description="" HWVer=""
 	btn_ez_radiotoggle="0"
@@ -561,4 +571,35 @@ SIPAuthenticationName="" SIPPassword="" />
 	pptpd_clientlist8="" pptpd_clientlist9="" pptpd_clientlist10="" pptpd_clientlist11="" pptpd_clientlist12="" pptpd_clientlist13="" pptpd_clientlist14="" pptpd_clientlist15=""
 	/>
 </PPTP>
+<USBModem>
+	<Entry
+		modem_enable_qmi="0"
+		Dev3G="AUTO"
+		modem_enable="1"
+		modem_apn="internet"
+		modem_country=""
+		modem_isp=""
+		modem_dialnum="*99#"
+		modem_user=""
+		modem_pass=""
+		modem_ttlsid=""
+		modem_mode="0"
+		modem_running="0"
+		modem_pincode_opt="1"
+		modem_pincode=""
+	/>
+</USBModem>
+<Wol />
+<ClientList>
+	<Common size="0" scan="0" />
+</ClientList>
+<UserDefCL>
+	<Common size="0" />
+</UserDefCL>
+<AsusDevLst>
+	<Common size="0" />
+</AsusDevLst>
+<Arpstorm>
+	<Entry runin="0" />
+</Arpstorm>
 </ROMFILE>

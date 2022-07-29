@@ -177,9 +177,15 @@ static int setdevname_pppol2tp(char **argv)
 
 static int connect_pppol2tp(void)
 {
+	struct sockaddr_pppol2tp sax;
+	int len = sizeof(sax);
+
 	if(pppol2tp_fd == -1) {
 		fatal("No PPPoL2TP FD specified");
 	}
+
+	getsockname(pppol2tp_fd, (struct sockaddr *)&sax, &len);
+	sprintf(ppp_devnam, "l2tp (%s)", inet_ntoa(sax.pppol2tp.addr.sin_addr));
 
 	return pppol2tp_fd;
 }

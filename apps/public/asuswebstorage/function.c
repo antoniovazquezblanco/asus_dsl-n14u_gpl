@@ -18,6 +18,13 @@
 //#include "data.h"
 #include "api.h"
 #include "list.h"
+#include <ctype.h>
+#include "mem_pool.h"
+
+#include <endian.h>
+#if __BYTE_ORDER == __BIG_ENDIAN
+#define WORDS_BIGENDIAN 1
+#endif
 
 #ifndef IPKG
 //#include <bcmnvram.h>
@@ -34,18 +41,19 @@
 
 #define WAIT_LOCAL_TIME 1000*10
 
+int sync_local_add_file(char *parentfolder,Local *local,int i,int entryID);
+int mySync(char *username,int parentid,char *localpath,NodeStack **head);
+
+
 extern char username[256];
 extern char password[256];
 extern int server_modify;
 extern char sync_path[256];
 extern struct sync_item *from_server_sync_head;
-//extern struct sync_item *dragfolder_recursion_head;
 extern struct sync_item *down_head;
 extern struct sync_item *up_head;
 extern sync_item_t up_excep_fail;
 extern int pre_seq;
-//extern int sync_up;
-//extern int sync_down;
 extern pthread_mutex_t mutex;
 extern my_mutex_t my_mutex;
 extern my_mutex_t wait_sleep_mutex;
@@ -53,19 +61,20 @@ extern int exit_loop;
 extern int upload_only;
 extern int download_only;
 extern pthread_mutex_t mutex_socket;
-//extern pthread_mutex_t mutex_download_only_add_socket_item;
 extern sync_item_t download_only_socket_head;
 extern s_tree *s_link;
 extern Hb_TreeNode *DirRootNode;
 extern int init_fail_item;
 extern int server_sync;
 extern int local_sync;
-//extern char otp_key[8];
 extern int has_local_socket;
 extern struct asus_config cfg;
 extern int server_space_full;
 extern int local_space_full;
 extern int IsSyncError;
+int loop_max;
+int usleep_time;
+extern int IsNetworkUnlink;
 
 #ifdef IPKG
 extern int disk_change;
@@ -76,23 +85,32 @@ extern char record_token_file[256];
 extern char token_filename[256];
 #endif
 
-//extern int send_action(int type,char *content);
-
 struct find_number
 {
     int item_num;
     int find_num;
 };
+char *case_conflict_name = "case conflict";
 
 
+char *my_str_malloc(size_t len){
+    char *s;
+    s = (char *)malloc(sizeof(char)*len);
+    if(s == NULL)
+    {
+        printf("Out of memory.\n");
+        exit(1);
+    }
 
-//#define getb(type) (type*)malloc(sizeof(type))
+    memset(s,'\0',sizeof(char)*len);
+    return s;
+}
 
 static void *xmalloc_fatal(size_t size) {
     if (size==0) return NULL;
     fprintf(stderr, "Out of memory.");
     //exit(1);
-    return;
+    return NULL;
 }
 
 void *xmalloc (size_t size) {
@@ -800,12 +818,12 @@ int UploadOnlyFindItem(char *display,Local *local,Browse *browse,int isfolder,in
         memset(temp,0,sizeof(temp));
         if(isfolder) //uppdate folder
         {
-            oauth_decode_base64(temp,(browse->folderlist)[i]->display);
+            oauth_decode_base64((unsigned char *)temp,(browse->folderlist)[i]->display);
 
         }
         else        //update files
         {
-            oauth_decode_base64(temp,(browse->filelist)[i]->display);
+            oauth_decode_base64((unsigned char *)temp,(browse->filelist)[i]->display);
         }
 
         if(strlen(temp) == 0)
@@ -860,17 +878,17 @@ int findItem(char *display,Local *local,Browse *browse,int isfolder,int isupload
         memset(temp,0,sizeof(temp));
         if(isfolder) //uppdate folder
         {   if(isupload == 1)
-            oauth_decode_base64(temp,(browse->folderlist)[i]->display);
+            oauth_decode_base64((unsigned char *)temp,(browse->folderlist)[i]->display);
             else if(isupload == 0)
                 //sprintf(temp,"%s",oauth_encode_base64(0,(local->folderlist)[i]->name));
-                encode = oauth_encode_base64(0,(local->folderlist)[i]->name);
+                encode = oauth_encode_base64(0,(unsigned char *)(local->folderlist)[i]->name);
         }
         else        //update files
         {   if(isupload == 1)
-            oauth_decode_base64(temp,(browse->filelist)[i]->display);
+            oauth_decode_base64((unsigned char *)temp,(browse->filelist)[i]->display);
             else if(isupload == 0)
                 //sprintf(temp,"%s",oauth_encode_base64(0,(local->filelist)[i]->name));
-                encode = oauth_encode_base64(0,(local->filelist)[i]->name);
+                encode = oauth_encode_base64(0,(unsigned char *)(local->filelist)[i]->name);
         }
 
         if(isupload == 1)
@@ -1126,12 +1144,12 @@ int upload_only_find_diff_item(char *parentfolder,Browse *browse,Local *local,in
     char fullname[NORMALSIZE];
     int  fail_flag = 0;
     int parent_ID;
-    int entry_ID;
+    //int entry_ID;
     char error_message[NORMALSIZE];
-    char *confilicted_name;
-    char *confilicted_filename;
-    Operateentry *oe = NULL;
-    Propfind *finds = NULL;
+    //char *confilicted_name;
+    //char *confilicted_filename;
+    //Operateentry *oe = NULL;
+    //Propfind *finds = NULL;
     int status = -10;
     int res = -10;
 
@@ -1178,7 +1196,7 @@ int upload_only_find_diff_item(char *parentfolder,Browse *browse,Local *local,in
 
         //printf("find is %d\n",find);
 
-        struct utimbuf tbuf;
+        //struct utimbuf tbuf;
         unsigned int local_mtime;
         unsigned int server_mtime;
 
@@ -1234,7 +1252,7 @@ int upload_only_find_diff_item(char *parentfolder,Browse *browse,Local *local,in
 #ifdef DEBUG
                         //printf("entry ID is %d\n",entry_ID);
 #endif
-                        if( sync_all_item(fullname,entry_ID) == -1)
+                        if( sync_all_item_uploadonly(fullname,entry_ID) == -1)
                         {
                             fail_flag = 1;
                         }
@@ -1260,7 +1278,7 @@ int upload_only_find_diff_item(char *parentfolder,Browse *browse,Local *local,in
                         if(receve_socket)
                             return -1;
 
-                        status = uploadFile(fullname,parentID,NULL);
+                        status = uploadFile(fullname,parentID,NULL,0);
                         if( status != 0)
                         {
 
@@ -1294,83 +1312,93 @@ int upload_only_find_diff_item(char *parentfolder,Browse *browse,Local *local,in
 
                 if(server_mtime != local_mtime)
                 {
-                   //printf("enter confilicted name\n");
-                   //printf("local time is %d,server_time is %d\n",local_mtime,server_mtime);
-                    parent_ID = getParentID(parentfolder);
-
-                    if(parent_ID == -2)
+                    //printf("enter confilicted name\n");
+                    //printf("local time is %d,server_time is %d\n",local_mtime,server_mtime);
+                    if(server_mtime - local_mtime == 1)
                     {
-                        printf("%s has no parent!\n",parentfolder);
-                        return 0;
+                        printf("local file one second\n");
+                        res = update_local_file_attr(&(browse->filelist[find]->attribute),fullname);
                     }
+                    else
+                    {           
+                        parent_ID = getParentID(parentfolder);
 
-                    finds = checkEntryExisted(username,parent_ID,(local->filelist)[i]->name,"system.unknown");
+                        if(parent_ID == -2)
+                        {
+                            printf("%s has no parent!\n",parentfolder);
+                            return 0;
+                        }
 
-                    if(NULL == finds)
-                    {
-                        printf("find prop failed\n");
-                        return -1;
-                    }
+                        /*
+                        finds = checkEntryExisted(username,parent_ID,(local->filelist)[i]->name,"system.unknown");
 
-                    if( finds->status != 0 )
-                    {
-                        handle_error(finds->status,"propfind");
+                        if(NULL == finds)
+                        {
+                            printf("find prop failed\n");
+                            return -1;
+                        }
+
+                        if( finds->status != 0 )
+                        {
+                            handle_error(finds->status,"propfind");
+                            my_free(finds);
+                            return -1;
+                        }
+
+                        entry_ID = finds->id;
+
+                        confilicted_name = get_confilicted_name(fullname,isfolder);
+                        confilicted_filename = confilicted_name+strlen(parentfolder)+1;
+
+                        //printf("confilicted_filename = %s\n",confilicted_filename);
+                        //printf("finds->status = %d\n",finds->status);
+                        //printf("entry_ID = %d\n",entry_ID);
+
+                        oe = renameEntry(username,entry_ID,0,confilicted_filename,isfolder);
+
                         my_free(finds);
-                        return -1;
-                    }
 
-                    entry_ID = finds->id;
+                        if(NULL == oe)
+                        {
+                            printf("operate rename failed\n");
+                            return -1;
+                        }
 
-                    confilicted_name = get_confilicted_name(fullname,isfolder);
-                    confilicted_filename = confilicted_name+strlen(parentfolder)+1;
+                        if( oe->status != 0 )
+                        {
+                            handle_error(oe->status,"rename");
+                            res = handle_rename_fail_code(oe->status,parent_ID,fullname,parentfolder,0);
+                            my_free(oe);
+                            return res;
+                            //return -1;
+                        }
 
-                    //printf("confilicted_filename = %s\n",confilicted_filename);
-                    //printf("finds->status = %d\n",finds->status);
-                    //printf("entry_ID = %d\n",entry_ID);
-
-                    oe = renameEntry(username,entry_ID,0,confilicted_filename,isfolder);
-
-                    my_free(finds);
-
-                    if(NULL == oe)
-                    {
-                        printf("operate rename failed\n");
-                        return -1;
-                    }
-
-                    if( oe->status != 0 )
-                    {
-                        handle_error(oe->status,"rename");
-                        res = handle_rename_fail_code(oe->status,parent_ID,fullname,parentfolder,0);
                         my_free(oe);
-                        return res;
-                        //return -1;
-                    }
 
-                    my_free(oe);
+                        write_confilicted_log(fullname,confilicted_name);
+                        */
 
-                    write_confilicted_log(fullname,confilicted_name);
-
-                    if(test_if_file_up_excep_fail(fullname) != 1)
-                    {
-                        status = uploadFile(fullname,parent_ID,NULL);
-                        if( status != 0)
+                        if(test_if_file_up_excep_fail(fullname) != 1)
                         {
-                            snprintf(error_message,NORMALSIZE,"uploadfile %s fail",fullname);
-                            handle_error(S_UPLOADFILE_FAIL,error_message);
-                            res = handle_upload_fail_code(status,parent_ID,fullname,parentfolder);
-                            if(res != 0)
-                                fail_flag = 1;
-                        }
-                        else
-                        {
+                            status = uploadFile(fullname,parent_ID,NULL,browse->filelist[find]->id);
+                            if( status != 0)
+                            {
+                                snprintf(error_message,NORMALSIZE,"uploadfile %s fail",fullname);
+                                handle_error(S_UPLOADFILE_FAIL,error_message);
+                                res = handle_upload_fail_code(status,parent_ID,fullname,parentfolder);
+                                if(res != 0)
+                                    fail_flag = 1;
+                            }
+                            else
+                            {
 #if SYSTEM_LOG
-                            write_system_log("createfile",confilicted_name);
+                                write_system_log("createfile",confilicted_name);
 #endif
+                            }
                         }
+                        //my_free(confilicted_name);
                     }
-                    my_free(confilicted_name);
-                }
+               }
 
             }
             //printf("file is same end\n");
@@ -1488,32 +1516,70 @@ int get_find_name(Browse *browse,Local *local,int isupload,int isfolder,int i,ch
     return 0;
 }
 
+int sync_server_downloadfile(int id,char *fullname,long long int size,int ismodify,Fileattribute *attr)
+{
+    char error_message[NORMALSIZE];
+    memset(error_message,0,sizeof(error_message));
+
+    if( downloadFile(id,fullname,size,ismodify,attr) == -1)
+    {
+        snprintf(error_message,NORMALSIZE,"download %s fail \n",fullname);
+        handle_error(S_DOWNLOADFILE_FAIL,error_message);
+        return -1;
+    }
+    else
+    {
+        //add_server_action_list("createfile",fullname,from_server_sync_head);
+#if SYSTEM_LOG
+        write_system_log("createfile",fullname);
+#endif
+#if TREE_NODE_ENABLE
+        modify_tree_node(fullname,DirRootNode,ADD_TREE_NODE);
+#endif
+    }
+
+    return 0;
+}
+
+
+
 int handle_local_confilict_file(char *fullname,int isfolder)
 {
+    //printf("handle_local_confilict_file start\n");
     char *confilicted_name = NULL;
     char *con_name = NULL;
     char error_message[NORMALSIZE] = {0};
-    int have_same = 0;
+    //int have_same = 0;
     char tmp_name[NORMALSIZE] = {0};
     snprintf(tmp_name,NORMALSIZE,"%s",fullname);
 
-    do
+    while(!exit_loop)
     {
-       confilicted_name = get_confilicted_name(tmp_name,isfolder);
+
+        confilicted_name = get_confilicted_name(tmp_name,isfolder);
+
+        if(confilicted_name ==  NULL)
+        {
+            printf("handle_local_confilict_file fail\n");
+            return -1;
+        }
+       //printf("confilicted_name=%s\n",confilicted_name);
        if(access(confilicted_name,F_OK) == 0)
        {
            memset(tmp_name,0,sizeof(tmp_name));
            snprintf(tmp_name,NORMALSIZE,"%s",confilicted_name);
            my_free(confilicted_name);
-           have_same = 1;
+           //have_same = 1;
        }
        else
-           have_same = 0;
-    }while(have_same);
+           break;
+           //have_same = 0;
+      //sleep(5);
+      }
 
     con_name = parse_name_from_path(confilicted_name);
 
-    printf("confilicted_name=%s,con=%s\n",confilicted_name,con_name);
+    //printf("confilicted_name=%s,con=%s\n",confilicted_name,con_name);
     if(rename(fullname,confilicted_name) == -1)
     {
         snprintf(error_message,NORMALSIZE,"rename %s fail",fullname);
@@ -1544,32 +1610,122 @@ int handle_local_confilict_file(char *fullname,int isfolder)
     //}
 }
 
-int sync_server_downloadfile(int id,char *fullname,long long int size,int ismodify,Fileattribute *attr)
+int downloadonly_server_modify(const char *parentfolder,Browse *browse,
+                               int i,char *filename,int isfolder)
 {
-    char error_message[NORMALSIZE];
-    memset(error_message,0,sizeof(error_message));
+    char fullname[NORMALSIZE] = {0};
+    unsigned int local_mtime;
+    unsigned int server_mtime;
+    //char *con_name = NULL;
+    File *pfile = NULL;
+    pfile = browse->filelist[i];
+    sync_item_t item;
+    int res;
+    int fail_flag;
 
-    if( downloadFile(id,fullname,size,ismodify,attr) == -1)
-    {
-        snprintf(error_message,NORMALSIZE,"download %s fail \n",fullname);
-        handle_error(S_DOWNLOADFILE_FAIL,error_message);
-        return -1;
-    }
-    else
-    {
-        //add_server_action_list("createfile",fullname,from_server_sync_head);
-#if SYSTEM_LOG
-        write_system_log("createfile",fullname);
-#endif
-#if TREE_NODE_ENABLE
-        modify_tree_node(fullname,DirRootNode,ADD_TREE_NODE);
-#endif
-    }
+    snprintf(fullname,NORMALSIZE,"%s/%s",parentfolder,filename);
 
+    server_mtime = atoi(pfile->attribute.lastwritetime);
+    local_mtime = GetFile_modtime(fullname);
+
+    if(pre_seq == -10)
+    {
+        //printf("server_mitem=%d,local_mtime=%d\n",server_mtime,local_mtime);
+
+
+        if(server_mtime != local_mtime)
+        {
+            if(server_mtime - local_mtime == 1) // handle reboot router file mtime decrease 1 second on FAT32
+            {
+#ifdef DEBUG
+                printf("local file one second\n");
+#endif
+                res = update_local_file_attr(&(pfile->attribute),fullname);
+            }
+            else
+            {
+                    res = handle_local_confilict_file(fullname,isfolder);
+                    //printf("res=%d\n");
+                    if(res != -1)
+                    {
+                        if(sync_server_downloadfile(pfile->id,fullname,
+                                                     pfile->size,0,&(pfile->attribute)) == -1)
+                            fail_flag = 1;
+                    }
+            }
+        }
+    }
+    else if(pre_seq != -10)
+    {
+        item = get_sync_item("find",fullname,download_only_socket_head);
+        if(item)
+        {
+            //printf("find item from download_only_socket_head\n");
+           res = handle_local_confilict_file(fullname,isfolder);
+           if(res != -1)
+           {
+               if(isfolder)
+               {
+                   my_mkdir(fullname);
+                   add_server_action_list("createfolder",fullname,from_server_sync_head);
+   #if SYSTEM_LOG
+                   write_system_log("createfolder",filename);
+   #endif
+   #if TREE_NODE_ENABLE
+               modify_tree_node(fullname,DirRootNode,ADD_TREE_NODE);
+   #endif
+               }
+               else
+               {
+                   if(sync_server_downloadfile(pfile->id,fullname,pfile->size,
+                                               0,&(pfile->attribute))== -1)
+                       fail_flag = 1;
+               }
+           }
+
+        }
+        else
+        {
+            //printf("can't find item from download_only_socket_head\n");
+            //if(isfolder)
+                //continue;
+            //else
+            if(!isfolder)
+            {
+                if(server_mtime != local_mtime)
+                {
+                   item = get_sync_item("find",fullname,download_only_socket_head);
+                   if(item == NULL)
+                   {
+                       if(server_mtime>local_mtime)
+                       {
+                           if(sync_server_downloadfile(pfile->id,fullname,pfile->size,
+                                                       0,&(pfile->attribute))== -1)
+                               fail_flag = 1;
+                       }
+                   }
+                   else
+                   {
+                       if(server_mtime>local_mtime)
+                       {
+                           res = handle_local_confilict_file(fullname,isfolder);
+                           if(res != -1)
+                           {
+                               if(sync_server_downloadfile(pfile->id,fullname,pfile->size,
+                                                                                      0,&(pfile->attribute))== -1)
+                                                              fail_flag = 1;
+                           }
+                       }
+                   }
+                }
+
+            }
+        }
+    }
     return 0;
 }
 
-int sync_server_modify(const char *parentfolder,Browse *browse,Local *local,int isupload,int i,int find)
+int sync_server_modify(char *parentfolder,Browse *browse,Local *local,int isupload,int i,int find)
 {
     int local_pos;
     int server_pos;
@@ -1581,6 +1737,7 @@ int sync_server_modify(const char *parentfolder,Browse *browse,Local *local,int 
     unsigned int server_mtime;
     char error_message[NORMALSIZE];
     Fileattribute *attr;
+    int res;
 
     memset(error_message,0,sizeof(error_message));
     memset(fullname,0,sizeof(fullname));
@@ -1604,59 +1761,75 @@ int sync_server_modify(const char *parentfolder,Browse *browse,Local *local,int 
     //printf("@@@@@ local time is %s @@@@@\n",(local->filelist)[local_pos]->attribute.lastwritetime);
     //printf("[%s] server mtime is %d,local mtime is %d\n",fullname,server_mtime,local_mtime);
 
-    if(server_mtime > local_mtime)
+    if(pre_seq == -10)
     {
-#ifdef DEBUG
-        //printf("server mtime is %d,local mtime is %d\n",server_mtime,local_mtime);
-#endif
-        fileID = (browse->filelist)[server_pos]->id;
-        size = (browse->filelist)[server_pos]->size;
-        attr = &((browse->filelist)[server_pos]->attribute);
-#ifdef DEBUG
-        printf("server %s has motify\n",fullname);
-#endif
-        if(download_only != 1 && download_only != 1)
-        {
-            /*
-            if(receve_socket == 1)
-            {
-                printf("error:receve_socket\n");
-                return -1;
-            }
-            */
-            /*
-            while(receve_socket)
-            {
-                usleep(WAIT_LOCAL_TIME);
-            }*/
-            if(wait_handle_socket()== -1)
-                 return -1;
-        }
 
-        if( downloadFile(fileID,fullname,size,1,attr) == -1)
+        if(server_mtime != local_mtime)
         {
-            snprintf(error_message,NORMALSIZE,"download %s fail",fullname);
-            handle_error(S_DOWNLOADFILE_FAIL,error_message);
-            return -1;
-        }
-        else
-        {
-            tbuf.actime = (time_t)server_mtime;
-            tbuf.modtime = (time_t)server_mtime;
-            if( utime(fullname,&tbuf) == -1)
+#ifdef DEBUG
+            printf("[%s] server mtime is %d,local mtime is %d\n",fullname,server_mtime,local_mtime);
+#endif
+            if(server_mtime - local_mtime == 1) // handle reboot router file mtime decrease 1 second on FAT32
             {
-                snprintf(error_message,NORMALSIZE,"utime %s fail",fullname);
-                handle_error(S_UPDATE_ATTR_FAIL,error_message);
-                return -1;
+#ifdef DEBUG
+                printf("local file one second\n");
+#endif
+                res = update_local_file_attr(&(browse->filelist[server_pos]->attribute),fullname);
+            }
+            else
+            {
+                res = sync_local_add_file(parentfolder,local,local_pos,browse->filelist[server_pos]->id);
+                sprintf(browse->filelist[server_pos]->attribute.lastwritetime,"%d",local_mtime);
             }
 
-            //add_server_action_list("createfile",fullname,from_server_sync_head);
-#if TREE_NODE_ENABLE
-            modify_tree_node(fullname,DirRootNode,DEL_TREE_NODE);
-            modify_tree_node(fullname,DirRootNode,ADD_TREE_NODE);
-#endif
+            return res;
         }
     }
+    else
+    {
+        if(server_mtime > local_mtime)
+        {
+#ifdef DEBUG
+            //printf("server mtime is %d,local mtime is %d\n",server_mtime,local_mtime);
+#endif
+            fileID = (browse->filelist)[server_pos]->id;
+            size = (browse->filelist)[server_pos]->size;
+            attr = &((browse->filelist)[server_pos]->attribute);
+#ifdef DEBUG
+            printf("server %s has motify\n",fullname);
+#endif
+            if(download_only != 1 && download_only != 1)
+            {
+                if(wait_handle_socket()== -1)
+                    return -1;
+            }
+
+            if( downloadFile(fileID,fullname,size,1,attr) == -1)
+            {
+                snprintf(error_message,NORMALSIZE,"download %s fail",fullname);
+                handle_error(S_DOWNLOADFILE_FAIL,error_message);
+                return -1;
+            }
+            else
+            {
+                tbuf.actime = (time_t)server_mtime;
+                tbuf.modtime = (time_t)server_mtime;
+                if( utime(fullname,&tbuf) == -1)
+                {
+                    snprintf(error_message,NORMALSIZE,"utime %s fail",fullname);
+                    handle_error(S_UPDATE_ATTR_FAIL,error_message);
+                    return -1;
+                }
+
+                //add_server_action_list("createfile",fullname,from_server_sync_head);
+#if TREE_NODE_ENABLE
+                modify_tree_node(fullname,DirRootNode,DEL_TREE_NODE);
+                modify_tree_node(fullname,DirRootNode,ADD_TREE_NODE);
+#endif
+            }
+        }
+    }
+
 
     return 0;
 }
@@ -1733,10 +1906,10 @@ int sync_local_add_folder(char *parentfolder,Local *local,int i)
 #endif
         }
     }
-
+    return 0;
 }
 
-int sync_local_add_file(char *parentfolder,Local *local,int i)
+int sync_local_add_file(char *parentfolder,Local *local,int i,int entryID)
 {
     char fullname[NORMALSIZE];
     int parentID = -10;
@@ -1777,7 +1950,7 @@ int sync_local_add_file(char *parentfolder,Local *local,int i)
         if(wait_handle_socket() == -1)
             return -1;
 
-        status = uploadFile(fullname,parentID,NULL);
+        status = uploadFile(fullname,parentID,NULL,entryID);
         if( status != 0)
         {
             snprintf(error_message,NORMALSIZE,"uploadfile %s fail",fullname);
@@ -1798,15 +1971,16 @@ int find_diff_item(char *parentfolder,Browse *browse,Local *local,int isupload,i
     int find_num = 0;
     int i = 0;
     int find = 0;
-    int parent_ID;
+    //int parent_ID;
     char temp[NORMALSIZE];
     char filename[NORMALSIZE];
     char fullname[NORMALSIZE];
     int  fail_flag = 0;
     char error_message[NORMALSIZE];
-    char *confilicted_name;
+    //char *confilicted_name;
     struct find_number find_n;
     int status = 0;
+    int count = 0;
 
     memset(filename,0,sizeof(filename));
     memset(fullname,0,sizeof(fullname));
@@ -1816,10 +1990,17 @@ int find_diff_item(char *parentfolder,Browse *browse,Local *local,int isupload,i
     item_num = find_n.item_num;
     find_num = find_n.find_num;
 
-    for( i= 0; i<item_num ;i++)
+    for( i= 0; i<item_num ;i++,count++)
     {
         if(exit_loop ==1 )
             return 0;
+
+//        if(count > loop_max)
+//        {
+//            printf("count=%d\n",count);
+//            count = 0;
+//            usleep(usleep_time);
+//        }
 
         memset(temp,0,sizeof(temp));
         memset(error_message,0,sizeof(error_message));
@@ -1834,9 +2015,9 @@ int find_diff_item(char *parentfolder,Browse *browse,Local *local,int isupload,i
 
         find = findItem(temp,local,browse,isfolder,isupload,find_num);
 
-        struct utimbuf tbuf;
-        unsigned int local_mtime;
-        unsigned int server_mtime;
+        //struct utimbuf tbuf;
+        //unsigned int local_mtime;
+        //unsigned int server_mtime;
 
         //printf("find name=%s,index=%d\n",temp,find);
         //printf("find is %d\n",find);
@@ -1850,9 +2031,17 @@ int find_diff_item(char *parentfolder,Browse *browse,Local *local,int isupload,i
             {
                 if(isupload == 0) // local item find from server list
                 {
-                    oauth_decode_base64(filename,temp);
-                    snprintf(fullname,NORMALSIZE,"%s/%s",parentfolder,filename);
 
+                    if(!isfolder)
+                    {
+                        oauth_decode_base64((unsigned char *)filename,temp);
+                        snprintf(fullname,NORMALSIZE,"%s/%s",parentfolder,filename);
+                        //printf("fullname=%s\n",fullname);
+                        downloadonly_server_modify(parentfolder,browse,i,filename,isfolder);
+                        //printf("donwload_server_modify end\n");
+                    }
+
+#if 0
                     if(pre_seq == -10 && (!isfolder))
                     {
                     	server_mtime = atoi((browse->filelist)[i]->attribute.lastwritetime);
@@ -1980,6 +2169,7 @@ int find_diff_item(char *parentfolder,Browse *browse,Local *local,int isupload,i
                             }
                         }
                     }
+#endif
                 }
             }
             else
@@ -1998,10 +2188,12 @@ int find_diff_item(char *parentfolder,Browse *browse,Local *local,int isupload,i
         else   // can't find item
         {
             //server_modify = 1;
-            int parentID = -10;
-            int entry_ID = -10;
-            Createfolder *createfolder = NULL;
-            int res = -1;
+            //printf("can't find,find is %d\n",find);
+
+            //int parentID = -10;
+            //int entry_ID = -10;
+            //Createfolder *createfolder = NULL;
+            //int res = -1;
 
             if(isupload == 1) // server have del or remove this file,remove local file
             {
@@ -2104,7 +2296,7 @@ int find_diff_item(char *parentfolder,Browse *browse,Local *local,int isupload,i
                             if(test_if_file_up_excep_fail(fullname) != 1)
                             {
                                 printf("%s file is new add \n",fullname);
-                                status = sync_local_add_file(parentfolder,local,i);
+                                status = sync_local_add_file(parentfolder,local,i,0);
                                 if(status == -1)
                                     fail_flag = 1;
                             }
@@ -2156,13 +2348,15 @@ int find_diff_item(char *parentfolder,Browse *browse,Local *local,int isupload,i
                     {
                         return -1;
                     }
-                    oauth_decode_base64(filename,(browse->folderlist)[i]->display);
+                    oauth_decode_base64((unsigned char *)filename,(browse->folderlist)[i]->display);
                     snprintf(fullname,NORMALSIZE,"%s/%s",parentfolder,filename);
 #ifdef DEBUG
                     printf("create folder is %s\n",fullname);
 #endif
                     status = IsEntryDeletedFromServer(browse->folderlist[i]->id,1);
+#ifdef DEBUG
                     printf("#######folder status=%d ####\n",status);
+#endif
                     if(status == -1)
                         fail_flag = 1;
                     else if(status == 0)
@@ -2209,7 +2403,7 @@ int find_diff_item(char *parentfolder,Browse *browse,Local *local,int isupload,i
                         return -1;
                     }
 
-                    oauth_decode_base64(filename,(browse->filelist)[i]->display);
+                    oauth_decode_base64((unsigned char *)filename,(browse->filelist)[i]->display);
                     snprintf(fullname,NORMALSIZE,"%s/%s",parentfolder,filename);
                     //printf("download file is %s\n",fullname);
                     if(sync_server_downloadfile((browse->filelist)[i]->id,fullname,(browse->filelist)[i]->size,0,
@@ -2404,7 +2598,7 @@ int get_item_size(char *dir, int *size)
 
         //if(ent->d_name[0] == '.')
             //continue;
-        if(!strcmp(ent->d_name,".") || !strcmp(ent->d_name,".."))
+        if(!strcmp(ent->d_name,".") || !strcmp(ent->d_name,"..") || !strcmp(ent->d_name,".smartsync"))
             continue;
 
         char fullname[512];
@@ -2434,6 +2628,8 @@ int get_item_size(char *dir, int *size)
 int myFindDir(char *dir,int level,Local *local)
 {
     int size[2];
+    int len = 0;
+    memset(size,0,sizeof(size));
     if(get_item_size(dir,size) == -1)
     {
         return -1;
@@ -2495,7 +2691,8 @@ int myFindDir(char *dir,int level,Local *local)
 
 
         //printf("name is %s,d_type is %u\n",ent->d_name,ent->d_type);
-
+        //printf("name=%s\n",ent->d_name);
+        len = strlen(ent->d_name) + 1;
         if( test_if_dir(fullname) == 1)
         {
             local->foldernum++;
@@ -2505,6 +2702,8 @@ int myFindDir(char *dir,int level,Local *local)
             (local->folderlist)[foldernum] = (Localfolder *)malloc(sizeof(Localfolder));
             //strcpy((local->folderlist)[foldernum]->name,ent->d_name);
             //sprintf((local->folderlist)[foldernum].name,"%s",ent->d_name);
+
+            (local->folderlist)[foldernum]->name = calloc(len,sizeof(char));
             snprintf((local->folderlist)[foldernum]->name,NORMALSIZE,"%s",ent->d_name);
         }
         else
@@ -2528,19 +2727,21 @@ int myFindDir(char *dir,int level,Local *local)
             local->filenum++;
             int filenum = local->filenum -1;
 
-            unsigned long asec = buf.st_atime;
+//            unsigned long asec = buf.st_atime;
             unsigned long msec = buf.st_mtime;
-            unsigned long csec = buf.st_ctime;
+//            unsigned long csec = buf.st_ctime;
 
             (local->filelist)[filenum] = (Localfile *)malloc(sizeof(Localfile));
 
 
-            snprintf(((local->filelist)[filenum])->attribute.lastaccesstime,MINSIZE,"%lu",asec);
-            snprintf(((local->filelist)[filenum])->attribute.creationtime,MINSIZE,"%lu",csec);
+//            snprintf(((local->filelist)[filenum])->attribute.lastaccesstime,MINSIZE,"%lu",asec);
+//            snprintf(((local->filelist)[filenum])->attribute.creationtime,MINSIZE,"%lu",csec);
             snprintf(((local->filelist)[filenum])->attribute.lastwritetime,MINSIZE,"%lu",msec);
 
             //strcpy(local->filelist[filenum].name,ent->d_name);
             //printf("@@@@@@@@ file is %s @@@@@@@\n ",ent->d_name);
+            //len = strlen(ent->d_name) + 1;
+            ((local->filelist)[filenum])->name = calloc(len,sizeof(char));
             snprintf(((local->filelist)[filenum])->name,NORMALSIZE,"%s",ent->d_name);
             //strcpy(local->filelist[filenum]->name,ent->d_name);
             ((local->filelist)[filenum])->size = buf.st_size;
@@ -2554,6 +2755,7 @@ int myFindDir(char *dir,int level,Local *local)
     return 0;
 }
 
+#if 0
 int initMyLocalFolder(char *username,int parentid,char *localpath,char *xmlfilename)
 {
 
@@ -2687,15 +2889,16 @@ int initMyLocalFolder(char *username,int parentid,char *localpath,char *xmlfilen
 
     return 0;
 }
+#endif
 
-get_local_folder_id(const char *filename,Browse *br)
+int get_local_folder_id(const char *filename,Browse *br)
 {
     int i;
     char temp[NORMALSIZE];
     for(i = 0;i<br->foldernumber;i++)
     {
         memset(temp,0,sizeof(temp));
-        oauth_decode_base64(temp,(br->folderlist)[i]->display);
+        oauth_decode_base64((unsigned char *)temp,(br->folderlist)[i]->display);
         if(!strcmp(filename,temp))
             return br->folderlist[i]->id;
     }
@@ -2703,16 +2906,93 @@ get_local_folder_id(const char *filename,Browse *br)
     return -1;
 }
 
-int mySync(char *username,int parentid,char *localpath, char *xmlfilename)
+int syncServerAllItem(char *username,int parentid,char *localpath)
 {
-    //printf("mySync function start\n");
-    //Browse browse;
+   //mySync(username,parentid,localpath);
+   int res = -1;
+   int fail_flag = 0;
+   NodeStack *node_stack_link = NULL;
+   res = mySync(username,parentid,localpath,&node_stack_link);
+   if(res == -1)
+       fail_flag = 1;
+   //printf("sub folder start\n");
+   while(node_stack_link != NULL)
+   {
+       FolderNode *node = pop_node(&node_stack_link);
+       if(node == NULL)
+           break;
+       //printf("node->path=%s\n",node->path);
+       res = mySync(username,node->id,node->path,&node_stack_link);
+       if(res == -1)
+           fail_flag = 1;
+       my_free(node->path);
+       my_free(node);
+   }
 
-    //int status = -10 ;
+   return (fail_flag == 1) ? -1 : 0 ;
+}
+static int sum2 = 0;
+int print_server_struct_size(Browse *br,Local *local)
+{
+   int i,size,sum=0,sum1=0;
+   size = sizeof(Browse);
+   sum += size;
+   printf("browse_struct_size=%d\n",size);
+   size = 0;
+   for(i=0;i<br->filenumber;i++)
+   {
+       size += sizeof(File);
+       size += strlen(br->filelist[i]->display)+1;
+   }
+   printf("browse_total_file_size=%d\n",size);
+   sum += size;
+   size = 0;
+   for(i=0;i<br->foldernumber;i++)
+   {
+       size += sizeof(Folder);
+       size += strlen(br->folderlist[i]->display)+1;
+   }
+   sum += size;
+   printf("browse_total_folder_size=%d\n",size);
+
+   printf("########browse_total_size=%d#####\n",sum);
+   sum1 += sum;
+
+   sum = 0; size = 0;
+   size = sizeof(Local);
+   sum += size;
+   printf("local_struct_size=%d\n",size);
+   size = 0;
+   for(i=0;i<local->filenum;i++)
+   {
+       size += sizeof(Localfile);
+       size += strlen(local->filelist[i]->name)+1;
+   }
+   printf("local_total_file_size=%d\n",size);
+   sum += size;
+   size = 0;
+   for(i=0;i<local->foldernum;i++)
+   {
+       size += sizeof(Localfolder);
+       size += strlen(local->folderlist[i]->name)+1;
+   }
+   sum += size;
+   printf("local_total_folder_size=%d\n",size);
+   printf("########local_total_size=%d#####\n",sum);
+
+   sum1 += sum;
+   sum2 += sum1;
+   printf("*************  totoal_size=%d,all_size=%d  ***********\n",sum1,sum2);
+
+   return 0;
+}
+
+int mySync(char *username,int parentid,char *localpath,NodeStack **head)
+{
+    //printf("mySync function start,localpath=%s\n",localpath);
 
     if(upload_only != 1)
     {
-        //if(sync_up == 0 || exit_loop == 1 )
         if(exit_loop)
             return 0;
     }
@@ -2721,45 +3001,16 @@ int mySync(char *username,int parentid,char *localpath, char *xmlfilename)
     Local local;
     int id = -10;
     int fail_flag = 0;
-    //char path[MAXSIZE];
-    //char foldername[128];
-    char *path;
-    char *foldername;
+    char path[MAXSIZE];
+    char foldername[256];
     int loop;
     int i;
-    int res_value = 0;
 
-    path = (char *)malloc(sizeof(char)*1024);
-
-    
-    if(NULL == path)
-    {
-
-        handle_error(S_MEMORY_FAIL,"mySync");
-        return -1;
-    }
-    
-    foldername = (char *)malloc(sizeof(char)*512);
-
-    
-    if(NULL == foldername)
-    {
-
-        handle_error(S_MEMORY_FAIL,"mySync");
-        return -1;
-    }
-    
-    //int xx;
-
-    //memset(&browse,0,sizeof(Browse));
     memset(&local,0,sizeof(Local));
-
-    //local.filenum = 0;
-    //local.foldernum = 0;
 
     //printf("browse function start\n");
 
-    br = browseFolder(username,parentid,0);
+    br = browseFolder(username,parentid,0,1);
 
     if(NULL == br)
     {
@@ -2767,55 +3018,15 @@ int mySync(char *username,int parentid,char *localpath, char *xmlfilename)
         check_network_state();
         return -1;
     }
-    //printf("browse function end\n");
 
-    //parseDoc1(xmlfilename,&browse);
-
-
-    //printf("browse status is %d \n",browse.status);
-    //printf("browse parentfolder name is %s \n",browse.parentfolder.name);
-    //printf("browse parentfolder id is %d \n",browse.parentfolder.id);
-    //int k;
-    //for(k=0;k<br->foldernumber;k++)
-    //{
-    //printf("browse folder[%d] ctime is %s \n",br->folderlist[k].id,br->folderlist[k].attribute.creationtime);
-    //}
-    //printf("browse page size is %d \n",browse.page.pagesize);
-
-    //return 0;
-
-    //printf("myFindDir() function start\n");
     if( myFindDir(localpath,0,&local) == -1)
     {
         printf("myFindDir() fail\n");
+        free_server_list(br);
+        my_free(br);
         return -1;
     }
 
-    //printf("myFindDir() function end\n");
-
-#if 0
-    if(local.filenum + local.foldernum == 0 && parentid == 18560620)
-    {
-        initMyLocalFolder(username,parentid,localpath,xmlfilename);
-        return 0;
-    }
-#endif
-
-#if 0
-    printf("local filenum is %d,server filenum is %d\n",local.filenum,br->filenumber);
-    int j;
-    for(j=0;j<local.filenum;j++)
-    {
-        printf("local filename is %s\n",(local.filelist)[j]->name);
-    }
-
-    for(j=0;j<br->filenumber;j++)
-    {
-        printf("server filename is %s\n",(br->filelist)[j]->display);
-    }
-#endif
-
-    //printf("syncItme function start\n");
     if(upload_only == 1)
     {
         if(UploadOnlySyncItem(localpath,parentid,br,&local,username) == -1)
@@ -2833,11 +3044,6 @@ int mySync(char *username,int parentid,char *localpath, char *xmlfilename)
         }
     }
 
-
-    // printf("syncItme function end\n");
-
-#if 1
-
     if(upload_only ==1)
         loop = local.foldernum;
     else
@@ -2847,9 +3053,7 @@ int mySync(char *username,int parentid,char *localpath, char *xmlfilename)
     {
         if(exit_loop == 1)
         {
-            free_server_list(br);
-            my_free(br);
-            return 0;
+            break;
         }
 
         if(upload_only && receve_socket)
@@ -2866,14 +3070,13 @@ int mySync(char *username,int parentid,char *localpath, char *xmlfilename)
                 continue;
         }
 
-        //memset(foldername,0,sizeof(foldername));
-        //memset(path,0,sizeof(path));
-
+        memset(foldername,0,sizeof(foldername));
+        memset(path,0,sizeof(path));
 
         if(upload_only == 1)
-            strcpy(foldername,(local.folderlist)[i]->name);
+            strncpy(foldername,(local.folderlist)[i]->name,256);
         else
-            oauth_decode_base64(foldername,(br->folderlist)[i]->display);
+            oauth_decode_base64((unsigned char *)foldername,(br->folderlist)[i]->display);
 
         if(strlen(foldername) == 0)
         {
@@ -2886,61 +3089,29 @@ int mySync(char *username,int parentid,char *localpath, char *xmlfilename)
 
         if(upload_only == 1)
         {
-            //id = getParentID(path);
             id = get_local_folder_id(foldername,br);
 
             if(id < 0)
             {
-                //fail_flag = 1;
-                /*
-                Createfolder *createfolder = NULL;
-                createfolder = createFolder(username,parentid,0,path);
-                if(NULL == createfolder)
-                {
-                    fail_flag =  1;
-                }
-
-                if( createfolder->status != 0 )
-                {
-                    handle_error(createfolder->status,"createfolder");
-                    res_value = handle_createfolder_fail_code(createfolder->status,parentid,localpath,path);
-                    my_free(createfolder);
-                    if(res_value != 0)
-                       fail_flag = 0;
-                }
-                else
-                {
-                    id = createfolder->id;
-                    my_free(createfolder);
-                    //printf("entry ID is %d\n",entry_ID);
-                    res_value = sync_all_item(path,id);
-                    if(res_value != S_UPLOAD_DELETED)
-                        fail_flag = 1;
-                }
-                */
-
                 continue;
             }
         }
         else
         {
-
             id = (br->folderlist)[i]->id;
         }
 
-        //printf("path is %s ,id is %d\n",path,id);
-
-        if(mySync(username,id,path,xmlfilename) == -1)
-        {
-            fail_flag = 1;
-        }
+        FolderNode *node = (FolderNode *)calloc(1,sizeof(FolderNode));
+        node->path = (char *)calloc(1,strlen(path)+1);
+        //strcpy(node->name,foldername);
+        strcpy(node->path,path);
+        //printf("node_path is %s\n",node->path);
+        node->id = id;
+        push_node(node,head);
     }
-#endif
 
     free_server_list(br);
     my_free(br);
-    my_free(path);
-    my_free(foldername);
     free_local_list(&local);
 
     //printf("end mySync function\n");
@@ -2984,7 +3155,7 @@ int get_all_folders(const char *dirname,Folders *allfolderlist)
         closedir(pDir);
     }
     else
-        printf(" fail \n",dirname);
+        printf(" %s fail \n",dirname);
 
     return 0;
 }
@@ -3073,7 +3244,13 @@ void queue_destroy (queue_t q)
             queue_entry_t next = q->head;
             q->head = next->next_ptr;
             next->next_ptr = NULL;
+#if MEM_POOL_ENABLE
+            mem_free(next->cmd_name);
+            mem_free (next);
+#else
+            free(next->cmd_name);
             free (next);
+#endif
         }
         q->head = q->tail = NULL;
         free (q);
@@ -3137,10 +3314,22 @@ sync_item_t create_head()
 
 sync_item_t create_sync_item(const char *action, const char *name)
 {
+    int len;
     sync_item_t q = (sync_item_t)malloc(sizeof(struct sync_item));
     if(q == NULL)
         return NULL;
     memset(q, 0, sizeof(struct sync_item));
+
+    len = strlen(action)+1;
+    q->action = (char *)calloc(len,sizeof(char));
+    if(q->action == NULL)
+        return NULL;
+
+    len = strlen(name)+1;
+    q->name = (char *)calloc(len,sizeof(char));
+    if(q->name == NULL)
+        return NULL;
+
     strcpy(q->action,action);
     strcpy(q->name,name);
     return q;
@@ -3160,6 +3349,7 @@ int insert_sync_item(sync_item_t item, sync_item_t head)
 
     p2->next = item;
     item->next = p1;
+    return 0;
 }
 
 
@@ -3219,7 +3409,7 @@ int add_sync_item(const char *action,const char *name, struct sync_item *phead)
 
 void del_sync_item(char *action,char *name, struct sync_item *phead)
 {
-    //printf("del_sync_item action=%s,name=%s\n",action,name);
+    //printf("@@@@@@@@@@@@@del_sync_item action=%s,name=%s\n",action,name);
     struct sync_item *p1, *p2;
     p1 = phead->next;
     p2 = phead;
@@ -3232,6 +3422,8 @@ void del_sync_item(char *action,char *name, struct sync_item *phead)
             if( strcmp(p1->name,name) == 0 )
             {
                 p2->next = p1->next;
+                my_free(p1->action);
+                my_free(p1->name);
                 my_free(p1);
                 //printf("del sync item ok\n");
                 break;
@@ -3242,6 +3434,8 @@ void del_sync_item(char *action,char *name, struct sync_item *phead)
             if( strcmp(p1->action,action) == 0 && strcmp(p1->name,name) == 0)
             {
                 p2->next = p1->next;
+                my_free(p1->action);
+                my_free(p1->name);
                 my_free(p1);
                 //printf("del sync item ok\n");
                 break;
@@ -3321,15 +3515,41 @@ struct sync_item* get_sync_item(char *action,char *name, struct sync_item *phead
     return NULL;
 }
 
+//int check_excep_item(struct sync_item *phead)
+//{
+//    struct sync_item *p1 = phead->next;
+//    struct stat buf;
+//    char name[1024] = {0};
+//
+//    while(p1 != NULL)
+//    {
+//         if( stat(p1->name,&buf) == -1)
+//        {
+//             strncpy(name,p1->name,1024);
+//             del_sync_item("up_excep_fail",name,phead);
+//         }
+//         else
+//
+//        p1 = p1->next;
+//    }
+//
+//    return NULL;
+//}
+
 void free_sync_item(sync_item_t head)
 {
-    sync_item_t p = head;
+    sync_item_t p,p1;
+    p = head->next;
     while(p != NULL)
     {
-        head = head->next;
+        //head = head->next;
+        p1 = p->next;
+        free(p->action);
+        free(p->name);
         free(p);
-        p = head;
+        p = p1;
     }
+    free(head);
 
     printf("free list ok\n");
 }
@@ -3468,10 +3688,10 @@ int parse_trans_item(char *path,int type)
     //init_fail_item = 1;
 
     Transitem item;
-    Propfind *find;
-    char *filename;
+    //Propfind *find;
+    //char *filename;
     char user[256];
-    int parentID = -10;
+    //int parentID = -10;
     char check_path[NORMALSIZE];
 
     memset(&item,0,sizeof(Transitem));
@@ -3538,7 +3758,7 @@ int parse_trans_item(char *path,int type)
             if(type == UPLOAD)
             {
                 printf("init upload file is %s\n",item.name);
-                uploadFile(item.name,item.id,item.transid);
+                uploadFile(item.name,item.id,item.transid,0);
             }
 #if 0
             else
@@ -3709,6 +3929,36 @@ int test_if_file_up_excep_fail(char *name)
     return 0;
 }
 
+void free_local_fileslist(Local *local)
+{
+
+    int i;
+    if(local->filenum > 0)
+    {
+        for( i = 0; i<local->filenum; i++ )
+        {
+            my_free(local->filelist[i]->name);
+            my_free((local->filelist)[i]);
+        }
+        my_free(local->filelist);
+
+    }
+}
+
+void free_local_folderslist(Local *local)
+{
+    int i;
+    if(local->foldernum > 0)
+    {
+        for( i = 0; i<local->foldernum; i++ )
+        {
+            my_free(local->folderlist[i]->name);
+            my_free((local->folderlist)[i]);
+        }
+        my_free(local->folderlist);
+    }
+}
+
 void free_local_list(Local *local)
 {
     //my_free(local->filelist);
@@ -3721,6 +3971,7 @@ void free_local_list(Local *local)
         for( i = 0; i<local->filenum; i++ )
         {
             //printf("free file is %d\n",i);
+            my_free(local->filelist[i]->name);
             my_free((local->filelist)[i]);
         }
         my_free(local->filelist);
@@ -3731,11 +3982,46 @@ void free_local_list(Local *local)
     {
         for( i = 0; i<local->foldernum; i++ )
         {
+            my_free(local->folderlist[i]->name);
             my_free((local->folderlist)[i]);
         }
         my_free(local->folderlist);
     }
 
+}
+
+void free_server_fileslist(Browse *br)
+{
+    //my_free(br->filelist);
+    //my_free(br->folderlist);
+
+    //printf("folder num is %d,file num is %d\n",br->foldernumber,br->filenumber);
+    int i;
+    if(br->filenumber > 0)
+    {
+        for( i = 0; i<br->filenumber; i++ )
+        {   //printf("free file is %d\n",i);
+            my_free(br->filelist[i]->display);
+            my_free((br->filelist)[i]);
+        }
+        my_free(br->filelist);
+        br->filenumber = 0;
+    }
+}
+
+void free_server_folderslist(Browse *br)
+{
+    int i;
+    if(br->foldernumber > 0)
+       {
+           for( i = 0; i<br->foldernumber; i++ )
+           {
+               my_free(br->folderlist[i]->display);
+               my_free((br->folderlist)[i]);
+           }
+           my_free(br->folderlist);
+           br->foldernumber = 0;
+       }
 }
 
 void free_server_list(Browse *br)
@@ -3749,6 +4035,7 @@ void free_server_list(Browse *br)
     {
         for( i = 0; i<br->filenumber; i++ )
         {   //printf("free file is %d\n",i);
+            my_free(br->filelist[i]->display);
             my_free((br->filelist)[i]);
         }
         my_free(br->filelist);
@@ -3758,12 +4045,14 @@ void free_server_list(Browse *br)
     {
         for( i = 0; i<br->foldernumber; i++ )
         {
+            my_free(br->folderlist[i]->display);
             my_free((br->folderlist)[i]);
         }
         my_free(br->folderlist);
     }
 
 }
+
 
 /*
 int is_copying_finished(char *filename)
@@ -3846,26 +4135,178 @@ int my_mkdir_r(char *path)
 
 }
 
+int is_number(char *str)
+{
+    if(str == NULL)
+        return -1;
+
+    if(!strcmp(str,"0"))
+        return 0;
+
+    int i;
+    int len = strlen(str);
+    for(i=0;i<len;i++)
+    {
+        if(!isdigit(str[i]))
+            return 0;
+    }
+
+    if(i == len && i > 0)
+        return 1;
+
+    return 0;
+}
+
+int get_conflict_seq(char *name,int *num,int *count)
+{
+    char *p,*p1;
+    char seq[64];
+    int n = 0;
+
+    p = strrchr(name,'(');
+
+    if(p)
+    {
+        p1 = strchr(p,')');
+        if(p1)
+        {
+            p++;
+            memset(seq,0,sizeof(seq));
+            strncpy(seq,p,strlen(p)-strlen(p1));
+            //printf("seq=%s\n",seq);
+            if(is_number(seq))
+            {
+                *num = atoi(seq);
+                (*num)++;
+
+                n = *num;
+                while((n=(n/10)))
+                {
+                    count++;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+char *get_confilicted_name_case(const char *fullname,const char *path,const char *pre_name,
+                                const char *raw_name)
+{
+    char *confilicted_name = NULL;
+    char prefix_name[NORMALSIZE];
+    char suffix_name[256];
+    char parse_name[NORMALSIZE];
+    char *p = NULL;
+    int  num = 0;
+    char *filename = NULL;
+    //char path[512];
+    //int n = 0,j=0;
+    char con_filename[256];
+    int count = 0;
+    char cmp_name[128] = {0};
+    int isfolder = 0;
+    char new_prefix_name[256] = {0};
+
+    memset(prefix_name,0,sizeof(prefix_name));
+    memset(suffix_name,0,sizeof(suffix_name));
+    memset(parse_name,0,sizeof(parse_name));
+    //memset(path,0,sizeof(path));
+    memset(con_filename,0,sizeof(con_filename));
+
+    isfolder = test_if_dir(fullname);
+
+    filename = parse_name_from_path(fullname);
+    if(NULL == filename)
+    {
+        handle_error(S_MEMORY_FAIL,"get_confilicted_name()");
+        return NULL;
+    }
+//    strncpy(path,fullname,strlen(fullname)-strlen(filename)-1);
+
+    confilicted_name = (char *)malloc(sizeof(char)*NORMALSIZE);
+    if(NULL == confilicted_name)
+    {
+        handle_error(S_MEMORY_FAIL,"get_confilicted_name()");
+        my_free(filename);
+        return NULL;
+    }
+
+    p = strrchr(filename,'.');
+
+    if(!isfolder && p && filename[0] != '.')
+    {
+        strncpy(parse_name,filename,strlen(filename)-strlen(p));
+        strcpy(suffix_name,p);
+        strncpy(prefix_name,pre_name,strlen(pre_name)-strlen(suffix_name));
+    }
+    else
+    {
+        strcpy(parse_name,filename);
+        strcpy(prefix_name,pre_name);
+    }
+
+    //printf("filename=%s,pre_name=%s,parse_name=%s,prefix_name=%s\n",filename,pre_name,parse_name,prefix_name);
+
+    get_conflict_seq(parse_name,&num,&count);
+
+    //printf("num=%d,count=%d\n",num,count);
+
+    if(num == 0)
+    {
+        sprintf(cmp_name,"(%s)",case_conflict_name);
+
+        if(strstr(parse_name,cmp_name) && !strstr(raw_name,cmp_name))
+        {
+            memset(cmp_name,0,sizeof(cmp_name));
+            sprintf(cmp_name,"(%s(1))",case_conflict_name);
+        }
+    }
+    else
+    {
+       sprintf(cmp_name,"(%s(%d))",case_conflict_name,num);
+    }
+
+    //printf("cmp_name=%s\n",cmp_name);
+
+    snprintf(new_prefix_name,252-strlen(cmp_name)-strlen(suffix_name),"%s",prefix_name);
+
+    snprintf(con_filename,256,"%s%s%s",new_prefix_name,cmp_name,suffix_name);
+    snprintf(confilicted_name,NORMALSIZE,"%s/%s",path,con_filename);
+
+    //printf("------ prefix name is %s,num is %d,suffix name is %s -----\n",prefix_name,num,suffix_name);
+
+    my_free(filename);
+
+    return confilicted_name;
+}
+
 char *get_confilicted_name(const char *fullname,int isfolder)
 {
     char *confilicted_name = NULL;
     char prefix_name[NORMALSIZE];
-    char suffix_name[8];
+    char suffix_name[256];
     char parse_name[NORMALSIZE];
     char *p = NULL;
-    char *p1 = NULL;
+    //char *p1 = NULL;
     //char *p2 = NULL;
-    char seq[8];
-    int  num;
-    int have_suf = 0;
+    //char seq[8];
+    int  num = 0;
+    //int have_suf = 0;
     char *filename = NULL;
     char path[512];
+    int j=0;
     //char seq_num[8];
+    char con_filename[256];
+    int count = 0;
+    char new_prefix_name[256] = {0};
 
     memset(prefix_name,0,sizeof(prefix_name));
     memset(suffix_name,0,sizeof(suffix_name));
     memset(parse_name,0,sizeof(parse_name));
     memset(path,0,sizeof(path));
+    memset(con_filename,0,sizeof(con_filename));
 
     filename = parse_name_from_path(fullname);
     if(NULL == filename)
@@ -3883,78 +4324,91 @@ char *get_confilicted_name(const char *fullname,int isfolder)
         return NULL;
     }
 
+    p = strrchr(filename,'.');
 
+    if(!isfolder && p && filename[0] != '.')
+    {
+        strncpy(parse_name,filename,strlen(filename)-strlen(p));
+        strcpy(suffix_name,p);
+    }
+    else
+        strcpy(parse_name,filename);
 
-    if(isfolder)
+    get_conflict_seq(parse_name,&num,&count);
+
+    printf("filename=%s,path=%s,num=%d,count=%d\n",filename,path,num,count);
+
+    /*if(isfolder)
     {
         strcpy(parse_name,filename);
+        get_conflict_seq(parse_name,&num,&count);
     }
     else
     {
         p = strrchr(filename,'.');
 
+        //printf("p=%s\n",p);
+
         if(p && filename[0] != '.')
         {
             strncpy(parse_name,filename,strlen(filename)-strlen(p));
             strcpy(suffix_name,p);
-            have_suf = 1;
+            //have_suf = 1;
+
+            p = NULL;
+
+            p = strrchr(parse_name,'(');
+
+            if(p)
+            {
+                p1 = strchr(p,')');
+                if(p1)
+                {
+                    p++;
+                    memset(seq,0,sizeof(seq));
+                    strncpy(seq,p,strlen(p)-strlen(p1));
+                    if(is_number(seq))
+                    {
+                        num = atoi(seq);
+                        num++;
+                        //printf("seq is %s,num is %d\n",seq,num);
+                        n = num;
+                        while((n=(n/10)))
+                        {
+                            j++;
+                        }
+
+
+                        strncpy(prefix_name,parse_name,strlen(parse_name)-strlen(p)-1);
+                    }
+                }
+            }
         }
         else
         {
             strcpy(parse_name,filename);
+            get_conflict_seq(parse_name,&num,&count);
         }
-    }
+    }*/
 
-    p = NULL;
+    printf("parse_name=%s,suffix_name=%s\n",parse_name,suffix_name);
 
-    p = strrchr(parse_name,'(');
-
-    if(p)
-    {
-        p1 = strchr(p,')');
-        if(p1)
-        {
-            p++;
-            memset(seq,0,sizeof(seq));
-            strncpy(seq,p,strlen(p)-strlen(p1));
-            num = atoi(seq);
-            //printf("seq is %s,num is %d\n",seq,num);
-            if(num > 0)
-            {
-                num++;
-                strncpy(prefix_name,parse_name,strlen(parse_name)-strlen(p)-1);
-            }
-            else
-            {
-                num = 1;
-                strcpy(prefix_name,parse_name);
-            }
-        }
-        else
-        {
-            num = 1;
-            strcpy(prefix_name,parse_name);
-        }
-    }
-    else
+    if(num == 0)
     {
         num = 1;
         strcpy(prefix_name,parse_name);
     }
-
-    //printf("------ prefix name is %s,num is %d,suffix name is %s -----\n",prefix_name,num,suffix_name);
-
-    if(isfolder)
-    {
-        snprintf(confilicted_name,NORMALSIZE,"%s/%s(%d)",path,prefix_name,num);
-    }
     else
     {
-        if(have_suf)
-            snprintf(confilicted_name,NORMALSIZE,"%s/%s(%d)%s",path,prefix_name,num,suffix_name);
-        else
-            snprintf(confilicted_name,NORMALSIZE,"%s/%s(%d)",path,prefix_name,num);
+        p = strrchr(parse_name,'(');
+        strncpy(prefix_name,parse_name,strlen(parse_name)-strlen(p));
     }
+
+    snprintf(new_prefix_name,252-j-strlen(suffix_name),"%s",prefix_name);
+    snprintf(con_filename,256,"%s(%d)%s",new_prefix_name,num,suffix_name);
+    snprintf(confilicted_name,NORMALSIZE,"%s/%s",path,con_filename);
+
+    //printf("------ prefix name is %s,num is %d,suffix name is %s -----\n",prefix_name,num,suffix_name);
 
     my_free(filename);
 
@@ -4135,6 +4589,7 @@ int check_token_file(struct asus_config *cfg)
     if(get_mounts_info(info) == -1)
     {
         printf("get mounts info fail\n");
+        my_free(info->paths);
         return -1;
     }
 
@@ -4539,7 +4994,7 @@ int convert_nvram_to_file(char *file)
 #else
     char tmp[MAXLEN_TCAPI_MSG] = {0};
     tcapi_get(AICLOUD, "cloud_sync", tmp);
-    nv = nvp = calloc(1,strlen(tmp)+1);
+    nv = nvp = my_str_malloc(strlen(tmp)+1);
     sprintf(nv,"%s",tmp);
 #endif
 
@@ -4698,12 +5153,19 @@ int check_nvram_token_file(char *token_filename)
     if(nv == NULL)
          return 0;
 
-    if(strlen(nv) == 0)
+    /*if(strlen(nv) == 0)
+    {
+        my_free(nv);
         return 0;
+    }*/
 
     if(!strcmp(token_filename,nv))
-         return 1;
+    {
+        my_free(nv);
+        return 1;
+    }
 
+   my_free(nv);
    return 0;
 }
 #endif
@@ -4772,7 +5234,10 @@ int check_accout_status()
 #endif
 
     if(clean_token)
+    {
         clean_download_temp_file(down_head);
+        remove(system_token);
+    }
 
     return 0;
 
@@ -4939,8 +5404,8 @@ int parse_config_new(char *path,struct asus_config *cfg)
 //#ifdef IPKG
 int parse_config_onexit(char *path, struct asus_config *cfg)
 {
-    int type;
-    int status;
+    //int type;
+    //int status;
     FILE *fp;
 
     char buffer[256];
@@ -5124,7 +5589,7 @@ int wait_handle_socket()
 int check_network_state()
 {
     int link_flag = 0;
-    int i;
+    //int i;
 
     //struct timeval now;
     //struct timespec outtime;
@@ -5138,6 +5603,8 @@ int check_network_state()
         char nv[64] = {0};
         FILE *fp;
         fp = fopen(NVRAM_PATH_2,"r");
+        if(fp == NULL)
+            return -1;
         fgets(nv,sizeof(nv),fp);
         //DEBUG("nv=%s\n",nv);
         fclose(fp);
@@ -5152,7 +5619,7 @@ int check_network_state()
 #else
         char tmp[MAXLEN_TCAPI_MSG] = {0};
         tcapi_get(WANDUCK, "link_internet", tmp);
-        link_internet = calloc(1,strlen(tmp)+1);
+        link_internet = my_str_malloc(strlen(tmp)+1);
         sprintf(link_internet,"%s",tmp);
 #endif
         link_flag = atoi(link_internet);
@@ -5161,13 +5628,17 @@ int check_network_state()
         //printf("will sleep 20 seconds\n");
         if(!link_flag)
         {
+            IsNetworkUnlink = 1;
             write_log(S_ERROR,"Network Connection Failed","");
             enter_sleep_time(20,&my_mutex);
         }
     }
 
-    if(!local_space_full && !server_space_full && !exit_loop)
+    if(!local_space_full && !server_space_full && !exit_loop && IsNetworkUnlink)
+    {
         write_log(S_SYNC,"","");
+        IsNetworkUnlink = 0;
+    }
 
     IsSyncError = 0;
 
@@ -5192,5 +5663,89 @@ int clean_download_temp_file(struct sync_item *head)
         p = p->next;
 
     }
+    return 0;
+}
+
+void push_node(FolderNode *node,NodeStack **head)
+{
+    NodeStack *new_item = NULL;
+    NodeStack *s_link = NULL;
+    s_link = *head;
+    new_item = (NodeStack *)malloc(sizeof(NodeStack));
+
+    memset(new_item,0,sizeof(NodeStack));
+
+    if(new_item == NULL)
+    {
+        printf("obtain memory fail\n");
+        return;
+    }
+
+    new_item->point = node;
+    new_item->next = s_link;
+    s_link = new_item;
+    *head = s_link;
+}
+
+FolderNode *pop_node(NodeStack **head)
+{
+    FolderNode *node = NULL;
+    NodeStack *top = NULL;
+    NodeStack *s_link = NULL;
+    s_link = *head;
+    if(s_link != NULL)
+    {
+        top = s_link;
+        s_link = top->next;
+        node = top->point;
+        free(top);
+        *head = s_link;
+    }
+
+    return node;
+}
+
+long long FileSize(const char* szFilename)
+{
+#ifdef HAVE_STAT64
+        struct stat64 buffer;
+        stat64(szFilename, &buffer);
+#else
+        struct stat buffer;
+        stat(szFilename, &buffer);
+#endif
+        return buffer.st_size;
+}
+
+int LoadFileIntoBuffer(const char* szFileName, char** pBuffer, int* pBufferLength)
+{
+    FILE* pFile = fopen(szFileName, "rb");
+    if (!pFile)
+    {
+        return -1;
+    }
+
+    // obtain file size.
+    fseek(pFile , 0 , SEEK_END);
+    int iSize  = ftell(pFile);
+    rewind(pFile);
+
+    // allocate memory to contain the whole file.
+    *pBuffer = (char*) malloc(iSize + 1);
+    if (!*pBuffer)
+    {
+        return -1;
+    }
+
+    // copy the file into the buffer.
+    fread(*pBuffer, 1, iSize, pFile);
+
+    fclose(pFile);
+
+    (*pBuffer)[iSize] = 0;
+
+    *pBufferLength = iSize + 1;
+
+    return 0;
 }
 

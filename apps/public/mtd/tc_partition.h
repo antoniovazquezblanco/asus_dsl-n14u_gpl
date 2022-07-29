@@ -185,6 +185,9 @@ note:
 ------------------------------------------------------------------------------------
 */
 #define RESERVEAREA_TOTAL_SIZE RESERVEAREA_ERASE_SIZE*4
+#ifdef TCSUPPORT_WLAN_AC
+#define MAX_EEPROM_BIN_FILE_SIZE	512
+#endif
 
 #ifdef TCSUPPORT_NAND_BADBLOCK_CHECK
 /*syslog*/
@@ -212,7 +215,9 @@ note:
 /*eeprom*/
 #define EEPROM_RA_SIZE 0x400
 #define EEPROM_RA_OFFSET (SYSLOG_RA_OFFSET+SYSLOG_RA_SIZE)
-
+#ifdef TCSUPPORT_WLAN_AC
+#define EEPROM_RA_AC_OFFSET (EEPROM_RA_OFFSET+MAX_EEPROM_BIN_FILE_SIZE)
+#endif
 #endif
 
 /*device information*/

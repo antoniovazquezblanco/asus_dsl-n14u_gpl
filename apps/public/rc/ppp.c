@@ -9,9 +9,28 @@
 #include <errno.h>
 #include <ctype.h>
 
+#include "bcmnvram.h"
 #include "libtcapi.h"
 #include "shutils.h"
 #include "rc.h"
+
+/*
+* parse ifname to retrieve unit #
+*/
+int
+ppp_ifunit(char *ifname)
+{
+	int unit;
+	char tmp[100], prefix[] = "wanXXXXXXXXXX_";
+
+	for (unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; unit++) {
+		snprintf(prefix, sizeof(prefix), "wan%d_", unit);
+		if (nvram_match(strcat_r(prefix, "pppoe_ifname", tmp), ifname))
+			return unit;
+	}
+
+	return -1;
+}
 
 int
 ppp_linkunit(char *linkname)
@@ -36,28 +55,45 @@ ipup_main(int argc, char **argv)
 {
 	char *wan_ifname = safe_getenv("IFNAME");
 	// char *wan_linkname = safe_getenv("LINKNAME");
-	char prefix[] = "wanXXXXXXXXXX_";
+	char tmp[32] = {0}, prefix[] = "wanXXXXXXXXXX_";
 	int unit;
+	char *value;
+	char buf[256];
+	char wan_prefix[] = "WanXXXXXXXXXX_";
+
+	_dprintf("%s(%s)\n", __FUNCTION__, wan_ifname);
 
 	// Get unit from IFNAME: ppp[UNIT]
 	if ((unit = ppp_linkunit(wan_ifname)) < 0)
 		return 0;
-	
+
+	snprintf(wan_prefix, sizeof(wan_prefix), "Wan_PVC%d", unit);
 	snprintf(prefix, sizeof(prefix), "wan%d_", unit);
 
-	update_wan_state(prefix, WAN_STATE_CONNECTED, 0);
+	if ((value = getenv("IPLOCAL"))) {
+		tcapi_set(WANDUCK_DATA, strcat_r(prefix, "ipaddr", tmp), value);
+		tcapi_set(WANDUCK_DATA, strcat_r(prefix, "netmask", tmp), "255.255.255.255");
+	}
 
-	//restart firewall
-	tcapi_commit("Firewall");
+	if ((value = getenv("IPREMOTE"))) {
+		tcapi_set(wan_prefix, "gateway_x", value);
+		tcapi_set(WANDUCK_DATA, strcat_r(prefix, "gateway", tmp), value);
+	}
 
-	//restart QoS
-	tcapi_commit("QoS");
+	strcpy(buf, "");
+	if ((value = getenv("DNS1")))
+		sprintf(buf, "%s", value);
+	if ((value = getenv("DNS2")))
+		sprintf(buf + strlen(buf), "%s%s", strlen(buf) ? " " : "", value);
 
-	//re-write routing table
-	tcapi_commit("Route");
+	if (strlen(buf)) {
+		tcapi_set(wan_prefix, "dns_x", buf);
+		tcapi_set(WANDUCK_DATA, strcat_r(prefix, "dns", tmp), buf);
+	}
 
-	//restart ddns for ppp interface
-	tcapi_commit("Ddns");
+	wan_up(wan_ifname);
+
+	_dprintf("%s(%d) done.\n", __FUNCTION__, unit);
 
 	return 0;
 }
@@ -73,6 +109,8 @@ ipdown_main(int argc, char **argv)
 	char prefix[] = "wanXXXXXXXXXX_";
 	int unit;
 
+	_dprintf("%s(%s)\n", __FUNCTION__, wan_ifname);
+
 	// Get unit from IFNAME: ppp[UNIT]
 	if ((unit = ppp_linkunit(wan_ifname)) < 0)
 		return 0;
@@ -80,6 +118,8 @@ ipdown_main(int argc, char **argv)
 	snprintf(prefix, sizeof(prefix), "wan%d_", unit);
 
 	update_wan_state(prefix, WAN_STATE_STOPPED, pppstatus());
+
+	_dprintf("%s(%d) done.\n", __FUNCTION__, unit);
 
 	return 0;
 }
@@ -106,4 +146,63 @@ authfail_main(int argc, char **argv)
 	update_wan_state(prefix, WAN_STATE_STOPPED, WAN_STOPPED_REASON_PPP_AUTH_FAIL);
 
 	return 0;
+}
+
+void USB_restart_dnsmasq(void)
+{
+	FILE *fp = NULL;
+	char tmp[100] = {0};
+	char prefix[] = "wanXXXXXXXXXX_";
+	int unit = 11; //USB modem
+	char result[256] = {0};
+	char primary_dns[128] = {0};
+	char second_dns[128] = {0};
+	char ifx[128] = {0};
+	char *p = NULL;
+
+	system("killall -9 dnsmasq");
+	fp = fopen("/etc/dnsmasq.conf", "w");
+	if(fp == NULL){
+		cprintf("Cannot open dnsmasq.conf!!\n");
+		return;
+	}
+
+	snprintf(prefix, sizeof(prefix), "wan%d_", unit);
+
+	snprintf(result, sizeof(result), "%s", nvram_safe_get(strcat_r(prefix, "dns", tmp)));
+
+	//parse DNS
+	if(p=strstr(result," "))
+	{
+		*p = '\0';
+		snprintf(primary_dns, sizeof(primary_dns), "%s", result);
+		snprintf(second_dns, sizeof(second_dns), "%s", p+1);
+	}
+	else
+	{
+		snprintf(primary_dns, sizeof(primary_dns), "%s", result);
+		second_dns[0] = '\0';
+	}
+	cprintf("primary_dns=[%s], second_dns=[%s]\n", primary_dns, second_dns);
+
+	if(nvram_match(strcat_r(prefix, "proto", tmp), "pppoe"))
+	{
+		snprintf(ifx, sizeof(ifx), "%s", nvram_safe_get(strcat_r(prefix, "pppoe_ifname", tmp)));
+	}
+	else
+	{
+		snprintf(ifx, sizeof(ifx), "%s", nvram_safe_get(strcat_r(prefix, "ifname", tmp)));
+	}
+	cprintf("ifx=[%s]\n", ifx);
+
+	if(strlen(primary_dns) > 0 )
+	{
+		fprintf(fp, "server=%s@%s\n", primary_dns, ifx);
+	}
+	if(strlen(second_dns) > 0 )
+	{
+		fprintf(fp, "server=%s@%s", second_dns, ifx);
+	}
+	fclose(fp);
+	system("/userfs/bin/dnsmasq");
 }

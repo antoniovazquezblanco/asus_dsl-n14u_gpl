@@ -1736,7 +1736,7 @@ __IMEM int dev_queue_xmit(struct sk_buff *skb)
 			}
 		}
 		
-		
+#if 0	//Sam, 2014/12/26
 		if (skb->mark & QOS_RTP_MARK) {
 			rtp_match = 1;
 		}
@@ -1777,6 +1777,7 @@ __IMEM int dev_queue_xmit(struct sk_buff *skb)
 				skb->mark &= ~QOS_DOT1P_MARK;
 			}
 		}
+#endif	//if 0
 #endif
 #ifdef TCSUPPORT_SBTHROUGHPUT_ENHANCE
 	}

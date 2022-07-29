@@ -32,13 +32,13 @@ end if
 
 <!--Advanced_WMode_Content.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
 <link rel="shortcut icon" href="/images/favicon.png">
 <link rel="icon" href="/images/favicon.png">
-<title>ASUS <%tcWebApi_get("String_Entry","Web_Title2","s")%> <% tcWebApi_staticGet("SysInfo_Entry","ProductTitle","s") %> - <%tcWebApi_get("String_Entry","menu5_1_3","s")%></title>
+<title>ASUS <%tcWebApi_get("String_Entry","Web_Title2","s")%> <% tcWebApi_staticGet("SysInfo_Entry","ProductTitle","s") %> - WDS</title>
 <link rel="stylesheet" type="text/css" href="/index_style.css">
 <link rel="stylesheet" type="text/css" href="/form_style.css">
 <style>
@@ -159,32 +159,39 @@ wl_wdslist_array = wl_wdslist_value;
 if(wl_wdslist_array == "")
 show_wl_wdslist();
 }
-function addRow(obj, upper){
-	var rule_num = $('wl_wdslist_table').rows.length;
-	var item_num = $('wl_wdslist_table').rows[0].cells.length;
-	if(rule_num >= upper){
-	alert("<%tcWebApi_get("String_Entry","JS_itemlimit1","s")%> " + upper + " <%tcWebApi_get("String_Entry","JS_itemlimit2","s")%>");
-	return false;
+function addRow(obj, upper) {
+	var rule_num = document.getElementById('wl_wdslist_table').rows.length;
+	var item_num = document.getElementById('wl_wdslist_table').rows[0].cells.length;
+
+	if(rule_num >= upper) {
+		alert("<%tcWebApi_get("String_Entry","JS_itemlimit1","s")%> " + upper + " <%tcWebApi_get("String_Entry","JS_itemlimit2","s")%>");
+		return false;
 	}
-	if(obj.value==""){
-	alert("<%tcWebApi_get("String_Entry","JS_fieldblank","s")%>");
-	obj.focus();
-	obj.select();
-	}else if(check_hwaddr_temp(obj)){
-	for(i=0; i<rule_num; i++){
-	for(j=0; j<item_num-1; j++){
-	if(obj.value.toLowerCase() == $('wl_wdslist_table').rows[i].cells[j].innerHTML.toLowerCase()){
-						alert("<%tcWebApi_get("String_Entry","JS_duplicate","s")%>");
-	return false;
+
+	if(obj.value == "") {
+		alert("<%tcWebApi_get("String_Entry","JS_fieldblank","s")%>");
+		obj.focus();
+		obj.select();
+		return false;
 	}
+	else if (!check_macaddr(obj, check_hwaddr_flag(obj))) {
+		obj.focus();
+		obj.select();		
+		return false;
 	}
+	
+	for(i = 0; i < rule_num; i++) {
+		for(j = 0; j < item_num - 1; j++) {
+			if(obj.value.toLowerCase() == document.getElementById('wl_wdslist_table').rows[i].cells[j].innerHTML.toLowerCase()) {
+				alert("<%tcWebApi_get("String_Entry","JS_duplicate","s")%>");
+				return false;
+			}
+		}
 	}
 	wl_wdslist_array += "<";
 	wl_wdslist_array += obj.value;
 	obj.value = "";
 	show_wl_wdslist();
-	}else
-	return false;
 }
 function redirect(){
 	document.location.href = "/cgi-bin/Advanced_WMode_Content.asp";
@@ -314,17 +321,31 @@ document.getElementById("pull_arrow").src = "/images/arrow-down.gif";
 document.getElementById('WDSAPList').style.display='none';
 isMenuopen = 0;
 }
+
 function check_macaddr(obj,flag){ //control hint of input mac address
-if (flag){
-$("check_mac") ? $("check_mac").style.display="none" : true;
-}
-else{
-var childsel=document.createElement("div");
-childsel.setAttribute("id","check_mac");
-childsel.style.color="#FFCC00";
-obj.parentNode.appendChild(childsel);
-$("check_mac").innerHTML="<br><br>The format for the MAC address is six groups of two hexadecimal digits, separated by colons (:), in transmission order (e.g. 12:34:56:aa:bc:ef)";
-}
+	if(flag == 1) {
+		var childsel = document.createElement("div");
+		childsel.setAttribute("id","check_mac");
+		childsel.style.color = "#FFCC00";
+		obj.parentNode.appendChild(childsel);
+		document.getElementById("check_mac").innerHTML = '<br><br><%tcWebApi_get("String_Entry","LHC_MnlDHCPMacaddr_id","s")%>';
+		document.getElementById("check_mac").style.display = "";
+
+		return false;	
+	}
+	else if(flag == 2) {
+		var childsel = document.createElement("div");
+		childsel.setAttribute("id","check_mac");
+		childsel.style.color = "#FFCC00";
+		obj.parentNode.appendChild(childsel);
+		document.getElementById("check_mac").innerHTML = '<br><br><%tcWebApi_get("String_Entry","IPC_x_illegal_mac","s")%>';
+		document.getElementById("check_mac").style.display = "";
+		return false;			
+	}
+	else {
+		document.getElementById("check_mac") ? document.getElementById("check_mac").style.display="none" : true;
+		return true;
+	} 	
 }
 
 function _change_wl_unit(wl_unit){
@@ -504,7 +525,7 @@ function wl_bwch_hint(){
 <table id="MainTable2" width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable_table">
 <thead>
 <tr>
-				<td colspan="4"><%tcWebApi_get("String_Entry","WC11b_RBRList_groupitemdesc","s")%>(list limit:4)</td>
+				<td colspan="4"><%tcWebApi_get("String_Entry","WC11b_RBRList_groupitemdesc","s")%> (<%tcWebApi_get("String_Entry","List_limit","s")%> 4)</td>
 </tr>
 </thead>
 <tr>
@@ -515,7 +536,7 @@ function wl_bwch_hint(){
 </tr>
 <tr>
 <td width="70%">
-	<input type="text" style="margin-left:180px;float:left;" maxlength="17" class="input_macaddr_table" name="wl_wdslist_0" onKeyPress="return is_hwaddr(this,event)" onblur="check_macaddr(this,check_hwaddr_temp(this))">
+	<input type="text" style="margin-left:180px;float:left;" maxlength="17" class="input_macaddr_table" name="wl_wdslist_0" onKeyPress="return is_hwaddr(this,event)">
 	<img style="float:left;" id="pull_arrow" height="14px;" src="/images/arrow-down.gif" onclick="pullLANIPList(this);" title="<% tcWebApi_Get("String_Entry", "select_AP", "s") %>" onmouseover="over_var=1;" onmouseout="over_var=0;">
 	<div id="WDSAPList" class="WDSAPList">
 		<div style="width:98px">

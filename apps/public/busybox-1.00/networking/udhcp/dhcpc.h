@@ -29,6 +29,9 @@
 int min(int a, int b);
 static void dhcpExtractOption43(uint8_t  *data, int len);
 #endif
+#ifdef RTCONFIG_TR181
+#define OPT_VI_VENDOR_SPECIFIC 0x7D
+#endif
 
 struct client_config_t {
 	char foreground;		/* Do not fork */

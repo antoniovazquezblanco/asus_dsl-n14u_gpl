@@ -2,7 +2,15 @@ release_end: release_bootrom release_drivers release_apps release_clmp release_s
 	
 
 release_bootrom:
+#ifneq ($(strip $(TCSUPPORT_CPU_MT7510)),)
+ifneq ($(strip $(TCSUPPORT_CPU_MT7510) $(TCSUPPORT_CPU_MT7520)),)
+	@echo "release Bootrom for MT751020"
+	mkdir -p $(BOOTROM_DIR)/ddr_cal/reserved
+	cp -Rf $(BOOTROM_DIR)/ddr_cal/output/* $(BOOTROM_DIR)/ddr_cal/reserved/
+	cp -Rf $(BOOTROM_DIR)/ddr_cal/spram.c $(BOOTROM_DIR)/ddr_cal/reserved/
+else
 	echo "nothing to do!";
+endif
 
 release_drivers:
 	mkdir -p $(MODULES_PRIV_SRC_DIR)/ko/modules/$(TCPLATFORM)
@@ -89,10 +97,14 @@ endif
 
 #Release hw_nat
 ifneq ($(strip $(TCSUPPORT_RA_HWNAT)),)
+ifeq ($(strip $(TCSUPPORT_MT7510_FE)),)
 	cp -rf $(APP_RA_HWNAT_DIR)/ac  $(APP_BINARY_DIR)/$(TCPLATFORM)
 	cp -rf $(APP_RA_HWNAT_DIR)/acl  $(APP_BINARY_DIR)/$(TCPLATFORM)
-	cp -rf $(APP_RA_HWNAT_DIR)/hw_nat  $(APP_BINARY_DIR)/$(TCPLATFORM)
 	cp -rf $(APP_RA_HWNAT_DIR)/mtr  $(APP_BINARY_DIR)/$(TCPLATFORM)
+	cp -rf $(APP_RA_HWNAT_DIR)/hw_nat  $(APP_BINARY_DIR)/$(TCPLATFORM)
+else
+	cp -rf $(APP_RA_HWNAT_7510_DIR)/hw_nat  $(APP_BINARY_DIR)/$(TCPLATFORM)
+endif
 endif
 	
 #Release voip_api

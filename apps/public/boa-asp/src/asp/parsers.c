@@ -240,7 +240,18 @@ int	initandparserfile(void)
 	HASH	s_hash;
 	SParser	s_parse_tmp;
 
-	tcapi_get("LanguageSwitch_Entry", "Type", str_type);
+	//Andy Chiu, 2015/03/03. retry for cfg_manager restart scoket issue.
+	int res = 0, i;
+	for(i = 0; i < 5; ++i)
+	{
+		res = tcapi_get("LanguageSwitch_Entry", "Type", str_type);
+		if(!res && strlen(str_type) > 0 )
+			break;
+		
+		tcdbg_printf("[%s, %d]get lang failed!\n", __FUNCTION__, __LINE__);
+		sleep(1);
+	}
+	
 	if (strlen(str_type))
 		nIndex = atoi(str_type);
 

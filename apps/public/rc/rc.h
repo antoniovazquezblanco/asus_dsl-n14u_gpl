@@ -28,7 +28,7 @@
 #include <fcntl.h>
 #include <net/if.h>
 
-// #include <bcmnvram.h>
+#include <bcmnvram.h>
 // #include <bcmparams.h>
 #include "libtcapi.h"
 #include "tcapi.h"
@@ -36,6 +36,29 @@
 #include <utils.h>
 #include <shutils.h>
 #include <shared.h>
+#include <linux/version.h>
+
+#define USBCORE_MOD	"usbcore"
+#if defined (RTCONFIG_USB_XHCI)
+#define USB30_MOD	"xhci-hcd"
+#endif
+#define USB20_MOD	"ehci-hcd"
+#define USBSTORAGE_MOD	"usb-storage"
+#define SCSI_MOD	"scsi_mod"
+#define SD_MOD		"sd_mod"
+#define SG_MOD		"sg"
+#ifdef LINUX26
+#define USBOHCI_MOD	"ohci-hcd"
+#define USBUHCI_MOD	"uhci-hcd"
+#define USBPRINTER_MOD	"usblp"
+#define SCSI_WAIT_MOD	"scsi_wait_scan"
+#define USBFS		"usbfs"
+#else
+#define USBOHCI_MOD	"usb-ohci"
+#define USBUHCI_MOD	"usb-uhci"
+#define USBPRINTER_MOD	"printer"
+#define USBFS		"usbdevfs"
+#endif
 
 #ifdef RTCONFIG_IPV6
 extern char wan6face[];
@@ -82,12 +105,14 @@ do {					\
 #ifndef MAX_WAIT_FILE
 #define MAX_WAIT_FILE 5
 #endif
-#define PPP_DIR "/tmp/ppp/peers"
-#define PPP_CONF_FOR_3G "/tmp/ppp/peers/3g"
+#define PPP_DIR "/etc/ppp/peers"
+#define PPP_CONF_FOR_3G "/etc/ppp/peers/3g"
+#define PPP_IF	"ppp%d"
 
 #ifdef RTCONFIG_USB_BECEEM
 #define BECEEM_DIR "/tmp/Beceem_firmware"
-#define BECEEM_CONF "/tmp/Beceem_firmware/wimaxd.conf"
+#define WIMAX_CONF "/tmp/wimax.conf"
+#define WIMAX_LOG "/tmp/wimax.log"
 #endif
 
 #ifndef FALSE
@@ -143,6 +168,8 @@ typedef enum { IPT_TABLE_NAT, IPT_TABLE_FILTER, IPT_TABLE_MANGLE } ipt_table_t;
 extern int init_main(int argc, char *argv[]);
 extern int reboothalt_main(int argc, char *argv[]);
 extern int console_main(int argc, char *argv[]);
+extern void clean_modem_state(int flag);
+extern void clean_wanduck_state(int unit);
 
 // interface.c
 extern int _ifconfig(const char *name, int flags, const char *addr, const char *netmask, const char *dstaddr);
@@ -164,7 +191,11 @@ extern int wanx_ifunit(char *wan_ifname);
 extern int preset_wan_routes(char *wan_ifname);
 extern int found_default_route(int wan_unit);
 extern int autodet_main(int argc, char *argv[]);
-
+#ifdef RTCONFIG_USB_MODEM
+void start_wan_if(int unit);
+void stop_wan_if(int unit);
+#endif
+int restart_dnsmasq(char *ifname, char *dns);
 
 // firewall.c
 extern int start_firewall(int wanunit, int lanunit);
@@ -178,13 +209,16 @@ extern int ip6up_main(int argc, char **argv);
 extern int ip6down_main(int argc, char **argv);
 #endif
 extern int authfail_main(int argc, char **argv);
-extern int pppevent_main(int argc, char **argv);
-extern int set_pppoepid_main(int argc, char **argv);	// by tallest 1219
-extern int pppoe_down_main(int argc, char **argv);		// by tallest 0407
+extern int ppp_ifunit(char *ifname);
+extern int ppp_linkunit(char *linkname);
+extern void USB_restart_dnsmasq(void);
 
 // pppd.c
 extern int start_pppd(int unit);
-extern void start_pppoe_relay(char *wan_if);
+extern void stop_pppd(int unit);
+extern int start_demand_ppp(int unit, int wait);
+extern int start_pppoe_relay(char *wan_if);
+extern void stop_pppoe_relay(void);
 
 // network.c
 extern void set_host_domain_name(void);
@@ -261,9 +295,12 @@ extern int ntp_main(int argc, char *argv[]);
 extern int ots_main(int argc, char *argv[]);
 
 // common.c
-extern in_addr_t inet_addr_(const char *cp);    // oleg patch
+extern in_addr_t inet_addr_(const char *cp);	// oleg patch
+extern int inet_equal(char *addr1, char *mask1, char *addr2, char *mask2);
 extern void usage_exit(const char *cmd, const char *help) __attribute__ ((noreturn));
 #define modprobe(mod, args...) ({ char *argv[] = { "/sbin/modprobe", mod, ## args, NULL }; _eval(argv, NULL, 0, NULL); })
+extern int insertmod(char *mod_full_path);
+extern int removemod(char *mod_name);
 extern int modprobe_r(const char *mod);
 #define xstart(args...)	_xstart(args, NULL)
 extern int _xstart(const char *cmd, ...);
@@ -282,7 +319,6 @@ extern long fappend(FILE *out, const char *fname);
 extern long fappend_file(const char *path, const char *fname);
 extern void logmessage(char *logheader, char *fmt, ...);
 extern char *trim_r(char *str);
-
 extern void restart_lfp(void);
 extern int get_meminfo_item(const char *name);
 extern void setup_timezone(void);
@@ -297,27 +333,26 @@ extern void time_zone_x_mapping(void);
 // ssh.c
 
 // usb.c
-// #ifdef RTCONFIG_USB
-#ifdef TCSUPPORT_USBHOST
+#ifdef RTCONFIG_USB
 FILE* fopen_or_warn(const char *path, const char *mode);
 extern void hotplug_usb(void);
 extern void start_usb(void);
+extern void remove_usb_module(void);
 extern void stop_usb(void);
 extern void start_lpd();
 extern void stop_lpd();
 extern void start_u2ec();
 extern void stop_u2ec();
-int ejusb_main(int argc, char *argv[]);
+extern int ejusb_main(int argc, char *argv[]);
 extern void webdav_account_default(void);
 extern void remove_storage_main(int shutdn);
 extern int start_usbled(void);
 extern int stop_usbled(void);
 extern void restart_nas_services(int stop, int start);
-extern void stop_nas_services();
+extern void stop_nas_services(int force);
 #endif
 extern void start_webdav(void);
-// #ifdef RTCONFIG_USB_PRINTER
-#ifdef TCSUPPORT_USB_PRINTER_SERVER
+#ifdef RTCONFIG_USB_PRINTER
 extern void start_usblpsrv(void);
 #endif
 #ifdef RTCONFIG_SAMBASRV
@@ -327,6 +362,9 @@ extern void start_samba(void);
 #endif
 #ifdef RTCONFIG_WEBDAV
 extern void stop_webdav(void);
+extern void stop_all_webdav(void);
+#else
+static inline void stop_all_webdav(void) { }
 #endif
 #ifdef RTCONFIG_FTP
 extern void stop_ftpd(void);
@@ -339,7 +377,16 @@ extern void start_cloudsync(void);
 #if defined(RTCONFIG_APP_PREINSTALLED) || defined(RTCONFIG_APP_NETINSTALLED)
 extern int stop_app(void);
 extern int start_app(void);
+extern void usb_notify();
 #endif
+
+#ifdef RTCONFIG_DISK_MONITOR
+extern void start_diskmon(void);
+extern void stop_diskmon(void);
+extern int diskmon_main(int argc, char *argv[]);
+extern void remove_pool_error(const char *device, const char *flag);
+#endif
+extern int diskremove_main(int argc, char *argv[]);
 
 #ifdef RTCONFIG_CIFS
 extern void start_cifs(void);
@@ -349,35 +396,41 @@ extern int mount_cifs_main(int argc, char *argv[]);
 static inline void start_cifs(void) {};
 static inline void stop_cifs(void) {};
 #endif
+#ifdef TCSUPPORT_SWAP_FILE
+extern void start_swapfile(char *mountpoint);
+extern void stop_swapfile(char *mountpoint);
+#endif
 
 // linkmonitor.c
 extern int linkmonitor_main(int argc, char *argv[]);
 
 // vpn.c
-#ifdef RTCONFIG_OPENVPN
-extern void start_vpnclient(int clientNum);
-extern void stop_vpnclient(int clientNum);
-extern void start_vpnserver(int serverNum);
-extern void stop_vpnserver(int serverNum);
-extern void start_vpn_eas();
-extern void run_vpn_firewall_scripts();
-extern void write_vpn_dnsmasq_config(FILE*);
-extern int write_vpn_resolv(FILE*);
-#else
-/*
-static inline void start_vpnclient(int clientNum) {}
-static inline void stop_vpnclient(int clientNum) {}
-static inline void start_vpnserver(int serverNum) {}
-static inline void stop_vpnserver(int serverNum) {}
-static inline void run_vpn_firewall_scripts() {}
-static inline void write_vpn_dnsmasq_config(FILE*) {}
-*/
-static inline void start_vpn_eas() { }
-#define write_vpn_resolv(f) (0)
+extern void start_pptpd(void);
+extern void stop_pptpd(void);
+
+// vpnc.c
+#ifdef RTCONFIG_VPNC
+extern int start_vpnc(void);
+extern void stop_vpnc(void);
+extern int vpnc_ipup_main(int argc, char **argv);
+extern int vpnc_ipdown_main(int argc, char **argv);
+extern int vpnc_ippreup_main(int argc, char **argv);
+extern int vpnc_authfail_main(int argc, char **argv);
+extern void update_vpnc_state(int state, int reason);
+#ifdef TCSUPPORT_IPV6
+extern int vpnc_ip6up_main(int argc, char **argv);
+extern int vpnc_ip6down_main(int argc, char **argv);
+#endif
+#endif
+
+// tr069.c
+#ifdef RTCONFIG_TR069
+extern int start_tr(void);
+extern void stop_tr(void);
 #endif
 
 // wanduck.c
-extern int wanduck_main(int argc, const char *argv[]);
+extern int wanduck_main(int argc, char *argv[]);
 
 // tcpcheck.c
 extern int setupsocket(int sock);
@@ -387,11 +440,10 @@ extern void failedconnect(int i);
 extern void subtime(struct timeval *a, struct timeval *b, struct timeval *res);
 extern void setupset(fd_set *theset, int *numfds);
 extern void waitforconnects();
-extern int tcpcheck_main(int argc, const char *argv[]);
+extern int tcpcheck_main(int argc, char *argv[]);
 
 // usb_devices.c
-// #ifdef RTCONFIG_USB
-#ifdef TCSUPPORT_USBHOST
+#ifdef RTCONFIG_USB
 extern int asus_sd(const char *device_name, const char *action);
 extern int asus_lp(const char *device_name, const char *action);
 extern int asus_sr(const char *device_name, const char *action);
@@ -400,15 +452,23 @@ extern int asus_usb_interface(const char *device_name, const char *action);
 extern int asus_sg(const char *device_name, const char *action);
 extern int asus_usbbcm(const char *device_name, const char *action);
 #endif
+#ifdef RTCONFIG_USB_MODEM
+extern int is_create_file_dongle(const unsigned int vid, const unsigned int pid);
 #ifdef RTCONFIG_USB_BECEEM
+extern int is_beceem_dongle(const int mode, const unsigned int vid, const unsigned int pid);
+extern int is_samsung_dongle(const int mode, const unsigned int vid, const unsigned int pid);
+extern int is_gct_dongle(const int mode, const unsigned int vid, const unsigned int pid);
 extern int write_beceem_conf(const char *eth_node);
+extern int write_gct_conf(void);
 #endif
-// #ifdef RTCONFIG_USB_MODEM
-#ifdef TCSUPPORT_USB_3G_DONGLE
-extern int is_create_file_dongle(const char *vid, const char *pid);
+extern int is_android_phone(const int mode, const unsigned int vid, const unsigned int pid);
+extern int is_storage_cd(const int mode, const unsigned int vid, const unsigned int pid);
+extern int write_3g_conf(FILE *fp, int dno, int aut, const unsigned int vid, const unsigned int pid);
+extern int init_3g_param(const char *port_path, const unsigned int vid, const unsigned int pid);
+extern int write_3g_ppp_conf(void);
 #endif
 
-//service.c
+//services.c
 extern void write_static_leases(char *file);
 #ifdef RTCONFIG_DNSMASQ
 extern void restart_dnsmasq();

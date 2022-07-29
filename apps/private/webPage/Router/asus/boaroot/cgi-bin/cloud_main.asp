@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <html xmlns:v>
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -262,16 +262,16 @@ This agreement constitutes the entire agreement between you and ASUS with respec
 							<div class="tabclick"><span>AiCloud</span></div>
 						</td>
 						<td>
-							<a href="cloud_sync.asp"><div class="tab" id="tab_smartsync"><span>Smart Sync</span></div></a>
+							<a href="cloud_sync.asp"><div class="tab" id="tab_smartsync"><span><% tcWebApi_Get("String_Entry","smart_sync","s") %></span></div></a>
 						</td>
 						<td>
-							<a id="rrsLink" href="cloud_router_sync.asp"><div class="tab" id="tab_routersync"><span>Sync Server</span></div></a>
+							<a id="rrsLink" href="cloud_router_sync.asp"><div class="tab" id="tab_routersync"><span><% tcWebApi_Get("String_Entry","Server_Sync","s") %></span></div></a>
 						</td>
 						<td>
-							<a href="cloud_settings.asp"><div class="tab" id="tab_setting"><span>Settings</span></div></a>
+							<a href="cloud_settings.asp"><div class="tab" id="tab_setting"><span><% tcWebApi_Get("String_Entry","Settings","s") %></span></div></a>
 						</td>
 						<td>
-							<a href="cloud_syslog.asp"><div class="tab" id="tab_syslog"><span>Log</span></div></a>
+							<a href="cloud_syslog.asp"><div class="tab" id="tab_syslog"><span><% tcWebApi_Get("String_Entry","Log","s") %></span></div></a>
 						</td>
 					</tr>
 					</tbody>
@@ -478,7 +478,7 @@ This agreement constitutes the entire agreement between you and ASUS with respec
 									    <td bgcolor="#444f53" class="cloud_main_radius_left" width="20%" height="50px">
 												<div align="center">
 													<img src="/images/cloudsync/003.png">
-													<div align="center" style="margin-top:10px;font-size: 18px;text-shadow: 1px 1px 0px black;">Smart Sync</div>
+													<div align="center" style="margin-top:10px;font-size: 18px;text-shadow: 1px 1px 0px black;"><% tcWebApi_Get("String_Entry","smart_sync","s") %></div>
 													<!--img width="50px" src="/images/cloudsync/Status_fin.png" style="margin-top:-50px;margin-left:80px;"-->
 												</div>
 											</td>

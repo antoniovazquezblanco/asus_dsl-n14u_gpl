@@ -30,6 +30,7 @@ Notes:		Here we are using the sendto and recvfrom
 
 #endif
 
+#define KERNEL_2_6_36 		(LINUX_VERSION_CODE > KERNEL_VERSION(2,6,31))
 #if 0
 //Marfada 07.12.06
 #include <signal.h>
@@ -91,7 +92,11 @@ int isvalidip(struct sockaddr_in client);
 unsigned int mark;
 int marklen;
 #if defined(TCSUPPORT_IPV6_TFTP)
+#if KERNEL_2_6_36
+#define 	IPV6_SKB_MARK 	74
+#else
 #define 	IPV6_SKB_MARK 	50
+#endif
 #endif
 #define 	IP_SKB_MARK 	50
 #define SSID1_PORT_MASK 5
@@ -112,8 +117,8 @@ int datasize = DEFBLOCKSIZE;
 #endif
 #endif
 
-#ifndef TC3262
-#define MAX_RECV_FILE_SIZE	0x400000 					//4.5MB
+#if defined(TCSUPPORT_CPU_MT7510) || defined(TCSUPPORT_CPU_MT7520)
+#define MAX_RECV_FILE_SIZE	0xc00000 					//12MB
 #else
 #define MAX_RECV_FILE_SIZE	0x800000 					//5.5MB
 #endif

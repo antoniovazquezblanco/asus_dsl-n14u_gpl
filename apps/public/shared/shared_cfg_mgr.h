@@ -1,7 +1,6 @@
 #ifndef __SHARED_H__
 #define __SHARED_H__
 
-// #include <rtconfig.h>
 #include <netinet/in.h>
 #include <stdint.h>
 #include <errno.h>
@@ -129,6 +128,11 @@ extern int mtd_getinfo(const char *mtdname, int *part, int *size);
 extern int foreach_wif(int include_vifs, void *param,
 	int (*func)(int idx, int unit, int subunit, void *param));
 
+//shutils.c
+extern void dbgprintf (const char * format, ...); //Ren
+extern void cprintf(const char *format, ...);
+extern int _eval(char *const argv[], const char *path, int timeout, int *ppid);
+
 // usb.c
 // #ifdef RTCONFIG_USB
 #ifdef TCSUPPORT_USBHOST
@@ -172,6 +176,10 @@ enum {
 	MODEL_DSLN12EC1,
 	MODEL_DSLN12UC1,
 	MODEL_DSLN14U,
+	MODEL_DSLAC56U,
+	MODEL_DSLN17U,
+	MODEL_DSLAC52U,
+	MODEL_DSLN16,
 	MODEL_GENERIC
 };
 

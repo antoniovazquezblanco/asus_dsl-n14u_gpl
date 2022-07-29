@@ -184,14 +184,6 @@ function submitForm(){
 	document.form.submit();
 }
 
-function gotoIndex(){
-	if (w_Setting == "0") {
-		alert("<% tcWebApi_Get("String_Entry", "QIS_recommand_encryption", "s") %>");
-		location.href = '/cgi-bin/qis/QIS_wireless.asp';
-	}
-	else
-		parent.location.href = '../index2.asp';
-}
 </script>
 </head>
 <body onLoad="QKfinish_load_body();" >
@@ -219,9 +211,9 @@ function gotoIndex(){
 		<td align="left">
 			<span class="description_down"><% tcWebApi_Get("String_Entry", "Manual_Setting_Title", "s") %></span>
 		</td>
-		<td align="right">
+		<!--td align="right">
 			<img onclick="gotoIndex();" style="cursor:pointer;" align="right" title="Go to Home" src="/images/backtohome.png" onMouseOver="this.src='/images/backtohomeclick.png'" onMouseOut="this.src='/images/backtohome.png'">
-		</td>
+		</td-->
 	</tr>
 </table>
 </div>
@@ -254,8 +246,8 @@ function gotoIndex(){
 <legend>
 <%tcWebApi_get("String_Entry","L3F_x_UseStaticIP_in","s")%>
 <span id="dhcp_info_radio">
-<input type="radio" name="x_DHCPClient" class="input" value="0" onclick="show_dhcpenable(this.value);"><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
-<input type="radio" name="x_DHCPClient" class="input" value="1" onclick="show_dhcpenable(this.value);"><%tcWebApi_get("String_Entry","checkbox_No","s")%>
+<input type="radio" name="x_DHCPClient" tabindex="1" class="input" value="0" onclick="show_dhcpenable(this.value);"><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
+<input type="radio" name="x_DHCPClient" tabindex="2" class="input" value="1" onclick="show_dhcpenable(this.value);"><%tcWebApi_get("String_Entry","checkbox_No","s")%>
 </span>
 </legend>
 <table id="tblsetting_2" class="QISform" width="400" border="0" align="center" cellpadding="3" cellspacing="0">
@@ -266,7 +258,7 @@ function gotoIndex(){
 <td class="QISformtd">
 <input type="hidden" id="dsl_ipaddr" name="dsl_ipaddr" value="" maxlength="15" onkeypress="return is_ipaddr(this);" onkeyup="change_ipaddr(this);" title="WAN IP">
 <div class="IPaddr" id="dsl_ipaddr_div">
-<input maxlength="3"
+<input maxlength="3" tabindex="3"
 name="dsl_ipaddr1";
 onkeypress="return checkIP(this,event);"
 onkeyup="return checkWord(this,event);"
@@ -303,7 +295,7 @@ autocomplete="off" />
 <td class="QISformtd">
 <input type="hidden" id="dsl_netmask" name="dsl_netmask" value="" maxlength="15" title="WAN Subnet Mask">
 <div class="IPaddr" id="dsl_netmask_div">
-<input maxlength="3"
+<input maxlength="3" tabindex="4"
 name="dsl_netmask1"
 onkeypress="return checkIP(this,event);"
 onkeyup="return checkWord(this,event);"
@@ -349,7 +341,7 @@ onblur="validateIP(this);"
 onpaste="return !clipboardData.getData('text').match(/\D/)"
 ondragenter="return false"
 autocomplete="off" />.
-<input maxlength="3"
+<input maxlength="3" tabindex="5"
 onkeypress="return checkIP(this,event);"
 onkeyup="return checkWord(this,event);"
 onblur="validateIP(this);"
@@ -381,8 +373,8 @@ autocomplete="off" />
 <legend>
 <span id="dns_info_title"><%tcWebApi_get("String_Entry","qis_dns","s")%>:</span>
 <span id="dns_info_radio">
-<input type="radio" name="wan_dnsenable_x" value="1" onclick="show_dnsenable(this.value);" class="input"><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
-<input type="radio" name="wan_dnsenable_x" value="0" onclick="show_dnsenable(this.value);" class="input"><%tcWebApi_get("String_Entry","checkbox_No","s")%>
+<input type="radio" name="wan_dnsenable_x" value="1" tabindex="6" onclick="show_dnsenable(this.value);" class="input"><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
+<input type="radio" name="wan_dnsenable_x" value="0" tabindex="7" onclick="show_dnsenable(this.value);" class="input"><%tcWebApi_get("String_Entry","checkbox_No","s")%>
 </span>
 </legend>
 <table id="tblsetting_4" class="QISform" width="400" border=0 align="center" cellpadding="5" cellspacing="0">
@@ -393,7 +385,7 @@ autocomplete="off" />
 <td class="QISformtd">
 <input type="hidden" id="dsl_dns1_x" name="dsl_dns1_x" value="" onkeypress="return is_ipaddr(this);" onkeyup="return change_ipaddr(this);" maxlength="15">
 <div class="IPaddr" id="dsl_dns1_x_div">
-<input maxlength="3"
+<input maxlength="3" tabindex="8"
 name="dsl_dns1_x1"
 onkeypress="return checkIP(this,event);"
 onkeyup="return checkWord(this,event);"
@@ -432,7 +424,7 @@ autocomplete="off" />
 <td class="QISformtd">
 <input type="hidden" id="dsl_dns2_x" name="dsl_dns2_x" value="" maxlength="15" onkeypress="return is_ipaddr(this);" onkeyup="return change_ipaddr(this);">
 <div class="IPaddr" id="dsl_dns2_x_div">
-<input maxlength="3"
+<input maxlength="3" tabindex="9"
 onkeypress="return checkIP(this,event);"
 onkeyup="return checkWord(this,event);"
 onblur="validateIP(this);"
@@ -471,7 +463,7 @@ autocomplete="off" />
 	<th width="120"><span id="ppp_username1" style="display:none">PPP <% tcWebApi_Get("String_Entry", "PPPC_UserName_in", "s") %>:</span></th>
 	<td>
 	  <span id="ppp_username2" style="display:none">
-	  <input type="text" name="ppp_username" value="" maxlength="64" class="input_32_table">
+	  <input type="text" name="ppp_username" value="" tabindex="10" maxlength="64" class="input_32_table" autocapitalization="off" autocomplete="off">
 	  </span>
 	</td>
   </tr>
@@ -479,15 +471,15 @@ autocomplete="off" />
 	<th width="120"><span id="ppp_password1" style="display:none">PPP <% tcWebApi_Get("String_Entry", "PPPC_Password_in", "s") %>:</span></th>
 	<td>
 	  <span id="ppp_password2" style="display:none">
-	  <input type="text" name="ppp_password" value="" maxlength="64" class="input_32_table">
+	  <input type="text" name="ppp_password" value="" tabindex="11" maxlength="64" class="input_32_table" autocapitalization="off" autocomplete="off">
 	  </span>
 	</td>
   </tr>
 </table>
 </td></tr></table>
 <div class="apply_gen" style="margin-top:30px">
-<input type="button" id="prevButton" value="<% tcWebApi_Get("String_Entry", "Manual_Setting_btn", "s") %>" onclick="gotoprev(document.form);" class="button_gen" >
-<input type="button" id="nextButton" value="<% tcWebApi_Get("String_Entry", "btn_next", "s") %>" onclick="submitForm();" class="button_gen">
+<input type="button" id="prevButton" value="<% tcWebApi_Get("String_Entry", "Manual_Setting_btn", "s") %>" tabindex="13" onclick="gotoprev(document.form);" class="button_gen" >
+<input type="button" id="nextButton" value="<% tcWebApi_Get("String_Entry", "btn_next", "s") %>" tabindex="12" onclick="submitForm();" class="button_gen">
 </div>
 </div>
 </form>

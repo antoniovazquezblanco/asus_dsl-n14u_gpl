@@ -262,8 +262,7 @@ int req_flush(request * req)
 	}
 #if defined(TCSUPPORT_WEBSERVER_SSL)
 	else{
-		int retCode = 0;
-		bytes_written = boa_sslWrite(req->ssl, req->buffer + req->buffer_start, bytes_to_write,&retCode);
+		bytes_written = boa_sslWrite(req->ssl, req->buffer + req->buffer_start, bytes_to_write);
 	}
 #endif
         if (bytes_written < 0) {

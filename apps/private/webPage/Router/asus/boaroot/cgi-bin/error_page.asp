@@ -170,9 +170,7 @@ function manually_start_wan_Link(){
 
 function change_lan_subnet(){
 	showLoadingBar(reboot_time);
-
 	send_setting();
-
 	setTimeout("check_system_ready();", reboot_time*1000);
 }
 

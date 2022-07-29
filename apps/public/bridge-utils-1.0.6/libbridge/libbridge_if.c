@@ -115,6 +115,7 @@ int br_del_interface(const char *bridge, const char *dev)
 
 	return err < 0 ? errno : 0;
 }
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,36)
 #ifdef TCSUPPORT_MLD_SNOOPING
 int br_mldsnooping_set_age(const char *bridge, struct timeval *tv)
 {
@@ -151,4 +152,5 @@ int br_mldsnooping_show(const char *bridge)
 	
 	return ret < 0 ? errno : 0;
 }
+#endif
 #endif

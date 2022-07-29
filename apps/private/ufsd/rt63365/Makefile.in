@@ -31,6 +31,14 @@ MODULE_EXTRA_FLAGS += -DNDEBUG -g0
 LDFLAGS   += -s -O2 -d -x -X
 endif
 
+ifeq (@BUILD_WITH_TRACE@,1)
+    MODULE_EXTRA_FLAGS += -DUFSD_TRACE
+endif
+
+ifeq (@BUILD_WITH_TRACEK@,0)
+    MODULE_EXTRA_FLAGS += -DUFSD_NO_PRINTK
+endif
+
 ifndef CONFIG_UFSD_FS
     CONFIG_UFSD_FS = m
 endif

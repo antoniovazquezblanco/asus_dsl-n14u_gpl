@@ -135,6 +135,7 @@ static const struct t_op {
 	"-L", FILSYM, UNOP}, {
 	"-S", FILSOCK, UNOP}, {
 	"=", STREQ, BINOP}, {
+	"==", STREQ, BINOP}, { /* Renjie: Add the operand '==' for string comparison */
 	"!=", STRNE, BINOP}, {
 	"<", STRLT, BINOP}, {
 	">", STRGT, BINOP}, {

@@ -29,7 +29,7 @@ end if
 
 <!--Advanced_VirtualServer_Content.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -44,6 +44,46 @@ end if
 <script language="JavaScript" type="text/javascript" src="/popup.js"></script>
 <script language="JavaScript" type="text/javascript" src="/client_function.js"></script>
 <script language="JavaScript" type="text/javascript" src="/detect.js"></script>
+<style>
+#ClientList_Block{
+border:1px outset #999;
+background-color:#576D73;
+position:absolute;
+*margin-top:27px;
+margin-left:2px;
+*margin-left:-223px;
+width:340px;
+text-align:left;	
+height:auto;
+overflow-y:auto;
+z-index:200;
+padding: 1px;
+display:none;
+}
+#ClientList_Block div{
+background-color:#576D73;
+height:auto;
+*height:20px;
+width:auto;
+font-size:12px;
+line-height:20px;
+text-decoration:none;
+font-family: Lucida Console;
+padding-left:2px;
+}
+#ClientList_Block a{
+background-color:#EFEFEF;
+color:#FFF;
+font-size:12px;
+font-family:Arial, Helvetica, sans-serif;
+text-decoration:none;
+}
+#ClientList_Block div:hover, #ClientList_Block a:hover{
+background-color:#3366FF;
+color:#FFFFFF;
+cursor:default;
+}
+</style>
 <script>
 var wItem = new Array(new Array("", "", "TCP"),
 new Array("FTP", "20,21", "TCP"),
@@ -86,8 +126,7 @@ var arls = []; // [[MAC, port, x, x], ...]
 var wireless = []; // [[MAC, associated, authorized], ...]
 var ipmonitor = []; // [[IP, MAC, DeviceName, Type, http, printer, iTune], ...]
 var networkmap_fullscan = 'done'; //2008.07.24 Add. 1 stands for complete, 0 stands for scanning.;
-var clients_info = getclients();
-/*var vts_rulelist_array = "<%TCWebApi_get("VirServer_PVC0_Entry0","vts_rulelist","s")%>";	*///javi
+
 var vts_rulelist_array = "<%TCWebApi_get("VirServer_PVC0_Entry0","VirServer_RuleList","s")%>";	//javi
 var ctf_disable = '';
 
@@ -361,65 +400,31 @@ over_var = 0;
 }
 
 function showLANIPList(){
-	var code = "";
-	var show_name = "";
-
-	//var arp_list = [['192.168.1.8','00:60:6E:92:EC:53'],['192.168.1.2','84:38:35:C0:C4:33'],['','']];
-	var arp_list = [<% tcWebApi_get_arp_list() %>['','']];
-	for(var i =0; i<tableData.length; i++){
-		if(tableData[i][2] != ""){
-			if(tableData[i][3] == "00:00:00:00:00:00")	//Viz add special case, remove it after tableData fixed
-				continue;
-			else{
-				if(tableData[i][1] && tableData[i][1].length > 12)
-					show_name = tableData[i][1].substring(0, 10) + "..";
-				else
-				{
-					if(tableData[i][1] == "N/A")
-						show_name = tableData[i][3];
-					else
-						show_name = tableData[i][1];
-				}
-
-				//tableData = [["1", "BVA-NB","192.168.177.168","00:22:15:A5:03:68"], [xx], ..]
-				if(tableData[i][2])
-					code += '<a href="#"><div onmouseover="over_var=1;" onmouseout="over_var=0;" onclick="setClientIP(\''+tableData[i][2]+'\');"><strong>'+tableData[i][2]+'</strong> ';
-
-				if(show_name && show_name.length > 0)
-					code += '( '+show_name+')';
-				code += ' </div></a>';
-			}
-		}
+	if(clientList.length == 0){
+		setTimeout(function() {
+			genClientList();
+			showLANIPList();
+		}, 500);
+		return false;
 	}
-
-	for(var i =0; i<arp_list.length; i++){
-		var found = "0";
 		
-		if(arp_list[i][0] != ""){
-			for(var j =0; j<tableData.length; j++){
-				if(arp_list[i][0] == tableData[j][2]){
-					found = "1";
-					
-					//Viz add special case, remove it after tableData fixed
-						if(tableData[j][3] == "00:00:00:00:00:00")
-								found = "0";						
-					
-					break;
-				}
-			}
-		}
-			
-		if(found == "0"){
-			if(arp_list[i][0] != ""){
-				code += '<a href="#"><div onmouseover="over_var=1;" onmouseout="over_var=0;" onclick="setClientIP(\''+arp_list[i][0]+'\');"><strong>'+arp_list[i][0]+'</strong> ';
-				code += '( '+arp_list[i][1]+')';
-				code += ' </div></a>';
-			}
-		}
+	var htmlCode = "";
+	for(var i=0; i<clientList.length;i++){
+		var clientObj = clientList[clientList[i]];
+
+		if(clientObj.ip == "offline") clientObj.ip = "";
+		if(clientObj.Name.length > 30) clientObj.Name = clientObj.Name.substring(0, 27) + "...";
+
+		htmlCode += '<a><div onmouseover="over_var=1;" onmouseout="over_var=0;" onclick="setClientIP(\'';
+		htmlCode += clientObj.IP;
+		htmlCode += '\');"><strong>';
+		htmlCode += clientObj.Name;
+		htmlCode += '</strong> ( ';
+		htmlCode += clientObj.IP;
+		htmlCode += ' )</div></a><!--[if lte IE 6.5]><iframe class="hackiframe2"></iframe><![endif]-->';	
 	}
 
-	code +='<!--[if lte IE 6.5]><iframe class="hackiframe2"></iframe><![endif]-->';
-	$("ClientList_Block").innerHTML = code;
+	$("ClientList_Block").innerHTML = htmlCode;
 }
 
 function loadNewvts_rulelist(){
@@ -838,7 +843,7 @@ function redirect(){
 <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" class="FormTable_table">
 <thead>
 <tr>
-<td colspan="7"><%tcWebApi_get("String_Entry","IPC_VSList_title","s")%>(list limit:32)</td>
+<td colspan="7"><%tcWebApi_get("String_Entry","IPC_VSList_title","s")%> (<%tcWebApi_get("String_Entry","List_limit","s")%> 32)</td>
 </tr>
 </thead>
 <tr>

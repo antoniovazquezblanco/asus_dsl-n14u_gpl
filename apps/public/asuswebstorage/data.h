@@ -55,8 +55,8 @@ typedef struct SERVICEGATEWAY
 {
     int status;
     char gateway[MINSIZE];
-    char liveupdateuri[NORMALSIZE];
-    char time[MINSIZE];
+//    char liveupdateuri[NORMALSIZE];
+//    char time[MINSIZE];
 }Servicegateway;
 
 /*get tokey struct*/
@@ -81,6 +81,9 @@ typedef struct AAA
     char webrelay[MINSIZE];
     Package package;
     char auxpasswordurl[256];
+    char gateway[MINSIZE];         //for reuse token add
+    char user[256];                //for reuse token add
+    char pwd[256];                 //for reuse token add
 }Aaa;
 
 /*initbinaryupload struct*/
@@ -89,6 +92,7 @@ typedef struct INITBINARYUPLOAD
     int status;
     char transid[NORMALSIZE];
     int offset;
+    char latestchecksum[256];
     char logmessage[NORMALSIZE];
     int fileid;
 }Initbinaryupload;
@@ -124,66 +128,66 @@ typedef struct PAGE
 
 typedef struct ATTRIBUTE
 {
-    char creationtime[MINSIZE];
-    char lastaccesstime[MINSIZE];
-    char lastwritetime[MINSIZE];
-    char finfo[MINSIZE];
-    char xtimeforsynccheck[NORMALSIZE];
-    char xmachinename[NORMALSIZE];
+//    char creationtime[MINSIZE];
+//    char lastaccesstime[MINSIZE];
+    char lastwritetime[16];
+//    char finfo[MINSIZE];
+//    char xtimeforsynccheck[NORMALSIZE];
+//    char xmachinename[NORMALSIZE];
 }Attribute;
 
 typedef struct FOLDER
 {
     int id;
-    long long treesize;
-    char display[NORMALSIZE];
-    Attribute attribute;
-    int isencrypted;
-    int issharing;
-    int isowner;
-    int isbackup;
-    int isorigdeleted;
-    int ispublic;
-    char createdtime[MINSIZE];
-    int markid;
-    char metadata[NORMALSIZE];
+//    long long treesize;
+    char *display;
+//    Attribute attribute;
+//    int isencrypted;
+//    int issharing;
+//    int isowner;
+//    int isbackup;
+//    int isorigdeleted;
+//    int ispublic;
+//    char createdtime[MINSIZE];
+//    int markid;
+//    char metadata[NORMALSIZE];
     int isdeleted;
 }Folder;
 
 typedef struct FILEATTRIBUTE
 {
-    char creationtime[MINSIZE];
-    char lastaccesstime[MINSIZE];
-    char lastwritetime[MINSIZE];
-    char finfo[MINSIZE];
-    char xtimeforsynccheck[NORMALSIZE];
-    char xmachinename[NORMALSIZE];
+//    char creationtime[MINSIZE];
+    char lastaccesstime[16];
+    char lastwritetime[16];
+//    char finfo[MINSIZE];
+//    char xtimeforsynccheck[NORMALSIZE];
+//    char xmachinename[NORMALSIZE];
 }Fileattribute;
 
 typedef struct FILE
 {
     int id;
-    int status;
-    char display[NORMALSIZE];
+//    int status;
+    char *display;
     Fileattribute attribute;
     long long size;
-    int isencrypted;
-    int isowner;
-    int isbackup;
-    int isorigdeleted;
-    int isinfected;
-    int ispublic;
-    int headversion;
-    char createdtime[MINSIZE];
-    int markid;
-    char metadata[NORMALSIZE];
+//    int isencrypted;
+//    int isowner;
+//    int isbackup;
+//    int isorigdeleted;
+//    int isinfected;
+//    int ispublic;
+//    int headversion;
+//    char createdtime[MINSIZE];
+//    int markid;
+//    char metadata[NORMALSIZE];
 }File;
 
 typedef struct BROWSE
 {
     int status;
-    char scrip[MINSIZE];
-    Parentfolder parentfolder;
+    //char scrip[MINSIZE];
+    //Parentfolder parentfolder;
     int foldernumber;
     int filenumber;
     Folder **folderlist;
@@ -194,14 +198,16 @@ typedef struct BROWSE
 /*struct local folder struct*/
 typedef struct LOCALFOLDER
 {
-  char name[NORMALSIZE];
+  //char name[NORMALSIZE];
+  char *name;
   //struct LOCALFOLDER *next;
   //int isfolder;
 }Localfolder;
 
 typedef struct LOCALFILE
 {
-    char name[NORMALSIZE];
+    //char name[NORMALSIZE];
+    char *name;
     Attribute attribute;
     long long size;
     //struct LOCALFILE *next;
@@ -408,11 +414,11 @@ Socket_Action *SocketActionTmp;*/
 typedef struct SOCKET_CMD
 {
     char cmd_name[32];
-    char filename[256];
-    char path[256];
-    char oldname[256]; //rename or move prename
-    char newname[256]; //rename new name
-    char oldpath[256]; //move old path
+    char filename[NORMALSIZE];
+    char path[1024];
+    char oldname[NORMALSIZE]; //rename or move prename
+    char newname[NORMALSIZE]; //rename new name
+    char oldpath[1024]; //move old path
 }Socket_cmd;
 
 /*muti dir read config*/
@@ -444,5 +450,10 @@ typedef struct USERSTATE
     char extensionstarttime[32];
     char extensionendtime[32];
 }Getuserstate;
+
+struct MemoryStruct {
+  char *memory;
+  size_t size;
+};
 
 #endif

@@ -378,6 +378,15 @@ int sendACK(struct dhcpMessage *oldpacket, uint32_t yiaddr)
 	
 	add_lease(packet.chaddr, packet.yiaddr, lease_time_align, hostname);
 
+#ifdef RTCONFIG_TR069
+	/* send add host event to tr069 */
+	char cmdhost[256] = {0};
+
+	memset(cmdhost, 0, sizeof(cmdhost));
+	snprintf(cmdhost, sizeof(cmdhost), "/usr/sbin/sendtocli http://127.0.0.1:1234/hostshost/device \"action=add&ipaddr=%s&hostname=%s\"", inet_ntoa(addr), hostname);
+	system(cmdhost);
+#endif
+
 	/* after DHCP server assign IP successfully, it need write leases to file*/
 	write_leases_enhance(NULL);
 
@@ -549,7 +558,16 @@ void insertDevice(struct dhcpMessage *packet)
 		gTR111_Parm.VITail->next = devp;
 		gTR111_Parm.VITail = devp;
 		//LOG(LOG_INFO, "Add a device into list.");
+#ifdef RTCONFIG_TR069
+		char cmd[256] = {0};
+
+		memset(cmd, 0, sizeof(cmd));
+		snprintf(cmd, sizeof(cmd), "/usr/sbin/sendtocli http://127.0.0.1:1234/manageable/device \"action=add&oui=%s&serial=%s&class=%s\"", 
+						devp->oui, devp->sn, devp->pclass);
+		system(cmd);
+#else
 		sendCwmpMsg(4); //message type:DEVICE_REINIT
+#endif
 		writeDevicesFile();
 		/* for test */
 		//cwmpShowmDev();
@@ -558,8 +576,9 @@ void insertDevice(struct dhcpMessage *packet)
 	{
 		free(devp);
 	}
-	
+#ifndef RTCONFIG_TR069	
 	writeHostIndexFile();
+#endif
 	return;
 }
 
@@ -610,10 +629,20 @@ void deleteDevice(struct dhcpMessage *packet)
 				gTR111_Parm.VITail = prevnode;
 			}		
 			prevnode->next = tmpnode->next;
+#ifdef RTCONFIG_TR069
+			char cmd[256] = {0};
+
+			memset(cmd, 0, sizeof(cmd));
+			snprintf(cmd, sizeof(cmd), "/usr/sbin/sendtocli http://127.0.0.1:1234/manageable/device \"action=del&oui=%s&serial=%s&class=%s\"", 
+							tmpnode->oui, tmpnode->sn, tmpnode->pclass);
+			system(cmd);
+#endif
 			free(tmpnode);
 			tmpnode = NULL;
 			//LOG(LOG_INFO, "Delete a device from list.");
+#ifndef RTCONFIG_TR069
 			sendCwmpMsg(4); //message type:DEVICE_REINIT
+#endif
 			writeDevicesFile();
 			/* for test */
 			//cwmpShowmDev();
@@ -622,7 +651,9 @@ void deleteDevice(struct dhcpMessage *packet)
 		prevnode = tmpnode;
 		tmpnode = tmpnode->next;
 	}
+#ifndef RTCONFIG_TR069
 	writeHostIndexFile();
+#endif
 }
 
 /* delete device by mac address */
@@ -637,6 +668,14 @@ void deleteDeviceByMac(uint8_t *macAddr)
 				gTR111_Parm.VITail = prevnode;
 			}		
 			prevnode->next = tmpnode->next;
+#ifdef RTCONFIG_TR069
+			char cmd[256] = {0};
+
+			memset(cmd, 0, sizeof(cmd));
+			snprintf(cmd, sizeof(cmd), "/usr/sbin/sendtocli http://127.0.0.1:1234/manageable/device \"action=del&oui=%s&serial=%s&class=%s\"", 
+							tmpnode->oui, tmpnode->sn, tmpnode->pclass);
+			system(cmd);
+#endif
 			free(tmpnode);
 			tmpnode = NULL;
 			//LOG(LOG_INFO, "Delete a device byMac from list.");
@@ -648,7 +687,9 @@ void deleteDeviceByMac(uint8_t *macAddr)
 		prevnode = tmpnode;
 		tmpnode = tmpnode->next;
 	}
+#ifndef RTCONFIG_TR069
 	writeHostIndexFile();
+#endif
 }
 
 /* get length of device list */
@@ -736,6 +777,17 @@ void writeDevicesFile(void)
 		LOG(LOG_ERR, "Unable to open %s for writing", DEVICE_INFO_FILE);
 		return;
 	}
+#ifdef RTCONFIG_TR069
+	char buf[128] = {0};
+
+	while (tmpnode != NULL){
+		snprintf(buf, sizeof(buf), "%s,%s,%s,%02X:%02X:%02X:%02X:%02X:%02X\n", tmpnode->oui, tmpnode->sn, tmpnode->pclass,
+									tmpnode->clientID[1], tmpnode->clientID[2], tmpnode->clientID[3],
+									tmpnode->clientID[4], tmpnode->clientID[5], tmpnode->clientID[6]);	
+		fwrite(buf, strlen(buf), 1, fp);
+		tmpnode = tmpnode->next;
+	}
+#else
 	sprintf(bufNumber, "totalCount = %-8lu\n", getDeviceNum());
 	fwrite(bufNumber, strlen(bufNumber), 1, fp);
 	while (tmpnode != NULL){
@@ -749,6 +801,7 @@ void writeDevicesFile(void)
 		i++;
 		tmpnode = tmpnode->next;
 	}
+#endif
 	fclose(fp);
 
 }
@@ -802,6 +855,7 @@ void dhcpRefresh(void)
 		}
 	}
 
+#ifndef RTCONFIG_TR069
 	memset(value, 0, sizeof(value));
 	
 	r_val = tcapi_get("DhcpClientLimit_Entry", "time", value);
@@ -842,5 +896,19 @@ void dhcpRefresh(void)
 			}
 		}
 	}
+#endif
+}
+#endif
+
+#ifdef RTCONFIG_TR069
+void deleteHost(struct dhcpMessage *oldpacket, uint32_t yiaddr)
+{
+	struct in_addr addr;
+	char cmdhost[256] = {0};
+
+	addr.s_addr = yiaddr;
+	memset(cmdhost, 0, sizeof(cmdhost));
+	snprintf(cmdhost, sizeof(cmdhost), "/usr/sbin/sendtocli http://127.0.0.1:1234/hostshost/device \"action=del&ipaddr=%s\"", inet_ntoa(addr));
+	system(cmdhost);	
 }
 #endif

@@ -1,3 +1,6 @@
+#ifndef __ASP_HANDLER_H__
+#define __ASP_HANDLER_H__
+
 #define MAX_NO_MSSID	4
 
 #ifndef _TCAPI_TUPLE
@@ -100,6 +103,7 @@ struct tcapi_tuple wlan_configuration_router_defaults[] = {
 	{"WLan_Entry", "ssid", "RT6856_2.4G_iNIC_jaja"},	//for match the element name in wlan_MBSSID_system_defaults
 	{"WLan_Common", "WirelessMode", "1"},
 	{"WLan_Entry", "TxRate", "0"},
+	{"WLan_Entry", "LedOff", "0"},
 	{"WLan_Common", "Channel", "1"},
 	{"WLan_Common", "BasicRate", "15"},
 	{"WLan_Common", "BeaconPeriod", "100"},
@@ -113,6 +117,12 @@ struct tcapi_tuple wlan_configuration_router_defaults[] = {
 	{"WLan_Common", "RTSThreshold", "2347"},
 	{"WLan_Common", "FragThreshold", "2346"},
 	{"WLan_Common", "TxBurst", "1"},
+	{"WLan_Common", "EDCCA_AP_STA_TH", "255"},
+	{"WLan_Common", "EDCCA_AP_AP_TH", "255"},
+	{"WLan_Common", "EDCCA_FALSE_CCA_TH", "3000"},
+	{"WLan_Common", "EDCCA_ED_TH", "90"},
+	{"WLan_Common", "EDCCA_BLOCK_CHECK_TH", "2"},
+	{"WLan_Common", "EDCCA_AP_RSSI_TH", "-80"},
 	{"WLan_Common", "PktAggregate", "0"},
 	{"WLan_Common", "TurboRate", "0"},
 	{"WLan_Entry", "WmmCapable", "0"},
@@ -573,6 +583,15 @@ struct tcapi_tuple wlan_configuration_router_defaults[] = {
 	{"WLan_Common", "RTSThreshold", "2347"},
 	{"WLan_Common", "FragThreshold", "2346"},
 	{"WLan_Common", "TxBurst", "1"},
+#if defined(DSL_N55U_D1)
+	{"WLan_Common", "ED_MODE", "2"},
+#endif
+	{"WLan_Common", "EDCCA_AP_STA_TH", "255"},
+	{"WLan_Common", "EDCCA_AP_AP_TH", "255"},
+	{"WLan_Common", "EDCCA_FALSE_CCA_TH", "3000"},
+	{"WLan_Common", "EDCCA_ED_TH", "90"},
+	{"WLan_Common", "EDCCA_BLOCK_CHECK_TH", "2"},
+	{"WLan_Common", "EDCCA_AP_RSSI_TH", "-80"},
 	{"WLan_Common", "PktAggregate", "0"},
 	{"WLan_Common", "TurboRate", "0"},
 	{"WLan_Entry", "WmmCapable", "0"},
@@ -698,6 +717,9 @@ struct tcapi_tuple wlan_configuration_router_defaults[] = {
 	{"WLan_Entry", "AvgRssiReq", "0"},
 	{"WLan_Entry", "DFS_R66", "0"},
 	{"WLan_Entry", "BlockCh", ""},
+	{"WLan_Entry", "VHT_BW", "1"},
+	{"WLan_Entry", "VHT_SGI", "1"},
+	{"WLan_Entry", "VHT_LDPC", "1"},
 	{NULL, NULL, NULL }
 };
 #endif
@@ -727,4 +749,4 @@ struct tcapi_tuple wlan_MBSSID_system_defaults[] = {
 
 #endif
 
-
+#endif

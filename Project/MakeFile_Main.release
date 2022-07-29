@@ -388,6 +388,7 @@ endif
 #endif
 	rm -rf $(FILESYSTEM_DIR)/lib/modules/2.6.22.15/kernel/drivers/scsi/
 	rm -rf $(FILESYSTEM_DIR)/lib/modules/2.6.22.15/kernel/drivers/usb/
+	rm -rf $(FILESYSTEM_DIR)/lib/modules/2.6.22.15/kernel/drivers/net/usb/
 	rm -rf $(FILESYSTEM_DIR)/lib/modules/2.6.22.15/kernel/fs/
 
 #ifneq ($(strip $(TCSUPPORT_CPU_TC3182)),)
@@ -919,6 +920,25 @@ ifneq ($(strip $(TCSUPPORT_USB_3G_DONGLE)),)
 	cp $(KERNEL_DIR)/drivers/usb/serial/usbserial.ko $(FILESYSTEM_DIR)/lib/modules/usbhost/
 	cp $(KERNEL_DIR)/drivers/usb/serial/option.ko $(FILESYSTEM_DIR)/lib/modules/usbhost/
 	cp $(KERNEL_DIR)/drivers/net/ppp_async.ko $(FILESYSTEM_DIR)/lib/modules/
+
+	$(STRIP) --strip-unneeded $(KERNEL_DIR)/drivers/usb/class/cdc-acm.ko
+	$(STRIP) --strip-unneeded $(KERNEL_DIR)/drivers/usb/class/cdc-wdm.ko
+	cp $(KERNEL_DIR)/drivers/usb/class/cdc-acm.ko $(FILESYSTEM_DIR)/lib/modules/usbhost/
+	cp $(KERNEL_DIR)/drivers/usb/class/cdc-wdm.ko $(FILESYSTEM_DIR)/lib/modules/usbhost/
+	$(STRIP) --strip-unneeded $(KERNEL_DIR)/drivers/net/usb/usbnet.ko
+	$(STRIP) --strip-unneeded $(KERNEL_DIR)/drivers/net/usb/asix.ko
+	$(STRIP) --strip-unneeded $(KERNEL_DIR)/drivers/net/usb/cdc_ether.ko
+	$(STRIP) --strip-unneeded $(KERNEL_DIR)/drivers/net/usb/rndis_host.ko
+	$(STRIP) --strip-unneeded $(KERNEL_DIR)/drivers/net/usb/cdc_ncm.ko
+	$(STRIP) --strip-unneeded $(KERNEL_DIR)/drivers/net/usb/qmi_wwan.ko
+	$(STRIP) --strip-unneeded $(KERNEL_DIR)/drivers/net/usb/cdc_mbim.ko
+	cp $(KERNEL_DIR)/drivers/net/usb/usbnet.ko $(FILESYSTEM_DIR)/lib/modules/usbhost/
+	cp $(KERNEL_DIR)/drivers/net/usb/asix.ko $(FILESYSTEM_DIR)/lib/modules/usbhost/
+	cp $(KERNEL_DIR)/drivers/net/usb/cdc_ether.ko $(FILESYSTEM_DIR)/lib/modules/usbhost/
+	cp $(KERNEL_DIR)/drivers/net/usb/rndis_host.ko $(FILESYSTEM_DIR)/lib/modules/usbhost/
+	cp $(KERNEL_DIR)/drivers/net/usb/cdc_ncm.ko $(FILESYSTEM_DIR)/lib/modules/usbhost/
+	cp $(KERNEL_DIR)/drivers/net/usb/qmi_wwan.ko $(FILESYSTEM_DIR)/lib/modules/usbhost/
+	cp $(KERNEL_DIR)/drivers/net/usb/cdc_mbim.ko $(FILESYSTEM_DIR)/lib/modules/usbhost/
 endif
 
 ifneq ($(strip $(TCSUPPORT_USB_PRINTER_SERVER)),)
@@ -1260,23 +1280,23 @@ ifneq ($(strip $(TCSUPPORT_WLAN_WPS)),)
 #cd $WSCD_DIR
 	rm -f $(WSCD_DIR)/libupnp-1.3.1/Makefile
 ifneq ($(strip $(COMPILE_TOOLCHAIN)),mips-linux-uclibc)
-	cd $(RT6856_DIR)/WSC_UPNP/libupnp-1.3.1 && ./configure --host=mips-linux CFLAGS="-g -O2 -Wall -mips1" 
+	cd $(WSCD_DIR)/libupnp-1.3.1 && ./configure --host=mips-linux CFLAGS="-g -O2 -Wall -mips1"
 else
-	cd $(RT6856_DIR)/WSC_UPNP/libupnp-1.3.1 && ./configure --host=mips-linux-uclibc CFLAGS="-g -O2 -Wall -mips32r2 -muclibc"
+	cd $(WSCD_DIR)/libupnp-1.3.1 && ./configure --host=mips-linux-uclibc CFLAGS="-g -O2 -Wall -mips32r2 -muclibc"
 endif
-	$(MAKE) -C $(RT6856_DIR)/WSC_UPNP/libupnp-1.3.1 clean
-	$(MAKE) -C $(RT6856_DIR)/WSC_UPNP/libupnp-1.3.1
-###	$(MAKE) -C $(RT6856_DIR)/WSC_UPNP clean
-	$(MAKE) -C $(RT6856_DIR)/WSC_UPNP
-	if test -e $(RT6856_DIR)/WSC_UPNP/wscd;  \
-	then echo "Compile RT6856 wscd success";   \
-	else echo "Compile RT6856 wscd error!"; exit 1;  \
+##	$(MAKE) -C $(WSCD_DIR)/libupnp-1.3.1 clean
+	$(MAKE) -C $(WSCD_DIR)/libupnp-1.3.1
+##	$(MAKE) -C $(WSCD_DIR) clean
+	$(MAKE) -C $(WSCD_DIR)
+	if test -e $(WSCD_DIR)/wscd;  \
+	then echo "Compile wscd success";   \
+	else echo "Compile wscd error!"; exit 1;  \
 	fi
-	cp $(RT6856_DIR)/WSC_UPNP/wscd $(FILESYSTEM_DIR)/usr/bin
+	cp $(WSCD_DIR)/wscd $(FILESYSTEM_DIR)/usr/bin
 	rm -rf $(FILESYSTEM_DIR)/usr/etc/xml
 	mkdir $(FILESYSTEM_DIR)/usr/etc/xml
-	cp $(RT6856_DIR)/WSC_UPNP/xml/WFADeviceDesc.xml $(FILESYSTEM_DIR)/usr/etc/xml/
-	cp $(RT6856_DIR)/WSC_UPNP/xml/WFAWLANConfigSCPD.xml $(FILESYSTEM_DIR)/usr/etc/xml/	
+	cp $(WSCD_DIR)/xml/WFADeviceDesc.xml $(FILESYSTEM_DIR)/usr/etc/xml/
+	cp $(WSCD_DIR)/xml/WFAWLANConfigSCPD.xml $(FILESYSTEM_DIR)/usr/etc/xml/
 endif
 endif
 
@@ -1659,6 +1679,8 @@ endif
 #tmp for RT6856, Sam
 ifneq ($(strip $(TCSUPPORT_WLAN_RT6856)),)
 	$(MAKE) -C $(RT6856_DIR) clean
+	-@$(MAKE) -C $(WSCD_DIR)/libupnp-1.3.1 clean
+	$(MAKE) -C $(WSCD_DIR) clean
 endif
 ifneq ($(strip $(TCSUPPORT_WLAN_RT2561)),)
 	$(MAKE) -C $(RT2561AP_DIR) clean
@@ -1747,15 +1769,16 @@ endif
 #No support Purebridge Mode
 #ifeq ($(strip $(TCSUPPORT_PUREBRIDGE)),)
 apps: libatm br2684ctl brctl libtcapi mxml tcapi busybox shared cfg_manager ssl cwmp cpu wirelesstool libdisk\
-      iptables tc ebtables mtd pppd tcci tcwdog utelnetd boa dhcrelay ez-ipupdate \
-      openssl email\
-      snmpd ntpclient tftpd wpas igmpproxy voip_api mtf pppoe-relay zebra radvd iproute ethcmd rtkethcmd pwctlcmd 8021X \
-	  vconfig cmd_ci dhcpv6 dnsmasq smuxctl ecmh usb_3g_dongle usb_printer usb_camera ntfs automount autoip backuprestore pppoe_svr \
-	  dms ssh ip skbmgr ra_menu siproxd restore_linos_info samba traceroute hw_nat sysstat iconv vsftpd hotplug2 udev rc rstats auto_det \
-	  libusb10 libusb libusb-0.1.12 u2ec lprng \
-	  webdav cloudsync accel_pptpd spectrum \
-	  infosvr monitorcfgmgr vpn_tools udpxy
-      
+	iptables tc ebtables mtd pppd tcci tcwdog utelnetd boa dhcrelay ez-ipupdate \
+	openssl email\
+	snmpd ntpclient tftpd wpas igmpproxy voip_api mtf pppoe-relay zebra radvd iproute ethcmd rtkethcmd pwctlcmd 8021X \
+	vconfig cmd_ci dhcpv6 dnsmasq smuxctl ecmh usb_3g_dongle usb_printer usb_camera ntfs automount autoip backuprestore pppoe_svr \
+	dms ssh ip skbmgr ra_menu siproxd restore_linos_info samba traceroute hw_nat sysstat iconv vsftpd hotplug2 udev rc rstats auto_det \
+	libusb10 libusb libusb-0.1.12 u2ec lprng \
+	webdav cloudsync accel_pptpd spectrum \
+	infosvr monitorcfgmgr vpn_tools udpxy accel_pptp rp_l2tp \
+	sdparm-1.02 usbmodeswitch comgt-0.32 uqmi
+
 apps_clean: libatm_clean br2684ctl_clean brctl_clean libtcapi_clean busybox_clean cfg_manager_clean ssl_clean cwmp_clean \
 	wirelesstool_clean cpu_clean iptables_clean tc_clean ebtables_clean mtd_clean pppd_clean tcci_clean tcwdog_clean \
 	utelnetd_clean mxml_clean boa_clean tcapi_clean rstats_clean auto_det_clean dhcrelay_clean ez-ipupdate_clean openssl_clean email_clean snmpd_clean \
@@ -1765,7 +1788,8 @@ apps_clean: libatm_clean br2684ctl_clean brctl_clean libtcapi_clean busybox_clea
 	backuprestore_clean pppoe_svr_clean traceroute_clean hw_nat_clean sysstat_clean libdisk_clean shared_clean iconv_clean vsftpd_clean hotplug2_clean udev_clean rc_clean \
 	libusb10_clean libusb_clean libusb-0.1.12_clean u2ec_clean lprng_clean \
 	webdav_clean cloudsync_clean infosvr_clean monitorcfgmgr_clean accel_pptpd_clean spectrum_clean vpn_tools_clean \
-	udpxy_clean
+	udpxy_clean accel_pptp_clean rp_l2tp_clean \
+	sdparm-1.02_clean usbmodeswitch_clean comgt-0.32_clean uqmi_clean
 #endif
 
 ifneq ($(strip $(ASUS_WEBDAV)),)
@@ -1843,7 +1867,7 @@ cfg_manager:
 cfg_manager_clean:
 	echo "Clean CFG_MANAGER! do nothing."
 else
-cfg_manager:
+cfg_manager:openssl
 	@echo "Build CFG_MANAGER!"
 	cp -rf $(APP_CFG_MANAGER_DIR)/$(TCPLATFORM)/cfg_manager.o $(APP_CFG_MANAGER_DIR)/
 	$(MAKE) -C $(APP_CFG_MANAGER_DIR)
@@ -1859,7 +1883,7 @@ cfg_manager_clean:
 	$(MAKE) -C $(APP_CFG_MANAGER_DIR) clean	
 endif
 else
-cfg_manager:
+cfg_manager:openssl
 	echo "Build CFG_MANAGER!"
 	$(MAKE) -C $(APP_CFG_MANAGER_DIR)
 	if test -e $(APP_CFG_MANAGER_DIR)/cfg_manager; \
@@ -3314,11 +3338,97 @@ usb_3g_dongle:
 	mkdir $(FILESYSTEM_DIR)/usr/etc/ppp/peers
 	cp $(APP_USB_3G_PPP_DIR)/wcdma $(FILESYSTEM_DIR)/usr/etc/ppp/peers/
 	cp $(APP_USB_3G_PPP_DIR)/ppp_connect $(FILESYSTEM_DIR)/usr/etc/ppp/peers/
+
 usb_3g_dongle_clean:
 	$(MAKE) -C $(APP_USB_3G_PPP_DIR) clean
+
+sdparm-1.02:
+	echo "Build sdparm"
+	cd $(APP_SDPARM_DIR) && ./configure --host=mips-linux --build=i686-linux
+	$(MAKE) -C $(APP_SDPARM_DIR)
+	if test -e $(APP_LIBDISK_DIR)/libdisk.so; then \
+		echo "Compile LIB DISK success"; \
+	else \
+		echo "Compile LIB DISK error!"; \
+		exit 1; \
+	fi
+
+	cp -f $(APP_SDPARM_DIR)/src/sdparm $(FILESYSTEM_DIR)/bin/
+	$(STRIP) $(FILESYSTEM_DIR)/bin/sdparm
+
+sdparm-1.02_clean:
+	echo "Clean sdparm"
+	-$(MAKE) -C $(APP_SDPARM_DIR) clean
+	rm -rf $(FILESYSTEM_DIR)/bin/sdparm
+
+ifneq ($(strip $(TCSUPPORT_2_6_36_KERNEL)),)
+usbmodeswitch: libusb10
+	echo "Build usb-modeswitch-2.2.0"
+	$(MAKE) -C $(APP_MODESWITCH_DIR) CFLAGS="-Os \
+			-Wl,-R/lib:/usr/lib:/opt/usr/lib:/usr/local/share -lpthread \
+			-I$(APP_LIBUSB10_DIR)/libusb -L$(APP_LIBUSB10_DIR)/libusb/.libs -lusb-1.0"
+
+	cp -f $(APP_MODESWITCH_DIR)/usb_modeswitch $(FILESYSTEM_DIR)/usr/sbin/
+	$(STRIP) $(FILESYSTEM_DIR)/usr/sbin/usb_modeswitch
+
+usbmodeswitch_clean:
+	echo "Clean usb-modeswitch-2.2.0"
+	$(MAKE) -C $(APP_MODESWITCH_DIR) clean
+	rm -rf $(FILESYSTEM_DIR)/usr/sbin/usb_modeswitch
+else
+usbmodeswitch: libusb-0.1.12
+	echo "Build usbmodeswitch"
+	$(MAKE) -C $(APP_MODESWITCH_DIR) CFLAGS="-Os \
+			-Wl,-R/lib:/usr/lib:/opt/usr/lib:/usr/local/share -lpthread \
+			-I$(APP_LIBUSB0112_DIR) -L$(APP_LIBUSB0112_DIR)/.libs -lusb"
+
+	cp -f $(APP_MODESWITCH_DIR)/usb_modeswitch $(FILESYSTEM_DIR)/usr/sbin/
+	$(STRIP) $(FILESYSTEM_DIR)/usr/sbin/usb_modeswitch
+
+usbmodeswitch_clean:
+	echo "Clean usbmodeswitch"
+	$(MAKE) -C $(APP_MODESWITCH_DIR) clean
+	rm -rf $(FILESYSTEM_DIR)/usr/sbin/usb_modeswitch
+endif
+
+comgt-0.32:
+	echo "Build comgt"
+	$(MAKE) -C $(APP_COMGT_DIR)
+	cp -f $(APP_COMGT_DIR)/comgt $(FILESYSTEM_DIR)/bin
+	rm -rf $(FILESYSTEM_DIR)/rom/etc/ppp/3g
+	mkdir -p $(FILESYSTEM_DIR)/rom/etc/ppp/3g
+	cp -rf $(APP_COMGT_DIR)/scripts/devices/* $(FILESYSTEM_DIR)/rom/etc/ppp/3g/
+	cp -f $(APP_COMGT_DIR)/scripts/sigmon $(FILESYSTEM_DIR)/rom/etc/ppp/3g/
+	cp -f $(APP_COMGT_DIR)/scripts/command $(FILESYSTEM_DIR)/rom/etc/ppp/3g/
+	cp -f $(APP_COMGT_DIR)/scripts/dump $(FILESYSTEM_DIR)/rom/etc/ppp/3g/
+	cp -f $(APP_COMGT_DIR)/scripts/operator $(FILESYSTEM_DIR)/rom/etc/ppp/3g/
+	cp -f $(APP_COMGT_DIR)/scripts/getinfo $(FILESYSTEM_DIR)/rom/etc/ppp/3g/
+
+comgt-0.32_clean:
+	echo "Clean comgt"
+	$(MAKE) -C $(APP_COMGT_DIR) clean
+
+uqmi:
+	echo "Build uqmi"
+	$(MAKE) -C $(APP_UQMI_DIR) CFLAGS="-Os -I. -I./libubox" CC="$(CC)" STRIP="mips-linux-uclibc-strip" AR="mips-linux-uclibc-ar" RANLIB="mips-linux-uclibc-ranlib"
+	cp -f $(APP_UQMI_DIR)/uqmi $(FILESYSTEM_DIR)/usr/sbin/
+	$(STRIP) $(FILESYSTEM_DIR)/usr/sbin/uqmi
+
+uqmi_clean:
+	echo "Clean uqmi"
+	$(MAKE) -C $(APP_UQMI_DIR) clean
+
 else
 usb_3g_dongle:
 usb_3g_dongle_clean:
+sdparm-1.02:
+sdparm-1.02_clean:
+usbmodeswitch:
+usbmodeswitch_clean:
+comgt-0.32:
+comgt-0.32_clean:
+uqmi:
+uqmi_clean:
 endif
 
 ifneq ($(strip $(TCSUPPORT_USB_PRINTER_SERVER)),)
@@ -4154,8 +4264,12 @@ rc:
 	ln -sf /sbin/rc $(FILESYSTEM_DIR)/sbin/ddns_updated
 	ln -sf /sbin/rc $(FILESYSTEM_DIR)/sbin/get_apps_name
 	ln -sf /sbin/rc $(FILESYSTEM_DIR)/sbin/run_app_script
+	ln -sf /sbin/rc $(FILESYSTEM_DIR)/sbin/write_3g_ppp_conf
 ifneq ($(strip $(RTCONFIG_ACCEL_PPTPD)),)
 	ln -sf /sbin/rc $(FILESYSTEM_DIR)/sbin/run_pptpd
+endif
+ifneq ($(strip $(RTCONFIG_VPNC)),)
+	ln -sf /sbin/rc $(FILESYSTEM_DIR)/sbin/run_vpnc
 endif
 
 rc_clean:
@@ -4182,6 +4296,7 @@ rc_clean:
 	rm -rf $(FILESYSTEM_DIR)/sbin/ddns_updated
 	rm -rf $(FILESYSTEM_DIR)/sbin/get_apps_name
 	rm -rf $(FILESYSTEM_DIR)/sbin/run_app_script
+	rm -rf $(FILESYSTEM_DIR)/sbin/write_3g_ppp_conf
 ifneq ($(strip $(RTCONFIG_ACCEL_PPTPD)),)
 	rm -rf $(FILESYSTEM_DIR)/sbin/run_pptpd
 endif
@@ -4445,29 +4560,30 @@ lighttpd_clean: lighttpd/Makefile
 	rm -rf $(FILESYSTEM_DIR)/usr/css
 	rm -rf $(FILESYSTEM_DIR)/usr/js
 
-openssl/Makefile:
-	#if test ! -e $(APP_OPENSSL_DIR)/Makefile; then \
+openssl/stamp-h1:
+	if test ! -e $(APP_OPENSSL_DIR)/stamp-h1; then \
 		cd $(APP_OPENSSL_DIR) && \
 		./Configure linux-mips --cross-compile-prefix=' ' \
-		--openssldir=$(APP_OPENSSL_DIR)/OPSSL \
+		--install_prefix=$(APP_OPENSSL_DIR)/OPSSL --openssldir='/' \
 		-ffunction-sections -fdata-sections -Wl,--gc-sections \
-		shared $(OPENSSL_CIPHERS) ;\
-	#fi
+		shared &&\
+		touch stamp-h1 ;\
+	fi
 
-openssl: openssl/Makefile
+openssl: openssl/stamp-h1
 	$(MAKE) -C $(APP_OPENSSL_DIR)
 	$(MAKE) install -C $(APP_OPENSSL_DIR)
 	
-	$(STRIP) $(APP_OPENSSL_DIR)/libcrypto.so
-	cp -Pf $(APP_OPENSSL_DIR)/libcrypto.so* $(FILESYSTEM_DIR)/lib/
-	$(STRIP) $(APP_OPENSSL_DIR)/libssl.so
-	cp -Pf $(APP_OPENSSL_DIR)/libssl.so* $(FILESYSTEM_DIR)/lib/
+	$(STRIP) $(APP_OPENSSL_DIR)/OPSSL/lib/libcrypto.so
+	cp -Pf $(APP_OPENSSL_DIR)/OPSSL/lib/libcrypto.so* $(FILESYSTEM_DIR)/lib/
+	$(STRIP) $(APP_OPENSSL_DIR)/OPSSL/lib/libssl.so
+	cp -Pf $(APP_OPENSSL_DIR)/OPSSL/lib/libssl.so* $(FILESYSTEM_DIR)/lib/
 	$(STRIP) $(APP_OPENSSL_DIR)/OPSSL/bin/openssl
 	cp -f $(APP_OPENSSL_DIR)/OPSSL/bin/openssl $(FILESYSTEM_DIR)/userfs/bin/
 
-openssl_clean: openssl/Makefile
+openssl_clean:
 	rm -rf $(APP_OPENSSL_DIR)/OPSSL
-	$(MAKE) -C $(APP_OPENSSL_DIR) clean
+	-@$(MAKE) -C $(APP_OPENSSL_DIR) clean
 	rm -rf $(FILESYSTEM_DIR)/lib/libcrypto.so*
 	rm -rf $(FILESYSTEM_DIR)/lib/libssl.so*
 ###	rm -f $(FILESYSTEM_DIR)/userfs/bin/openssl
@@ -4476,6 +4592,7 @@ openssl_clean: openssl/Makefile
 ###	rm -f $(APP_OPENSSL_DIR)/tools/c_rehash
 ###	rm -f $(APP_OPENSSL_DIR)/Makefile.bak
 ###	rm -f $(APP_OPENSSL_DIR)/Makefile
+	rm -f $(APP_OPENSSL_DIR)/stamp-h1
 
 curl/stamp-h1:
 	if test ! -e $(APP_CURL_DIR)/stamp-h1; then \
@@ -4602,6 +4719,81 @@ udpxy:
 udpxy_clean:
 	$(MAKE) -C $(APP_UDPXY) clean
 	rm -f $(FILESYSTEM_DIR)/usr/sbin/udpxy
+
+ifneq ($(strip $(ASUS_VPNC)),)
+accel_pptp/stamp-h1:
+	if test ! -e $(APP_ACCEL_PPTP)/stamp-h1; then \
+		cd $(APP_ACCEL_PPTP) && CFLAGS="-g -O2 -I$(KERNEL_DIR)/include $(if $(RTCONFIG_VPNC), -DRTCONFIG_VPNC,)" \
+		./configure --prefix=/usr --host=mips-linux KDIR=$(KERNEL_DIR) PPPDIR=$(APP_PPPD_DIR) && \
+		touch stamp-h1; \
+	fi
+
+accel_pptp: pppd accel_pptp/stamp-h1
+	$(MAKE) -C $(APP_ACCEL_PPTP)
+
+	if test ! -d $(FILESYSTEM_DIR)/usr/lib; \
+	then mkdir $(FILESYSTEM_DIR)/usr/lib; \
+	fi
+
+	if test ! -d $(FILESYSTEM_DIR)/usr/lib/pppd; \
+	then mkdir $(FILESYSTEM_DIR)/usr/lib/pppd; \
+	fi
+	
+	cp $(APP_ACCEL_PPTP)/src/.libs/pptp.so $(FILESYSTEM_DIR)/usr/lib/pppd/pptp.so
+	$(STRIP) $(FILESYSTEM_DIR)/usr/lib/pppd/pptp.so
+
+accel_pptp_clean:
+	-@$(MAKE) -C $(APP_ACCEL_PPTP) clean
+	rm -f $(FILESYSTEM_DIR)/usr/lib/pppd/pptp.so
+
+else
+accel_pptp:
+accel_pptp_clean:
+endif
+
+ifneq ($(strip $(ASUS_VPNC)),)
+rp_l2tp/stamp-h1:
+	if test ! -e $(APP_RP_L2TP)/stamp-h1; then \
+		cd $(APP_RP_L2TP) && CFLAGS="-g -O2 -I$(KERNEL_DIR)/include $(if $(RTCONFIG_VPNC), -DRTCONFIG_VPNC,)" \
+		./configure --prefix=/usr --host=mips-linux --sysconfdir=/tmp && \
+		touch stamp-h1; \
+	fi
+
+rp_l2tp: pppd rp_l2tp/stamp-h1
+	$(MAKE) -C $(APP_RP_L2TP)
+
+	if test ! -d $(FILESYSTEM_DIR)/usr/lib; \
+	then mkdir $(FILESYSTEM_DIR)/usr/lib; \
+	fi
+
+	if test ! -d $(FILESYSTEM_DIR)/usr/lib/pppd; \
+	then mkdir $(FILESYSTEM_DIR)/usr/lib/pppd; \
+	fi
+
+	if test ! -d $(FILESYSTEM_DIR)/usr/lib/l2tp; \
+	then mkdir $(FILESYSTEM_DIR)/usr/lib/l2tp; \
+	fi
+	
+	cp $(APP_PPPD_DIR)/pppd/plugins/pppol2tp/pppol2tp.so $(FILESYSTEM_DIR)/usr/lib/pppd/pppol2tp.so
+	$(STRIP) $(FILESYSTEM_DIR)/usr/lib/pppd/pppol2tp.so
+	
+	cp $(APP_RP_L2TP)/handlers/*.so $(FILESYSTEM_DIR)/usr/lib/l2tp
+	$(STRIP) $(FILESYSTEM_DIR)/usr/lib/l2tp/*.so
+	cp $(APP_RP_L2TP)/handlers/l2tp-control $(FILESYSTEM_DIR)/usr/sbin/l2tp-control
+	$(STRIP) $(FILESYSTEM_DIR)/usr/sbin/l2tp-control
+	cp $(APP_RP_L2TP)/l2tpd $(FILESYSTEM_DIR)/usr/sbin/l2tpd
+	$(STRIP) $(FILESYSTEM_DIR)/usr/sbin/l2tpd
+
+rp_l2tp_clean:
+	-@$(MAKE) -C $(APP_RP_L2TP) clean
+	rm -f $(FILESYSTEM_DIR)/usr/lib/l2tp/*.so
+	rm -f $(FILESYSTEM_DIR)/usr/sbin/l2tp-control
+	rm -f $(FILESYSTEM_DIR)/usr/sbin/l2tpd
+
+else
+rp_l2tp:
+rp_l2tp_clean:
+endif
 
 buildimage:
 #	echo "buildimage: copy public tools"
@@ -5032,12 +5224,21 @@ ifeq ($(strip $(TCSUPPORT_CT)),)
 endif
 
 #copy asus apps scripts
-	cp $(APP_PRIVATE_DIR)/apps_scripts/app_*.sh $(FILESYSTEM_DIR)/usr/script/
-	cp $(APP_PRIVATE_DIR)/apps_scripts/asusrouter $(FILESYSTEM_DIR)/usr/.asusrouter
+	cp $(APP_PUBLIC_DIR)/apps_scripts/app_*.sh $(FILESYSTEM_DIR)/usr/script/
+	cp $(APP_PUBLIC_DIR)/apps_scripts/asusrouter $(FILESYSTEM_DIR)/usr/.asusrouter
+ifneq ($(strip $(TCSUPPORT_USB_3G_DONGLE)),)
+	cp $(APP_PUBLIC_DIR)/apps_scripts/find_modem_*.sh $(FILESYSTEM_DIR)/usr/script/
+	cp $(APP_PUBLIC_DIR)/apps_scripts/modem_*.sh $(FILESYSTEM_DIR)/usr/script/
+endif
 
 #copy webs_update.sh and webs_upgrade.sh
 	cp $(APP_PRIVATE_DIR)/etc_script/webs_update.sh $(FILESYSTEM_DIR)/usr/script/webs_update.sh
 	cp $(APP_PRIVATE_DIR)/etc_script/webs_upgrade.sh $(FILESYSTEM_DIR)/usr/script/webs_upgrade.sh
+
+#copy public.pem
+ifneq ("$(wildcard $(APP_CFG_MANAGER_DIR)/public.pem)","")
+	cp $(APP_CFG_MANAGER_DIR)/public.pem $(FILESYSTEM_DIR)/usr/etc/public.pem
+endif
 
 #copy notif_update.sh
 	cp $(APP_PRIVATE_DIR)/etc_script/notif_update.sh $(FILESYSTEM_DIR)/usr/script/notif_update.sh
@@ -5053,7 +5254,7 @@ endif
 ifneq ($(strip $(TCSUPPORT_BB_NAND)),)
 	rm -f $(FILESYSTEM_DIR)/usr/*.ipk
 	cp $(APP_PUBLIC_DIR)/usb_apps/* $(FILESYSTEM_DIR)/usr/
-	cp $(APP_PRIVATE_DIR)/apps_scripts/optware.asus $(FILESYSTEM_DIR)/usr/
+	cp $(APP_PUBLIC_DIR)/apps_scripts/optware.asus $(FILESYSTEM_DIR)/usr/
 endif
 
 #endif

@@ -11,11 +11,12 @@
 
 //#define DEBUG 1
 #define SYSTEM_LOG 0
-#define my_free(x)  free(x);x=NULL;
+#define my_free(x)  if(x) {free(x);x=NULL;}
 #define TREE_NODE_ENABLE 0
 #define SERVER_TREE      0
 #define MUTI_DIR         0
 #define WRITE_DOWNLOAD_TEMP_FILE 0
+#define MEM_POOL_ENABLE 1
 
 
 /*define server error code*/
@@ -84,6 +85,7 @@
 #define S_UPLOAD_DELETED                4017
 #define S_NETWORK_FAIL                  4018
 #define S_ACCOUNT_CLOSE                 4019
+#define S_PARSE_XML_FAIL                4020
 
 /* define account */
 #define IsAutoAccountBit      (1 << 0)  //0X01
@@ -96,59 +98,60 @@
 typedef void (*processing)(double current, double total);
 
 
-char mount_path[NAMESIZE];
-char cloud_path[NAMESIZE];
+extern char mount_path[NAMESIZE];
+extern char cloud_path[NAMESIZE];
 //char temp_path[NAMESIZE];
-char asus_path[NAMESIZE];
-char log_path[NAMESIZE];
-char xml_path[NAMESIZE];
+extern char asus_path[NAMESIZE];
+extern char log_path[NAMESIZE];
+extern char xml_path[NAMESIZE];
 //char mount_path[NAMESIZE];
-char sync_path[NAMESIZE];
-char system_log[NAMESIZE];
-char general_log[NAMESIZE];
-char tree_log[NAMESIZE];
-char confilicted_log[NAMESIZE];
-char temp_file[NAMESIZE];
-char up_item_file[NAMESIZE];
-char down_item_file[NAMESIZE];
+extern char sync_path[NAMESIZE];
+extern char system_log[NAMESIZE];
+extern char general_log[NAMESIZE];
+//char tree_log[NAMESIZE];
+extern char confilicted_log[NAMESIZE];
+//char temp_file[NAMESIZE];
+extern char up_item_file[NAMESIZE];
+extern char down_item_file[NAMESIZE];
 
 #if WRITE_DOWNLOAD_TEMP_FILE
 char down_item_temp_file[NAMESIZE];
 #endif
 
-char all_local_item_file[NAMESIZE];
-char up_excep_fail_file[NAMESIZE];
-char up_limit_file[NAMESIZE];
-char gateway_xml[NAMESIZE];
-char get_user_state_xml[NAMESIZE];
-char token_xml[NAMESIZE];
-char get_info_xml[NAMESIZE];
-char get_sync_folder_xml[NAMESIZE];
-char get_personal_system_folder_xml[NAMESIZE];
-char browse_folder_xml[NAMESIZE];
-char propfind_xml[NAMESIZE];
-char create_folder_xml[NAMESIZE];
-char rename_xml[NAMESIZE];
-char move_xml[NAMESIZE];
-char remove_xml[NAMESIZE];
-char update_xml[NAMESIZE];
-char get_entry_info_xml[NAMESIZE];
-char set_mark_xml[NAMESIZE];
-char get_change_files_xml[NAMESIZE];
-char get_uploads_xml[NAMESIZE];
-char get_share_code_xml[NAMESIZE];
-char del_share_code_xml[NAMESIZE];
-char get_share_entry_xml[NAMESIZE];
-char check_pwd_xml[NAMESIZE];
-char cmp_pwd_xml[NAMESIZE];
-char get_change_seq_xml[NAMESIZE];
-char init_upload_xml[NAMESIZE];
-char resume_upload_xml[NAMESIZE];
-char finish_upload_xml[NAMESIZE];
-char get_resize_photo_xml[NAMESIZE];
-char get_full_txt_xml[NAMESIZE];
-char get_video_snapshot_xml[NAMESIZE];
-char trans_excep_file[128];
+//char all_local_item_file[NAMESIZE];
+extern char up_excep_fail_file[NAMESIZE];
+//char up_limit_file[NAMESIZE];
+extern char gateway_xml[NAMESIZE];
+extern char get_user_state_xml[NAMESIZE];
+extern char token_xml[NAMESIZE];
+extern char get_info_xml[NAMESIZE];
+extern char get_sync_folder_xml[NAMESIZE];
+extern char get_personal_system_folder_xml[NAMESIZE];
+extern char browse_folder_xml[NAMESIZE];
+extern char propfind_xml[NAMESIZE];
+extern char create_folder_xml[NAMESIZE];
+extern char rename_xml[NAMESIZE];
+extern char move_xml[NAMESIZE];
+extern char remove_xml[NAMESIZE];
+extern char update_xml[NAMESIZE];
+extern char get_entry_info_xml[NAMESIZE];
+//char set_mark_xml[NAMESIZE];
+//char get_change_files_xml[NAMESIZE];
+//char get_uploads_xml[NAMESIZE];
+//char get_share_code_xml[NAMESIZE];
+//char del_share_code_xml[NAMESIZE];
+//char get_share_entry_xml[NAMESIZE];
+//char check_pwd_xml[NAMESIZE];
+//char cmp_pwd_xml[NAMESIZE];
+extern char get_change_seq_xml[NAMESIZE];
+extern char init_upload_xml[NAMESIZE];
+extern char resume_upload_xml[NAMESIZE];
+extern char finish_upload_xml[NAMESIZE];
+//char get_resize_photo_xml[NAMESIZE];
+//char get_full_txt_xml[NAMESIZE];
+//char get_video_snapshot_xml[NAMESIZE];
+extern char trans_excep_file[128];
+extern char system_token[256];
 
 int if_file_exist(char *filename);
 int myParseHTML(char *name);
@@ -158,15 +161,22 @@ void parseMemory(char *buffer,void *obj);
 void streamMyFile(const char *filename);
 
 int getServiceGateway(char *username, char *password,Servicegateway *sg);
+int obtainGateway(char *user,char *pwd,Servicegateway *sg);
 int getToken(char *username, char *password,char *key,int first);
+int obtainToken(char *user,char *pwd,struct asus_config *cfg,int first);
+
 Getinfo *getInfo(char *username,char *server);
 Getmysyncfolder *getMySyncFolder(char *username);
+int obtainSyncRootID(char *user);
 Getpersonalsystemfolder *getPersonalSystemFolder(char *username,char *filename);
 int GetMyRecycleID(char *username,char *filename);
 Getuserstate *getUserState(char *user,char *server);
 int CheckUserState(char *user,char *server);
+int get_max_upload_filesize(char *username);
 
-Browse *browseFolder(char *username,int id,int issibiling);
+Browse *browseFolder(char *username,int id,int issibiling,int pageno);
+int my_parse_browse_xml(const char *filename,Browse *br);
+//Browse *GetServerList(char *username,int id,int issibiling);
 //int browseFolder(char *username,int id,int issibiling,Browse *br);
 Propfind *checkEntryExisted(char *username,int parentID,char *filename,char *type);
 Createfolder *createFolder(char *username,int parentID,int isencrpted,char *name);
@@ -177,24 +187,24 @@ Operateentry *removeEntry(char *username,int id,int ischildonly,int isfolder);
 int updateEntryAttribute(char *username,int id,int parentID,int isencrpted,int isfolder);
 
 Getentryinfo *getEntryInfo(int isfolder,int entryid);
-int setEntryMark(int isfolder,int entryid,int markid);
-int getLatestChangeFiles(char *username,int top,int targetroot,int sortdirection);
-int getLatestUploads(char *username,int top,int targetroot,int sortdirection);
+//int setEntryMark(int isfolder,int entryid,int markid);
+//int getLatestChangeFiles(char *username,int top,int targetroot,int sortdirection);
+//int getLatestUploads(char *username,int top,int targetroot,int sortdirection);
 
 /*shared files API*/
-int getShareCode(char *username,int entryType,int entryID,char *password,int actionType);
-int deleteShareCode(char *username,int entryType,int entryID,char *password);
-int getSharedEntries(char *username,int kind,int pagesize,int sortby,int sortdirection,char *firstentrybound);
-int checkPassword(char *username,char *suri);
-int comparePassword(char *username,int isfolder,int ffid,char *password);
+//int getShareCode(char *username,int entryType,int entryID,char *password,int actionType);
+//int deleteShareCode(char *username,int entryType,int entryID,char *password);
+//int getSharedEntries(char *username,int kind,int pagesize,int sortby,int sortdirection,char *firstentrybound);
+//int checkPassword(char *username,char *suri);
+//int comparePassword(char *username,int isfolder,int ffid,char *password);
 Changeseq *getChangeSeq(int folderid);
 
 /* upload file*/
 int sha512(char *filename,char *checksum);
-Initbinaryupload  *initBinaryUpload(char *filename,int parentID,char *transid);
+Initbinaryupload  *initBinaryUpload(char *filename,int parentID,char *transid,int fileID);
 Resumebinaryupload *resumeBinaryUpload(char *filename, Initbinaryupload *ibu);
 Finishbinaryupload *finishBinaryUpload(Initbinaryupload *ibu);
-int uploadFile(char *filename,int parentID,char *transid);
+int uploadFile(char *filename,int parentID,char *transid,int fileID);
 //int check_exist_on_server(char *username,char *filename,int parentID);
 
 /*download file*/
@@ -212,13 +222,15 @@ int getParentID(char *path);
 long int check_server_space(char *username);
 //int write_log(Browse *bs);
 int write_log(int status,char *message,char *filename);
+int write_finish_log();
 int write_system_log(char *action,char *name);
 int write_confilicted_log(char *prename,char *confilicted_name);
 int write_trans_excep_log(char *fullname,int type,char *msg);
 int sync_all_item(char *dir,int parentID);
+int sync_all_item_uploadonly(char *dir,int parentID);
 int add_all_download_only_socket_list(char *cmd,const char *dir);
 int add_all_download_only_dragfolder_socket_list(const char *dir);
-int handle_rename(int parentID,char *fullname,int type,char *prepath);
+int handle_rename(int parentID,char *fullname,int type,char *prepath,int is_case_conflict,char *pre_name);
 int handle_createfolder_fail_code(int status,int parent_ID,char *path,char* fullname);
 int handle_upload_fail_code(int status,int parent_ID,char* fullname,const char *path);
 int handle_delete_fail_code(int status);
@@ -230,5 +242,6 @@ int upload_entry(char *fullname,int parent_ID,char *path);
 int StrToHex(char *src,int len);
 
 int IsEntryDeletedFromServer(int fileID,int isfolder);
+int obtain_token_from_file(const char *filename,Aaa *aaa);
 #endif
 

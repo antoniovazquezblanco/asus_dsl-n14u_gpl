@@ -12,7 +12,7 @@ end if
 
 <!--Advanced_URLFilter_Content.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -266,7 +266,7 @@ refreshpage();
 <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" class="FormTable_table">
 <thead>
 <tr>
-						<td colspan="4"><%tcWebApi_get("String_Entry","FC_UrlList_groupitemdesc","s")%>(list limit:27)</td>
+						<td colspan="4"><%tcWebApi_get("String_Entry","FC_UrlList_groupitemdesc","s")%> (<%tcWebApi_get("String_Entry","List_limit","s")%> 27)</td>
 </tr>
 </thead>
 <tr>

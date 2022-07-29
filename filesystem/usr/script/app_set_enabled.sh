@@ -31,7 +31,7 @@ fi
 
 pkg_control_file=
 _check_package $1
-if [ "$?" == "0" ]; then
+if [ "$?" = "0" ]; then
 	echo "The \"$1\" is not installed yet!"
 	tcapi set Apps_Entry apps_state_error 8
 	exit 1

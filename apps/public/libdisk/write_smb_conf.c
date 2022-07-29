@@ -195,8 +195,9 @@ int main(int argc, char *argv[]) {
 		fprintf(fp, "max connections = %s\n", tmp);
 	//if (strcmp(nvram_safe_get("st_max_user"), "") != 0)
 		//fprintf(fp, "max connections = %s\n", nvram_safe_get("st_max_user"));
-	
+
 	fprintf(fp, "socket options = TCP_NODELAY SO_KEEPALIVE SO_RCVBUF=65536 SO_SNDBUF=65536\n");
+	fprintf(fp, "use sendfile = no\n");
 	fprintf(fp, "obey pam restrictions = no\n");
 	fprintf(fp, "use spne go = no\n");		// ASUS add
 	fprintf(fp, "client use spnego = no\n");	// ASUS add
@@ -208,7 +209,6 @@ int main(int argc, char *argv[]) {
 	fprintf(fp, "interfaces = lo br0\n");
 	//fprintf(fp, "interfaces = lo br0 %s\n", (!nvram_match("sw_mode", "3") ? nvram_safe_get("wan0_ifname") : ""));
 //	fprintf(fp, "dns proxy = no\n");				// J--
-	fprintf(fp, "use sendfile = no\n");
 
 //	fprintf(fp, "domain master = no\n");				// J++
 //	fprintf(fp, "wins support = no\n");				// J++

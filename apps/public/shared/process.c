@@ -115,3 +115,52 @@ int killall(const char *name, int sig)
 	return -2;
 }
 
+void killall_tk(const char *name)
+{
+	int n;
+
+	if (killall(name, SIGTERM) == 0) {
+		n = 10;
+		while ((killall(name, 0) == 0) && (n-- > 0)) {
+			_dprintf("%s: waiting name=%s n=%d\n", __FUNCTION__, name, n);
+			usleep(100 * 1000);
+		}
+		if (n < 0) {
+			n = 10;
+			while ((killall(name, SIGKILL) == 0) && (n-- > 0)) {
+				_dprintf("%s: SIGKILL name=%s n=%d\n", __FUNCTION__, name, n);
+				usleep(100 * 1000);
+			}
+		}
+	}
+}
+
+void kill_pidfile_tk(const char *pidfile)
+{
+	FILE *fp;
+	char buf[256];
+	pid_t pid = 0;
+	int n;
+
+	if ((fp = fopen(pidfile, "r")) != NULL) {
+		if (fgets(buf, sizeof(buf), fp) != NULL)
+			pid = strtoul(buf, NULL, 0);
+		fclose(fp);
+	}
+
+	if (pid > 1 && kill(pid, SIGTERM) == 0) {
+		n = 10;
+		while ((kill(pid, 0) == 0) && (n-- > 0)) {
+			_dprintf("%s: waiting pid=%d n=%d\n", __FUNCTION__, pid, n);
+			usleep(100 * 1000);
+		}
+		if (n < 0) {
+			n = 10;
+			while ((kill(pid, SIGKILL) == 0) && (n-- > 0)) {
+				_dprintf("%s: SIGKILL pid=%d n=%d\n", __FUNCTION__, pid, n);
+				usleep(100 * 1000);
+			}
+		}
+	}
+}
+

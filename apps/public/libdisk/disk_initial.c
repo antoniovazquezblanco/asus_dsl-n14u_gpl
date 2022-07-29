@@ -22,10 +22,14 @@
 #include <sys/vfs.h>
 #include <limits.h>
 #include <dirent.h>
+#include <bcmnvram.h>
 
+#ifdef VOLUME_NAME
 // From BusyBox and get volume's label.
-// #include <autoconf.h>
-// #include <volume_id_internal.h>
+#include <autoconf.h>
+#include <volume_id_internal.h>
+#include <shared.h>
+#endif
 
 #include "usb_info.h"
 #include "disk_initial.h"
@@ -38,7 +42,7 @@ extern disk_info_t *read_disk_data(){
 	u32 major;
 	disk_info_t *parent_disk_info;
 	partition_info_t *new_partition_info, **follow_partition_list;
-	unsigned long long device_size;
+	u64 device_size;
 
 	if(partition_info == NULL){
 		usb_dbg("Failed to open \"%s\"!!\n", PARTITION_FILE);
@@ -84,8 +88,15 @@ extern disk_info_t *read_disk_data(){
 			}
 
 			follow_partition_list = &(parent_disk_info->partitions);
-			while(*follow_partition_list != NULL)
-				follow_partition_list = &((*follow_partition_list)->next);
+			while(*follow_partition_list != NULL){
+				if((*follow_partition_list)->partition_order == 0){
+					free_partition_data(follow_partition_list);
+					parent_disk_info->partitions = NULL;
+					follow_partition_list = &(parent_disk_info->partitions);
+				}
+				else
+					follow_partition_list = &((*follow_partition_list)->next);
+			}
 
 			new_partition_info = create_partition(device_name, follow_partition_list);
 			if(new_partition_info != NULL)
@@ -108,12 +119,12 @@ extern int is_disk_name(const char *device_name){
 }
 
 extern disk_info_t *create_disk(const char *device_name, disk_info_t **new_disk_info){
-
 	disk_info_t *follow_disk_info;
 	u32 major, minor;
 	u64 size_in_kilobytes = 0;
 	int len;
-	char buf[64], *port, *vendor, *model, *ptr;
+	char usb_node[32], port_path[8];
+	char buf[64], *port, *vendor = NULL, *model = NULL, *ptr;
 	partition_info_t *new_partition_info, **follow_partition_list;
 
 	if(new_disk_info == NULL){
@@ -157,28 +168,36 @@ extern disk_info_t *create_disk(const char *device_name, disk_info_t **new_disk_
 	follow_disk_info->size_in_kilobytes = size_in_kilobytes;
 
 	if(!strncmp(device_name, "sd", 2)){
+		// Get USB node.
+		if(get_usb_node_by_device(device_name, usb_node, 32) == NULL){
+			usb_dbg("(%s): Fail to get usb node.\n", device_name);
+			free_disk_data(&follow_disk_info);
+			return NULL;
+		}
+
+		if(get_path_by_node(usb_node, port_path, 8) == NULL){
+			usb_dbg("(%s): Fail to get usb path.\n", usb_node);
+			free_disk_data(&follow_disk_info);
+			return NULL;
+		}
+
 		// Get USB port.
-		if(get_usb_port_by_device(device_name, buf, 64) == NULL){
-			usb_dbg("Fail to get usb port: %s.\n", device_name);
+		if(get_usb_port_by_string(usb_node, buf, 64) == NULL){
+			usb_dbg("Fail to get usb port: %s.\n", usb_node);
 			free_disk_data(&follow_disk_info);
 			return NULL;
 		}
 
 		len = strlen(buf);
 		if(len > 0){
-			port = (char *)malloc(2);
+			port = (char *)malloc(8);
 			if(port == NULL){
 				usb_dbg("No memory!!(port)\n");
 				free_disk_data(&follow_disk_info);
 				return NULL;
 			}
-			memset(port, 0, 2);
-
-			int port_num = get_usb_port_number(buf);
-			if(port_num != -1)
-				sprintf(port, "%d", port_num);
-			else
-				strcpy(port, "0");
+			memset(port, 0, 8);
+			strncpy(port, port_path, 8);
 
 			follow_disk_info->port = port;
 		}
@@ -280,16 +299,17 @@ extern disk_info_t *create_disk(const char *device_name, disk_info_t **new_disk_
 
 			++(follow_disk_info->partition_number);
 			++(follow_disk_info->mounted_number);
+			if(!strcmp(new_partition_info->device, follow_disk_info->device))
+				new_partition_info->size_in_kilobytes = follow_disk_info->size_in_kilobytes-4;
 		}
 	}
 
-	if(follow_disk_info->partition_number == 0)
+	if(!strcmp(follow_disk_info->device, follow_disk_info->partitions->device))
 		get_disk_partitionnumber(device_name, &(follow_disk_info->partition_number), &(follow_disk_info->mounted_number));
 
 	*new_disk_info = follow_disk_info;
 
 	return *new_disk_info;
-
 }
 
 extern disk_info_t *initial_disk_data(disk_info_t **disk_info_list){
@@ -473,32 +493,41 @@ extern int get_disk_partitionnumber(const char *string, u32 *partition_number, u
 	int len;
 	char *mount_info = NULL, target[8];
 
+	if(string == NULL)
+		return 0;
+
 	if(partition_number == NULL)
 		return 0;
 
 	*partition_number = 0; // initial value.
-	if(mounted_number != NULL)
+	if(mounted_number != NULL){
 		*mounted_number = 0; // initial value.
-
-	if(string == NULL)
-		return 0;
+		mount_info = read_whole_file(MOUNT_FILE);
+	}
 
 	len = strlen(string);
 	if(!is_disk_name(string)){
 		while(isdigit(string[len-1]))
 			--len;
 	}
+	else if(mounted_number != NULL && mount_info != NULL){
+		memset(target, 0, 8);
+		sprintf(target, "%s ", string);
+		if(strstr(mount_info, target) != NULL)
+			++(*mounted_number);
+	}
 	memset(disk_name, 0, 8);
 	strncpy(disk_name, string, len);
 
 	memset(target_path, 0, 128);
 	sprintf(target_path, "%s/%s", SYS_BLOCK, disk_name);
-	if((dp = opendir(target_path)) == NULL)
+	if((dp = opendir(target_path)) == NULL){
+		if(mount_info != NULL)
+			free(mount_info);
 		return 0;
+	}
 
 	len = strlen(disk_name);
-	if(mounted_number != NULL)
-		mount_info = read_whole_file(MOUNT_FILE);
 	while((file = readdir(dp)) != NULL){
 		if(file->d_name[0] == '.')
 			continue;
@@ -547,17 +576,37 @@ extern int is_partition_name(const char *device_name, u32 *partition_order){
 }
 
 int find_partition_label(const char *dev_name, char *label){
-/*	struct volume_id id;
+#ifdef VOLUME_NAME
+	struct volume_id id;
+#endif
 	char dev_path[128];
+	char usb_port[32];
+	char nvram_label[32], nvram_value[512];
+
+	if(label) *label = 0;
+
+	memset(usb_port, 0, 32);
+	if(get_usb_port_by_device(dev_name, usb_port, 32) == NULL)
+		return 0;
+
+	memset(nvram_label, 0, 32);
+	sprintf(nvram_label, "usb_path_%s_label", dev_name);
+
+	memset(nvram_value, 0, 512);
+	strncpy(nvram_value, nvram_safe_get(nvram_label), 512);
+	if(strlen(nvram_value) > 0){
+		strcpy(label, nvram_value);
+
+		return (label && *label != 0);
+	}
 
 	memset(dev_path, 0, 128);
 	sprintf(dev_path, "/dev/%s", dev_name);
 
+#ifdef VOLUME_NAME
 	memset(&id, 0x00, sizeof(id));
 	if((id.fd = open(dev_path, O_RDONLY)) < 0)
 		return 0;
-
-	if(label) *label = 0;
 
 	volume_id_get_buffer(&id, 0, SB_BUFFER_SIZE);
 
@@ -569,18 +618,31 @@ int find_partition_label(const char *dev_name, char *label){
 		goto ret;
 	if(volume_id_probe_ntfs(&id) == 0 || id.error)
 		goto ret;
+	if(volume_id_probe_hfs_hfsplus(&id) == 0 || id.error)
+		goto ret;
+#if defined(RTCONFIG_EXFAT)
+	if(volume_id_probe_exfat(&id) == 0 || id.error)
+		goto ret;
+#endif
+
 ret:
 	volume_id_free_buffer(&id);
 	if(label && (*id.label != 0))
 		strcpy(label, id.label);
+	else
+#endif
+		strcpy(label, " ");
+	nvram_set(nvram_label, label);
+#ifdef VOLUME_NAME
 	close(id.fd);
-	return (label && *label != 0);*/
+#endif
+	return (label && *label != 0);
 }
 
 extern partition_info_t *create_partition(const char *device_name, partition_info_t **new_part_info){
 	partition_info_t *follow_part_info;
 	char label[128];
-	u32 partition_order;
+	u32 partition_order = 0;
 	u64 size_in_kilobytes = 0, total_kilobytes = 0, used_kilobytes = 0;
 	char buf1[PATH_MAX], buf2[64], buf3[PATH_MAX]; // options of mount info needs more buffer size.
 	int len;
@@ -665,11 +727,11 @@ extern partition_info_t *create_partition(const char *device_name, partition_inf
 		}
 	}
 	else{
-		if(is_disk_name(device_name)){	// Disk
+		/*if(is_disk_name(device_name)){	// Disk
 			free_partition_data(&follow_part_info);
 			return NULL;
 		}
-		else{
+		else{//*/
 			len = strlen(PARTITION_TYPE_UNKNOWN);
 			follow_part_info->file_system = (char *)malloc(len+1);
 			if(follow_part_info->file_system == NULL){
@@ -682,7 +744,7 @@ extern partition_info_t *create_partition(const char *device_name, partition_inf
 
 			get_partition_size(device_name, &size_in_kilobytes);
 			follow_part_info->size_in_kilobytes = size_in_kilobytes;
-		}
+		//}
 	}
 
 	*new_part_info = follow_part_info;
@@ -781,7 +843,7 @@ extern int read_mount_data(const char *device_name
 		, char *right, int right_len
 		){
 	char *mount_info = read_whole_file(MOUNT_FILE);
-	char *start, line[256];
+	char *start, line[PATH_MAX];
 	char target[8];
 
 	if(mount_point == NULL || mount_len <= 0
@@ -808,7 +870,7 @@ extern int read_mount_data(const char *device_name
 
 	start += strlen(target);
 
-	if(get_line_from_buffer(start, line, 256) == NULL){
+	if(get_line_from_buffer(start, line, PATH_MAX) == NULL){
 		usb_dbg("%s: Failed to execute get_line_from_buffer()!\n", device_name);
 		free(mount_info);
 		return 0;
@@ -822,6 +884,16 @@ extern int read_mount_data(const char *device_name
 		usb_dbg("%s: Failed to execute sscanf()!\n", device_name);
 		free(mount_info);
 		return 0;
+	}
+
+	if(!strcmp(type, "ufsd")){
+		char full_dev[16];
+
+		memset(full_dev, 0, 16);
+		sprintf(full_dev, "/dev/%s", device_name);
+
+		memset(type, 0, type_len);
+		strcpy(type, detect_fs_type(full_dev));
 	}
 
 	right[2] = 0;
@@ -896,6 +968,7 @@ extern void print_disk(const disk_info_t *const disk_info){
 	usb_dbg("           device: %s.\n", disk_info->device);
 	usb_dbg("            major: %u.\n", disk_info->major);
 	usb_dbg("            minor: %u.\n", disk_info->minor);
+	usb_dbg("             port: %s.\n", disk_info->port);
 	usb_dbg(" partition_number: %u.\n", disk_info->partition_number);
 	usb_dbg("   mounted_number: %u.\n", disk_info->mounted_number);
 	usb_dbg("size_in_kilobytes: %llu.\n", disk_info->size_in_kilobytes);

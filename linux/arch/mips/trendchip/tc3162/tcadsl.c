@@ -857,7 +857,7 @@ int doAdslPerfdata(int argc, char *argv[], void *p)
 	uint8 modemst;
     T_adsl_def_counter_set adsl_def_counter_set;
 	unsigned int now = jiffies_to_msecs(jiffies);
-	int updays, uphours, upminutes;
+	unsigned int updays, uphours, upminutes;	//andy chiu 2014/10/16, change the data struct type form 'int' to 'unsigned int'
 
 	if (adsl_dev_ops == NULL) 
 		return 0;
@@ -898,18 +898,19 @@ int doAdslPerfdata(int argc, char *argv[], void *p)
 
 	printk("ADSL uptime : ");
 
-	updays = (int) now / (60*60*24);
+	// >>> Andy Chiu 2014/10/16, modify the data structure type. Do NOT convert 'unsigned int' to 'int'.
+	updays = now / (60*60*24);
 	if (updays)
-		printk("%d day%s, ", updays, (updays != 1) ? "s" : "");
-	upminutes = (int) now / 60;
+		printk("%u day%s, ", updays, (updays != 1) ? "s" : "");
+	upminutes = now / 60;
 	uphours = (upminutes / 60) % 24;
 	upminutes %= 60;
 	if(uphours)
-		printk("%2d:%02d, ", uphours, upminutes);
+		printk("%2u:%02u, ", uphours, upminutes);
 	else
-		printk("%d min, ", upminutes);
-	printk("%d secs\n", now % 60);
-
+		printk("%u min, ", upminutes);
+	printk("%u secs\n", now % 60);
+	// <<< End of Andy Chiu modify. 2014/10/16
 	return 0;
 }
 

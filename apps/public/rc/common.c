@@ -14,12 +14,31 @@ inet_addr_(const char *cp)
 {
 	struct in_addr a;
 
-	if (!inet_aton(cp, &a)) {
+	if (!inet_aton(cp, &a))
 		return INADDR_ANY;
-	}
-	else {
+	else
 		return a.s_addr;
-	}
+}
+
+inline int inet_equal(char *addr1, char *mask1, char *addr2, char *mask2)
+{
+	return ((inet_network(addr1) & inet_network(mask1)) ==
+		(inet_network(addr2) & inet_network(mask2)));
+}
+
+/* remove space in the end of string */
+char *trim_r(char *str)
+{
+	int i;
+
+	if (!str || !*str)
+		return str;
+
+	i = strlen(str) - 1;
+	while ((i >= 0) && (str[i] == ' ' || str[i] == '\n' || str[i] == '\r'))
+		str[i--] = 0;
+
+	return str;
 }
 
 int pppstatus(void)
@@ -57,6 +76,22 @@ void logmessage(char *logheader, char *fmt, ...)
 	syslog(6, buf);
 	closelog();
 	va_end(args);
+}
+
+int insertmod(char *mod_full_path)
+{
+	if(mod_full_path)
+		return eval("insmod", mod_full_path);
+	else
+		return -1;
+}
+
+int removemod(char *mod_name)
+{
+	if(mod_name)
+		return eval("rmmod", mod_name);
+	else
+		return -1;
 }
 
 int modprobe_r(const char *mod)
@@ -131,7 +166,7 @@ int _xstart(const char *cmd, ...)
 
 static void write_ct_timeout(const char *type, const char *name, unsigned int val)
 {
-	unsigned char buf[128];
+	char buf[128];
 	char v[16];
 
 	sprintf(buf, "/proc/sys/net/ipv4/netfilter/ip_conntrack_%s_timeout%s%s",
@@ -151,7 +186,7 @@ static void write_ct_timeout(const char *type, const char *name, unsigned int va
 
 static unsigned int read_ct_timeout(const char *type, const char *name)
 {
-	unsigned char buf[128];
+	char buf[128];
 	unsigned int val = 0;
 	char v[16];
 
@@ -277,7 +312,7 @@ void setup_ct_timeout(int connflag)
 void setup_conntrack(void)
 {
 	unsigned int v[10];
-	const char p[128] = {0};
+	char p[128] = {0};
 	char buf[70];
 	int i;
 	char *pch;
@@ -421,56 +456,6 @@ int check_process_exist(int pid){
 	sprintf(path, "/proc/%d", pid);
 
 	return check_if_dir_exist(path);
-}
-
-
-void killall_tk(const char *name)
-{
-	int n;
-
-	if (killall(name, SIGTERM) == 0) {
-		n = 10;
-		while ((killall(name, 0) == 0) && (n-- > 0)) {
-			_dprintf("%s: waiting name=%s n=%d\n", __FUNCTION__, name, n);
-			usleep(100 * 1000);
-		}
-		if (n < 0) {
-			n = 10;
-			while ((killall(name, SIGKILL) == 0) && (n-- > 0)) {
-				_dprintf("%s: SIGKILL name=%s n=%d\n", __FUNCTION__, name, n);
-				usleep(100 * 1000);
-			}
-		}
-	}
-}
-
-void kill_pidfile_tk(const char *pidfile)
-{
-	FILE *fp;
-	char buf[256];
-	pid_t pid = 0;
-	int n;
-
-	if ((fp = fopen(pidfile, "r")) != NULL) {
-		if (fgets(buf, sizeof(buf), fp) != NULL)
-			pid = strtoul(buf, NULL, 0);
-		fclose(fp);
-	}
-
-	if (pid > 1 && kill(pid, SIGTERM) == 0) {
-		n = 10;
-		while ((kill(pid, 0) == 0) && (n-- > 0)) {
-			_dprintf("%s: waiting pid=%d n=%d\n", __FUNCTION__, pid, n);
-			usleep(100 * 1000);
-		}
-		if (n < 0) {
-			n = 10;
-			while ((kill(pid, SIGKILL) == 0) && (n-- > 0)) {
-				_dprintf("%s: SIGKILL pid=%d n=%d\n", __FUNCTION__, pid, n);
-				usleep(100 * 1000);
-			}
-		}
-	}
 }
 
 long fappend(FILE *out, const char *fname)

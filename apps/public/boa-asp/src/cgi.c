@@ -407,7 +407,9 @@ int init_cgi(request * req)
     /*web_api->wan_typechange =0;
     web_api->lan_typechange =0;
     memset(web_api->stat_interface,0,16);*/
-	if(strstr(req->pathname,".asp")||strstr(req->pathname,".ASP"))
+	if(strstr(req->pathname,".asp")||strstr(req->pathname,".ASP")
+		|| strstr(req->pathname, ".xml")
+	)
 		return asp_handler(req);
 
   	/*---------------------------------------------*/

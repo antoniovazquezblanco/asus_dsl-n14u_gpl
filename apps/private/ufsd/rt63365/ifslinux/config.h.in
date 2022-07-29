@@ -11,6 +11,12 @@
    offset, unsigned long nr_segs); */
 #undef HAVE_DECL_ASO_DIRECTIO_V2
 
+/* void (*invalidatepage) (struct page *, unsigned long); */
+#undef HAVE_DECL_ASO_INVALIDATEPAGE_V1
+
+/* void (*invalidatepage) (struct page *, unsigned int, unsigned int); */
+#undef HAVE_DECL_ASO_INVALIDATEPAGE_V2
+
 /* int (*writepage)(struct page *); */
 #undef HAVE_DECL_ASO_WRITEPAGE_V1
 
@@ -104,16 +110,31 @@
    don't. */
 #undef HAVE_DECL_CURRENT_UMASK
 
+/* int (*d_compare)(struct dentry *, struct qstr*, struct qstr*); */
+#undef HAVE_DECL_DCOMPARE_V1
+
+/* int (*d_compare)(const struct dentry *, const struct inode *, const struct
+   dentry *, const struct inode *, unsigned int, const char *, const struct
+   qstr *); */
+#undef HAVE_DECL_DCOMPARE_V2
+
+/* int (*d_compare)(const struct dentry *, const struct dentry *, unsigned
+   int, const char *, const struct qstr *); */
+#undef HAVE_DECL_DCOMPARE_V3
+
 /* Define to 1 if you have the declaration of `DECLARE_FSTYPE_DEV', and to 0
    if you don't. */
 #undef HAVE_DECL_DECLARE_FSTYPE_DEV
 
-/* int (*d_has)(struct dentry *, int); */
+/* int (*d_hash)(struct dentry *, int); */
 #undef HAVE_DECL_DHASH_V1
 
 /* int (*d_hash)(const struct dentry *, const struct inode*, struct nameidata
    *); */
 #undef HAVE_DECL_DHASH_V2
+
+/* int (*d_hash)(const struct dentry *, struct qstr *); */
+#undef HAVE_DECL_DHASH_V3
 
 /* Define to 1 if you have the declaration of `do_sync_read', and to 0 if you
    don't. */
@@ -164,6 +185,10 @@
 /* Define to 1 if you have the declaration of `EXPORT_NO_SYMBOLS', and to 0 if
    you don't. */
 #undef HAVE_DECL_EXPORT_NO_SYMBOLS
+
+/* Define to 1 if you have the declaration of `file_inode', and to 0 if you
+   don't. */
+#undef HAVE_DECL_FILE_INODE
 
 /* ssize_t (*aio_write) (struct kiocb *, const char __user *, size_t, loff_t);
    */
@@ -348,6 +373,10 @@
 /* void page_put_link(struct dentry *, struct nameidata *, void *); */
 #undef HAVE_DECL_PAGE_PUT_LINK_V1
 
+/* Define to 1 if you have the declaration of `PDE_DATA', and to 0 if you
+   don't. */
+#undef HAVE_DECL_PDE_DATA
+
 /* Define to 1 if you have the declaration of `posix_acl_chmod', and to 0 if
    you don't. */
 #undef HAVE_DECL_POSIX_ACL_CHMOD
@@ -363,6 +392,20 @@
 /* int posix_acl_to_xattr(struct user_namespace *user_ns,const struct
    posix_acl *acl, void *buffer, size_t size); */
 #undef HAVE_DECL_POSIX_ACL_TO_XATTR_V2
+
+/* Define to 1 if you have the declaration of `proc_create_data', and to 0 if
+   you don't. */
+#undef HAVE_DECL_PROC_CREATE_DATA
+
+/* Define to 1 if you have the declaration of `proc_mkdir_data', and to 0 if
+   you don't. */
+#undef HAVE_DECL_PROC_MKDIR_DATA
+
+/* int (*readdir) (struct file *, void *, filldir_t); */
+#undef HAVE_DECL_READDIR_V1
+
+/* int (*iterate) (struct file *, struct dir_context *); */
+#undef HAVE_DECL_READDIR_V2
 
 /* Define to 1 if you have the declaration of `refrigerator', and to 0 if you
    don't. */
@@ -498,6 +541,12 @@
 /* Define to 1 if you have the <generated/autoconf.h> header file. */
 #undef HAVE_GENERATED_AUTOCONF_H
 
+/* Define to 1 if you have the <generated/compile.h> header file. */
+#undef HAVE_GENERATED_COMPILE_H
+
+/* Define to 1 if you have the <generated/utsrelease.h> header file. */
+#undef HAVE_GENERATED_UTSRELEASE_H
+
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
@@ -509,6 +558,9 @@
 
 /* Define to 1 if the system has the type `kmem_cache_t'. */
 #undef HAVE_KMEM_CACHE_T
+
+/* Define to 1 if you have the <linux/aio.h> header file. */
+#undef HAVE_LINUX_AIO_H
 
 /* Define to 1 if you have the <linux/backing-dev.h> header file. */
 #undef HAVE_LINUX_BACKING_DEV_H
@@ -576,8 +628,14 @@
 /* Define to 1 if you have the <linux/pagevec.h> header file. */
 #undef HAVE_LINUX_PAGEVEC_H
 
+/* Define to 1 if you have the <linux/proc_ns.h> header file. */
+#undef HAVE_LINUX_PROC_NS_H
+
 /* Define to 1 if you have the <linux/sched.h> header file. */
 #undef HAVE_LINUX_SCHED_H
+
+/* Define to 1 if you have the <linux/seq_file.h> header file. */
+#undef HAVE_LINUX_SEQ_FILE_H
 
 /* Define to 1 if you have the <linux/smp_lock.h> header file. */
 #undef HAVE_LINUX_SMP_LOCK_H

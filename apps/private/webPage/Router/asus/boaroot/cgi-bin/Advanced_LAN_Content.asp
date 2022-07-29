@@ -4,12 +4,11 @@ If Request_Form("lanFlag") <> "" Then
   TCWebApi_set("Lan_Entry","netmask","uiViewNetMask")
 
   If Request_Form("dhcpFlag") ="0" Then
-		tcWebApi_save()
-		tcWebApi_commit("Lan")
+		tcWebApi_CommitWithoutSave("Lan")
   	If Request_Form("dhcppoolFlag") ="1" Then
     	TCWebApi_set("Dhcpd_Common","start","dhcp_start")
     	TCWebApi_set("Dhcpd_Common","end","dhcp_end")
-    	tcWebApi_commit("Dhcpd")
+		tcWebApi_CommitWithoutSave("Dhcpd")
   	End If				
   End If
   
@@ -23,7 +22,7 @@ End If
 
 <!--Advanced_LAN_Content.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">

@@ -65,14 +65,13 @@ typedef unsigned long long  UINT64;
 #endif
 
 typedef int
-(*SNPRINTF)(
-    IN char * buf,
-    IN size_t size,
+(*SEQ_PRINTF)(
+    IN struct seq_file* m,
     IN const char * fmt,
     IN ...
     )
 #if __GNUC__ >= 3
-    __attribute__ ((format (printf, 3, 4)))
+    __attribute__ ((format (printf, 2, 3)))
 #endif
     ;
 
@@ -531,10 +530,9 @@ UFSDAPI_QueryVolumeInfo(
 int
 UFSDAPI_CALL
 UFSDAPI_TraceVolumeInfo(
-    IN  UFSD_VOLUME*  Volume,
-    OUT char*         page,
-    IN  int           count,
-    IN  SNPRINTF      Snprintf
+    IN  UFSD_VOLUME*     Volume,
+    OUT struct seq_file* m,
+    IN  SEQ_PRINTF       SeqPrintf
     );
 
 typedef struct UfsdVolumeTune{
@@ -656,7 +654,6 @@ UFSDAPI_CALL
 UFSDAPI_FileSetSize(
     IN UFSD_FILE*     FileHandle,
     IN UINT64         size,
-    IN const UINT64*  valid OPTIONAL,
     OUT UINT64*       asize OPTIONAL
     );
 
@@ -827,6 +824,15 @@ void
 UFSDAPI_CALL
 UFSDAPI_FindClose(
     IN UFSD_SEARCH* Scan
+    );
+
+
+int
+UFSDAPI_CALL
+UFSDAPI_FileInfo(
+    IN UFSD_VOLUME*   Volume,
+    IN UFSD_FILE*     File,
+    OUT struct UfsdFileInfo* Info
     );
 
 

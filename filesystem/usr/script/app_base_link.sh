@@ -1,14 +1,31 @@
 #!/bin/sh
 
 
-is_arm_machine=`uname -m |grep arm`
-
+f=`tcapi get Apps_Entry apps_install_folder`
+case $f in
+	"asusware.arm")
+		pkg_type=`echo $f|sed -e "s,asusware\.,,"`
+		;;
+	"asusware.big")
+		pkg_type="mipsbig"
+		;;
+	"asusware.mipsbig")
+		pkg_type=`echo $f|sed -e "s,asusware\.,,"`
+		;;
+	"asusware")
+		pkg_type="mipsel"
+		;;
+	*)
+		echo "Unknown apps_install_folder: $f"
+		exit 1
+		;;
+esac
 APP_UCLIBC_VERSION=0.9.30
-
 APPS_DEV=`tcapi get Apps_Entry apps_dev`
 APPS_MOUNTED_PATH=`tcapi get Apps_Entry apps_mounted_path`
 APPS_INSTALL_FOLDER=`tcapi get Apps_Entry apps_install_folder`
 APPS_INSTALL_PATH=$APPS_MOUNTED_PATH/$APPS_INSTALL_FOLDER
+
 
 if [ -z "$APPS_MOUNTED_PATH" ]; then
 	tcapi set Apps_Entry apps_state_error 2
@@ -27,14 +44,14 @@ APP_FS_TYPE=`mount | grep $APPS_MOUNTED_PATH | sed -e "s,.*on.* type \([^ ]*\) (
 APPS_MOUNTED_TYPE=`mount |grep "/dev/$APPS_DEV on " |awk '{print $5}'`
 if [ "$APPS_MOUNTED_TYPE" != "vfat" ]; then
 	if [ "$APP_FS_TYPE" != "fuseblk" ] ; then
-	chmod -R 777 $APPS_INSTALL_PATH
+		chmod -R 777 $APPS_INSTALL_PATH
 	fi
 	user_account=`tcapi get Account_Entry0 username`
 	if [ -z "$user_account" ]; then
 		user_account="admin"
 	fi
 	if [ "$APP_FS_TYPE" != "fuseblk" ] ; then
-	chown -R "$user_account":root $APPS_INSTALL_PATH
+		chown -R "$user_account":root $APPS_INSTALL_PATH
 	fi
 	rm -rf $APP_LINK_DIR
 	ln -sf $APPS_INSTALL_PATH $APP_LINK_DIR
@@ -77,8 +94,8 @@ for obj in $objs; do
 		continue
 	fi
 
-	if [ -d "$APP_LINK_DIR/$obj" ]; then
-		rm -rf $APP_LINK_DIR/$obj
+	if [ -d "$APP_LINK_BIN/$obj" ]; then
+		rm -rf $APP_LINK_BIN/$obj
 	fi
 	ln -sf $APP_BIN/$obj $APP_LINK_BIN/$obj 
 done
@@ -97,8 +114,8 @@ for obj in $objs; do
 		continue
 	fi
 
-	if [ -d "$APP_LINK_DIR/$obj" ]; then
-		rm -rf $APP_LINK_DIR/$obj
+	if [ -d "$APP_LINK_LIB/$obj" ]; then
+		rm -rf $APP_LINK_LIB/$obj
 	fi
 	ln -sf $APP_LIB/$obj $APP_LINK_LIB/$obj 
 done
@@ -115,7 +132,7 @@ ln -sf $APP_LIB/libuClibc-${APP_UCLIBC_VERSION}.so $APP_LINK_LIB/libc.so
 ln -sf $APP_LIB/libcrypt-${APP_UCLIBC_VERSION}.so $APP_LINK_LIB/libcrypt.so.0
 ln -sf $APP_LIB/libcrypt-${APP_UCLIBC_VERSION}.so $APP_LINK_LIB/libcrypt.so
 ln -sf $APP_LIB/libgcc_s.so.1 $APP_LINK_LIB/libgcc_s.so
-if [ -n "$is_arm_machine" ]; then
+if [ "$pkg_type" = "arm" ]; then
 	ln -sf $APP_LIB/libstdc++.so.6.0.2 $APP_LINK_LIB/libstdc++.so.6
 	ln -sf $APP_LIB/libstdc++.so.6.0.2 $APP_LINK_LIB/libstdc++.so
 else

@@ -1,6 +1,6 @@
 <% If Request_Form("apply_flag") = "1" then
 	tcWebApi_set("QoS_Entry0","qos_rulelist", "qos_rulelist")
-	
+	tcWebApi_CommitWithoutSave("Firewall")
 	tcWebApi_commit("QoS")
 End If
 %>
@@ -9,7 +9,7 @@ End If
 <html xmlns="http://www.w3.org/1999/xhtml">
 <html xmlns:v>
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -141,7 +141,7 @@ function validForm(){
 	if((document.form.qos_max_transferred_x_0.value.length > 0) 
 	   && (parseInt(document.form.qos_max_transferred_x_0.value) < parseInt(document.form.qos_min_transferred_x_0.value))){
 				document.form.qos_max_transferred_x_0.focus();
-				alert("This value should be higher than "+document.form.qos_min_transferred_x_0.value);	
+				alert("<% tcWebApi_get("String_Entry", "vlaue_haigher_than", "s") %> "+document.form.qos_min_transferred_x_0.value);	
 				return false;
 	}
 	
@@ -169,7 +169,7 @@ function addRow_Group(upper){
 							if(document.form.qos_proto_x_0.value == $('qos_rulelist_table').rows[i].cells[3].innerHTML
 								|| document.form.qos_proto_x_0.value == 'any'
 								|| $('qos_rulelist_table').rows[i].cells[3].innerHTML == 'any'){
-										alert("This entry has been in list.");
+										alert("<% tcWebApi_get("String_Entry","JS_duplicate","s") %>");
 										parse_port="";
 										document.form.qos_port_x_0.value =="";
 										document.form.qos_ip_x_0.focus();
@@ -178,7 +178,7 @@ function addRow_Group(upper){
 							}else if(document.form.qos_proto_x_0.value == $('qos_rulelist_table').rows[i].cells[3].innerHTML
 											|| (document.form.qos_proto_x_0.value == 'tcp/udp' && ($('qos_rulelist_table').rows[i].cells[3].innerHTML == 'tcp' || $('qos_rulelist_table').rows[i].cells[3].innerHTML == 'udp'))
 											|| ($('qos_rulelist_table').rows[i].cells[3].innerHTML == 'tcp/udp' && (document.form.qos_proto_x_0.value == 'tcp' || document.form.qos_proto_x_0.value == 'udp'))){
-													alert("This entry has been in list.");
+													alert("<% tcWebApi_get("String_Entry","JS_duplicate","s") %>");
 													parse_port="";
 													document.form.qos_port_x_0.value =="";
 													document.form.qos_ip_x_0.focus();
@@ -194,7 +194,7 @@ function addRow_Group(upper){
 								if(document.form.qos_proto_x_0.value == $('qos_rulelist_table').rows[i].cells[3].innerHTML
 										|| document.form.qos_proto_x_0.value == 'any'
 										|| $('qos_rulelist_table').rows[i].cells[3].innerHTML == 'any'){
-												alert("This entry has been in list.");							
+												alert("<% tcWebApi_get("String_Entry","JS_duplicate","s") %>");							
 												parse_port="";
 												document.form.qos_port_x_0.value =="";
 												document.form.qos_ip_x_0.focus();
@@ -204,7 +204,7 @@ function addRow_Group(upper){
 								}else if(document.form.qos_proto_x_0.value == $('qos_rulelist_table').rows[i].cells[3].innerHTML
 											|| (document.form.qos_proto_x_0.value == 'tcp/udp' && ($('qos_rulelist_table').rows[i].cells[3].innerHTML == 'tcp' || $('qos_rulelist_table').rows[i].cells[3].innerHTML == 'udp'))
 											|| ($('qos_rulelist_table').rows[i].cells[3].innerHTML == 'tcp/udp' && (document.form.qos_proto_x_0.value == 'tcp' || document.form.qos_proto_x_0.value == 'udp'))){
-													alert("This entry has been in list.");							
+													alert("<% tcWebApi_get("String_Entry","JS_duplicate","s") %>");							
 													parse_port="";
 													document.form.qos_port_x_0.value =="";
 													document.form.qos_ip_x_0.focus();
@@ -294,29 +294,29 @@ function showqos_rulelist(){
 
 
 								if(qos_rulelist_col[5] =="0")
-									code += '<option value="0" selected>Highest</option>';
+									code += '<option value="0" selected><% tcWebApi_Get("String_Entry", "Highest", "s") %></option>';
 								else
-									code += '<option value="0">Highest</option>';
+									code += '<option value="0"><% tcWebApi_Get("String_Entry", "Highest", "s") %></option>';
 
 								if(qos_rulelist_col[5] =="1")
-									code += '<option value="1" selected>High</option>';
+									code += '<option value="1" selected><% tcWebApi_Get("String_Entry", "High", "s") %></option>';
 								else
-									code += '<option value="1">High</option>';
+									code += '<option value="1"><% tcWebApi_Get("String_Entry", "High", "s") %></option>';
 
 								if(qos_rulelist_col[5] =="2")
-									code += '<option value="2" selected>Medium</option>';
+									code += '<option value="2" selected><% tcWebApi_Get("String_Entry", "Medium", "s") %></option>';
 								else
-									code += '<option value="2">Medium</option>';
+									code += '<option value="2"><% tcWebApi_Get("String_Entry", "Medium", "s") %></option>';
 
 								if(qos_rulelist_col[5] =="3")
-									code += '<option value="3" selected>Low</option>';
+									code += '<option value="3" selected><% tcWebApi_Get("String_Entry", "Low", "s") %></option>';
 								else
-									code += '<option value="3">Low</option>';
+									code += '<option value="3"><% tcWebApi_Get("String_Entry", "Low", "s") %></option>';
 
 								if(qos_rulelist_col[5] =="4")
-									code += '<option value="4" selected>Lowest</option>';
+									code += '<option value="4" selected><% tcWebApi_Get("String_Entry", "Lowest", "s") %></option>';
 								else
-									code += '<option value="4">Lowest</option>';
+									code += '<option value="4"><% tcWebApi_Get("String_Entry", "Lowest", "s") %></option>';
 
 								code += '</select></td>';
 						}
@@ -354,18 +354,18 @@ function validate_multi_port(val, min, max){
 	{
 		if (val.charAt(i)<'0' || val.charAt(i)>'9')
 		{
-			alert('Please enter a value between ' + min + ' to ' + max);
+		alert('<% tcWebApi_Get("String_Entry", "BM_alert_port1", "s") %> ' + min + ' <% tcWebApi_Get("String_Entry", "BM_alert_to", "s") %> ' + max);
 			return false;
 		}
 		if(val<min || val>max) {
-			alert('Please enter a value between ' + min + ' to ' + max);
+			alert('<% tcWebApi_Get("String_Entry", "BM_alert_port1", "s") %> ' + min + ' <% tcWebApi_Get("String_Entry", "BM_alert_to", "s") %> ' + max);
 			return false;
 		}else{
 			val = str2val(val);
 			if(val=="")
 				val="0";
 			return true;
-		}				
+		}						
 	}	
 }
 function validate_multi_range(val, mini, maxi){
@@ -375,7 +375,7 @@ function validate_multi_range(val, mini, maxi){
 		if(!validate_each_port(document.form.qos_port_x_0, RegExp.$1, mini, maxi) || !validate_each_port(document.form.qos_port_x_0, RegExp.$2, mini, maxi)){
 				return false;								
 		}else if(parseInt(RegExp.$1) >= parseInt(RegExp.$2)){
-				alert("is not a valid port number.");	
+				alert(val + "<% tcWebApi_Get("String_Entry", "JS_validport", "s") %>");	
 				return false;												
 		}else				
 			return true;	
@@ -390,13 +390,13 @@ function validate_multi_range(val, mini, maxi){
 function validate_single_range(val, min, max) {
 	for(j=0; j<val.length; j++){		//is_number
 		if (val.charAt(j)<'0' || val.charAt(j)>'9'){			
-			alert('Please enter a value between ' + min + ' to ' + max);
+			alert('<% tcWebApi_Get("String_Entry", "BM_alert_port1", "s") %> ' + min + ' <% tcWebApi_Get("String_Entry", "BM_alert_to", "s") %> ' + max);
 			return false;
 		}
 	}
 	
 	if(val < min || val > max) {		//is_in_range		
-		alert('Please enter a value between ' + min + ' to ' + max);
+		alert('<% tcWebApi_Get("String_Entry", "BM_alert_port1", "s") %> ' + min + ' <% tcWebApi_Get("String_Entry", "BM_alert_to", "s") %> ' + max);
 		return false;
 	}else	
 		return true;
@@ -538,15 +538,15 @@ function change_wizard(obj){
 				else
 					document.form.qos_proto_x_0.options[0].selected = 1;
 				
-				if(rule_prio[j] == "Highest")
+				if(rule_prio[j] == "<% tcWebApi_Get("String_Entry", "Highest", "s") %>")
 					document.form.qos_prio_x_0.options[0].selected = 1;
-				else if(rule_prio[j] == "High")
+				else if(rule_prio[j] == "<% tcWebApi_Get("String_Entry", "High", "s") %>")
 					document.form.qos_prio_x_0.options[1].selected = 1;
-				else if(rule_prio[j] == "Medium")
+				else if(rule_prio[j] == "<% tcWebApi_Get("String_Entry", "Medium", "s") %>")
 					document.form.qos_prio_x_0.options[2].selected = 1;
-				else if(rule_prio[j] == "Low")
+				else if(rule_prio[j] == "<% tcWebApi_Get("String_Entry", "Low", "s") %>")
 					document.form.qos_prio_x_0.options[3].selected = 1;
-				else if(rule_prio[j] == "Lowest")
+				else if(rule_prio[j] == "<% tcWebApi_Get("String_Entry", "Lowest", "s") %>")
 					document.form.qos_prio_x_0.options[4].selected = 1;	
 				else
 					document.form.qos_prio_x_0.options[2].selected = 1;
@@ -687,11 +687,11 @@ function valid_IPorMAC(obj){
 			if(obj.value.split(":").length >= 2){
 					if(!hwaddr.test(obj.value)){	
 							obj.focus();
-							alert("The format for the MAC address is six groups of two hexadecimal digits, separated by colons (:), in transmission order (e.g. 12:34:56:aa:bc:ef)");							
+							alert("<% tcWebApi_Get("String_Entry", "LHC_MnlDHCPMacaddr_id","s") %>");							
     					return false;
     			}else if(!legal_hwaddr.test(obj.value)){
     					obj.focus();
-    					alert("MAC address is not valid.");					
+						alert("<% tcWebApi_Get("String_Entry", "IPC_x_illegal_mac","s") %>");
     					return false;
     			}else
     					return true;
@@ -778,7 +778,12 @@ function valid_IPorMAC(obj){
         			</tr>
 					<tr id="is_qos_enable_desc">
 					<td>
-		  			<div class="formfontdesc" style="font-style: italic;font-size: 14px;color:#FFCC00;"><ul><li><%tcWebApi_get("String_Entry","WC11b_WirelessCtrl_button1name","s")%> QoS then set up the user-defined rules.</li></ul></div>
+		  			<div class="formfontdesc" style="font-style: italic;font-size: 14px;color:#FFCC00;">
+					<ul>
+						<li><% tcWebApi_Get("String_Entry", "UserQoSRule_desc_zero", "s") %></li>
+						<li><% tcWebApi_Get("String_Entry", "UserQoSRule_desc_one", "s") %></li>
+					</ul>
+					</div>
 					</td>
 					</tr>
 					<tr>
@@ -786,7 +791,7 @@ function valid_IPorMAC(obj){
 						<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" class="FormTable_table" style="margin-top:8px">
 							<thead>
 							<tr>
-								<td colspan="4" id="TriggerList" style="border-right:none;"><% tcWebApi_Get("String_Entry", "BM_UserList_title", "s") %></td>
+								<td colspan="4" id="TriggerList" style="border-right:none;"><% tcWebApi_Get("String_Entry", "BM_UserList_title", "s") %> (<% tcWebApi_Get("String_Entry", "List_limit", "s") %> 32)</td>
 								<td colspan="3" id="TriggerList" style="border-left:none;">
 									<div style="margin-top:0px;display:none" align="right">
 										<select id='qos_default_sel' name='qos_default_sel' class="input_option" onchange="change_wizard(this);"></select>
@@ -797,21 +802,21 @@ function valid_IPorMAC(obj){
 			
 							<tr>
 								<th><% tcWebApi_Get("String_Entry", "BM_UserList1", "s") %></th>
-								<th><a href="javascript:void(0);" onClick="openHint(18,6);"><div class="table_text">Source IP or MAC</div></a></th>
+								<th><a href="javascript:void(0);" onClick="openHint(18,6);"><div class="table_text"><% tcWebApi_Get("String_Entry", "BM_UserList2", "s") %></div></a></th>
 								<th><a href="javascript:void(0);" onClick="openHint(18,4);"><div class="table_text"><% tcWebApi_Get("String_Entry", "BM_UserList3", "s") %></div></a></th>
 								<th><div class="table_text"><% tcWebApi_Get("String_Entry", "IPC_VServerProto_in", "s") %></div></th>
-								<th><a href="javascript:void(0);" onClick="openHint(18,5);"><div class="table_text"><div class="table_text">Transferred</div></a></th>
+								<th><a href="javascript:void(0);" onClick="openHint(18,5);"><div class="table_text"><div class="table_text"><% tcWebApi_Get("String_Entry", "UserQoS_transferred", "s") %></div></a></th>
 								<th><% tcWebApi_Get("String_Entry", "BM_UserList4", "s") %></th>
 								<th><% tcWebApi_Get("String_Entry", "list_add_delete", "s") %></th>
 							</tr>							
 							<tr>
 								<td width="20%">							
-									<input type="text" class="input_12_table" style="float:left;width:105px;" value="<% tcWebApi_Get("String_Entry", "Select_menu_default", "s") %>" name="qos_service_name_x_0" onKeyPress="return is_string(this, event)">
+									<input type="text" class="input_12_table" maxlength="20" style="float:left;width:105px;" placeholder="<% tcWebApi_Get("String_Entry", "Select_menu_default", "s") %>" name="qos_service_name_x_0" onKeyPress="return is_string(this, event)">
 									<img id="pull_arrow" height="14px;" src="/images/arrow-down.gif" onclick="pullQoSList(this);" title="<% tcWebApi_Get("String_Entry", "select_service", "s") %>" >
 									<div id="QoSList_Block" class="QoSList_Block" onclick="hideClients_Block()"></div>
 								</td>
 								<td width="19%"><input type="text" maxlength="17" class="input_15_table" name="qos_ip_x_0" style="width:125px;"></td>
-								<td width="15%"><input type="text" class="input_12_table" name="qos_port_x_0" onKeyPress="return is_portrange(this, event)"></td>
+								<td width="15%"><input type="text" class="input_12_table" maxlength="64" name="qos_port_x_0" onKeyPress="return is_portrange(this, event)"></td>
 								<td width="13%">
 									<select name='qos_proto_x_0' class="input_option" style="width:75px;">
 										<option value='tcp'>TCP</option>
@@ -830,11 +835,11 @@ function valid_IPorMAC(obj){
 								</td>
 								<td width="11%">
 									<select name='qos_prio_x_0' class="input_option" style="width:87px;"> <!--style="width:auto;"-->
-										<option value='0'>Highest</option>
-										<option value='1' selected>High</option>
-										<option value='2'>Medium</option>
-										<option value='3'>Low</option>
-										<option value='4'>Lowest</option>
+										<option value='0'><% tcWebApi_Get("String_Entry", "Highest", "s") %></option>
+										<option value='1' selected><% tcWebApi_Get("String_Entry", "High", "s") %></option>
+										<option value='2'><% tcWebApi_Get("String_Entry", "Medium", "s") %></option>
+										<option value='3'><% tcWebApi_Get("String_Entry", "Low", "s") %></option>
+										<option value='4'><% tcWebApi_Get("String_Entry", "Lowest", "s") %></option>
 									</select>
 								</td>
 								

@@ -209,6 +209,7 @@ main(int argc, char **argv)
 	char *bcc_string = NULL;
 	const char *opts = "f:n:a:p:oVedvtb?c:s:r:u:i:g:m:H:x:";
 	FILE *fp;
+	char tmp[128]={0};
 
 	//clean the related error flag and file.
 	system("tcapi set PushMail_Entry fb_state 0");
@@ -347,6 +348,9 @@ main(int argc, char **argv)
 	}
 
 	configure();
+	sprintf(tmp, "rm -f %s", conf_file);
+	printf(tmp);
+	system(tmp);
 
 	/* Check to see if we need to attach a vcard. */
 	if (getConfValue("VCARD")) {

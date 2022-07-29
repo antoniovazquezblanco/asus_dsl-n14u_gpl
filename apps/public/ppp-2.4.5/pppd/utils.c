@@ -1070,6 +1070,13 @@ void saveWANStatus(char *currentstatus, int statusindex)
 		// fclose(STATUSFILE);
 	// }
 // #else
+	/* For VPNC */
+	if ((req_unit == 20) && (STATUSFILE = fopen("/tmp/vpncstatus.log", "w"))!=NULL)
+	{
+		fprintf(STATUSFILE, "%d,%s\n", statusindex, currentstatus);
+		fclose(STATUSFILE);
+	}
+	else 
 	if ((STATUSFILE = fopen("/tmp/wanstatus.log", "w"))!=NULL)
 	{
 		fprintf(STATUSFILE, "%d,%s\n", statusindex, currentstatus);

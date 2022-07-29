@@ -38,25 +38,19 @@
 #include <net/if.h>
 #include <shutils.h>
 // #include <notify_rc.h>
-// #include <bcmnvram.h>
 
 #include "rc.h"
-// #ifdef RTCONFIG_USB
-#ifdef TCSUPPORT_USBHOST
+#ifdef RTCONFIG_USB
 #include <disk_io_tools.h>
 #endif
 
-#define SCAN_INTERVAL 5
+#define DEFAULT_SCAN_INTERVAL 5
 #define TCPCHECK_TIMEOUT 3
 #define PING_RESULT_FILE "/tmp/ping_success"
 #define RX_THRESHOLD 40
 
 
-#define MAX_WAIT_TIME 60
-#define MAX_DISCONN_COUNT MAX_WAIT_TIME/SCAN_INTERVAL
-
-int max_wait_time = MAX_WAIT_TIME;
-int max_disconn_count = MAX_DISCONN_COUNT;
+#define DEFAULT_MAX_DISCONN_COUNT 24
 
 #define PROC_NET_DEV "/proc/net/dev"
 #define WANDUCK_PID_FILE "/var/run/wanduck.pid"
@@ -78,6 +72,8 @@ int max_disconn_count = MAX_DISCONN_COUNT;
 #define C2D			3
 #define D2C			4
 #define PHY_RECONN	5
+#define SET_ETH_MODEM	6
+#define SET_PIN	7
 
 #define CASE_NONE          0
 #define CASE_DISWAN        1
@@ -153,12 +149,28 @@ typedef struct REQCLIENT{
 
 // var
 #define DUT_DOMAIN_NAME "router.asus.com"
+int test_log = 0;
 char router_name[PATHLEN];
-int sw_mode = SW_MODE_ROUTER;	//
-int isFirstUse;
+int sw_mode = SW_MODE_ROUTER, isFirstUse;
+int boot_end;
 #ifdef RTCONFIG_DUALWAN
 char dualwan_mode[8];
+
+char wandog_target[PATH_MAX];
+int wandog_delay, delay_detect;
+int WAN_FB_UNIT;
 #endif
+#ifdef RTCONFIG_USB_MODEM
+char modem_type[32];
+int modem_act_reset;
+#endif
+
+int scan_interval;
+int wandog_enable, wandog_maxfail;
+int max_disconn_count;
+int max_wait_time;
+int max_fb_count;
+int max_fb_wait_time;
 
 int http_sock, dns_sock, maxfd;
 clients client[MAX_USER];
@@ -169,6 +181,7 @@ char dst_url[256];
 #define S_IDLE -1
 #define S_COUNT 0
 int conn_changed_state[WAN_UNIT_MAX], changed_count[WAN_UNIT_MAX];
+unsigned int loop_sec;
 
 int conn_state_old[WAN_UNIT_MAX], conn_state[WAN_UNIT_MAX];
 int cross_state = 0;
@@ -192,7 +205,10 @@ int current_wan_unit = WAN_UNIT_FIRST;
 int other_wan_unit = WAN_UNIT_SECOND;
 int current_state[WAN_UNIT_MAX];
 
-char nvram_state[WAN_UNIT_MAX][16], nvram_sbstate[WAN_UNIT_MAX][16], nvram_auxstate[WAN_UNIT_MAX][16];
+char nvram_state[WAN_UNIT_MAX][16], nvram_sbstate[WAN_UNIT_MAX][16], nvram_auxstate[WAN_UNIT_MAX][17];
+
+static int nat_redirect_enable;
+static int nat_redirect_enable_old;
 
 #ifdef RTCONFIG_WIRELESSREPEATER
 int setAP, wlc_state = 0;

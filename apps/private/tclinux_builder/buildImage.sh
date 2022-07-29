@@ -33,7 +33,11 @@ size_r=$(stat -c%s "$rootfs")
 #fi
 
 #Calculating the size of the bootloader paddings
-let "remainder_b=65536-$size_b"
+if [ "$TCSUPPORT_BOOTROM_LARGE_SIZE" != "" ] && [ "$TCSUPPORT_BB_NAND" != "" ];then
+	let "remainder_b=131072-$size_b"
+else
+	let "remainder_b=65536-$size_b"
+fi
 
 #Calculating the size of the romfile paddings
 let "remainder_f=65536-$size_f"
@@ -113,8 +117,18 @@ fi
 #then
 #	echo "../../tools/trx/trx -k $size_k -f  tclinux -o tclinux.bin"
 #	echo `../../tools/trx/trx -k $size_k -f tclinux -o tclinux.bin`
+if [ "$TCSUPPORT_2_6_36_KERNEL" != "" ] ;then
+if [ "$TCSUPPORT_FREE_BOOTBASE" != "" ] ;then
+	echo "../../tools/trx/trx -k $size_k -r $size_r -u $START_ADDR -f tclinux -o tclinux.bin -c ../../tools/trx/trx_config"
+	echo `../../../tools/trx/trx -k $size_k -r $size_r -u $START_ADDR -f tclinux -o tclinux.bin -c ../../../tools/trx/trx_config`
+else
 	echo "../../tools/trx/trx -k $size_k -r $size_r -f tclinux -o tclinux.bin -c ../../tools/trx/trx_config"
 	echo `../../../tools/trx/trx -k $size_k -r $size_r -f tclinux -o tclinux.bin -c ../../../tools/trx/trx_config`
+fi
+else
+	echo "../../tools/trx/trx -k $size_k -r $size_r -f tclinux -o tclinux.bin -c ../../tools/trx/trx_config"
+	echo `../../../tools/trx/trx -k $size_k -r $size_r -f tclinux -o tclinux.bin -c ../../../tools/trx/trx_config`
+fi
 #fi
 rm -rf *xa*
 test -e ./padding_k && rm -rf ./padding_k
@@ -156,6 +170,22 @@ then
 	cat tcboot.bin padding_b ctromfile.cfg tclinux.bin > tclinux_allinone
 else
 	cat tcboot.bin padding_b ctromfile.cfg padding_f tclinux.bin > tclinux_allinone
+fi
+fi
+
+if [ "$TCSUPPORT_2_6_36_KERNEL" != "" ] ;then
+if [ "$TCSUPPORT_BOOTROM_LARGE_SIZE" != "" ] && [ "$TCSUPPORT_BB_NAND" != "" ];then
+#Generating tclinux_allinone for NAND,tcboot is 256k,romfile is 256k
+	let "remainder_b=262144-$size_b"
+	let "remainder_f=262144-$size_f"
+	echo "Need a padding for NAND bootloader"
+	split -b $remainder_b padding
+	mv xaa padding_b
+	echo "Need a padding for NAND romfile"
+	split -b $remainder_f padding
+	mv xaa padding_f
+	cat tcboot.bin padding_b romfile.cfg padding_f tclinux.bin > tclinux_allinone_nand
+	#echo `./byteswap tclinux_allinone_nand`
 fi
 fi
 

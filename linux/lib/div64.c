@@ -18,6 +18,7 @@
 
 #include <linux/types.h>
 #include <linux/module.h>
+#include <linux/math64.h>
 #include <asm/div64.h>
 
 /* Not needed on 64bit architectures */
@@ -58,6 +59,25 @@ uint32_t __attribute__((weak)) __div64_32(uint64_t *n, uint32_t base)
 
 EXPORT_SYMBOL(__div64_32);
 
+#ifndef div_s64_rem
+s64 div_s64_rem(s64 dividend, s32 divisor, s32 *remainder)
+{
+	u64 quotient;
+
+	if (dividend < 0) {
+		quotient = div_u64_rem(-dividend, abs(divisor), (u32 *)remainder);
+		*remainder = -*remainder;
+		if (divisor > 0)
+			quotient = -quotient;
+	} else {
+		quotient = div_u64_rem(dividend, abs(divisor), (u32 *)remainder);
+		if (divisor < 0)
+			quotient = -quotient;
+	}
+	return quotient;
+}
+EXPORT_SYMBOL(div_s64_rem);
+#endif
 /* 64bit divisor, dividend and result. dynamic precision */
 uint64_t div64_64(uint64_t dividend, uint64_t divisor)
 {
@@ -79,3 +99,12 @@ uint64_t div64_64(uint64_t dividend, uint64_t divisor)
 EXPORT_SYMBOL(div64_64);
 
 #endif /* BITS_PER_LONG == 32 */
+/*
+ * Iterative div/mod for use when dividend is not expected to be much
+ * bigger than divisor.
+ */
+u32 iter_div_u64_rem(u64 dividend, u32 divisor, u64 *remainder)
+{
+	return __iter_div_u64_rem(dividend, divisor, remainder);
+}
+EXPORT_SYMBOL(iter_div_u64_rem);

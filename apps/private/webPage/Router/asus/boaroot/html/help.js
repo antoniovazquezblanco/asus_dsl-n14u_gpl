@@ -6,10 +6,16 @@ vpn_conflict_LANip : '* It is a conflict with router\'s LAN ip:',
 vpn_conflict_DHCPpool : '* It is a conflict with router\'s DHCP pool:',
 vpn_conflict_DHCPstatic : '* It is a conflict with router\'s DHCP static ip:',
 valid_range_int : 'Please enter a positive integer',
-validate_hostname_hint : "The host name only accept alphanumeric characters, under line and dash symbol. The first character cannot be dash [-] or under line [_]. <%tcWebApi_get("String_Entry","File_Pop_content_alert_desc2","s")%>",
+ASUSGATE_note9 : "Your DSL line appears to be unstable. DLA (Dynamic Line Adjustment) which enabled by default already adopted necessary changes and ensure stability. However if interruption continues please submit a feedback form for our analysis.",
 ASUSGATE_note6 : 'Your DSL line appears to be unstable. We strongly recommend that you submit a feedback form for our analysis.',
 ASUSGATE_note7 : 'If you are experiencing any DSL related issues or have any comments / suggestions, please feel free to inform our support team.',
-ASUSGATE_act_feedback : 'Feedback now'
+ASUSGATE_act_feedback : 'Feedback now',
+ASUSGATE_DSL_setting : "Go setting DSL",
+Email_validation : 'The format of E-mail address is not valid.',
+ISP_not_support : 'We currently do not support this location, please use <b>Manual</b>.',
+IPv6_prefix_validation : 'Invalid IPv6 Prefix',
+IPv6_addr_validation : 'Invalid IPv6 Address',
+filter_lw_date_valid : 'Please select at least one day or disable this feature.'
 };
 
 // init Helper
@@ -20,11 +26,23 @@ function addNewScript_help(scriptName){
 	document.getElementsByTagName("head")[0].appendChild(script);
 }
 
+/* convert some special character for shown string */
+function handle_show_str(show_str)
+{
+        show_str = show_str.replace(/\&/g, "&amp;");
+        show_str = show_str.replace(/\</g, "&lt;");
+        show_str = show_str.replace(/\>/g, "&gt;");
+        show_str = show_str.replace(/\ /g, "&nbsp;");
+        return show_str;
+}
+
 var helpcontent = new Array();
 setTimeout("addNewScript_help('/help_content.js');", 2000);
 
-var clicked_help_string = "<%tcWebApi_get("String_Entry","Help_init_word1","s")%> <a class=\"hintstyle\" style=\"background-color:#7aa3bd\"><%tcWebApi_get("String_Entry","Help_init_word2","s")%></a> <%tcWebApi_get("String_Entry","Help_init_word3","s")%>";
-function suspendconn(wanenable){
+function suspendconn(wan_index, wanenable){
+	if(wan_index == usb_index){
+		document.internetForm_title.ModemConnflag.value = 1;
+	}	
 	<%If tcWebApi_staticGet("DeviceInfo_PVC","DispBtnType","h") <> "0" then%>
 		document.internetForm_title.Dipflag.value = wanenable;
 	<%elseif tcWebApi_get("Wan_PVC","CONNECTION","h") = "Connect_Manually" then%>
@@ -47,6 +65,11 @@ function suspendconn(wanenable){
 		<%end if%>
 		<% if tcWebApi_staticGet("WebCurSet_Entry","dev_pvc","h") = "10" then%>
 			<% if tcWebApi_staticGet("Wan_Common","TransMode","h") = "Ethernet" then%>
+				document.internetForm_title.Dipflag.value = wanenable;
+			<%End if%>
+		<%End if%>
+		<% if tcWebApi_staticGet("WebCurSet_Entry","dev_pvc","h") = "11" then%>
+			<% if tcWebApi_staticGet("Wan_Common","TransMode","h") = "USB" then%>
 				document.internetForm_title.Dipflag.value = wanenable;
 			<%End if%>
 		<%End if%>
@@ -85,6 +108,9 @@ top.location.href = "Main_AdslStatus_Content.asp";
 }
 
 <% available_disk_names_and_sizes(); %>
+
+var wans_mode = '<% tcWebApi_staticGet("Dualwan_Entry","wans_mode","s") %>';
+var wans_lanport = '<%tcWebApi_Get("Dualwan_Entry", "wans_lanport", "s")%>';
 
 function overHint(itemNum){
 	var statusmenu = "";
@@ -157,7 +183,7 @@ function overHint(itemNum){
 				statusmenu += "<span>"+ decodeURIComponent(gn_array_2g[i][1]) + " (";
 				
 				if(gn_array_2g[i][11] == 0)
-						statusmenu += '<%tcWebApi_get("String_Entry","Limitless","s")%>';
+						statusmenu += '<%tcWebApi_get("String_Entry","Limitless","s")%>)</span><br>';
 				else{
 					var expire_hr = Math.floor(gn_array_2g[i][13]/3600);
 					var expire_min = Math.floor((gn_array_2g[i][13]%3600)/60);
@@ -169,12 +195,10 @@ function overHint(itemNum){
 								statusmenu += '<b id="expire_min_'+i+'">' + expire_min +'</b> Min';
 						else	
 								statusmenu += '<b id="expire_min_'+i+'">< 1</b> Min';
-					}			
+					}	
+					statusmenu += " left)</span><br>";		
 				}
-
-				statusmenu += " left)</span><br>";				
-				
-				
+			
 			}
 		}
 		if(band5g_support != -1){
@@ -211,44 +235,264 @@ function overHint(itemNum){
 		statusmenu += "<div class='StatusHint'><%tcWebApi_get("String_Entry","Guest_Network","s")%>:</div><span><% tcWebApi_Get("String_Entry","btn_Disabled","s") %></span>";
 	}
 	if(itemNum == 3){
-		if(link_status == "2" && link_auxstatus == "0"){
-			statusmenu = "<div class='StatusHint'><% tcWebApi_Get("String_Entry", "Internet", "s") %>:</div>";
-			statusmenu += "<span><% tcWebApi_Get("String_Entry", "Connected", "s") %></span>";
+		if(dualWAN_support >= 0 && wans_dualwan_array.indexOf("none") == -1)	//dualwan enabled
+			statusmenu = "<div class='StatusHint'><% tcWebApi_Get("String_Entry", "dualwan_primary", "s") %>:</div>";
+		else
+			statusmenu = "<div class='StatusHint'><% tcWebApi_Get("String_Entry", "statusTitle_Internet", "s") %>:</div>";	
+		
+		if( wans_dualwan_array[0] == "wan")
+			statusmenu += "<b><% tcWebApi_Get("String_Entry", "Ethernet_wan", "s") %> -</b><br>";
+		else if( wans_dualwan_array[0] == "lan")
+			statusmenu += "<b><% tcWebApi_Get("String_Entry", "menu5_2", "s") %>"+wans_lanport+" -</b><br>";
+		else if( wans_dualwan_array[0] == "usb"){
+			if(gobi_support)
+				statusmenu += "<b><% tcWebApi_Get("String_Entry", "Mobile_title", "s") %> -</b><br>";
+			else
+				statusmenu += "<b><% tcWebApi_Get("String_Entry", "menu5_4_4", "s") %> -</b><br>";
 		}
-		else if(link_status == "2" && link_auxstatus == "2"){
-			statusmenu = "<div class='StatusHint'><% tcWebApi_Get("String_Entry", "Internet", "s") %>:</div>";
-			statusmenu += "<span><% tcWebApi_Get("String_Entry", "Disconnected", "s") %></span>";
+		
+		if(dualWAN_support && wans_dualwan_array.indexOf("none") == -1 ){	//dualwan enabled
+			if(first_link_status == "1")
+				statusmenu += "<span><% tcWebApi_Get("String_Entry", "w_r_r2_2", "s") %></span>";
+			else if((first_link_status == "2" && first_link_auxstatus == "0") || (first_link_status == "2" && first_link_auxstatus == "2")){
+				/*if((wans_mode == "fo" || wans_mode == "fb") && active_wan_unit != "<% tcWebApi_staticGet("WebCurSet_Entry","wan_pvc","s") %>")
+					statusmenu += "<span>Standby</span>";
+				else	*/
+					statusmenu += "<span><% tcWebApi_Get("String_Entry", "Connected", "s") %></span>";
+			}
+			else{
+				if(sw_mode == 1){
+					if( wans_dualwan_array[0] == "usb"){
+						if(modem_enable == "0"){
+							if(gobi_support >= 0)
+								statusmenu += "<div>Mobile Broadband is disabled.</div>";
+							else
+								statusmenu += "<div>USB Modem is disabled.</div>";
+						}
+						else{
+							/*	
+							if(sim_state != ""){
+								if(sim_state == "2"){
+									if( g3err_pin == "1" && pin_remaining_count < 3)
+										statusmenu += "<div>Wrong PIN code. Please input the correct PIN code.</div>";
+									else
+										statusmenu += "<div><% tcWebApi_Get("String_Entry", "Mobile_need_pin", "s") %></div>";
+								}
+								else if(sim_state == "3")
+									statusmenu += "<div><% tcWebApi_Get("String_Entry", "Mobile_need_puk", "s") %></div>";
+								else if(sim_state == "4")
+									statusmenu += "<div><% tcWebApi_Get("String_Entry", "Mobile_need_pin2", "s") %></div>";
+								else if(sim_state == "5")
+									statusmenu += "<div><% tcWebApi_Get("String_Entry", "Mobile_need_puk2", "s") %></div>";		
+								else if(sim_state == "6")
+									statusmenu += "<div><% tcWebApi_Get("String_Entry", "Mobile_wait_sim", "s") %></div>";	
+								else if(sim_state == "-1")
+									statusmenu += "<div><% tcWebApi_Get("String_Entry", "Mobile_sim_miss", "s") %></div>";
+								else if(sim_state == "-10" || sim_state == "-2")
+									statusmenu += "<div><% tcWebApi_Get("String_Entry", "Mobile_sim_fail", "s") %></div>";
+								else
+									statusmenu += "<div><% tcWebApi_Get("String_Entry", "Mobile_fail_connect", "s") %></div>";
+							}
+							else*/
+								statusmenu += "<span><% tcWebApi_Get("String_Entry", "Disconnected", "s") %></span>";
+						}
+					}
+					else{
+						if(wan0_enable == 0){
+							statusmenu += "<span>WAN is disabled.</span>";
+						}
+						else{
+							if(first_link_auxstatus == "1"){
+								if( wans_dualwan_array[0] == "lan"){
+									statusmenu += "<span>Please check that the ethernet cable is connected properly to the <% tcWebApi_Get("String_Entry", "menu5_2", "s") %>"+wans_lanport+" port.</span>";
+								}
+								else	
+									statusmenu += "<span><% tcWebApi_Get("String_Entry", "QKS_detect_wanconnfault", "s") %></span>";
+							}
+							else if(first_link_sbstatus == "1")
+								statusmenu += "<span><% tcWebApi_Get("String_Entry", "w_r_r3_2", "s") %></span>";
+							else if(first_link_sbstatus == "2")
+								statusmenu += "<span><% tcWebApi_Get("String_Entry", "QKS_Internet_Setup_fail_r2", "s") %></span>";
+							else if(first_link_sbstatus == "3")
+								statusmenu += "<span><% tcWebApi_Get("String_Entry", "QKS_Internet_Setup_fail_r1", "s") %></span>";
+							else if(first_link_sbstatus == "4")
+								statusmenu += "<span><% tcWebApi_Get("String_Entry", "w_r_r5_2", "s") %></span>";
+							else if(first_link_sbstatus == "5")
+								statusmenu += "<span><% tcWebApi_Get("String_Entry", "w_r_r5_1", "s") %></span>";
+							else if(first_link_sbstatus == "6")
+								statusmenu += "<span>System error. <% tcWebApi_Get("String_Entry", "Reboot_manually", "s") %></span>";
+							else if(first_link_sbstatus == "9")
+								statusmenu += "<span>PIN code is not correct. After three failed attempts to enter the PIN code, your SIM card will be blocked.</span>";	
+							else
+								statusmenu += "<span><% tcWebApi_Get("String_Entry", "Disconnected", "s") %></span>";	
+						}	
+					}
+				}		
+			}
 		}
 		else{
-			if(sw_mode == 1){
-				if(link_auxstatus == 1)
-					statusmenu = "<span class='StatusHint'><% tcWebApi_Get("String_Entry", "QKS_detect_wanconnfault", "s") %></span>";
-				else if(link_sbstatus == 1)
-					statusmenu = "<span class='StatusHint'><%tcWebApi_get("String_Entry","w_r_r3_2","s")%></span>";
-				else if(link_sbstatus == 2)
-					statusmenu = "<span class='StatusHint'><%tcWebApi_get("String_Entry","QKS_Internet_Setup_fail_r2","s")%></span>";
-				else if(link_sbstatus == 3)
-					statusmenu = "<span class='StatusHint'><%tcWebApi_get("String_Entry","QKS_Internet_Setup_fail_r1","s")%></span>";
-				else if(link_sbstatus == 4)
-					statusmenu = "<span class='StatusHint'><%tcWebApi_get("String_Entry","w_r_r5_2","s")%></span>";
-				else if(link_sbstatus == 5)
-					statusmenu = "<span class='StatusHint'><%tcWebApi_get("String_Entry","w_r_r5_1","s")%></span>";
-				else if(link_sbstatus == 6)
-					statusmenu = "<span class='StatusHint'>WAN_STOPPED_SYSTEM_ERROR</span>";
-				else if(link_sbstatus == 9)
-					statusmenu = "<span class='StatusHint'>PIN code is not correct. After three failed attempts to enter the PIN code, your SIM card will be blocked.</span>";
-				else
-					statusmenu = "<span class='StatusHint'><%tcWebApi_get("String_Entry","w_r_r2_2","s")%></span>";
+			if(link_status == "1")
+				statusmenu += "<span><% tcWebApi_Get("String_Entry", "w_r_r2_2", "s") %></span>";
+			else if((link_status == "2" && link_auxstatus == "0") || (link_status == "2" && link_auxstatus == "2")){
+				statusmenu += "<span><% tcWebApi_Get("String_Entry", "Connected", "s") %></span>";
 			}
-			else if(sw_mode == 2){
-				if(_wlc_state == "wlc_state=2")
-					statusmenu = "<span class='StatusHint'><%tcWebApi_get("String_Entry","APS_msg_connected","s")%></span>";
-				else{
-					if(_wlc_sbstate == "wlc_sbstate=2")
-						statusmenu = "<span class='StatusHint'>Connection failed. Please enter the security key again or click [Cancel] to select another network to connect to.</span>";
-					else
-						statusmenu = "<span class='StatusHint'>Connection failed. The network you are trying to connect to may not exist. Please select another network to connect to.</span>";
+			else{
+				if(sw_mode == 1){
+					if( wans_dualwan_array[0] == "usb"){
+						if(modem_enable == "0"){
+							if(gobi_support >= 0)
+								statusmenu += "<div>Mobile Broadband is disabled.</div>";
+							else
+								statusmenu += "<div>USB Modem is disabled.</div>";							
+						}
+						else{	
+							/*if(sim_state != ""){
+								if(sim_state == "2"){
+									if( g3err_pin == "1" && pin_remaining_count < 3)
+										statusmenu += "<div>Wrong PIN code. Please input the correct PIN code.</div>";
+									else
+										statusmenu += "<div><% tcWebApi_Get("String_Entry", "Mobile_need_pin", "s") %></div>";
+								}
+								else if(sim_state == "3")
+									statusmenu += "<div><% tcWebApi_Get("String_Entry", "Mobile_need_puk", "s") %></div>";
+								else if(sim_state == "4")
+									statusmenu += "<div><% tcWebApi_Get("String_Entry", "Mobile_need_pin2", "s") %></div>";
+								else if(sim_state == "5")
+									statusmenu += "<div><% tcWebApi_Get("String_Entry", "Mobile_need_puk2", "s") %></div>";		
+								else if(sim_state == "6")
+									statusmenu += "<div><% tcWebApi_Get("String_Entry", "Mobile_wait_sim", "s") %></div>";	
+								else if(sim_state == "-1")
+									statusmenu += "<div><% tcWebApi_Get("String_Entry", "Mobile_sim_miss", "s") %></div>";
+								else if(sim_state == "-10" || sim_state == "-2")
+									statusmenu += "<div><% tcWebApi_Get("String_Entry", "Mobile_sim_fail", "s") %></div>";
+								else
+									statusmenu += "<div><% tcWebApi_Get("String_Entry", "Mobile_fail_connect", "s") %></div>";
+							}
+							else*/
+								statusmenu += "<span><% tcWebApi_Get("String_Entry", "Disconnected", "s") %></span>";	
+						}											
+					}
+					else{
+						if(wan0_enable == 0){
+							statusmenu += "<span>WAN is disabled.</span>";
+						}
+						else{
+							if(link_auxstatus == "1"){
+								if( wans_dualwan_array[0] == "lan"){
+									statusmenu += "<span>Please check that the ethernet cable is connected properly to the <% tcWebApi_Get("String_Entry", "menu5_2", "s") %>"+wans_lanport+" port.</span>";
+								}
+								else	
+									statusmenu += "<span><% tcWebApi_Get("String_Entry", "QKS_detect_wanconnfault", "s") %></span>";
+							}
+							else if(link_sbstatus == "1")
+								statusmenu += "<span><% tcWebApi_Get("String_Entry", "w_r_r3_2", "s") %></span>";
+							else if(link_sbstatus == "2")
+								statusmenu += "<span><% tcWebApi_Get("String_Entry", "QKS_Internet_Setup_fail_r2", "s") %></span>";
+							else if(link_sbstatus == "3")
+								statusmenu += "<span><% tcWebApi_Get("String_Entry", "QKS_Internet_Setup_fail_r1", "s") %></span>";
+							else if(link_sbstatus == "4")
+								statusmenu += "<span><% tcWebApi_Get("String_Entry", "w_r_r5_2", "s") %></span>";
+							else if(link_sbstatus == "5")
+								statusmenu += "<span><% tcWebApi_Get("String_Entry", "w_r_r5_1", "s") %></span>";
+							else if(link_sbstatus == "6")
+								statusmenu += "<span>System error. <% tcWebApi_Get("String_Entry", "Reboot_manually", "s") %></span>";
+							else if(link_sbstatus == "9")
+								statusmenu += "<span>PIN code is not correct. After three failed attempts to enter the PIN code, your SIM card will be blocked.</span>";	
+							else
+								statusmenu += "<span><% tcWebApi_Get("String_Entry", "Disconnected", "s") %></span>";	
+						}
+					}
 				}
+			}
+			
+		}
+			
+		if(sw_mode == 1){
+			if(dualWAN_support >= 0 && wans_dualwan_array[1] != "none" ){	//dualwan enabled
+				statusmenu += "<div class='StatusHint'><br><% tcWebApi_Get("String_Entry", "dualwan_secondary", "s") %>:</div>";	
+				if( wans_dualwan_array[1] == "wan")
+					statusmenu += "<b><% tcWebApi_Get("String_Entry", "Ethernet_wan", "s") %> -</b><br>";
+				else if( wans_dualwan_array[1] == "lan")
+					statusmenu += "<b><% tcWebApi_Get("String_Entry", "menu5_2", "s") %>"+wans_lanport+" -</b><br>";
+				else if( wans_dualwan_array[1] == "usb"){
+					if(gobi_support >= 0)
+						statusmenu += "<b><% tcWebApi_Get("String_Entry", "Mobile_title", "s") %> -</b><br>";
+					else
+						statusmenu += "<b><% tcWebApi_Get("String_Entry", "menu5_4_4", "s") %> -</b><br>";
+				}
+
+				if(secondary_link_status == "1")
+					statusmenu += "<span><% tcWebApi_Get("String_Entry", "w_r_r2_2", "s") %></span>";
+				else if(secondary_link_status == "2" && (secondary_link_auxstatus == "0" || secondary_link_auxstatus == "2")){
+					/*if((wans_mode == "fo" || wans_mode == "fb") && active_wan_unit != "<% tcWebApi_staticGet("WebCurSet_Entry","wan_pvc","s") %>")
+						statusmenu += "<span>Standby</span>";
+					else	*/
+						statusmenu += "<span><% tcWebApi_Get("String_Entry", "Connected", "s") %></span>";
+				}
+				else{
+					if( wans_dualwan_array[1] == "usb"){
+						if(modem_enable == "0"){
+							if(gobi_support)
+								statusmenu += "<div>Mobile Broadband is disabled.</div>";
+							else
+								statusmenu += "<div>USB Modem is disabled.</div>";							
+						}
+						else{
+							/*if(sim_state != ""){
+								if(sim_state == "2"){
+									if( g3err_pin == "1" && pin_remaining_count < 3)
+										statusmenu += "<div>Wrong PIN code. Please input the correct PIN code.</div>";
+									else
+										statusmenu += "<div><% tcWebApi_Get("String_Entry", "Mobile_need_pin", "s") %></div>";
+								}
+								else if(sim_state == "3")
+									statusmenu += "<div><% tcWebApi_Get("String_Entry", "Mobile_need_puk", "s") %></div>";
+								else if(sim_state == "4")
+									statusmenu += "<div><% tcWebApi_Get("String_Entry", "Mobile_need_pin2", "s") %></div>";
+								else if(sim_state == "5")
+									statusmenu += "<div><% tcWebApi_Get("String_Entry", "Mobile_need_puk2", "s") %></div>";		
+								else if(sim_state == "6")
+									statusmenu += "<div><% tcWebApi_Get("String_Entry", "Mobile_wait_sim", "s") %></div>";	
+								else if(sim_state == "-1")
+									statusmenu += "<div><% tcWebApi_Get("String_Entry", "Mobile_sim_miss", "s") %></div>";
+								else if(sim_state == "-10" || sim_state == "-2")
+									statusmenu += "<div><% tcWebApi_Get("String_Entry", "Mobile_sim_fail", "s") %></div>";
+								else
+									statusmenu += "<div><% tcWebApi_Get("String_Entry", "Mobile_fail_connect", "s") %></div>";
+							}
+							else*/
+								statusmenu += "<span><% tcWebApi_Get("String_Entry", "Disconnected", "s") %></span>";
+						}
+					}
+					else{
+						if(wan1_enable == 0){
+							statusmenu += "<span>WAN is disabled.</span>";
+						}
+						else{
+							if(secondary_link_auxstatus == "1"){
+								if( wans_dualwan_array[1] == "lan"){
+									statusmenu += "<span>Please check that the ethernet cable is connected properly to the <% tcWebApi_Get("String_Entry", "menu5_2", "s") %>"+wans_lanport+" port.</span>";
+								}
+								else	
+									statusmenu += "<span><% tcWebApi_Get("String_Entry", "QKS_detect_wanconnfault", "s") %></span>";
+							}
+							else if(secondary_link_sbstatus == "1")
+								statusmenu += "<span><% tcWebApi_Get("String_Entry", "w_r_r3_2", "s") %></span>";
+							else if(secondary_link_sbstatus == "2")
+								statusmenu += "<span><% tcWebApi_Get("String_Entry", "QKS_Internet_Setup_fail_r2", "s") %></span>";
+							else if(secondary_link_sbstatus == "3")
+								statusmenu += "<span><% tcWebApi_Get("String_Entry", "QKS_Internet_Setup_fail_r1", "s") %></span>";
+							else if(secondary_link_sbstatus == "4")
+								statusmenu += "<span><% tcWebApi_Get("String_Entry", "w_r_r5_2", "s") %></span>";
+							else if(secondary_link_sbstatus == "5")
+								statusmenu += "<span><% tcWebApi_Get("String_Entry", "w_r_r5_1", "s") %></span>";
+							else if(secondary_link_sbstatus == "6")
+								statusmenu += "<span>System error. <% tcWebApi_Get("String_Entry", "Reboot_manually", "s") %></span>";
+							else
+								statusmenu += "<span><% tcWebApi_Get("String_Entry", "Disconnected", "s") %></span>";
+						}		
+					}
+				}						
 			}
 		}
 	}
@@ -323,30 +567,73 @@ function openHint(hint_array_id, hint_show_id, flag){
 		}
 		else if(hint_show_id == 3){
 			if(sw_mode == 1){
-				if(link_status == "2" && link_auxstatus == "0")
-					statusmenu = "<span class='StatusClickHint' onclick='suspendconn(2);' onmouseout='this.className=\"StatusClickHint\"' onmouseover='this.className=\"StatusClickHint_mouseover\"'><%tcWebApi_get("String_Entry","disconnect_internet","s")%></span>";
-				else if(link_status == "2" && link_auxstatus == "2") //link_status == 5
-					statusmenu = "<span class='StatusClickHint' onclick='suspendconn(1);' onmouseout='this.className=\"StatusClickHint\"' onmouseover='this.className=\"StatusClickHint_mouseover\"'>Resume internet</span>";
-				else{
-					if(link_auxstatus == 1)
-						statusmenu = "<span class='StatusHint'><% tcWebApi_Get("String_Entry", "QKS_detect_wanconnfault", "s") %></span>";
-					else if(link_sbstatus == 1)
-						statusmenu = "<span class='StatusHint'><%tcWebApi_get("String_Entry","w_r_r3_2","s")%></span>";
-					else if(link_sbstatus == 2)
-						statusmenu = "<span class='StatusHint'><%tcWebApi_get("String_Entry","QKS_Internet_Setup_fail_r2","s")%></span>";
-					else if(link_sbstatus == 3)
-						statusmenu = "<span class='StatusHint'><%tcWebApi_get("String_Entry","QKS_Internet_Setup_fail_r1","s")%></span>";
-					else if(link_sbstatus == 4)
-						statusmenu = "<span class='StatusHint'><%tcWebApi_get("String_Entry","w_r_r5_2","s")%></span>";
-					else if(link_sbstatus == 5)
-						statusmenu = "<span class='StatusHint'><%tcWebApi_get("String_Entry","w_r_r5_1","s")%></span>";
-					else if(link_sbstatus == 6)
-						statusmenu = "<span class='StatusHint'>WAN_STOPPED_SYSTEM_ERROR</span>";
-					else if(link_sbstatus == 9)
-						statusmenu = "<span class='StatusHint'>PIN code is not correct. After three failed attempts to enter the PIN code, your SIM card will be blocked.</span>";
-					else
-						statusmenu = "<span class='StatusHint'><%tcWebApi_get("String_Entry","w_r_r2_2","s")%></span>";
+				if(dualWAN_support == -1 || wans_dualwan_array[1] == "none"){
+						if((link_status == "2" && link_auxstatus == "0") || (link_status == "2" && link_auxstatus == "2"))
+								statusmenu = "<span class='StatusClickHint' onclick='suspendconn(0,2);' onmouseout='this.className=\"StatusClickHint\"' onmouseover='this.className=\"StatusClickHint_mouseover\"'><%tcWebApi_get("String_Entry","disconnect_internet","s")%></span>";
+						//else if(link_status == "2" && link_auxstatus == "2") //link_status == 5
+						else{
+								statusmenu = "<span class='StatusClickHint' onclick='suspendconn(1);' onmouseout='this.className=\"StatusClickHint\"' onmouseover='this.className=\"StatusClickHint_mouseover\"'>";
+								if(usb_index == 0){
+									//if(gobi_support)
+										//statusmenu += "Go to Mobile Broadband Setting.</span>";
+									//else
+										statusmenu += "<%tcWebApi_get("String_Entry","GO_HSDPA_SETTING","s")%></span>";
+								}	
+								else
+									statusmenu += "Go to WAN Setting.</span>";	
+						}/*		 Viz banned 2015.02.24	
+						else{
+								if(link_auxstatus == 1)
+									statusmenu = "<span class='StatusHint'><% tcWebApi_Get("String_Entry", "QKS_detect_wanconnfault", "s") %></span>";
+								else if(link_sbstatus == 1)
+									statusmenu = "<span class='StatusHint'><%tcWebApi_get("String_Entry","w_r_r3_2","s")%></span>";
+								else if(link_sbstatus == 2)
+									statusmenu = "<span class='StatusHint'><%tcWebApi_get("String_Entry","QKS_Internet_Setup_fail_r2","s")%></span>";
+								else if(link_sbstatus == 3)
+									statusmenu = "<span class='StatusHint'><%tcWebApi_get("String_Entry","QKS_Internet_Setup_fail_r1","s")%></span>";
+								else if(link_sbstatus == 4)
+									statusmenu = "<span class='StatusHint'><%tcWebApi_get("String_Entry","w_r_r5_2","s")%></span>";
+								else if(link_sbstatus == 5)
+									statusmenu = "<span class='StatusHint'><%tcWebApi_get("String_Entry","w_r_r5_1","s")%></span>";
+								else if(link_sbstatus == 6)
+									statusmenu = "<span class='StatusHint'>WAN_STOPPED_SYSTEM_ERROR</span>";
+								else if(link_sbstatus == 9)
+									statusmenu = "<span class='StatusHint'>PIN code is not correct. After three failed attempts to enter the PIN code, your SIM card will be blocked.</span>";
+								else
+									statusmenu = "<span class='StatusHint'><%tcWebApi_get("String_Entry","w_r_r2_2","s")%></span>";
+						}*/					
 				}
+				else{						
+						statusmenu = "<div class='StatusHint'><% tcWebApi_Get("String_Entry", "dualwan_primary", "s") %>:</div>";
+						if((first_link_status == "2" && first_link_auxstatus == "0") || (first_link_status == "2" && first_link_auxstatus == "2"))
+							statusmenu += "<span class='StatusClickHint' onclick='suspendconn(0, 2);' onmouseout='this.className=\"StatusClickHint\"' onmouseover='this.className=\"StatusClickHint_mouseover\"'><% tcWebApi_Get("String_Entry", "disconnect_internet", "s") %></span>";
+						else{
+							statusmenu += "<span class='StatusClickHint' onclick='goToWAN(0);' onmouseout='this.className=\"StatusClickHint\"' onmouseover='this.className=\"StatusClickHint_mouseover\"'>";
+							if(usb_index == 0){
+									if(gobi_support >= 0)
+										statusmenu += "Go to Mobile Broadband Setting.</span>";
+									else
+										statusmenu += "<% tcWebApi_Get("String_Entry", "GO_HSDPA_SETTING", "s") %></span>";
+							}	
+							else
+									statusmenu += "Go to WAN Setting.</span>";							
+						}
+
+						statusmenu += "<div class='StatusHint'><br><% tcWebApi_Get("String_Entry", "dualwan_secondary", "s") %>:</div>";
+						if((secondary_link_status == "2" && secondary_link_auxstatus == "0") || (secondary_link_status == "2" && secondary_link_auxstatus == "2"))
+							statusmenu += "<span class='StatusClickHint' onclick='suspendconn(1, 0);' onmouseout='this.className=\"StatusClickHint\"' onmouseover='this.className=\"StatusClickHint_mouseover\"'><% tcWebApi_Get("String_Entry", "disconnect_internet", "s") %></span>";
+						else{
+							statusmenu += "<span class='StatusClickHint' onclick='goToWAN(1);' onmouseout='this.className=\"StatusClickHint\"' onmouseover='this.className=\"StatusClickHint_mouseover\"'>";
+							if(usb_index == 1){
+									if(gobi_support >= 0)
+										statusmenu += "Go to Mobile Broadband Setting.</span>";
+									else
+										statusmenu += "<% tcWebApi_Get("String_Entry", "GO_HSDPA_SETTING", "s") %></span>";
+							}	
+							else
+									statusmenu += "Go to WAN Setting.</span>";							
+						}				
+					}			
 			}
 			else if(sw_mode == 2){
 				statusmenu = "<span class='StatusClickHint' onclick='top.location.href=\"http://router.asus.com/QIS_wizard.asp?flag=sitesurvey\";' onmouseout='this.className=\"StatusClickHint\"' onmouseover='this.className=\"StatusClickHint_mouseover\"'>Change the network that <%tcWebApi_get("String_Entry","Web_Title2","s")%> will connect to.</span>";
@@ -1677,3 +1964,16 @@ String.prototype.strReverse = function() {
 };
 
 // ---------- Viz add for pwd strength check [End] 2012.12 -----
+
+function goToWAN(index){
+	document.titleForm.wan_unit.value = index;
+	if(index == usb_index){
+		if(gobi_support >= 0)
+			document.titleForm.current_page.value = "Advanced_MobileBroadband_Content.asp?af=pincode";
+		else
+			document.titleForm.current_page.value = "Advanced_Modem_Content.asp";
+	}
+	else
+		document.titleForm.current_page.value = "Advanced_DSL_Content.asp";
+	top.location.href = document.titleForm.current_page.value;
+}

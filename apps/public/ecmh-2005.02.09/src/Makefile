@@ -2,9 +2,9 @@
 #  ecmh - Easy Cast du Multi Hub
 #  by Jeroen Massar <jeroen@unfix.org>
 # ***************************************
-# $Author: josephxu $
-# $Id: //BBN_Linux/Branch/Branch_for_SDK_Release_MultiChip_20111013/tclinux_phoenix/apps/public/ecmh-2005.02.09/src/Makefile#1 $
-# $Date: 2010/10/01 $
+# $Author: pork.chen $
+# $Id: //BBN_Linux/Branch/Branch_for_MT75xx_ASIC_20130518/tclinux_phoenix/apps/public/ecmh-2005.02.09/src/Makefile#1 $
+# $Date: 2013/05/18 $
 # **************************************/
 #
 # Source Makefile for ecmh - Jeroen Massar <jeroen@unfix.org>
@@ -29,7 +29,11 @@ OBJS	= ecmh.o linklist.o common.o interfaces.o groups.o grpint.o subscr.o
 WARNS	= -W -Wall -pedantic -Wshadow -Wpointer-arith -Wcast-align -Wwrite-strings -Waggregate-return -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -Wredundant-decls -Wnested-externs -Winline -Wbad-function-cast -fshort-enums -fstrict-aliasing -fno-common -Wpacked -Wpadded
 EXTRA   = -g
 #EXTRA	= -O3
-CFLAGS	= $(WARNS) $(EXTRA) -D_GNU_SOURCE -D'ECMH_VERSION="$(ECMH_VERSION)"' $(ECMH_OPTIONS)
+#CFLAGS	= $(WARNS) $(EXTRA) -D_GNU_SOURCE -D'ECMH_VERSION="$(ECMH_VERSION)"' $(ECMH_OPTIONS)
+CFLAGS	= $(WARNS) $(EXTRA) -D_GNU_SOURCE -D'ECMH_VERSION="$(ECMH_VERSION)"' $(ECMH_OPTIONS) -I../../../../linux-2.6.36/include/
+ifneq ($(TC_CFLAGS), )
+CFFLAGS += $(TC_CFLAGS)
+endif
 LDFLAGS	= $(ECMH_LDFREEBSD)
 CC	:= @echo "[Compiling] $$@"; $(CC)
 

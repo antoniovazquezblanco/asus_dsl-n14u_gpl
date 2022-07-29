@@ -1,10 +1,19 @@
+<%
+If Request_Form("Sambaflag")="1" then 
+	tcWebApi_Set("Samba_Entry","st_max_user","st_max_user")
+	tcWebApi_Set("Samba_Entry","ftp_lang", "ftp_lang")
+	tcWebApi_Set("GUITemp_Entry0","action_script", "action_script")
+	tcWebApi_Commit("Samba_Entry")
+End If
+%>
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <html xmlns:v>
 
 <!--Advanced_AiDisk_ftp.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -15,11 +24,15 @@
 <link rel="stylesheet" type="text/css" href="/form_style.css">
 <link rel="stylesheet" type="text/css" href="/aidisk/AiDisk_style.css">
 <script type="text/javascript" src="/state.js"></script>
+<script type="text/javascript" src="/general.js"></script>
 <script type="text/javascript" src="/popup.js"></script>
 <script type="text/javascript" src="/disk_functions.js"></script>
 <script type="text/javascript" src="/aidisk/AiDisk_folder_tree.js"></script>
 <script type="text/javascript" src="/help.js"></script>
+<script type="text/javascript" src="/jquery.js"></script>
+<script type="text/javascript" src="/switcherplugin/jquery.iphone-switch.js"></script>
 <script type="text/javascript">
+var $j = jQuery.noConflict();
 
 <% disk_pool_mapping_info(); %>
 <% available_disk_names_and_sizes(); %>
@@ -45,28 +58,42 @@ function initial(){
 	document.aidiskForm.protocol.value = PROTOCOL;
 	showShareStatusControl(PROTOCOL);
 	showAccountControl(PROTOCOL);
+	
+	// show accounts
 	showAccountMenu();
+	
+	// show the kinds of permission
 	showPermissionTitle();
+	
+	if("<% tcWebApi_get("Ddns_Entry","Active","s"); %>" == 1)
+		document.getElementById("machine_name").innerHTML = "<% tcWebApi_get("Ddns_Entry","MYHOST","s"); %>";
+	else
+		document.getElementById("machine_name").innerHTML = "<%tcWebApi_get("String_Entry","Web_Title2","s")%>";
+
+        // show mask
+        if(get_manage_type(PROTOCOL)){
+                $("loginMethod").innerHTML = "<%tcWebApi_get("String_Entry","Aidisk_FTP_hint_2","s")%>";
+                $("accountMask").style.display = "none";
+        }
+        else{
+                $("loginMethod").innerHTML = "<%tcWebApi_get("String_Entry","Aidisk_FTP_hint_1","s")%>";
+                $("accountMask").style.display = "block";
+        }
+        
+        // show folder's tree	
 	setTimeout('get_disk_tree();', 1000);
+
+	// the click event of the buttons
 	onEvent();
 	chech_usb();
-	$("sharebtn").disabled = true;
-	$("accountbtn").disabled = true;
-	$("refreshbtn").disabled = true;
-	setTimeout("enable_display();", 2000);
-}
-function enable_display(){
-	$("sharebtn").disabled = false;
-	$("accountbtn").disabled = false;
-	$("refreshbtn").disabled = false;
 }
 function chech_usb()
 {
 	var usb_path1 = '<% tcWebApi_get("USB_Entry", "usb_path1", "s") %>';
 	var usb_path2 = '<% tcWebApi_get("USB_Entry", "usb_path2", "s") %>';
 	if (usb_path1 != "storage" && usb_path2 != "storage"){
-		$("accountbtn").disabled = true;
-		$("sharebtn").disabled = true;
+		//$("accountbtn").disabled = true;
+		//$("sharebtn").disabled = true;
 	}
 }
 function show_footer(){
@@ -93,7 +120,7 @@ function switchAppStatus(protocol){ // turn on/off the share
 	if(protocol == "cifs"){
 		status = this.NN_status;
 		
-		confirm_str_off= "<%tcWebApi_get("String_Entry","confirm_disablecifs","s")%>";  //"<%tcWebApi_get("String_Entry","confirm_disableftp_dm","s")%>"+ By Viz 2011.09
+		confirm_str_off= "<%tcWebApi_get("String_Entry","confirm_disablecifs","s")%>";
 		confirm_str_on = "<%tcWebApi_get("String_Entry","confirm_enablecifs","s")%>";
 	}
 	else if(protocol == "ftp"){
@@ -108,9 +135,12 @@ function switchAppStatus(protocol){ // turn on/off the share
 				document.aidiskForm.action = "aidisk/switch_AiDisk_app.asp";
 				document.aidiskForm.protocol.value = protocol;
 				document.aidiskForm.flag.value = "off";
-				showLoading(2);
-				setTimeout('location = "'+ location.pathname +'";', 2000);
+				showLoading(6);
+				setTimeout('location = "'+ location.pathname +'";', 6000);
 				document.aidiskForm.submit();
+			}
+			else{
+				refreshpage();
 			}
 		break;
 		case 0:
@@ -118,9 +148,12 @@ function switchAppStatus(protocol){ // turn on/off the share
 				document.aidiskForm.action = "aidisk/switch_AiDisk_app.asp";
 				document.aidiskForm.protocol.value = protocol;
 				document.aidiskForm.flag.value = "on";
-				showLoading(2);
-				setTimeout('location = "'+ location.pathname +'";', 2000);
+				showLoading(6);
+				setTimeout('location = "'+ location.pathname +'";', 6000);
 				document.aidiskForm.submit();
+			}
+			else{
+				refreshpage();
 			}
 			break;
 	}
@@ -147,15 +180,11 @@ function showShareStatusControl(protocol){
 		return;
 	switch(status){
 		case 1:
-			$("sharebtn").innerHTML = str_off;
 			$("tableMask").style.width = "0px";
-			$("accountbtn").disabled = false;
 			showDDNS();
 			break;
 		case 0:
-			$("sharebtn").innerHTML = str_on;
-			$("tableMask").style.width = "600px";
-			$("accountbtn").disabled = true;
+			$("tableMask").style.width = "600px";			
 			showDDNS();
 			break;
 	}
@@ -164,34 +193,31 @@ function showDDNS(){
 }
 function switchAccount(protocol){
 	var status;
-	var confirm_str_on, confirm_str_off;
 	if(protocol != "cifs" && protocol != "ftp" && protocol != "webdav")
 		return;
 	status = get_manage_type(protocol);
 	
-	confirm_str_on = "<%tcWebApi_get("String_Entry","confirm_enableAccount","s")%>";
-	confirm_str_off = "<%tcWebApi_get("String_Entry","confirm_disableAccount","s")%>";
-	
 	switch(status){
 		case 1:
-			if(confirm(confirm_str_off)){
+			if(confirm("<%tcWebApi_get("String_Entry","AiDisk_SAMBA_hint_3","s")%>")){
 				document.aidiskForm.action = "aidisk/switch_share_mode.asp";
 				document.aidiskForm.protocol.value = protocol;
 				document.aidiskForm.mode.value = "share";
-				showLoading(2);
-				setTimeout('location = "'+ location.pathname +'";', 2000);
+				showLoading(6);
+				setTimeout('location = "'+ location.pathname +'";', 6000);
 				document.aidiskForm.submit();
+			}
+			else{
+				refreshpage();
 			}
 			break;
 		case 0:
-			if(confirm(confirm_str_on)){
 				document.aidiskForm.action = "aidisk/switch_share_mode.asp";
 				document.aidiskForm.protocol.value = protocol;
 				document.aidiskForm.mode.value = "account";
-				showLoading(2);
-				setTimeout('location = "'+ location.pathname +'";', 2000);
+				showLoading(6);
+				setTimeout('location = "'+ location.pathname +'";', 6000);
 				document.aidiskForm.submit();
-			}
 			break;
 	}
 }
@@ -229,11 +255,9 @@ function showAccountControl(protocol){
 	switch(status){
 		case 1:
 			$("accountMask").style.display = "none";
-			$("accountbtn").innerHTML = str_off;
 			break;
 		case 0:
 			$("accountMask").style.display = "block";
-			$("accountbtn").innerHTML = str_on;
 			break;
 	}
 }
@@ -256,10 +280,10 @@ function showPermissionTitle(){
 var controlApplyBtn = 0;
 function showApplyBtn(){
 	if(this.controlApplyBtn == 1){
-		$("changePermissionBtn").className = "button_gen";
+		$("changePermissionBtn").className = "button_gen_long";
 		$("changePermissionBtn").disabled = false;
 	}else{
-		$("changePermissionBtn").className = "button_gen_dis";
+		$("changePermissionBtn").className = "button_gen_long_dis";
 		$("changePermissionBtn").disabled = true;
 	}
 }
@@ -371,8 +395,8 @@ function submitChangePermission(protocol){
 				"folder = "+$("folder").value+"\n"+
 				"protocol = "+$("protocol").value+"\n"+
 				"permission = "+$("permission").value);//*/
-				// showLoading(2);
-				// setTimeout('location = "'+ location.pathname +'";', 2000);
+				// showLoading(6);
+				// setTimeout('location = "'+ location.pathname +'";', 6000);
 				showLoading();
 				document.aidiskForm.submit();
 				return;
@@ -549,6 +573,27 @@ function unload_body(){
 	$("modifyFolderBtn").onmouseover = function(){};
 	$("modifyFolderBtn").onmouseout = function(){};
 }
+
+function applyRule(){
+	if(validForm()){		
+		document.form.Sambaflag.value = "1";
+		showLoading(5);
+		setTimeout('location = "'+ location.pathname +'";', 5000);
+		document.form.submit();
+	}
+}
+
+function validForm(){
+
+	if(!validate_range(document.form.st_max_user, 1, 5)){
+		document.form.st_max_user.focus();
+		document.form.st_max_user.select();
+		return false;
+	}
+	
+	return true;
+}
+
 </script>
 </head>
 <body onLoad="initial();" onunload="unload_body();">
@@ -567,13 +612,16 @@ function unload_body(){
 <input type="hidden" name="permission" id="permission" value="">
 <input type="hidden" name="dummyShareway" id="dummyShareway" value="<%tcWebApi_Get("Samba_Entry", "dummyShareway", "s")%>"/>
 </form>
-<form method="post" name="form" action="start_apply.asp" target="hidden_frame">
+<form method="post" name="form" action="Advanced_AiDisk_ftp.asp" target="hidden_frame">
 <input type="hidden" name="preferred_lang" id="preferred_lang" value="EN">
 <input type="hidden" name="firmver" value="<% tcWebApi_staticGet("DeviceInfo","FwVer","s") %>">
-<input type="hidden" name="action_mode" value="">
-<input type="hidden" name="action_script" value="">
-<input type="hidden" name="action_wait" value="">
-</form>
+<input type="hidden" name="current_page" value="Advanced_AiDisk_ftp.asp">
+<input type="hidden" name="next_page" value="Advanced_AiDisk_ftp.asp">
+<input type="hidden" name="action_mode" value="apply">
+<input type="hidden" name="action_script" value="restart_ftpsamba">
+<input type="hidden" name="action_wait" value="5">
+<input type="hidden" name="Sambaflag" value="0">
+
 <table width="983" border="0" align="center" cellpadding="0" cellspacing="0" class="content">
 <tr>
 	<td width="17">&nbsp;</td>
@@ -605,10 +653,80 @@ function unload_body(){
 				</div>
 				<div style="margin:5px;"><img src="/images/New_ui/export/line_export.png"></div>
 				<div class="formfontdesc"><%tcWebApi_get("String_Entry","FTP_desc","s")%></div>
-				<a href="javascript:switchAppStatus(PROTOCOL);"><div class="titlebtn" align="center"><span id="sharebtn" style="*width:196px;"></span></div></a>
-				<a href="javascript:switchAccount(PROTOCOL);"><div class="titlebtn" align="center"><span id="accountbtn" style="*width:266px;"></span></div></a>
-				<!--input id="refreshbtn" type="button" value="<%tcWebApi_get("String_Entry","DrSurf_refresh_page","s")%>" class="button_gen" onClick="refreshpage();"-->
-				<a href="javascript:refreshpage();"><div class="titlebtn" align="center"><span id="refreshbtn" style="*width:136px;"><%tcWebApi_get("String_Entry","DrSurf_refresh_page","s")%></span></div></a>
+
+
+			<table width="740px" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
+				<tr>
+				<th><%tcWebApi_get("String_Entry","enableFTP","s")%></th>
+					<td>
+						<div class="left" style="width:94px; float:left; cursor:pointer;" id="radio_ftp_enable"></div>
+						<div class="iphone_switch_container" style="height:32px; width:74px; position: relative; overflow: hidden">
+							<script type="text/javascript">
+								$j('#radio_ftp_enable').iphoneSwitch(FTP_status, 
+									function() {
+										switchAppStatus(PROTOCOL);
+									},
+									function() {
+										switchAppStatus(PROTOCOL);
+									},
+									{
+										switch_on_container_path: '/switcherplugin/iphone_switch_container_off.png'
+									}
+								);
+							</script>			
+						</div>	
+					</td>
+				</tr>										
+
+				<tr style="height: 60px;">
+				<th><%tcWebApi_get("String_Entry","AiDisk_Anonymous_Login","s")%></th>
+					<td>
+						<div class="left" style="margin-top:5px;width:94px; float:left; cursor:pointer;" id="radio_anonymous_enable"></div>
+						<div class="iphone_switch_container" style="display: table-cell;vertical-align: middle;height:45px; position: relative; overflow: hidden">
+							<script type="text/javascript">
+								$j('#radio_anonymous_enable').iphoneSwitch(!get_manage_type(PROTOCOL), 
+									function() {
+										switchAccount(PROTOCOL);
+									},
+									function() {
+										switchAccount(PROTOCOL);
+									},
+									{
+										switch_on_container_path: '/switcherplugin/iphone_switch_container_off.png'
+									}
+								);
+							</script>
+							<span id="loginMethod" style="color:#FC0"></span>
+						</div>	
+					</td>
+				</tr>
+				<tr>
+					<th width="40%">
+						<a class="hintstyle" href="javascript:void(0);" onClick="openHint(17,1);"><%tcWebApi_get("String_Entry","ShareNode_MaximumLoginUser_in","s")%></a>
+					</th>
+					<td>
+						<input type="text" name="st_max_user" class="input_3_table" maxlength="1" value="<% tcWebApi_Get("Samba_Entry", "st_max_user", "s") %>" onKeyPress="return is_number(this, event);" onblur=""><!-- validate_number_range(this, 1, 5); -->
+					</td>
+				</tr>
+				<tr>
+					<th>
+						<a class="hintstyle" href="javascript:void(0);" onClick="openHint(17,9);"><%tcWebApi_get("String_Entry","ShareNode_FTPLANG_in","s")%></a>
+					</th>
+					<td>
+						<select name="ftp_lang" class="input_option" onChange="return change_common(this, 'Storage', 'ftp_lang');">
+								<option value="CN" <%if tcWebApi_Get("Samba_Entry", "ftp_lang", "h") = "CN" then asp_write("selected") end if%>><%tcWebApi_get("String_Entry","ShareNode_FTPLANG_optionname3","s")%></option>
+								<option value="TW" <%if tcWebApi_Get("Samba_Entry", "ftp_lang", "h") = "TW" then asp_write("selected") end if%>><%tcWebApi_get("String_Entry","ShareNode_FTPLANG_optionname2","s")%></option>
+								<option value="EN" <%if tcWebApi_Get("Samba_Entry", "ftp_lang", "h") = "EN" then asp_write("selected") end if%>><%tcWebApi_get("String_Entry","ShareNode_FTPLANG_optionname1","s")%></option>
+						</select>
+					</td>
+				</tr>
+			</table>
+			
+			<div class="apply_gen">
+					<input type="button" class="button_gen" value="<%tcWebApi_get("String_Entry","CTL_apply","s")%>" onclick="applyRule();">
+			</div>
+</form>
+				
 				<br/><br/>
 				<div id="shareStatus">
 					<div id="tableMask"></div>
@@ -637,7 +755,7 @@ function unload_body(){
 						<table width="480" border="0" cellspacing="0" cellpadding="0" class="FileStatusTitle">
 						<tr>
 							<td width="290" height="20" align="left">
-								<div class="machineName"><% tcWebApi_staticGet("SysInfo_Entry","ProductName","s") %></div>
+								<div id="machine_name" class="machineName"></div>
 							</td>
 							<td>
 								<div id="permissionTitle"></div>
@@ -646,7 +764,7 @@ function unload_body(){
 						</table>
 						<div id="e0" class="FdTemp" style="font-size:10pt; margin-top:2px;"></div>
 						<div style="text-align:center; margin:10px auto; border-top:1px dotted #CCC; width:95%; padding:2px;">
-			    		<input name="changePermissionBtn" id="changePermissionBtn" type="button" value="<%tcWebApi_get("String_Entry","CTL_apply","s")%>" class="button_gen_dis" disabled="disabled">
+			    		<input name="changePermissionBtn" id="changePermissionBtn" type="button" value="<%tcWebApi_get("String_Entry","CTL_save_permission","s")%>" class="button_gen_long" disabled="disabled">
 						</div>
 					</td>
 				</tr>

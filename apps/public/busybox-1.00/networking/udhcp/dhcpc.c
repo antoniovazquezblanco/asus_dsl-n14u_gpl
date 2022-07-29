@@ -357,6 +357,25 @@ static void dhcpExtractOption43(uint8_t  *data, int len)
 }
 #endif
 
+#ifdef RTCONFIG_TR181
+static void dhcpExtractVIVendorSpecific(uint8_t  *data, int len)
+{
+	uint8_t ouilength = (uint8_t)(*(data+6));
+	uint8_t snlength = (uint8_t)(*(data+8+ouilength));
+	uint8_t pclasslength = *(data+10+ouilength+snlength);
+	char oui[32] = {0}, sn[32] = {0}, class[32] = {0}, vivso[128] = {0};
+
+	memcpy(oui, data+7, sizeof(uint8_t)*ouilength);
+	memcpy(sn, data+9+ouilength, sizeof(uint8_t)*snlength);
+	memcpy(class, data+11+ouilength+snlength, sizeof(uint8_t)*pclasslength);
+
+	snprintf(vivso, sizeof(vivso), "%s,%s,%s", oui, sn, class);
+	tcapi_set("TR069_Entry", "vivso", vivso);
+
+	return;
+}
+#endif
+
 
 #ifdef COMBINED_BINARY
 int udhcpc_main(int argc, char *argv[])
@@ -692,6 +711,13 @@ int main(int argc, char *argv[])
 						}
 					#endif
 					#endif
+
+#ifdef RTCONFIG_TR181
+					if (temp = get_option(&packet, OPT_VI_VENDOR_SPECIFIC)) {
+						if (*(temp - OPT_DATA + OPT_LEN) > 4)
+							dhcpExtractVIVendorSpecific(temp, *(temp - OPT_DATA + OPT_LEN));
+					}
+#endif
 
 					state = BOUND;
 					change_mode(LISTEN_NONE);

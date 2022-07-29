@@ -6,7 +6,7 @@
 	end if	
 	
 	if request_Form("live_do_upgrade_flag") = "1" then
-		free_memory()
+		stop_service()
 		tcWebApi_set("System_Entry","upgrade_fw_status","value_NONE")
 		tcWebApi_set("System_Entry","upgrade_fw","DOWNLOAD_HEADER_TYPE")
 		tcWebApi_CommitWithoutSave("System_Entry")

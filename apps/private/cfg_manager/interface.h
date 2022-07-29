@@ -30,12 +30,17 @@
 #define WAN_PTM_NUM "8"
 #define WAN_ETHER   "Ethernet"
 #define WAN_ETHER_NUM   "10"
+#define WAN_USB_MODEM_NUM   "11"
+#define WAN_ETHER_LAN   "LAN"
+#define WAN_ETHER_LAN_NUM   "12"
 #define WAN_PVC0    "PVC0"
 #define WAN_PVC8    "PVC8"
 #define WAN_PVC9    "PVC9" //Ren
 #define WAN_PVC10   "PVC10"
+#define WAN_PVC12   "PVC12"
 // frank added 20110520
 #define WAN_ETHER_IF  "nas10"
+#define WAN_ETHER_LAN_IF  "nas12"
 #define LAN_NAME  "LAN"
 /*LAN Page */
 #define WAN	"Wan"
@@ -165,6 +170,7 @@
 #define MAX_VENDOR_CLASS_ID_LEN	64
 #define SUB_NODE_OPT240_NAME "Option240"
 #endif
+#define DHCPD_STATIC_ARP_PATH		"/var/static_arp_tbl.sh"
 
 #ifdef  TCSUPPORT_DHCP_PORT_FLT
 
@@ -315,7 +321,7 @@ struct port_mask
 #define WLAN_KETSTR_K_CHAR	'K'
 #define WLAN_KETSTR_S_CHAR	'S'
 */
-#if	defined(RT3390) || defined(RT3090) || defined(RT5392)//add by xyyou
+#if	defined(RT3390) || defined(RT3090) || defined(RT5392) || defined(MT7610E) || defined(MT7612E) || defined(MT7601E) || defined(MT7592) || defined(RT5592)
 //#define WLAN_PATH "/etc/Wireless/RT2860AP/RT2860AP.dat"
 
 #if defined(TCSUPPORT_WLAN_RT6856) //For RT-6856. Javier
@@ -323,14 +329,21 @@ struct port_mask
 	#define WLAN_PATH_1 "/etc/Wireless/RT6856/iNIC_ap1.dat"
 	#define WIFI_2G "ra00_0"
 	#define WIFI_5G "ra01_0"
-#else /* Non-iNIC */
-#if !defined(TCSUPPORT_DUAL_WLAN_RT5592_RT3593)	//signle band.
-	#define WLAN_PATH_0 "/etc/Wireless/RT2860AP/RT2860AP.dat"
-	#define WIFI_2G "ra0"
-#else
+#elif defined(TCSUPPORT_DUAL_WLAN_RT5592_RT3593)	//Dual band.
 	#define WLAN_PATH_0 "/etc/Wireless/RT2860AP/RT2860AP0.dat"
 	#define WLAN_PATH_1 "/etc/Wireless/RT2860AP/RT2860AP1.dat"
 	#define WIFI_2G "ra0"
+	#define WIFI_5G "rai0"
+#elif defined(TCSUPPORT_WLAN_AC)
+	#define WLAN_PATH_0 "/etc/Wireless/RT2860AP/RT2860AP.dat"
+	#define WLAN_PATH_1 "/etc/Wireless/RT2860AP_AC/RT2860AP.dat"
+	#define WIFI_2G "ra0"
+	#define WIFI_5G "rai0"
+#else
+	#define WLAN_PATH_0 "/etc/Wireless/RT2860AP/RT2860AP.dat"
+	#define WIFI_2G "ra0"
+#if defined(DSL_N55U_D1)
+	#define WLAN_PATH_1 "/etc/Wireless/RT2860AP/RT2860AP_5g.dat"
 	#define WIFI_5G "rai0"
 #endif
 #endif
@@ -339,6 +352,11 @@ struct port_mask
 	#define WLAN_PATH "/etc/Wireless/RT61AP/RT61AP.dat"
 #endif
 
+/*	//javi
+#if defined(TCSUPPORT_WLAN_AC)
+#define WLAN_AC_PATH "/etc/Wireless/RT2860AP_AC/RT2860AP.dat"
+#endif
+*/
 
 #define RIP_INTERFACE 0
 #define RIP_VERSION 1
@@ -351,7 +369,7 @@ struct port_mask
 #endif
 
 //add by xyyou
-#if defined(RT3390) || defined(RT3090) || defined(RT5392)
+#if defined(RT3390) || defined(RT3090) || defined(RT5392) || defined(MT7601E) || defined(MT7592)
 #define	PHY_MODE_BG_MIXED	0
 #define	PHY_MODE_B_ONLY	1
 #define	PHY_MODE_G_ONLY	4
@@ -364,6 +382,13 @@ struct port_mask
 #define	PHY_MODE_G_ONLY	2
 #endif
 //end xyyou
+
+#if defined(TCSUPPORT_WLAN_AC)
+#define PHY_MODE_11A_ONLY 2
+#define PHY_MODE_11AN_MIXED 8
+#define PHY_11VHT_N_A_MIXED 14 
+#define PHY_11VHT_N_MIXED 15
+#endif
 
 #if 0  /*Orginal ci-command mode */
 int
@@ -563,12 +588,9 @@ dhcpRelay_execute(mxml_node_t *top, char name[][MAX_NODE_NAME]);
 int
 create_rip_conf(mxml_node_t *tree);
 ///////*******shnwind add ***************///
-#if defined(RT3390) || defined(RT3090) || defined(RT5392)//add by xyyou
+#if defined(RT3390) || defined(RT3090) || defined(RT5392) || defined(MT7610E) || defined(MT7612E) || defined(MT7601E) || defined(MT7592)//add by xyyou
 //#define WLAN_SCRIPT_PATH "/etc/Wireless/RT2860AP/WLAN_exec.sh"
 #define WLAN_MCS_SCRIPT_PATH "/etc/Wireless/RT2860AP/WLAN_mcs_exec.sh"
-#else
-#define WLAN_SCRIPT_PATH "/etc/Wireless/RT61AP/WLAN_exec.sh"
-#endif
 
 //#define RESTART_BOA_SCRIPT "/usr/script/restart_boa.sh"
 #if defined(TCSUPPORT_WLAN_RT6856)
@@ -576,19 +598,24 @@ create_rip_conf(mxml_node_t *tree);
 #define WLAN_SCRIPT_PREFIX "/userfs/bin/iwpriv ra0%d_0 set %s=%s\n"	//For RT-6856. Javier.20120813
 #define AIRPLAY_SCRIPT_PREFIX "/userfs/bin/iwpriv ra0%d_%d set IgmpAdd=01:00:5e:7f:ff:fa\n/userfs/bin/iwpriv ra0%d_%d set IgmpAdd=01:00:5e:00:00:09\n/userfs/bin/iwpriv ra0%d_%d set IgmpAdd=01:00:5e:00:00:fb\n"
 #else /* Non-iNIC */
-#if !defined(TCSUPPORT_DUAL_WLAN_RT5592_RT3593)	//signle band.
-#define WLAN_SCRIPT_PATH "/etc/Wireless/RT2860AP/WLAN_exec.sh"
-#define WLAN_SCRIPT_PREFIX "/userfs/bin/iwpriv ra%d set %s=%s\n"
-#define AIRPLAY_SCRIPT_PREFIX "/userfs/bin/iwpriv ra%d set IgmpAdd=01:00:5e:7f:ff:fa\n/userfs/bin/iwpriv ra%d set IgmpAdd=01:00:5e:00:00:09\n/userfs/bin/iwpriv ra%d set IgmpAdd=01:00:5e:00:00:fb\n"
-#else
+#if defined(TCSUPPORT_DUAL_WLAN)	//dual band.
 #define WLAN_SCRIPT_PATH "/etc/Wireless/RT2860AP/WLAN_exec.sh"
 #define WLAN_SCRIPT_PREFIX "/userfs/bin/iwpriv ra%d set %s=%s\n"
 #define WLAN_SCRIPT_PREFIX_0 "/userfs/bin/iwpriv ra0 set %s=%s\n"
 #define WLAN_SCRIPT_PREFIX_1 "/userfs/bin/iwpriv rai0 set %s=%s\n"
 #define AIRPLAY_SCRIPT_PREFIX "/userfs/bin/iwpriv ra%d set IgmpAdd=01:00:5e:7f:ff:fa\n/userfs/bin/iwpriv ra%d set IgmpAdd=01:00:5e:00:00:09\n/userfs/bin/iwpriv ra%d set IgmpAdd=01:00:5e:00:00:fb\n"
 #define AIRPLAY_SCRIPT_PREFIX_1 "/userfs/bin/iwpriv rai%d set IgmpAdd=01:00:5e:7f:ff:fa\n/userfs/bin/iwpriv rai%d set IgmpAdd=01:00:5e:00:00:09\n/userfs/bin/iwpriv rai%d set IgmpAdd=01:00:5e:00:00:fb\n"
+#else
+#define WLAN_SCRIPT_PATH "/etc/Wireless/RT2860AP/WLAN_exec.sh"
+#define WLAN_SCRIPT_PREFIX "/userfs/bin/iwpriv ra%d set %s=%s\n"
+#define AIRPLAY_SCRIPT_PREFIX "/userfs/bin/iwpriv ra%d set IgmpAdd=01:00:5e:7f:ff:fa\n/userfs/bin/iwpriv ra%d set IgmpAdd=01:00:5e:00:00:09\n/userfs/bin/iwpriv ra%d set IgmpAdd=01:00:5e:00:00:fb\n"
 #endif
 #endif
+
+#else
+#define WLAN_SCRIPT_PATH "/etc/Wireless/RT61AP/WLAN_exec.sh"
+#endif
+
 //#define WLAN_APON_PATH "/etc/Wireless/RT61AP/WLAN_APOn"
 #define WLAN_APON_PATH "/etc/Wireless/WLAN_APOn"
 #define WAN_START_SH "/usr/script/wan_start.sh"
@@ -627,6 +654,7 @@ int  write_wlan_exe_sh(mxml_node_t *top, int BssidNum);
 int Is11nWirelessMode(mxml_node_t *top);
 int txBurst_or_not(mxml_node_t *top, int BssidNum);
 #ifdef WSC_AP_SUPPORT//add by xyyou	
+int switch_wps(mxml_node_t *top);
 int run_wps(mxml_node_t *top, int freq);
 int wps_oob(mxml_node_t *top, int freq);
 int isWPSRunning(mxml_node_t *top);
@@ -648,7 +676,7 @@ void operateMldSnooping(mxml_node_t *top);
 
 void operateEtherMedia(mxml_node_t *top);
 
-#if defined(RT3390) || defined(RT3090) || defined(RT5392)
+#if defined(RT3390) || defined(RT3090) || defined(RT5392) || defined(MT7601E) || defined(MT7592)
 int
 doWlanRate(mxml_node_t *top, char *Rate);
 int
@@ -703,6 +731,7 @@ int
 lanHost_read(mxml_node_t *top, char name[][MAX_NODE_NAME], char *attr);
 
 int wanduck_init(void);
+int wanduck_boot(mxml_node_t *top);
 int wanduck_execute(mxml_node_t *top, char name[][MAX_NODE_NAME]);
 
 void update_wan_state(char *prefix, int state, int reason);
@@ -715,6 +744,12 @@ int iptv_execute(mxml_node_t *top, char name[][MAX_NODE_NAME]);
 #ifdef TCSUPPORT_WEBSERVER_SSL
 int https_init(void);
 int https_execute(mxml_node_t *top, char name[][MAX_NODE_NAME]);
+#endif
+
+#ifdef RTCONFIG_DUALWAN
+int dualwan_init(void);
+int dualwan_write(mxml_node_t *top, mxml_node_t *parant);
+int dualwan_execute(mxml_node_t *top, char name[][MAX_NODE_NAME]);
 #endif
 
 #endif

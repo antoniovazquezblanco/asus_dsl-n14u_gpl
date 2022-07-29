@@ -56,7 +56,7 @@ typedef union  _MACHTTRANSMIT_SETTING {
  } MACHTTRANSMIT_SETTING, *PMACHTTRANSMIT_SETTING;
 
 typedef struct _RT_802_11_MAC_ENTRY {
-#ifdef RT5392
+#if defined(RT5392)||defined(MT7592)
 		unsigned char       ApIdx;
 #endif
      	unsigned char       Addr[MAC_ADDR_LENGTH];

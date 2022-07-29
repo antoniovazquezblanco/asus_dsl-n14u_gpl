@@ -43,4 +43,8 @@ loglevel=`/userfs/bin/tcapi get Syslog_Entry DisplayLevel`
 	"7" )
 		LogFileParser 7;;
 	esac
-echo -e "</TEXTAREA>\n</body></html>"
+echo -e "</TEXTAREA>\n"\
+"<script type='text/javascript'>\n"\
+"document.getElementById('textarea').scrollTop = document.getElementById('textarea').scrollHeight;\n"\
+"</script>\n"\
+"</body></html>";

@@ -1,10 +1,19 @@
+<%
+If Request_Form("Sambaflag")="1" then 	
+	tcWebApi_Set("Samba_Entry","st_samba_workgroup","st_samba_workgroup")
+	tcWebApi_Set("Samba_Entry","NetBiosName","computer_name")
+	tcWebApi_Set("GUITemp_Entry0","action_script", "action_script")
+	tcWebApi_Commit("Samba_Entry")
+End If
+%>
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <html xmlns:v>
 
 <!--Advanced_AiDisk_samba.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -19,7 +28,10 @@
 <script type="text/javascript" src="/disk_functions.js"></script>
 <script type="text/javascript" src="/aidisk/AiDisk_folder_tree.js"></script>
 <script type="text/javascript" src="/help.js"></script>
+<script type="text/javascript" src="/jquery.js"></script>
+<script type="text/javascript" src="/switcherplugin/jquery.iphone-switch.js"></script>
 <script type="text/javascript">
+var $j = jQuery.noConflict();
 
 <% disk_pool_mapping_info(); %>
 <% available_disk_names_and_sizes(); %>
@@ -44,28 +56,40 @@ function initial(){
 	document.aidiskForm.protocol.value = PROTOCOL;
 	showShareStatusControl(PROTOCOL);
 	showAccountControl(PROTOCOL);
+	
+	// show accounts
 	showAccountMenu();
+	
+	// show the kinds of permission
 	showPermissionTitle();
+
+	// show mask
+	if(get_manage_type(PROTOCOL)){
+		$("loginMethod").innerHTML = "<%tcWebApi_get("String_Entry","AiDisk_SAMBA_hint_2","s")%>";
+		$("accountMask").style.display = "none";
+	}
+	else{
+		$("loginMethod").innerHTML = "<%tcWebApi_get("String_Entry","AiDisk_SAMBA_hint_1","s")%>";
+		$("accountMask").style.display = "block";
+	}
+	
+	if("<% tcWebApi_get("Ddns_Entry","Active","s"); %>" == 1)
+		document.getElementById("machine_name").innerHTML = "<% tcWebApi_get("Ddns_Entry","MYHOST","s"); %>";
+	else
+		document.getElementById("machine_name").innerHTML = "<%tcWebApi_get("String_Entry","Web_Title2","s")%>";	
+		
 	setTimeout('get_disk_tree();', 1000);
 	onEvent();
-	chech_usb();
-	$("sharebtn").disabled = true;
-	$("accountbtn").disabled = true;
-	$("refreshbtn").disabled = true;
-	setTimeout("enable_display();", 2000);
+	chech_usb();	
 }
-function enable_display(){
-	$("sharebtn").disabled = false;
-	$("accountbtn").disabled = false;
-	$("refreshbtn").disabled = false;
-}
+
 function chech_usb()
 {
 	var usb_path1 = '<% tcWebApi_get("USB_Entry", "usb_path1", "s") %>';
 	var usb_path2 = '<% tcWebApi_get("USB_Entry", "usb_path2", "s") %>';
 	if (usb_path1 != "storage" && usb_path2 != "storage"){
-		$("accountbtn").disabled = true;
-		$("sharebtn").disabled = true;
+		//$("accountbtn").disabled = true;
+		//$("sharebtn").disabled = true;
 	}
 }
 function show_footer(){
@@ -92,7 +116,7 @@ function switchAppStatus(protocol){ // turn on/off the share
 	if(protocol == "cifs"){
 		status = this.NN_status;
 		
-		confirm_str_off= "<%tcWebApi_get("String_Entry","confirm_disablecifs","s")%>";  //By Viz 2011.09
+		confirm_str_off= "<%tcWebApi_get("String_Entry","confirm_disablecifs","s")%>";
 		confirm_str_on = "<%tcWebApi_get("String_Entry","confirm_enablecifs","s")%>";
 	}
 	else if(protocol == "ftp"){
@@ -107,9 +131,12 @@ function switchAppStatus(protocol){ // turn on/off the share
 				document.aidiskForm.action = "aidisk/switch_AiDisk_app.asp";
 				document.aidiskForm.protocol.value = protocol;
 				document.aidiskForm.flag.value = "off";
-				showLoading(2);
-				setTimeout('location = "'+ location.pathname +'";', 2000);
+				showLoading(6);
+				setTimeout('location = "'+ location.pathname +'";', 6000);
 				document.aidiskForm.submit();
+			}
+			else{
+				refreshpage();
 			}
 			break;
 		case 0:
@@ -117,10 +144,13 @@ function switchAppStatus(protocol){ // turn on/off the share
 				document.aidiskForm.action = "aidisk/switch_AiDisk_app.asp";
 				document.aidiskForm.protocol.value = protocol;
 				document.aidiskForm.flag.value = "on";
-				showLoading(2);
-				setTimeout('location = "'+ location.pathname +'";', 2000);
+				showLoading(6);
+				setTimeout('location = "'+ location.pathname +'";', 6000);
 				document.aidiskForm.submit();
 			}
+			else{				
+				refreshpage();
+			}	
 			break;
 	}
 }
@@ -145,16 +175,12 @@ function showShareStatusControl(protocol){
 	else
 		return;
 	switch(status){
-		case 1:
-			$("sharebtn").innerHTML = str_off;
-			$("tableMask").style.width = "0px";
-			$("accountbtn").disabled = false;
+		case 1:			
+			$("tableMask").style.width = "0px";			
 			showSamba();
 			break;
-		case 0:
-			$("sharebtn").innerHTML = str_on;
-			$("tableMask").style.width = "600px";
-			$("accountbtn").disabled = true;
+		case 0:			
+			$("tableMask").style.width = "600px";			
 			showSamba();
 			break;
 	}
@@ -178,34 +204,31 @@ $("Sambainfo").style.display = "none";
 }
 function switchAccount(protocol){
 	var status;
-	var confirm_str_on, confirm_str_off;
 	if(protocol != "cifs" && protocol != "ftp")
 		return;
 	status = get_manage_type(protocol);
 	
-	confirm_str_on = "<%tcWebApi_get("String_Entry","confirm_enableAccount","s")%>";
-	confirm_str_off = "<%tcWebApi_get("String_Entry","confirm_disableAccount","s")%>";
-	
 	switch(status){
 		case 1:
-			if(confirm(confirm_str_off)){
+			if(confirm("<%tcWebApi_get("String_Entry","AiDisk_SAMBA_hint_3","s")%>")){
 				document.aidiskForm.action = "aidisk/switch_share_mode.asp";
 				document.aidiskForm.protocol.value = protocol;
 				document.aidiskForm.mode.value = "share";
-				showLoading(2);
-				setTimeout('location = "'+ location.pathname +'";', 2000);
+				showLoading(6);
+				setTimeout('location = "'+ location.pathname +'";', 6000);
 				document.aidiskForm.submit();
+			}
+			else{
+				refreshpage();
 			}
 			break;
 		case 0:
-			if(confirm(confirm_str_on)){
 				document.aidiskForm.action = "aidisk/switch_share_mode.asp";
 				document.aidiskForm.protocol.value = protocol;
 				document.aidiskForm.mode.value = "account";
-				showLoading(2);
-				setTimeout('location = "'+ location.pathname +'";', 2000);
+				showLoading(6);
+				setTimeout('location = "'+ location.pathname +'";', 6000);
 				document.aidiskForm.submit();
-			}
 			break;
 	}
 }
@@ -242,12 +265,10 @@ function showAccountControl(protocol){
 	
 	switch(status){
 		case 1:
-			$("accountMask").style.display = "none";
-			$("accountbtn").innerHTML = str_off;
+			$("accountMask").style.display = "none";			
 			break;
 		case 0:
-			$("accountMask").style.display = "block";
-			$("accountbtn").innerHTML = str_on;
+			$("accountMask").style.display = "block";			
 			break;
 	}
 }
@@ -270,10 +291,10 @@ function showPermissionTitle(){
 var controlApplyBtn = 0;
 function showApplyBtn(){
 	if(this.controlApplyBtn == 1){
-		$("changePermissionBtn").className = "button_gen";
+		$("changePermissionBtn").className = "button_gen_long";
 		$("changePermissionBtn").disabled = false;
 	}else{
-		$("changePermissionBtn").className = "button_gen_dis";
+		$("changePermissionBtn").className = "button_gen_long_dis";
 		$("changePermissionBtn").disabled = true;
 	}
 }
@@ -563,6 +584,58 @@ function unload_body(){
 	$("modifyFolderBtn").onmouseover = function(){};
 	$("modifyFolderBtn").onmouseout = function(){};
 }
+
+function applyRule(){
+    if(validForm()){
+    		document.form.Sambaflag.value = "1";
+        showLoading(3);
+				setTimeout('location = "'+ location.pathname +'";', 3000);
+				document.form.submit();
+     }
+}
+
+function validForm(){
+	
+	if(document.form.computer_name.value.length == 0){
+		showtext($("alert_msg1"), "<%tcWebApi_get("String_Entry","JS_fieldblank","s")%>");
+		document.form.computer_name.focus();
+		document.form.computer_name.select();
+		return false;
+	}
+	else{
+		
+		var alert_str = validate_hostname(document.form.computer_name);
+		if(alert_str != ""){
+			showtext($("alert_msg1"), alert_str);
+			$("alert_msg1").style.display = "";
+			document.form.computer_name.focus();
+			document.form.computer_name.select();
+			return false;
+		}else{
+			$("alert_msg1").style.display = "none";
+  	}
+
+		document.form.computer_name.value = trim(document.form.computer_name.value);
+	}
+			
+	if(document.form.st_samba_workgroup.value.length == 0){
+		alert("<%tcWebApi_get("String_Entry","JS_fieldblank","s")%>");
+		document.form.st_samba_workgroup.focus();
+		document.form.st_samba_workgroup.select();
+		return false;	
+	}
+  else{
+		var workgroup_check = new RegExp('^[a-zA-Z0-9][a-zA-Z0-9\-\_\.]+$','gi');	  	
+  	if(!workgroup_check.test(document.form.st_samba_workgroup.value)){
+			alert("<%tcWebApi_get("String_Entry","JS_validchar","s")%>");               
+			document.form.st_samba_workgroup.focus();
+			document.form.st_samba_workgroup.select();
+			return false;
+		}   
+	}
+
+  return true;
+}
 </script>
 </head>
 <body onLoad="initial();" onunload="unload_body();">
@@ -580,14 +653,16 @@ function unload_body(){
 <input type="hidden" name="folder" id="folder" value="">
 <input type="hidden" name="permission" id="permission" value="">
 </form>
-<form method="post" name="form" action="start_apply.asp" target="hidden_frame">
+<form method="post" name="form" action="Advanced_AiDisk_samba.asp" target="hidden_frame">
 <input type="hidden" name="preferred_lang" id="preferred_lang" value="EN">
 <input type="hidden" name="firmver" value="<% tcWebApi_staticGet("DeviceInfo","FwVer","s") %>">
-<input type="hidden" name="computer_name" value="<% tcWebApi_staticGet("SysInfo_Entry","ProductName","s") %>">
-<input type="hidden" name="action_mode" value="">
-<input type="hidden" name="action_script" value="">
-<input type="hidden" name="action_wait" value="">
-</form>
+<input type="hidden" name="current_page" value="Advanced_AiDisk_samba.asp">
+<input type="hidden" name="next_page" value="Advanced_AiDisk_samba.asp">
+<input type="hidden" name="action_mode" value="apply">
+<input type="hidden" name="action_script" value="restart_ftpsamba">
+<input type="hidden" name="action_wait" value="5">
+<input type="hidden" name="Sambaflag" value="0">
+
 <table width="983" border="0" align="center" cellpadding="0" cellspacing="0" class="content">
 <tr>
 	<td width="17">&nbsp;</td>
@@ -619,10 +694,77 @@ function unload_body(){
 					</div>
 					<div style="margin:5px;"><img src="/images/New_ui/export/line_export.png"></div>
 					<div class="formfontdesc"><%tcWebApi_get("String_Entry","Samba_desc","s")%></div>
-					<a href="javascript:switchAppStatus(PROTOCOL);"><div class="titlebtn" align="center"><span id="sharebtn" style="*width:196px;"></span></div></a>
+					<!-- a href="javascript:switchAppStatus(PROTOCOL);"><div class="titlebtn" align="center"><span id="sharebtn" style="*width:196px;"></span></div></a>
 					<a href="javascript:switchAccount(PROTOCOL);"><div class="titlebtn" align="center"><span id="accountbtn" style="*width:266px;"></span></div></a>
-					<!--input id="refreshbtn" type="button" value="<%tcWebApi_get("String_Entry","DrSurf_refresh_page","s")%>" class="button_gen" onClick="refreshpage();"-->
-					<a href="javascript:refreshpage();"><div class="titlebtn" align="center"><span id="refreshbtn" style="*width:136px;"><%tcWebApi_get("String_Entry","DrSurf_refresh_page","s")%></span></div></a>
+					<a href="javascript:refreshpage();"><div class="titlebtn" align="center"><span id="refreshbtn" style="*width:136px;"><%tcWebApi_get("String_Entry","DrSurf_refresh_page","s")%></span></div></a-->
+					
+				<table width="740px" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
+				<tr>
+				<th><%tcWebApi_get("String_Entry","enableCIFS","s")%></th>
+					<td>
+						<div class="left" style="width:94px; float:left; cursor:pointer;" id="radio_samba_enable"></div>
+						<div class="iphone_switch_container" style="height:32px; width:74px; position: relative; overflow: hidden">
+							<script type="text/javascript">
+								$j('#radio_samba_enable').iphoneSwitch(NN_status, 
+									 function() {
+									 	switchAppStatus(PROTOCOL);
+									 },
+									 function() {
+									 	switchAppStatus(PROTOCOL);
+									 },
+									 {
+										switch_on_container_path: '/switcherplugin/iphone_switch_container_off.png'
+									 }
+								);
+							</script>			
+						</div>	
+					</td>
+				</tr>										
+
+				<tr style="height:60px;">
+				<th><%tcWebApi_get("String_Entry","AiDisk_Guest_Login","s")%></th>
+					<td>
+						<div class="left" style="margin-top:5px;width:94px;float:left; cursor:pointer;" id="radio_anonymous_enable"></div>
+						<div class="iphone_switch_container" style="display:table-cell;vertical-align:middle;height:45px;position:relative;overflow:hidden">
+							<script type="text/javascript">
+								$j('#radio_anonymous_enable').iphoneSwitch(!get_manage_type(PROTOCOL), 
+									 function() {
+									 	switchAccount(PROTOCOL);
+									 },
+									 function() {
+									 	switchAccount(PROTOCOL);
+									 },
+									 {
+										switch_on_container_path: '/switcherplugin/iphone_switch_container_off.png'
+									 }
+								);
+							</script>			
+							<span id="loginMethod" style="color:#FC0"></span>
+						</div>
+					</td>
+				</tr>
+				<tr>
+					<th>
+						<a class="hintstyle" href="javascript:void(0);" onClick="openHint(17,2);"><%tcWebApi_get("String_Entry","ShareNode_DeviceName_in","s")%></a>
+					</th>
+					<td>
+						<input type="text" name="computer_name" id="computer_name" class="input_15_table" maxlength="20" value="<% tcWebApi_Get("Samba_Entry", "NetBiosName", "s") %>">
+						<br/><span id="alert_msg1" style="color:#FC0;"></span>
+					</td>
+				</tr>
+				<tr>
+					<th>
+							<a class="hintstyle" href="javascript:void(0);" onClick="openHint(17,3);"><%tcWebApi_get("String_Entry","ShareNode_WorkGroup_in","s")%></a>
+					</th>
+					<td>
+							<input type="text" name="st_samba_workgroup" class="input_32_table" maxlength="32" value="<% tcWebApi_Get("Samba_Entry", "st_samba_workgroup", "s") %>">
+					</td>
+				</tr>
+			</table>
+			<div class="apply_gen">
+					<input type="button" class="button_gen" value="<%tcWebApi_get("String_Entry","CTL_apply","s")%>" onclick="applyRule();">
+			</div>	
+</form>							
 					<br/><br/>
 					<div id="shareStatus">
 						<div id="tableMask"></div>
@@ -653,7 +795,7 @@ function unload_body(){
 							<table width="480" border="0" cellspacing="0" cellpadding="0" class="FileStatusTitle">
 							<tr>
 								<td width="290" height="20" align="left">
-									<div class="machineName"><%tcWebApi_get("String_Entry","Web_Title2","s")%></div>
+									<div id="machine_name" class="machineName"><%tcWebApi_get("String_Entry","Web_Title2","s")%></div>
 								</td>
 								<td>
 									<div id="permissionTitle"></div>
@@ -662,7 +804,7 @@ function unload_body(){
 							</table>
 							<div id="e0" class="FdTemp" style="font-size:10pt; margin-top:2px;"></div>
 							<div style="text-align:center; margin:10px auto; border-top:1px dotted #CCC; width:95%; padding:2px;">
-			    <input name="changePermissionBtn" id="changePermissionBtn" type="button" value="<%tcWebApi_get("String_Entry","CTL_apply","s")%>" class="button_gen_dis" disabled="disabled">
+			    <input name="changePermissionBtn" id="changePermissionBtn" type="button" value="<%tcWebApi_get("String_Entry","CTL_save_permission","s")%>" class="button_gen_long" disabled="disabled">
 							</div>
 						</td>
 					</tr>

@@ -18,7 +18,7 @@ fi
 
 i=$1
 k=$1
-if [ "$i" = "8" ] || [ "$i" = "9" ] || [ "$i" = "10" ] ; then
+if [ "$i" = "8" ] || [ "$i" = "9" ] || [ "$i" = "10" ] || [ "$i" = "12" ]; then
 	isPTMETHER=1
 else
 	isPTMETHER=0
@@ -63,7 +63,9 @@ fi
 
 # power up Ethernet Wan
 if [ "$TCSUPPORT_MTK_INTERNAL_ETHER_SWITCH" = "" -a "$i" = "10" ]; then
+if [ "$TCSUPPORT_MT7530_EXTERNAL" = ""]; then
 	rtkethcmd up wan
+fi
 fi
 
 	if [ "$TCSUPPORT_MULTISERVICE_ON_WAN" != "" ] && [ "$TCSUPPORT_WAN_PTM" != "" -o "$TCSUPPORT_WAN_ETHER" != "" ] && [ "$isPTMETHER" = "1" ]; then
@@ -100,9 +102,9 @@ fi
 
 	if [ "$TCSUPPORT_WAN_ATM" != "" -o "$TCSUPPORT_WAN_PTM" != "" -o "$TCSUPPORT_WAN_ETHER" != "" ]; then
 		if [ "$isPTMETHER" = "1" ] ; then
-			if [ "$AUTHEN" = "CHAP" ] ; then
-				PPP_PARAM="$PPP_PARAM -chap"
-			elif [ "$AUTHEN" = "PAP" ] ; then
+			if [ "$AUTHEN" = "PAP" ] ; then
+				PPP_PARAM="$PPP_PARAM -chap -mschap -mschap-v2"
+			elif [ "$AUTHEN" = "CHAP" ] ; then
 				PPP_PARAM="$PPP_PARAM -pap"
 			fi
 
@@ -118,9 +120,9 @@ fi
 
     # PPPoE
     if [ "$ENCAP" = "PPPoE LLC" ] || [ "$ENCAP" = "PPPoE VC-Mux" ] ; then
-	if [ "$AUTHEN" = "CHAP" ] ; then
-		PPP_PARAM="$PPP_PARAM -chap"
-	elif [ "$AUTHEN" = "PAP" ] ; then
+	if [ "$AUTHEN" = "PAP" ] ; then
+		PPP_PARAM="$PPP_PARAM -chap -mschap -mschap-v2"
+	elif [ "$AUTHEN" = "CHAP" ] ; then
 		PPP_PARAM="$PPP_PARAM -pap"
 	fi
 

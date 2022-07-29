@@ -513,18 +513,6 @@ config LEGACY_PTY_COUNT
 	  When not in use, each legacy PTY occupies 12 bytes on 32-bit
 	  architectures and 24 bytes on 64-bit architectures.
 
-menu	"Choose Switch chip"
-	config RTL8367B_SDK
-		tristate
-
-	config SWITCH_CHIP_RTL8367RB
-		tristate "Realtek RTL8367RB support"
-		default y
-		select RTL8367B_SDK
-		help
-			Realtek RTL8367RB support
-endmenu
-
 config BRIQ_PANEL
 	tristate 'Total Impact briQ front panel driver'
 	depends on PPC_CHRP

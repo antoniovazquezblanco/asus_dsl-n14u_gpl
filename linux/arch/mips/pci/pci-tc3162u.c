@@ -374,6 +374,16 @@ int pcieRegInitConfig(void)
 }
 EXPORT_SYMBOL(pcieRegInitConfig);
 
+void pcie_init(void)
+{
+	if(isRT63365){
+		return;
+	}
+	pcieReset();
+	pcieRegInitConfig();
+}
+EXPORT_SYMBOL(pcie_init);
+
 void
 ahbErrChk(void){
 	register uint32 status=0;

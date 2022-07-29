@@ -119,7 +119,7 @@ void write_chap_secret(char *file)
 
 void start_pptpd(void)
 {
-	int ret = 0, mss = 0, manual_dns = 0, pptpd_opt = 0;
+	int ret = 0, manual_dns = 0, pptpd_opt = 0;
 	FILE *fp;
 	char buf[MAXLEN_TCAPI_MSG];
 	char lan_ipaddr[16] = {0};

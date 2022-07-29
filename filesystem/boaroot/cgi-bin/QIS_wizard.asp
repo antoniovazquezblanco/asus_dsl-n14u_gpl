@@ -9,7 +9,7 @@ end if
 
 <!--QIS_wizard.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -42,7 +42,9 @@ function login_mac_str() { return ''; }
 var targeturl = "index.asp";
 var firmver = "<% tcWebApi_staticGet("DeviceInfo","FwVer","s") %>";
 var detect_status = '<% tcWebApi_get("AutoPVC_Common","dsltmp_autodet_state","s") %>';
+var autodet_annex_counter = 0;  //for QIS_detect to switch dslx_annex value
 var x_Setting = "<%tcWebApi_get("SysInfo_Entry","x_Setting","s")%>";
+var w_Setting_tmp = "<%tcWebApi_get("SysInfo_Entry","w_Setting","s")%>";
 var wan_type = "<%tcWebApi_get("AutoPVC_Common","Detect_XDSL","s")%>";
 
 function set_step(focus_id){
@@ -149,13 +151,17 @@ function QIS_load_body(){
 	}
 }
 
-function gotoIndex(){
+function gotoIndex(){	
 	if(w_Setting_tmp == '0'){
-		alert("<%tcWebApi_get("String_Entry","QIS_recommand_encryption","s")%>");
-		location.href = 'QIS_wizard.asp?flag=wireless';
+		alert('<%tcWebApi_get("String_Entry","QIS_recommand_encryption","s")%>');
+		with(document.redirectForm){
+			action = "qis/QIS_wireless.asp";
+			submit();
+			return;			
+		}
 	}
 	else
-		location.href = 'index.asp';
+		location.href = '/cgi-bin/index2.asp';
 }
 </script>
 </head>
@@ -226,7 +232,8 @@ function gotoIndex(){
 <table width="998px" border="0" align="center" cellpadding="0" cellspacing="0" background="/images/New_ui/middown_bg.png">
 	<tr>
 		<td style="width:218px;*width:263px;" valign="top">
-			<div class="lefttabhead" style="margin-left:15px;margin-top:-130px;" id="option0"><table width="192px" height="37px"><tbody><tr><td><%tcWebApi_get("String_Entry","QIS","s")%></td></tr></tbody></table></div>
+			<div class="m_qis_r" style="margin-left: 15px;margin-top: -160px;cursor:pointer;" onclick="gotoIndex();"><table><tbody><tr><td><div id="index_img1"></div></td><td><div><%tcWebApi_get("String_Entry","CTL_Setting","s")%></div></td></tr></tbody></table></div>
+			<div class="lefttabhead" style="margin-left:15px;" id="option0"><table width="192px" height="37px"><tbody><tr><td><%tcWebApi_get("String_Entry","QIS","s")%></td></tr></tbody></table></div>
 			<div class="lefttabmid" id="t1" style="margin-left:15px;"><table height="52px"><tbody><tr><td><img style="margin-left:3px;" border="0" src="/images/qis/qisStep1.png"></td><td><div style="width:120px;"><%tcWebApi_get("String_Entry","QIS_step2","s")%></div></td></tr></tbody></table></div>
 			<div class="lefttabmid" id="t2" style="margin-left:15px;"><table height="52px"><tbody><tr><td><img style="margin-left:3px;" border="0" src="/images/qis/qisStep2.png"></td><td><div style="width:120px;"><%tcWebApi_get("String_Entry","QIS_step3","s")%></div></td></tr></tbody></table></div>
 			<div class="lefttabmid" id="t3" style="margin-left:15px;"><table height="52px"><tbody><tr><td><img style="margin-left:3px;" border="0" src="/images/qis/qisStep3.png"></td><td><div style="width:120px;"><%tcWebApi_get("String_Entry","QIS_step4","s")%></div></td></tr></tbody></table></div>

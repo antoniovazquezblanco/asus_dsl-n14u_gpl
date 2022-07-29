@@ -331,6 +331,33 @@ void addVIOption(uint8_t *optionptr)
 	uint8_t data[150];
 	int i = 0;
 	int r_val;
+#ifdef RTCONFIG_TR069
+	int nm_MAC[7] ;
+
+	memset(oui, 0, sizeof(oui));
+	memset(sn, 0, sizeof(sn));
+	memset(pclass, 0, sizeof(pclass));
+	memset(data, 0, sizeof(data));
+
+	r_val= tcapi_get("Info_Ether", "mac", sn);
+	if(r_val < 0) {
+		strcpy(oui, "N/A");
+		strcpy(sn, "N/A");
+	}
+	else
+	{
+       	sscanf(sn, "%02x:%02x:%02x:%02x:%02x:%02x", &nm_MAC[0], &nm_MAC[1], &nm_MAC[2], &nm_MAC[3], &nm_MAC[4], &nm_MAC[5]);
+       	memset(oui, 0, sizeof(oui));
+       	sprintf(oui, "%02X%02X%02X", nm_MAC[0], nm_MAC[1], nm_MAC[2]);
+		memset(sn, 0, sizeof(sn));
+		sprintf(sn, "%02X%02X%02X%02X%02X%02X", nm_MAC[0], nm_MAC[1], nm_MAC[2], nm_MAC[3], nm_MAC[4], nm_MAC[5]);
+	}
+
+	r_val = tcapi_get("SysInfo_Entry", "ProductName", pclass);
+	if(r_val < 0)
+		strcpy(pclass, "N/A");
+
+#else
 #if/*TCSUPPORT_TTNET*/ defined(TCSUPPORT_TTNET)	
 	int nm_MAC[7] ;
 #endif/*TCSUPPORT_TTNET*/
@@ -359,6 +386,7 @@ void addVIOption(uint8_t *optionptr)
 	r_val = tcapi_get("Cwmp_Entry", "ProductClass", pclass);
 	if(r_val < 0)
 		strcpy(pclass, "N/A");
+#endif
 		
 	oui_len = strlen(oui);
 	sn_len = strlen(sn);
@@ -400,6 +428,87 @@ void addVIOption(uint8_t *optionptr)
 	 
 	add_option_string(optionptr, data);
 }
+
+#ifdef RTCONFIG_TR181
+void addDeviceVIOption(uint8_t *optionptr)
+{
+	uint8_t oui_len;
+	uint8_t sn_len;
+	uint8_t pclass_len;
+	uint8_t subopt_len;
+	uint8_t total_len;
+	char oui[8] = "";
+	char sn[68] = "";
+	char pclass[68] = "";
+	uint8_t data[150];
+	int i = 0;
+	int r_val;
+	int nm_MAC[7] ;
+
+	memset(oui, 0, sizeof(oui));
+	memset(sn, 0, sizeof(sn));
+	memset(pclass, 0, sizeof(pclass));
+	memset(data, 0, sizeof(data));
+
+	r_val= tcapi_get("Info_Ether", "mac", sn);
+	if(r_val < 0) {
+		strcpy(oui, "N/A");
+		strcpy(sn, "N/A");
+	}
+	else
+	{
+       	sscanf(sn, "%02x:%02x:%02x:%02x:%02x:%02x", &nm_MAC[0], &nm_MAC[1], &nm_MAC[2], &nm_MAC[3], &nm_MAC[4], &nm_MAC[5]);
+       	memset(oui, 0, sizeof(oui));
+       	sprintf(oui, "%02X%02X%02X", nm_MAC[0], nm_MAC[1], nm_MAC[2]);
+		memset(sn, 0, sizeof(sn));
+		sprintf(sn, "%02X%02X%02X%02X%02X%02X", nm_MAC[0], nm_MAC[1], nm_MAC[2], nm_MAC[3], nm_MAC[4], nm_MAC[5]);
+	}
+
+	r_val = tcapi_get("SysInfo_Entry", "ProductName", pclass);
+	if(r_val < 0)
+		strcpy(pclass, "N/A");
+		
+	oui_len = strlen(oui);
+	sn_len = strlen(sn);
+	pclass_len = strlen(pclass);
+	
+	/* subopt length = (oui code+oui length+oui lenght) + (sn code+sn length+sn length) + (pclass code+pclass length+pclass length) */
+	subopt_len = 6 + oui_len + sn_len + pclass_len;
+	total_len = DSL_FORUM_IANA_NUMBER_LENGTH + 1 + subopt_len;
+	
+	/* option code + length(total length)*/
+	data[i++] = OPT_VENDOR_INFOR;
+	data[i++] = total_len;
+
+	/*put DSL_FORUM_IANA_NUMBER*/
+	data[i++] = DSL_FORUM_IANA_NUMBER>>24;
+	data[i++] = DSL_FORUM_IANA_NUMBER>>16;
+	data[i++] = DSL_FORUM_IANA_NUMBER>>8;
+	data[i++] = DSL_FORUM_IANA_NUMBER;
+	
+	/* option code + length(suboption length) */
+	data[i++] = subopt_len;
+	
+	/* For oui: option code + length + data */
+	data[i++] = 0x1;
+	data[i++] = oui_len;
+	memcpy(&data[i], oui, oui_len);
+	i += oui_len;
+	
+	/* For sn: option code + length + data */
+	data[i++] = 0x2;
+	data[i++] = sn_len;
+	memcpy(&data[i], sn, sn_len);
+	i += sn_len;
+
+	/* For pclass: option code + length + data */
+	data[i++] = 0x3;
+	data[i++] = pclass_len;
+	memcpy(&data[i], pclass, pclass_len);
+	 
+	add_option_string(optionptr, data);
+}
+#endif
 #endif
 
 #ifdef DHCP_PROFILE

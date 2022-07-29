@@ -66,7 +66,7 @@ void check_wpsbtn(void);
 void check_button_type(void);
 #endif
 #endif
-void clock_sync(void);
+void clock_sync(long uptime);
 void start_upnp(char *ppp_interface);
 #if (defined(TCSUPPORT_WAN_ETHER) || defined(TCSUPPORT_WAN_PTM)) && defined(TCSUPPORT_MULTISERVICE_ON_WAN)
 void check_route(int PVC, int serv, int isp);
@@ -84,15 +84,6 @@ void set_radius_ip();
 void dproxy_restart();
 
 void dhcpRelay_restart(void);
-
-//#ifdef TCSUPPORT_DNSEACHPVC
-void dnsmasq_restart(int pvc);
-void dnsmasq_restart_down(int pvc);
-#if defined(TCSUPPORT_ETH4_WAN_PORT)
-void eth04_dnsmasq_restart();
-#endif
-//#endif
-
 
 void start_autoPVC();
 void

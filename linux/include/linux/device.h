@@ -415,6 +415,7 @@ struct device {
 	struct device		*parent;
 
 	struct kobject kobj;
+	const char		*init_name; /* initial name of the device */
 	char	bus_id[BUS_ID_SIZE];	/* position on parent bus */
 	struct device_type	*type;
 	unsigned		is_registered:1;
@@ -462,6 +463,15 @@ struct device {
 
 	void	(*release)(struct device * dev);
 };
+
+static inline const char *dev_name(const struct device *dev)
+{
+	/* Use the init name until the kobject becomes available */
+	if (dev->init_name)
+		return dev->init_name;
+
+	return kobject_name(&dev->kobj);
+}
 
 #ifdef CONFIG_NUMA
 static inline int dev_to_node(struct device *dev)

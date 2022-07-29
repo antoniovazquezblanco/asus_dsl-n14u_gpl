@@ -82,7 +82,12 @@ var st_samba_mode = '<%tcWebApi_staticGet("Samba_Entry", "st_samba_mode", "s") %
 var st_samba_force_mode = '<%tcWebApi_staticGet("Samba_Entry", "st_samba_force_mode", "s") %>';
 var enable_samba = '<%tcWebApi_staticGet("Samba_Entry", "Active", "s") %>';
 var enable_ftp = '<%tcWebApi_staticGet("Samba_Entry", "enable_ftp", "s") %>';
-var dsl_loss_sync = '<%tcWebApi_staticGet("WebCurSet_Entry", "loss_sync", "s") %>';
+var dla_modified = '<%tcWebApi_staticGet("WebCurSet_Entry", "dsltmp_dla_modified", "s") %>';
+var dsl_loss_sync = "";
+if(dla_modified == "1")
+	dsl_loss_sync = "1";
+else
+	dsl_loss_sync = '<%tcWebApi_staticGet("WebCurSet_Entry", "loss_sync", "s") %>';
 var experience_DSL_fb = '<%tcWebApi_staticGet("Misc_Entry","experience_DSL_fb", "s") %>';
 var noti_notif_Flag = '<%tcWebApi_staticGet("WebCustom_Entry","webs_notif_flag", "s") %>';
 
@@ -94,11 +99,18 @@ if(notif_hint_infomation.charAt(0) == "+")
 		notif_hint_infomation = notif_hint_infomation.substring(2, notif_hint_infomation.length);
 var notif_msg = "";		
 var notif_hint_array = notif_hint_infomation.split("++");
-for(var i=0; i<notif_hint_array.length; i++){
+if(notif_hint_array[0] != ""){
+	notif_msg = "<ol style=\"margin-left:-20px;*margin-left:20px;\">";
+	for(var i=0; i<notif_hint_array.length; i++){
 		if(i==0)
-			notif_msg += notif_hint_array[i];
+			notif_msg += "<li>"+notif_hint_array[i];
 		else
-			notif_msg += "<div><img src=\"/images/New_ui/export/line_export_notif.png\" style=\"margin-top:2px;margin-bottom:2px;\"></div>"+notif_hint_array[i];
+			notif_msg += "<div><img src=\"/images/New_ui/export/line_export_notif.png\" style=\"margin-top:2px;margin-bottom:2px;margin-left:-20px;*margin-left:-20px;\"></div><li>"+notif_hint_array[i];
+	}
+	notif_msg += "</ol>";
+}
+else{
+	notif_msg = "";
 }
 
 var wan_line_state = "<% tcWebApi_staticGet("Info_Adsl", "lineState", "s") %>";
@@ -125,6 +137,13 @@ function change_wl_unit_status(_unit){
 	setTimeout("document.location.href='/cgi-bin/Advanced_Wireless_Content.asp';", 2000);
 	document.change_wunit.submit();
 }
+
+var wans_dualwan_orig = '<%tcWebApi_Get("Dualwan_Entry", "wans_dualwan", "s")%>';
+var active_wan_unit = '<% get_wan_unit() %>';
+var wans_dualwan_array = new Array();
+wans_dualwan_array = wans_dualwan_orig.split(" ");
+var usb_index = wans_dualwan_array.getIndexByValue("usb");
+
 var banner_code, menu_code="", menu1_code="", menu2_code="", tab_code="", footer_code;
 function show_banner(L3){// L3 = The third Level of Menu
 var banner_code = "";
@@ -140,6 +159,7 @@ banner_code +='<input type="hidden" name="preferred_lang" value="">\n';
 banner_code +='<input type="hidden" name="flag" value="">\n';
 banner_code +='<input type="hidden" name="rebootFlag" value="1" disabled>\n';
 banner_code +='<input type="hidden" name="restoreFlag" value="1" disabled>\n';
+banner_code +='<input type="hidden" name="wan_unit" value="">\n';
 banner_code +='</form>\n';
 banner_code +='<form method="post" name="diskForm_title" action="device-map/safely_remove_disk.asp" target="hidden_frame">\n';
 banner_code +='<input type="hidden" name="disk" value="">\n';
@@ -175,6 +195,7 @@ banner_code +='<input type="hidden" name="DvInfo_PVC" value="<% tcWebApi_staticG
 banner_code +='<input type="hidden" name="Saveflag" value="1">\n';
 banner_code +='<input type="hidden" name="Dipflag" value="0">\n';
 banner_code +='<input type="hidden" name="DipConnFlag" value="0">\n';
+banner_code +='<input type="hidden" name="ModemConnFlag" value="0">\n';
 banner_code +='</form>\n';
 banner_code +='<div class="banner1" align="center"><img src="/images/New_ui/asustitle.png" width="218" height="54" align="left">\n';
 banner_code +='<div style="margin-top:13px;margin-left:-90px;*margin-top:0px;*margin-left:0px;" align="center"><span class="modelName_top"><%tcWebApi_get("String_Entry","Web_Title2","s")%></span></div>';
@@ -204,7 +225,7 @@ banner_code +='<dd><a onclick="submit_language(2)" id="BR">Portuguese(Brazil)</a
 //banner_code +='<dd><a onclick="submit_language(this)" id="JP">日本語</a></dd>\n'
 banner_code +='<dd><a onclick="submit_language(7)" id="ES">Español</a></dd>\n';
 banner_code +='<dd><a onclick="submit_language(10)" id="IT">Italiano</a></dd>\n';
-banner_code +='<dd><a onclick="submit_language(19)" id="UK">Ukrainian</a></dd>\n</dl></li>\n';
+banner_code +='<dd><a onclick="submit_language(19)" id="UK">Український</a></dd>\n</dl></li>\n';
 banner_code +='</a></ul>';
 banner_code +='</div>\n';
 banner_code +='<table width="998" border="0" align="center" cellpadding="0" cellspacing="0" class="statusBar">\n';
@@ -212,8 +233,8 @@ banner_code +='<tr>\n';
 banner_code +='<td background="/images/New_ui/midup_bg.png" height="179" valign="top"><table width="764" border="0" cellpadding="0" cellspacing="0" height="12px" style="margin-left:230px;">\n';
 banner_code +='<tbody><tr>\n';
 banner_code +='<td valign="center" class="titledown" width="auto">';
-banner_code +='<span style="font-family:Verdana, Arial, Helvetica, sans-serif;"><%tcWebApi_get("String_Entry","General_x_FirmwareVersion_in","s")%>:</sapn><a href="Advanced_FirmwareUpgrade_Content.asp" style="color:white;"><span id="firmver" class="title_link"></span></a>\n';
-banner_code +='<span style="font-family:Verdana, Arial, Helvetica, sans-serif;">SSID:</sapn>';
+banner_code +='<span style="font-family:Verdana, Arial, Helvetica, sans-serif;"><%tcWebApi_get("String_Entry","General_x_FirmwareVersion_in","s")%>:</span><a href="Advanced_FirmwareUpgrade_Content.asp" style="color:white;"><span id="firmver" class="title_link"></span></a>\n';
+banner_code +='<span style="font-family:Verdana, Arial, Helvetica, sans-serif;">SSID:</span>';
 banner_code +='<span onclick=window.location="Wireless_Content_redirect.asp?refresh=2" id="elliptic_ssid_2g" class="title_link" style="white-space: pre;"></span>';
 banner_code +='<span onclick=window.location="Wireless_Content_redirect.asp?refresh=5" id="elliptic_ssid_5g" style="margin-left:-5px;display:none;white-space: pre;" class="title_link"></span>\n';
 banner_code +='</td>\n';
@@ -232,7 +253,7 @@ banner_code +='<td width="30"><div id="guestnetwork_status""></div></td>\n';
 banner_code +='<td width="30"><div id="adsl_line_status"></div></td>\n';
 
 if(sw_mode != 3)
-banner_code +='<td width="30"><div id="connect_status""></div></td>\n';
+banner_code +='<td width="30"><div id="connect_status"></div></td>\n';
 if(usb_support != -1)
 banner_code +='<td width="30"><div id="usb_status"></div></td>\n';
 if(printer_support != -1)
@@ -246,33 +267,32 @@ set_Dr_work();
 updateStatus_AJAX();
 }
 var tabtitle = new Array();
-tabtitle[0] = new Array("", "<%tcWebApi_get("String_Entry","menu5_1_1","s")%>", "<%tcWebApi_get("String_Entry","menu5_1_2","s")%>", "<%tcWebApi_get("String_Entry","menu5_1_3","s")%>" ,"<%tcWebApi_get("String_Entry","menu5_1_4","s")%>", "<%tcWebApi_get("String_Entry","menu5_1_5","s")%>", "<%tcWebApi_get("String_Entry","menu5_1_6","s")%>");
+tabtitle[0] = new Array("", "<%tcWebApi_get("String_Entry","menu5_1_1","s")%>", "<%tcWebApi_get("String_Entry","menu5_1_2","s")%>", "WDS" ,"<%tcWebApi_get("String_Entry","menu5_1_4","s")%>", "<%tcWebApi_get("String_Entry","menu5_1_5","s")%>", "<%tcWebApi_get("String_Entry","menu5_1_6","s")%>");
 tabtitle[1] = new Array("", "<%tcWebApi_get("String_Entry","menu5_2_1","s")%>", "<%tcWebApi_get("String_Entry","menu5_2_2","s")%>", "<%tcWebApi_get("String_Entry","menu5_2_3","s")%>", "IPTV", "Switch Control");
 tabtitle[2] = new Array("", "<%tcWebApi_get("String_Entry","menu5_3_1","s")%>", "Dual WAN", "<%tcWebApi_get("String_Entry","menu5_3_3","s")%>", "<%tcWebApi_get("String_Entry","menu5_3_4","s")%>", "<%tcWebApi_get("String_Entry","menu5_3_5","s")%>", "<%tcWebApi_get("String_Entry","menu5_3_6","s")%>", "<%tcWebApi_get("String_Entry","NAT_passthrough_in","s")%>", "<%tcWebApi_get("String_Entry","menu5_4_4","s")%>");
-tabtitle[3] = new Array("", "<%tcWebApi_get("String_Entry","UPnPMediaServer","s")%>", "<%tcWebApi_get("String_Entry","menu5_4_1","s")%>", "<%tcWebApi_get("String_Entry","menu5_4_2","s")%>", "<%tcWebApi_get("String_Entry","menu5_4_3","s")%>");
+tabtitle[3] = new Array("", "<%tcWebApi_get("String_Entry","UPnPMediaServer","s")%>", "<%tcWebApi_get("String_Entry","menu5_4_1","s")%>", "<%tcWebApi_get("String_Entry","menu5_4_2","s")%>");
 tabtitle[4] = new Array("", "IPv6");
-tabtitle[5] = new Array("", "<%tcWebApi_get("String_Entry","BOP_isp_heart_item","s")%>", "<%tcWebApi_get("String_Entry","vpn_Adv","s")%>", "VPN Status", "IPSec VPN");
+tabtitle[5] = new Array("", "<%tcWebApi_get("String_Entry","BOP_isp_heart_item","s")%>", "VPN Client", "IPSec VPN");
 tabtitle[6] = new Array("", "<%tcWebApi_get("String_Entry","menu5_1_1","s")%>", "<%tcWebApi_get("String_Entry","menu5_5_2","s")%>", "<%tcWebApi_get("String_Entry","menu5_5_3","s")%>", "<%tcWebApi_get("String_Entry","menu5_5_4","s")%>");
-tabtitle[7] = new Array("", "<%tcWebApi_get("String_Entry","menu5_6_2","s")%>", "<%tcWebApi_get("String_Entry","menu5_6_3","s")%>", "<%tcWebApi_get("String_Entry","menu5_6_4","s")%>", "Performance tuning", "<%tcWebApi_get("String_Entry","menu_dsl_setting","s")%>", "<%tcWebApi_get("String_Entry","menu_dsl_feedback","s")%>", "CWMP");
+tabtitle[7] = new Array("", "<%tcWebApi_get("String_Entry","menu5_6_2","s")%>", "<%tcWebApi_get("String_Entry","menu5_6_3","s")%>", "<%tcWebApi_get("String_Entry","menu5_6_4","s")%>", "Performance tuning", "<%tcWebApi_get("String_Entry","menu_dsl_setting","s")%>", "<%tcWebApi_get("String_Entry","menu_dsl_feedback","s")%>", "CWMP", "TR069");
 tabtitle[8] = new Array("", "<%tcWebApi_get("String_Entry","menu5_7_2","s")%>", "<%tcWebApi_get("String_Entry","menu5_7_4","s")%>", "<%tcWebApi_get("String_Entry","menu5_7_3","s")%>", "<%tcWebApi_get("String_Entry","menu5_7_6","s")%>", "<%tcWebApi_get("String_Entry","menu5_7_5","s")%>", "<%tcWebApi_get("String_Entry","menu_dsl_log","s")%>");
-tabtitle[9] = new Array("", "<%tcWebApi_get("String_Entry","Network_Analysis","s")%>", "Netstat");	//, "<%tcWebApi_get("String_Entry","NetworkTools_WOL","s")%>"
+tabtitle[9] = new Array("", "<%tcWebApi_get("String_Entry","Network_Analysis","s")%>", "Netstat", "<%tcWebApi_get("String_Entry","NetworkTools_WOL","s")%>");
 tabtitle[10] = new Array("", "QoS", "<%tcWebApi_get("String_Entry","traffic_monitor","s")%>", "Spectrum");
 var tablink = new Array();
 tablink[0] = new Array("", "Advanced_Wireless_Content.asp", "Advanced_WWPS_Content.asp", "Advanced_WMode_Content.asp", "Advanced_ACL_Content.asp", "Advanced_WSecurity_Content.asp", "Advanced_WAdvanced_Content.asp");
 tablink[1] = new Array("", "Advanced_LAN_Content.asp", "Advanced_DHCP_Content.asp", "Advanced_GWStaticRoute_Content.asp", "Advanced_IPTV_Content.asp", "Advanced_SwitchCtrl_Content.asp");
-//tablink[2] = new Array("", "Advanced_WAN_Content.asp", "Advanced_WANPort_Content.asp", "Advanced_PortTrigger_Content.asp", "Advanced_VirtualServer_Content.asp", "Advanced_Exposed_Content.asp", "Advanced_ASUSDDNS_Content.asp", "Advanced_NATPassThrough_Content.asp", "Advanced_Modem_Content.asp");;
 tablink[2] = new Array("", "Advanced_DSL_Content.asp", "Advanced_WANPort_Content.asp", "Advanced_PortTrigger_Content.asp", "Advanced_VirtualServer_Content.asp", "Advanced_Exposed_Content.asp", "Advanced_ASUSDDNS_Content.asp", "Advanced_NATPassThrough_Content.asp", "Advanced_Modem_Content.asp");
-tablink[3] = new Array("", "mediaserver.asp", "Advanced_AiDisk_samba.asp", "Advanced_AiDisk_ftp.asp", "Advanced_AiDisk_others.asp");
+tablink[3] = new Array("", "mediaserver.asp", "Advanced_AiDisk_samba.asp", "Advanced_AiDisk_ftp.asp");
 tablink[4] = new Array("", "Advanced_IPv6_Content.asp");
-tablink[5] = new Array("", "Advanced_PPTP_Content.asp", "Advanced_PPTPAdvanced_Content.asp", "Advanced_VPNStatus.asp", "adv_vpn_setting.asp", "Main_Ping_Content.asp", "Main_Netstat_Content.asp", "Main_Traceroute_Content.asp");
+tablink[5] = new Array("", "Advanced_VPN_Content.asp", "Advanced_VPNClient_Content.asp", "adv_vpn_setting.asp");
 tablink[6] = new Array("", "Advanced_BasicFirewall_Content.asp", "Advanced_URLFilter_Content.asp", "Advanced_MACFilter_Content.asp", "Advanced_Firewall_Content.asp");
-tablink[7] = new Array("", "Advanced_System_Content.asp", "Advanced_FirmwareUpgrade_Content.asp", "Advanced_SettingBackup_Content.asp", "Advanced_PerformanceTuning_Content.asp", "Advanced_ADSL_Content.asp", "Advanced_DSL_Feedback.asp", "Advanced_CWMP_Content.asp");
+tablink[7] = new Array("", "Advanced_System_Content.asp", "Advanced_FirmwareUpgrade_Content.asp", "Advanced_SettingBackup_Content.asp", "Advanced_PerformanceTuning_Content.asp", "Advanced_ADSL_Content.asp", "Advanced_DSL_Feedback.asp", "Advanced_CWMP_Content.asp", "Advanced_TR069_Content.asp");
 tablink[8] = new Array("", "Main_LogStatus_Content.asp", "Main_WStatus_Content.asp", "Main_DHCPStatus_Content.asp", "Main_RouteStatus_Content.asp", "Main_IPTStatus_Content.asp", "Main_AdslStatus_Content.asp");
-tablink[9] = new Array("", "Main_Analysis_Content.asp", "Main_Netstat_Content.asp");	//, "Main_WOL_Content.asp"
+tablink[9] = new Array("", "Main_Analysis_Content.asp", "Main_Netstat_Content.asp", "Main_WOL_Content.asp");
 tablink[10] = new Array("", "QoS_EZQoS.asp", "Main_TrafficMonitor_realtime.asp", "Main_Spectrum_Content.asp", "Main_TrafficMonitor_last24.asp", "Main_TrafficMonitor_daily.asp", "Advanced_QOSUserPrio_Content.asp", "Advanced_QOSUserRules_Content.asp");
 
 //Level 2 Menu
-menuL2_title = new Array("", "<%tcWebApi_get("String_Entry","menu5_1","s")%>", "<%tcWebApi_get("String_Entry","menu5_2","s")%>", "<%tcWebApi_get("String_Entry","menu5_3","s")%>", "<%tcWebApi_get("String_Entry","menu5_4","s")%>", "IPv6", "<%tcWebApi_get("String_Entry","BOP_isp_heart_item","s")%>", "<%tcWebApi_get("String_Entry","menu5_5","s")%>", "<%tcWebApi_get("String_Entry","menu5_6","s")%>", "<%tcWebApi_get("String_Entry","System_Log","s")%>", "<%tcWebApi_get("String_Entry","Network_Tools","s")%>");
+menuL2_title = new Array("", "<%tcWebApi_get("String_Entry","menu5_1","s")%>", "<%tcWebApi_get("String_Entry","menu5_2","s")%>", "<%tcWebApi_get("String_Entry","menu5_3","s")%>", "<%tcWebApi_get("String_Entry","menu5_4","s")%>", "IPv6", "VPN", "<%tcWebApi_get("String_Entry","menu5_5","s")%>", "<%tcWebApi_get("String_Entry","menu5_6","s")%>", "<%tcWebApi_get("String_Entry","System_Log","s")%>", "<%tcWebApi_get("String_Entry","Network_Tools","s")%>");
 menuL2_link = new Array("", tablink[0][1], tablink[1][1], tablink[2][1], tablink[3][1], tablink[4][1], tablink[5][1], tablink[6][1], tablink[7][1], tablink[8][1], tablink[9][1]);
 menuL1_title = new Array("", "<%tcWebApi_get("String_Entry","menu1","s")%>", "<%tcWebApi_get("String_Entry","Guest_Network","s")%>", "<%tcWebApi_get("String_Entry","Menu_TrafficManager","s")%>", "<%tcWebApi_get("String_Entry","Parental_Control","s")%>", "<%tcWebApi_get("String_Entry","Menu_usb_application","s")%>", "AiCloud", "<%tcWebApi_get("String_Entry","menu5","s")%>");
 menuL1_link = new Array("", "index2.asp", "Guest_network.asp", "QoS_EZQoS.asp", "ParentalControl.asp", "APP_Installation.asp", "cloud_main.asp", "");
@@ -284,12 +304,15 @@ var traffic_L1_dx = 3;
 var traffic_L2_dx = 11;
 var band2g_support = rc_support.search("2.4G");
 var band5g_support = rc_support.search("5G");
+var smart_connect_support = rc_support.search("SMART");
 var live_update_support = rc_support.search("update");
 var cooler_support = rc_support.search("fanctrl");
 var power_support = rc_support.search("pwrctrl");
 var dbwww_support = rc_support.search("dbwww");
 var repeater_support = rc_support.search("repeater");
 var Rawifi_support = rc_support.search("rawifi");
+if(Rawifi_support)
+	var band5g_11ac_support = rc_support.search("11AC");
 var SwitchCtrl_support = rc_support.search("switchctrl");
 var dsl_support = rc_support.search("dsl");
 var dualWAN_support = rc_support.search("dualwan");
@@ -314,9 +337,11 @@ var IPv6_support = rc_support.search("ipv6");
 var ParentalCtrl_support = rc_support.search("PARENTAL");
 var pptpd_support = rc_support.search("pptpd");
 var openvpnd_support = rc_support.search("openvpnd");
+var vpnc_support = rc_support.search("vpnc"); 
 var WebDav_support = rc_support.search("webdav");
 var HTTPS_support = rc_support.search("HTTPS");
 var nodm_support = rc_support.search("nodm");
+var wimax_support = rc_support.search("wimax");
 var hwcrypto_support = rc_support.search("hwcrypto");
 var wds_support = rc_support.search("wds");
 var calculate_height = menuL1_link.length+tablink.length-3;
@@ -329,21 +354,63 @@ var timemachine_support = rc_support.search("timemachine");
 var email_support = rc_support.search("email");
 var cwmp_support = rc_support.search("cwmp");
 var networkTool_support = true;
+var tr069_support = rc_support.search("tr069");
+var gobi_support = rc_support.search("gobi");
+//wireless
+var wl_nband_array = new Array;
+if(dualWAN_support != "-1")
+	wl_nband_array = [2,1];
+else
+	wl_nband_array = [2,0];
+var band2g_count = 0;
+var band5g_count = 0;
+for (var j=0; j<wl_nband_array.length; j++) {
+	if(wl_nband_array[j] == '2')
+		band2g_count++;
+	else if(wl_nband_array[j] == '1')
+		band5g_count++;
+}
+
+var wl_info = {
+	band2g_support:(function(){
+				if(band2g_count > 0)
+					return true;
+				else
+					return false;
+			})(),
+	band5g_support:(function(){
+				if(band5g_count > 0)
+					return true;
+				else
+					return false;
+			})(),
+	band5g_2_support:(function(){
+				if(band5g_count == 2)
+					return true;
+				else
+					return false;
+			})(),
+	band2g_total:band2g_count,
+	band5g_total:band5g_count,
+	wl_if_total:wl_nband_array.length
+};
+//wireless end
 
 var QISWIZARD = "QIS_wizard.asp";
 
 function remove_url(){
+	remove_menu_item(2, "Advanced_Modem_Content.asp");
 	if(wds_support == -1) {
 		remove_menu_item(0, "Advanced_WMode_Content.asp");
 	}
-	remove_menu_item(2, "Advanced_Modem_Content.asp");
+	
 	if(dsl_support == -1) {
 		remove_menu_item(7, "Advanced_ADSL_Content.asp");
 		remove_menu_item(8, "Main_AdslStatus_Content.asp");
 		remove_menu_item(10, "Main_Spectrum_Content.asp");
 	}else{
-			if(!spectrum_support)		// not to support Spectrum page.
-				remove_menu_item(10, "Main_Spectrum_Content.asp");		
+		if(spectrum_support == -1)	// not to support Spectrum page.
+			remove_menu_item(10, "Main_Spectrum_Content.asp");
 	}
 	
 	if(!networkTool_support){
@@ -352,7 +419,7 @@ function remove_url(){
 	}	
 	
 	if(WebDav_support != -1) {
-		tabtitle[3][2] = "<#menu5_4_1#> / Cloud Disk";
+		tabtitle[3][2] = "<%tcWebApi_get("String_Entry","menu5_4_1","s")%> / Cloud Disk";
 	}
 	if(sw_mode == 2){
 		// Guest Network
@@ -428,15 +495,25 @@ function remove_url(){
 		remove_menu_item(8, "Main_IPTStatus_Content.asp");
 		remove_menu_item(8, "Main_RouteStatus_Content.asp");
 	}
-	remove_menu_item(2, "Advanced_WANPort_Content.asp");
 
-	if (dualWAN_support != -1) {
-		var dualwan_pri_if = 'dsl usb'.split(" ");
-		//if(dualwan_pri_if == 'lan') tablink[2][1] = "Advanced_WAN_Content.asp";
-		//else if(dualwan_pri_if == 'wan') tablink[2][1] = "Advanced_WAN_Content.asp";
-		if(dualwan_pri_if == 'wan') tablink[2][1] = "Advanced_DSL_Content.asp";
-		else if(dualwan_pri_if == 'usb') tablink[2][1] = "Advanced_Modem_Content.asp";
-		else if(dualwan_pri_if == 'dsl') tablink[2][1] = "Advanced_DSL_Content.asp";
+	if (dualWAN_support == -1) {
+		remove_menu_item(2, "Advanced_WANPort_Content.asp");
+	}
+	else {
+		var dualwan_pri_if = '<%tcWebApi_get("Dualwan_Entry","wans_dualwan","s")%>'.split(" ")[0];		
+		
+		if(dualwan_pri_if == 'dsl' || dualwan_pri_if == 'wan'){
+				menuL2_link[3] = "Advanced_DSL_Content.asp";
+				tablink[2][1] = "Advanced_DSL_Content.asp";
+		}		
+		else if(dualwan_pri_if == 'usb'){
+				menuL2_link[3] = "Advanced_Modem_Content.asp";
+				tablink[2][1] = "Advanced_Modem_Content.asp";
+		}		
+		else{
+				menuL2_link[3] = "Advanced_DSL_Content.asp";
+				tablink[2][1] = "Advanced_DSL_Content.asp";
+		}		
 	}
 
 	if(!media_support){
@@ -476,13 +553,22 @@ function remove_url(){
 			menuL1_link[6] = "";
 		//}
 	}
-	if(pptpd_support == -1){
-		remove_menu_item(5, "Advanced_PPTP_Content.asp");
-		if(openvpnd_support == -1){
+	
+	if(pptpd_support == -1 && openvpnd_support == -1 && vpnc_support == -1){
 			menuL2_title[6] = "";
 			menuL2_link[6] = "";
+	}else{
+		if(vpnc_support == -1 && openvpnd_support == -1){
+			tabtitle[5].splice(2, 1);
+			tablink[5].splice(2, 1);
+		}
+		if(pptpd_support == -1 && openvpnd_support == -1){
+			tabtitle[5].splice(1, 1);
+			tablink[5].splice(1, 1);
+			menuL2_link[6] = "Advanced_VPNClient_Content.asp";
 		}
 	}
+	
 	if(SwitchCtrl_support == -1){
 		remove_menu_item(1, "Advanced_SwitchCtrl_Content.asp");
 	}
@@ -498,6 +584,9 @@ function remove_url(){
 	if(cwmp_support == -1){
 		remove_menu_item(7, "Advanced_CWMP_Content.asp");
 	}
+	if(tr069_support == -1){
+		remove_menu_item(7, "Advanced_TR069_Content.asp");
+	}	
 }
 function remove_menu_item(L2, remove_url){
 var dx;
@@ -592,6 +681,29 @@ L2 = traffic_L2_dx;
 L3 = 1;
 }
 }
+
+	if(current_url.indexOf("Advanced_VPNAdvanced") == 0){
+			traffic_L1_dx = 0;
+			traffic_L2_dx = 6;
+			L1 = traffic_L1_dx;	
+			L2 = traffic_L2_dx;
+			L3 = 1;
+	}	
+	
+	if('<%tcwebApi_get("Wan_Common","TransMode","s")%>' == 'USB'){
+			menuL2_link[3] = "Advanced_Modem_Content.asp";
+			tablink[2][1] = "Advanced_Modem_Content.asp";
+	}
+	
+	if(	current_url.indexOf("Advanced_DSL_Content") == 0 || 
+			current_url.indexOf("Advanced_VDSL_Content") == 0 ||
+			current_url.indexOf("Advanced_Modem_Content") == 0){
+			traffic_L1_dx = 0;
+			traffic_L2_dx = 3;
+			L1 = traffic_L1_dx;	
+			L2 = traffic_L2_dx;
+			L3 = 1;
+	}		
 
 	//Feedback Info
 	if(current_url.indexOf("Feedback_Info") == 0){
@@ -753,13 +865,26 @@ cal_height();
         }else
                 notification.samba = 0;
                 
-		//dsl_loss_sync  0: default 1:need to feedback 2:Feedback submitted
-				if(dsl_loss_sync == 1){		//case6
-												notification.array[6] = 'noti_loss_sync';
-												notification.loss_sync = 1;
-												notification.desc[6] = Untranslated.ASUSGATE_note6;
-                				notification.action_desc[6] = Untranslated.ASUSGATE_act_feedback;
-                				notification.clickCallBack[6] = "location.href = '/cgi-bin/Advanced_DSL_Feedback.asp';"
+		//Higher priority: DLA intervened case dsltmp_dla_modified 0: default / 1:need to feedback / 2:Feedback submitted 
+		//Lower priority:  dsl_loss_sync  0: default 1:need to feedback 2:Feedback submitted
+				if(dsl_loss_sync == 1){				//case9(case10 act) + case6
+
+						notification.loss_sync = 1;
+						if(dla_modified == 1){
+								notification.array[9] = 'noti_dla_modified';
+								notification.desc[9] = Untranslated.ASUSGATE_note9;
+								notification.action_desc[9] = Untranslated.ASUSGATE_DSL_setting;
+								notification.clickCallBack[9] = "location.href = '/cgi-bin/Advanced_ADSL_Content.asp?af=dslx_dla_enable';";
+								notification.array[10] = 'noti_dla_modified_fb';
+								notification.action_desc[10] = Untranslated.ASUSGATE_act_feedback;
+								notification.clickCallBack[10] = "location.href = '/cgi-bin/Advanced_DSL_Feedback.asp';";
+						}
+						else{
+								notification.array[6] = 'noti_loss_sync';												
+								notification.desc[6] = Untranslated.ASUSGATE_note6;
+								notification.action_desc[6] = Untranslated.ASUSGATE_act_feedback;
+								notification.clickCallBack[6] = "location.href = '/cgi-bin/Advanced_DSL_Feedback.asp';"
+						}
 				}else
 								notification.loss_sync = 0;
 								
@@ -774,12 +899,12 @@ cal_height();
 						notification.experience_DSL = 0;
 								
 		//Notification hint-- null&0: default, 1:display info
-				if(noti_notif_Flag == 1){		//case8
+				if(noti_notif_Flag == 1 && notif_msg != ""){		//case8
 						notification.array[8] = 'noti_notif_hint';
 						notification.notif_hint = 1;
 						notification.desc[8] = notif_msg;
-                				notification.action_desc[8] = "OK";
-                				notification.clickCallBack[8] = "setTimeout('document.noti_notif_hint.submit();', 1);setTimeout('notification.notiClick()', 100);"
+						notification.action_desc[8] = "OK";
+						notification.clickCallBack[8] = "setTimeout('document.noti_notif_hint.submit();', 1);setTimeout('notification.notiClick()', 100);"
 				}else
 						notification.notif_hint = 0;								
 								
@@ -840,7 +965,7 @@ function Block_chars(obj, keywordArray){
 		}
 	}
 	if(invalid_char != ""){
-		alert('This string cannot contain" '+ invalid_char +'" !');
+		alert('<%tcWebApi_get("String_Entry","JS_validstr2","s")%>" '+ invalid_char +'" !');
 		obj.focus();
 		return false;
 	}
@@ -869,7 +994,7 @@ function Block_chars(obj, keywordArray){
 		}
 	}
 	if(invalid_char != ""){
-		alert('<#JS_validstr2#>" '+ invalid_char +'" !');
+		alert('<%tcWebApi_get("String_Entry","JS_validstr2","s")%>" '+ invalid_char +'" !');
 		obj.focus();
 		return false;
 	}
@@ -889,40 +1014,63 @@ function Block_chars(obj, keywordArray){
 }
 
 function cal_height(){
-var table_height = 52*calculate_height+80; // index.asp
-if($("FormTitle") && current_url.indexOf("Advanced_AiDisk_ftp") != 0 && current_url.indexOf("Advanced_AiDisk_samba") != 0){
-var table_height_table = table_height-10;
-if(!current_url.indexOf("ParentalControl") || !current_url.indexOf("Advanced_Modem_Content"))
-table_height_table = table_height_table + 40;
-$("FormTitle").style.height = table_height_table + "px";
+
+	var tableClientHeight;
+	var optionHeight = 52;
+	var manualOffSet = 25;
+	var table_height = Math.round(optionHeight*calculate_height - manualOffSet*calculate_height/14 - $("tabMenu").clientHeight);	
+	if(navigator.appName.indexOf("Microsoft") < 0)
+		var contentObj = document.getElementsByClassName("content");
+	else
+		var contentObj = getElementsByClassName_iefix("table", "content");
+
+	if($("FormTitle") && current_url.indexOf("Advanced_AiDisk_ftp") != 0 && current_url.indexOf("Advanced_AiDisk_samba") != 0 && current_url.indexOf("QoS_EZQoS") != 0){
+		table_height = table_height + 24;
+		$("FormTitle").style.height = table_height + "px";
+		tableClientHeight = $("FormTitle").clientHeight;
+	}
+	// index.asp
+	else if($("NM_table")){
+		var statusPageHeight = 720;
+		if(table_height < 800)
+			table_height = 800;
+		$("NM_table").style.height = table_height + "px";
+
+		tableClientHeight = $("NM_table").clientHeight;
+	}
+	// aidisk.asp
+	else if($("AiDiskFormTitle")){
+		table_height = table_height + 24;
+		$("AiDiskFormTitle").style.height = table_height + "px";
+		tableClientHeight = $("AiDiskFormTitle").clientHeight;
+	}
+	// APP Install
+	else if($("applist_table")){
+		if(sw_mode == 2 || sw_mode == 3 || sw_mode == 4)
+			table_height = table_height + 120;				
+		else
+			table_height = table_height + 40;	//2
+		
+		$("applist_table").style.height = table_height + "px";		
+		tableClientHeight = $("applist_table").clientHeight;
+		
+		if(navigator.appName.indexOf("Microsoft") >= 0)
+			contentObj[0].style.height = contentObj[0].clientHeight + 18 + "px";
+	}
+	// PrinterServ
+	else if($("printerServer_table")){
+		if(sw_mode == 2 || sw_mode == 4)
+			table_height = table_height + 90;
+		else
+			table_height = table_height + 2;
+		
+		$("printerServer_table").style.height = table_height + "px";		
+		tableClientHeight = $("printerServer_table").clientHeight;
+		
+		if(navigator.appName.indexOf("Microsoft") >= 0)
+			contentObj[0].style.height = contentObj[0].clientHeight + 18 + "px";
+	}
 }
-if($("qos_table")){
-var table_height_table = table_height-30;
-$("qos_table").style.height = table_height_table + "px";
-}
-if($("printerServer_table")){
-$("printerServer_table").style.height = table_height + "px";
-}
-if($("table_height"))
-$("table_height").style.height = table_height + 20 + "px";
-if($("sub_frame"))
-$("sub_frame").style.height = table_height + 30 + "px";
-if(table_height < 670)
-table_height = 670;
-if($("NM_table"))
-$("NM_table").style.height = table_height + "px";
-if($("_NM_table"))
-$("_NM_table").style.marginTop = Math.round((table_height-675)/3) + "px";
-}
-/*function show_footer(){
-footer_code = '<div align="center" class="bottom-image"></div>\n';
-if(dbwww_support != -1)
-footer_code +='<div align="center" class="copyright">httpd_dir='+httpd_dir+'</div>\n';
-else
-footer_code +='<div align="center" class="copyright"><%tcWebApi_get("String_Entry","footer_copyright_desc","s")%></div>\n';
-$("footer").innerHTML = footer_code;
-flash_button();
-}*/
 
 function show_footer(){
 	var country_code = "<% tcWebApi_get("WLan_Common","wl0_CountryCode","s") %>";
@@ -932,7 +1080,7 @@ function show_footer(){
 
 	// FAQ searching bar{
 	footer_code += '<div style="margin-top:-75px;margin-left:205px;"><table width="765px" border="0" align="center" cellpadding="0" cellspacing="0"><tr>';
-	footer_code += '<td width="20" align="right"><div id="bottom_help_icon" style="margin-right:3px;"></div></td><td width="100" id="bottom_help_title" align="left">Help & Support</td>';
+	footer_code += '<td width="20" align="right"><div id="bottom_help_icon" style="margin-right:3px;"></div></td><td width="100" id="bottom_help_title" align="left"><%tcWebApi_get("String_Entry","Help","s")%> & <%tcWebApi_get("String_Entry","Support","s")%></td>';
 
 	var real_model_name = "";
 	if(model_name == "DSL-N12U-C1")
@@ -947,6 +1095,8 @@ function show_footer(){
 		real_model_name = "DSLN10_C1_with_2dBi_antenna";
 	else if(model_name == "DSL-N55U-C1")
 		real_model_name = "DSL-N55U_C1";
+	else if(model_name == "DSL-N55U-D1")
+		real_model_name = "DSL-N55U_D1";
 	else	
 		real_model_name = model_name;
 		
@@ -954,8 +1104,8 @@ function show_footer(){
 
 	//footer_code += '<td width="200" id="bottom_help_link" align="left">&nbsp&nbsp<a style="font-weight: bolder;text-decoration:underline;cursor:pointer;" href="http://www.asus.com'+ href_lang +'/Networking/' + model_name_supportsite + '/HelpDesk_Manual/" target="_blank">Manual</a>&nbsp';
 	//footer_code += '|&nbsp<a style="font-weight: bolder;text-decoration:underline;cursor:pointer;" href="http://www.asus.com'+ href_lang +'/Networking/' + model_name_supportsite + '/HelpDesk_Download/" target="_blank">Utility</a>';	
-	footer_code += '<td width="200" id="bottom_help_link" align="left">&nbsp&nbsp<a style="font-weight: bolder;text-decoration:underline;cursor:pointer;" href="http://www.asus.com/Networking/' + model_name_supportsite + '/HelpDesk_Manual/" target="_blank">Manual</a>&nbsp';
-	footer_code += '|&nbsp<a style="font-weight: bolder;text-decoration:underline;cursor:pointer;" href="http://www.asus.com/Networking/' + model_name_supportsite + '/HelpDesk_Download/" target="_blank">Utility</a>';	
+	footer_code += '<td width="200" id="bottom_help_link" align="left">&nbsp&nbsp<a style="font-weight: bolder;text-decoration:underline;cursor:pointer;" href="http://www.asus.com/Networking/' + model_name_supportsite + '/HelpDesk_Manual/" target="_blank"><%tcWebApi_get("String_Entry","Manual","s")%></a>&nbsp';
+	footer_code += '|&nbsp<a style="font-weight: bolder;text-decoration:underline;cursor:pointer;" href="http://www.asus.com/Networking/' + model_name_supportsite + '/HelpDesk_Download/" target="_blank"><%tcWebApi_get("String_Entry","Utility","s")%></a>';	
 	footer_code += '&nbsp|&nbsp<a href="/Advanced_DSL_Feedback.asp" style="font-weight: bolder;text-decoration:underline;cursor:pointer;" target="_self">Feedback</a>';
 	footer_code += '</td>';
 
@@ -1021,23 +1171,113 @@ obj_inputBtn[i].addEventListener('touchend', function(){this.className = 'button
 }
 }
 function show_top_status(){
-var ssid_status_2g = decodeURIComponent('<% tcWebApi_char_to_ascii("WLan_Entry","wl0_ssid","s") %>');
-if(!isFirefox)
-$('elliptic_ssid_2g').innerText = ssid_status_2g;
-else		
-		$('elliptic_ssid_2g').textContent = ssid_status_2g;
 
-if(band5g_support != -1){
-	var ssid_status_5g = decodeURIComponent('<% tcWebApi_char_to_ascii("WLan_Entry","wl1_ssid","s") %>');
-	$('elliptic_ssid_5g').style.display = "";
-	if(!isFirefox)
-	$('elliptic_ssid_5g').innerText = ssid_status_5g;
-	else		
-			$('elliptic_ssid_5g').textContent = ssid_status_5g;
+	var ssid_status_2g = decodeURIComponent('<% tcWebApi_char_to_ascii("WLan_Entry","wl0_ssid","s") %>');
+	var topbanner_ssid_2g = handle_show_str(ssid_status_2g);
+	if(topbanner_ssid_2g.length >18){
+		$('elliptic_ssid_2g').innerHTML = extend_display_ssid(topbanner_ssid_2g)+"...";
+	}
+	else{
+		$('elliptic_ssid_2g').innerHTML = topbanner_ssid_2g;
+	}
+	$('elliptic_ssid_2g').title = "2.4 GHz: \n"+ssid_status_2g;
+
+	if(band5g_support != -1){
+		$('elliptic_ssid_5g').style.display = "";
+		var ssid_status_5g = decodeURIComponent('<% tcWebApi_char_to_ascii("WLan_Entry","wl1_ssid","s") %>');
+		var topbanner_ssid_5g = handle_show_str(ssid_status_5g);
+		if(topbanner_ssid_5g.length >18){	
+			$('elliptic_ssid_5g').innerHTML = extend_display_ssid(topbanner_ssid_5g)+"...";
+		}
+		else{
+			$('elliptic_ssid_5g').innerHTML = topbanner_ssid_5g;
+		}
+		$('elliptic_ssid_5g').title = "5 GHz: \n"+ssid_status_5g;	
+	}
+
+	showtext($("firmver"), "<%If tcWebApi_get("DeviceInfo","FwVer","h") <> "" Then tcWebApi_staticGet("DeviceInfo","FwVer","s") end if%>");
 }
 
-showtext($("firmver"), "<%If tcWebApi_get("DeviceInfo","FwVer","h") <> "" Then tcWebApi_staticGet("DeviceInfo","FwVer","s") end if%>");
+function extend_display_ssid(ssid){		//"&amp;"5&; "&lt;"4< ; "&gt;"4> ; "&nbsp;"6space
+		//alert(ssid.substring(0,20)+" : "+ssid.substring(0,20).lastIndexOf("&nbsp;")+" <&nbsp>");
+		if(ssid.substring(0,20).lastIndexOf("&nbsp;") >=15 || ssid.substring(0,20).lastIndexOf("&nbsp;") < 10 ){
+				//alert(ssid.substring(0,19)+" : "+ssid.substring(0,19).lastIndexOf("&amp;")+" <&amp>");
+				if(ssid.substring(0,19).lastIndexOf("&amp;") >=15 || ssid.substring(0,19).lastIndexOf("&amp;") < 11 ){
+						//alert(ssid.substring(0,18)+" : "+ssid.substring(0,18).lastIndexOf("&lt;")+" <&lt>");
+						if(ssid.substring(0,18).lastIndexOf("&lt;") >=15 || ssid.substring(0,19).lastIndexOf("&lt;") < 12 ){
+								//alert(ssid.substring(0,18)+" : "+ssid.substring(0,18).lastIndexOf("&gt;")+" <&gt>");
+								if(ssid.substring(0,18).lastIndexOf("&gt;") >=15 || ssid.substring(0,19).lastIndexOf("&gt;") < 12 ){
+										//alert(ssid.substring(0,15));
+										return ssid.substring(0,15);
+								}
+								else{
+										switch(ssid.substring(0,18).lastIndexOf("&gt;")){
+												case 12:
+																	return ssid.substring(0,16);
+																	break;
+												case 13:
+																	return ssid.substring(0,17);	
+																	break;
+												case 14:
+																	return ssid.substring(0,18);		
+																	break;	
+										}
+								}
+						}
+						else{
+									switch(ssid.substring(0,18).lastIndexOf("&lt;")){
+											case 12:
+																return ssid.substring(0,16);
+																break;
+											case 13:
+																return ssid.substring(0,17);
+																break;
+											case 14:
+																return ssid.substring(0,18);
+																break;
+
+									}			
+						}
+				}
+				else{
+							switch (ssid.substring(0,19).lastIndexOf("&amp;")){
+									case 11:
+														return ssid.substring(0,16);
+														break;
+									case 12:
+														return ssid.substring(0,17);
+														break;
+									case 13:
+														return ssid.substring(0,18);
+														break;
+									case 14:
+														return ssid.substring(0,19);
+														break;
+
+							}
+				}
+		}
+		else{
+					switch (ssid.substring(0,20).lastIndexOf("&nbsp;")){
+									case 10:			
+														return ssid.substring(0,16);
+														break;			
+									case 11:
+														return ssid.substring(0,17);
+														break;
+									case 12:
+														return ssid.substring(0,18);
+														break;
+									case 13:
+														return ssid.substring(0,19);
+														break;
+									case 14:
+														return ssid.substring(0,20);
+														break;					
+					}
+		}
 }
+
 function go_setting(page){
 location.href = page;
 }
@@ -1249,7 +1489,7 @@ function validate_hostname(obj){
         if(re.test(obj.value)){
                 return "";
         }else{
-                return Untranslated.validate_hostname_hint;
+                return "<%tcWebApi_get("String_Entry","JS_validhostname","s")%>";
         }
 }
 
@@ -1563,13 +1803,13 @@ function inputCtrl(obj, flag){
 			obj.style.backgroundImage = "url(/images/New_ui/inputbg.png)";
 	}
 	if(current_url.indexOf("Advanced_Wireless_Content") == 0
-	|| current_url.indexOf("Advanced_WAN_Content") == 0
 	|| current_url.indexOf("Guest_network") == 0
 	|| current_url.indexOf("Advanced_PerformanceTuning_Content") == 0
 	|| current_url.indexOf("Advanced_Modem_Content") == 0
 	|| current_url.indexOf("Advanced_IPv6_Content") == 0
 	|| current_url.indexOf("Advanced_WAdvanced_Content") == 0
 	|| current_url.indexOf("Advanced_IPTV_Content") == 0
+	|| current_url.indexOf("Advanced_WANPort_Content.asp") == 0
 	|| current_url.indexOf("Advanced_ASUSDDNS_Content.asp") == 0
 	){
 		if(obj.type == "checkbox")
@@ -1676,6 +1916,19 @@ var usb_path1_removed_tmp = "init";
 var usb_path2_removed_tmp = "init";
 var ddns_return_code = '<% tcWebApi_Get("GUITemp_Entry2", "ddns_return_code_chk", "s") %>';
 var ddns_updated = '<% tcWebApi_Get("GUITemp_Entry2", "ddns_updated", "s") %>';
+var first_link_status = '';
+var first_link_sbstatus = '';
+var first_link_auxstatus = '';
+var secondary_link_status = '';
+var secondary_link_sbstatus = '';
+var secondary_link_auxstatus = '';
+
+var vpnc_state_t = '';
+var vpnc_sbstate_t = '';
+var vpnc_proto = '<% tcWebApi_Get("VPNC_Entry", "vpnc_proto", "s") %>';
+
+var modem_enable = '';
+
 if(usb_support != -1){
 	var tmp_mount_0 = foreign_disk_total_mounted_number()[0];		//Viz 2013.07
 	var tmp_mount_1 = foreign_disk_total_mounted_number()[1];		//Viz 2013.07
@@ -1690,6 +1943,14 @@ function refresh_info_status(xmldoc)
 	link_status = wanStatus[0].firstChild.nodeValue;
 	link_sbstatus = wanStatus[1].firstChild.nodeValue;
 	link_auxstatus = wanStatus[2].firstChild.nodeValue;
+	first_link_status = wanStatus[0].firstChild.nodeValue;
+	first_link_sbstatus = wanStatus[1].firstChild.nodeValue;
+	first_link_auxstatus = wanStatus[2].firstChild.nodeValue;		
+	var secondary_wanStatus = devicemapXML[0].getElementsByTagName("secondary_wan");
+	secondary_link_status = secondary_wanStatus[0].firstChild.nodeValue;
+	secondary_link_sbstatus = secondary_wanStatus[1].firstChild.nodeValue;
+	secondary_link_auxstatus = secondary_wanStatus[2].firstChild.nodeValue;
+
 	usb_path1 = wanStatus[3].firstChild.nodeValue;
 	usb_path2 = wanStatus[4].firstChild.nodeValue;
 	monoClient = wanStatus[5].firstChild.nodeValue;
@@ -1704,9 +1965,32 @@ function refresh_info_status(xmldoc)
 	wan_line_state = wanStatus[15].firstChild.nodeValue.replace("wan_line_state=", "");
 	wlan0_radio_flag = wanStatus[16].firstChild.nodeValue.replace("wlan0_radio_flag=", "");
 	wlan1_radio_flag = wanStatus[17].firstChild.nodeValue.replace("wlan1_radio_flag=", "");
+	
+	var vpnStatus = devicemapXML[0].getElementsByTagName("vpn");									
+	vpnc_proto = vpnStatus[0].firstChild.nodeValue.replace("vpnc_proto=", "");		
+	if(vpnc_proto == "openvpn"){
+		/*
+		if('nvram_get("vpn_client_unit");' == 1)
+			vpnc_state_t = vpnStatus[3].firstChild.nodeValue.replace("vpn_client1_state=", "");
+		else	//unit 2
+			vpnc_state_t = vpnStatus[4].firstChild.nodeValue.replace("vpn_client2_state=", "");
+		*/	
+	}
+	else{	//vpnc (pptp/l2tp)		
+		vpnc_state_t = vpnStatus[1].firstChild.nodeValue.replace("vpnc_state_t=", "");		
+	}	
 
-	if(location.pathname == "/QIS_wizard.asp")
+	vpnc_sbstate_t = vpnStatus[2].firstChild.nodeValue.replace("vpnc_sbstate_t=", "");	
+
+	var usbStatus = devicemapXML[0].getElementsByTagName("usb");
+	modem_enable = usbStatus[0].firstChild.nodeValue.replace("modem_enable=", "");
+
+	if(location.pathname == "/cgi-bin/QIS_wizard.asp")
 		return false;
+	else if(location.pathname == "/cgi-bin/Advanced_VPNClient_Content.asp"){		
+		show_vpnc_rulelist();		
+	}	
+		
 	if(sw_mode == 1){
 		//Viz add 2013.03 for adsl sync status
 		if(wan_line_state == "up"){
@@ -1722,18 +2006,19 @@ function refresh_info_status(xmldoc)
 		$("adsl_line_status").onmouseover = function(){overHint(9);}
 		$("adsl_line_status").onmouseout = function(){nd();}
 
-		if(link_status == "2" && link_auxstatus == "0"){
+		if((link_status == "2" && (link_auxstatus == "0" || link_auxstatus == "2")) || (secondary_link_status == "2" && (secondary_link_auxstatus == "0" || secondary_link_auxstatus == "2"))){
 			$("connect_status").className = "connectstatuson";
-			if(location.pathname.search("index2.asp")>=0){				
+			if(location.pathname == "/cgi-bin/index2.asp"){
 				$("NM_connect_status").innerHTML = "<%tcWebApi_get("String_Entry","Connected","s")%>";
 				$('single_wan').className = "single_wan_connected";	
 			}
 		}
 		else{
 			$("connect_status").className = "connectstatusoff";
-			if(location.pathname.search("index2.asp")>=0){
+			if(location.pathname == "/cgi-bin/index2.asp"){
 			  $("NM_connect_status").innerHTML = "<%tcWebApi_get("String_Entry","Disconnected","s")%>";
 			  $('single_wan').className = "single_wan_disconnected";
+			  $("wanIP_div").style.display = "none";
 			} 
 		}
 
@@ -1759,6 +2044,11 @@ function refresh_info_status(xmldoc)
 			<%end if%>
 			<% if tcWebApi_staticGet("WebCurSet_Entry","dev_pvc","h") = "10" then%>
 				<% if tcWebApi_staticGet("Wan_Common","TransMode","h") = "Ethernet" then%>
+					$("connect_status").onclick = function(){openHint(24,3);}
+				<%End if%>
+			<%End if%>
+			<% if tcWebApi_staticGet("WebCurSet_Entry","dev_pvc","h") = "11" then%>
+				<% if tcWebApi_staticGet("Wan_Common","TransMode","h") = "USB" then%>
 					$("connect_status").onclick = function(){openHint(24,3);}
 				<%End if%>
 			<%End if%>
@@ -1813,10 +2103,11 @@ function refresh_info_status(xmldoc)
 	}
 	if(usb_support != -1){
 		if(current_url=="index2.asp"||current_url==""){
+			//umount= : usbmount  ;  umount=1 : no usb mount
 			if((usb_path1_removed != usb_path1_removed_tmp && usb_path1_removed_tmp != "init")){
 				location.href = "index2.asp";
 			}
-			else if(usb_path1_removed == "umount=0"){ // umount=0->umount=0, 0->storage
+			else if(usb_path1_removed == "umount="){
 				if((usb_path1 != usb_path1_tmp && usb_path1_tmp != "init"))
 					location.href = "index2.asp";
 			}
@@ -1824,7 +2115,7 @@ function refresh_info_status(xmldoc)
 			if((usb_path2_removed != usb_path2_removed_tmp && usb_path2_removed_tmp != "init")){
 				location.href = "index2.asp";
 			}
-			else if(usb_path2_removed == "umount=0"){ // umount=0->umount=0, 0->storage
+			else if(usb_path2_removed == "umount="){
 				if((usb_path2 != usb_path2_tmp && usb_path2_tmp != "init"))
 					location.href = "index2.asp";
 			}
@@ -1872,8 +2163,8 @@ function refresh_info_status(xmldoc)
 				}
 				$("usb_status").className = "usbstatuson";
 				//alert(tmp_mount_0+" , "+foreign_disk_total_mounted_number()[0]+" ; "+tmp_mount_1+" , "+foreign_disk_total_mounted_number()[1]);
-				if((tmp_mount_0 == 0 && usb_path1_removed =="umount=0") || (tmp_mount_1 == 0 && usb_path2_removed =="umount=0")){
-							updateUSBStatus();						//Viz 2013.07
+				if((tmp_mount_0 == 0 && usb_path1_removed =="umount=") || (tmp_mount_1 == 0 && usb_path2_removed =="umount=")){
+					updateUSBStatus();	//Viz 2013.07
 				}
 												
 			}
@@ -1971,10 +2262,17 @@ var notification = {
 
 		  			if( i == 2 ){			  				
 		  				txt += '<tr><td width="100%"><div style="text-decoration:underline;text-align:right;color:#FFCC00;font-size:14px;cursor: pointer" onclick="' + notification.clickCallBack[i] + '">' + notification.action_desc[i] + '</div></td></tr>';
-		  				if(notification.array[3] != null && notification.array[i] != "off")
+		  				if(band5g_support != '-1' && notification.array[3] != null && notification.array[i] != "off")
 		  				txt += '<tr><td width="100%"><div style="text-decoration:underline;text-align:right;color:#FFCC00;font-size:14px;cursor: pointer" onclick="' + notification.clickCallBack[i+1] + '">' + notification.action_desc[i+1] + '</div></td></tr>';
 		  				notification.array[3] = "off";
-		  			}else{
+		  			}
+		  			else if( i == 9){
+		  				txt += '<tr><td width="100%"><div style="text-decoration:underline;text-align:right;color:#FFCC00;font-size:14px;cursor: pointer" onclick="' + notification.clickCallBack[i] + '">' + notification.action_desc[i] + '</div></td></tr>';
+							if(notification.array[10] != null && notification.array[10] != "off")
+									txt += '<tr><td width="100%"><div style="text-decoration:underline;text-align:right;color:#FFCC00;font-size:14px;cursor: pointer" onclick="' + notification.clickCallBack[i+1] + '">' + notification.action_desc[i+1] + '</div></td></tr>';
+							notification.array[10] = "off";
+						}
+		  			else{
 	  					txt += '<tr><td><table width="100%"><div style="text-decoration:underline;text-align:right;color:#FFCC00;font-size:14px;cursor: pointer" onclick="' + notification.clickCallBack[i] + '">' + notification.action_desc[i] + '</div></table></td></tr>';
 		  			}
 
@@ -2010,7 +2308,7 @@ var notification = {
 			}, 1000);
 		}
 	},
-	
+
 	reset: function(){
 		this.stat = "off";
 		this.flash = "off";
@@ -2299,7 +2597,7 @@ var lang_flag = "<%tcWebApi_get("LanguageSwitch_Entry","Type","s")%>";
 			break;
 		}
 		case '19':{
-			$('selected_lang').innerHTML = "Ukrainian";
+			$('selected_lang').innerHTML = "Український";
 			$('UK').parentNode.style.display = "none";
 			break;
 		}
@@ -2414,6 +2712,25 @@ function switchType(obj, showText, chkBox){
 	}
 }
 
+/* convert some special character for shown string */
+function handle_show_str(show_str)
+{
+        show_str = show_str.replace(/\&/g, "&amp;");
+        show_str = show_str.replace(/\</g, "&lt;");
+        show_str = show_str.replace(/\>/g, "&gt;");
+        show_str = show_str.replace(/\ /g, "&nbsp;");
+        return show_str;
+}
+
+function decodeURIComponentSafe(_ascii){
+        try{
+                return decodeURIComponent(_ascii);
+        }
+        catch(err){
+                return _ascii;
+        }
+}
+
 var isNewFW = function(FWVer){
 	var Latest_firmver = parseInt(FWVer);
 	var current_firmver = parseInt('<% tcWebApi_staticGet("DeviceInfo","FwVer","s") %>'.replace(/[.]/gi,""));
@@ -2425,4 +2742,21 @@ var isNewFW = function(FWVer){
 
         return false;
 }
+
+var cookie = {
+	set: function(key, value, days) {
+		document.cookie = key + '=' + value + '; expires=' +
+		(new Date(new Date().getTime() + ((days ? days : 14) * 86400000))).toUTCString() + '; path=/';
+	},
+ 
+	get: function(key) {
+		var r = ('; ' + document.cookie + ';').match(key + '=(.*?);');
+		return r ? r[1] : null;
+	},
+ 
+	unset: function(key) {
+		document.cookie = key + '=; expires=' +
+		(new Date(1)).toUTCString() + '; path=/';
+	}
+};
 

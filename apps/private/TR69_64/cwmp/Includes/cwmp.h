@@ -474,7 +474,7 @@ void cwmpStartInform(void);
 uint8 getMotiveRSTFlag(void);
 void setACSAuthSuccess(void);
 
-#ifdef SSL
+#ifdef USE_SSL
 uint8 get_ssl_check_mem_flag(void);
 void set_ssl_check_mem_flag(uint8 value);
 #endif

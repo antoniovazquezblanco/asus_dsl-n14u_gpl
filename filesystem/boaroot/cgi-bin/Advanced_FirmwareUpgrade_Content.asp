@@ -1,6 +1,6 @@
 <%
 	if request_Form("postflag") = "1" then
-		free_memory()
+		stop_service()
 		tcWebApi_set("System_Entry","upgrade_fw_status","value_NONE")
 		tcWebApi_set("System_Entry","upgrade_fw","HTML_HEADER_TYPE")
 		tcWebApi_CommitWithoutSave("System_Entry")
@@ -12,7 +12,7 @@
 <html xmlns:v>
 <!--Advanced_FirmwareUpgrade_Content.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -77,47 +77,49 @@ function detect_firmware(){
       					setTimeout("detect_firmware();", 1000);
       			}else{
       					if(webs_state_error==1 && webs_state_info==""){
-      								$('update_scan').style.display="none";
-      								$('update_states').innerHTML="<%tcWebApi_get("String_Entry","connect_failed","s")%>";
-      								return;
-      					}else if(webs_state_error==1 && webs_state_info != ""){
-      								$('update_scan').style.display="none";
-      								$('update_states').innerHTML="<%tcWebApi_get("String_Entry","FIRM_fail_desc","s")%>";
-      								return;
-      					}else{
-									var Latest_firmver = webs_state_info;
-
+      						document.getElementById('update_scan').style.display="none";
+									document.getElementById('update_states').innerHTML="<%tcWebApi_get("String_Entry","connect_failed","s")%>";
+      						return;
+      					}
+      					else if(webs_state_error==1 && webs_state_info != ""){
+      						document.getElementById('update_scan').style.display="none";
+      						document.getElementById('update_states').innerHTML="<%tcWebApi_get("String_Entry","FIRM_fail_desc","s")%>";
+      						return;
+      					}
+      					else{
+      						var Latest_firmver = webs_state_info;
 	      					if(Latest_firmver.length > 0){	//match model FW
-										Latest_firm = parseInt(Latest_firmver);
+	      						Latest_firm = parseInt(Latest_firmver);
       							current_firm = parseInt(exist_firmver.replace(/[.]/gi,""));
-
-										if(current_firm < Latest_firm){
-											
-  										$('update_scan').style.display="none";
-  										if(confirm("<%tcWebApi_get("String_Entry","exist_new","s")%>")){
-												document.start_update.action_mode.value="apply";
-												document.start_update.action_script.value="start_webs_upgrade";
-												document.start_update.live_upgrade_flag.value="1";
-												document.start_update.DOWNLOAD_HEADER_TYPE.value="1";
-												startDownloading();
-												document.start_update.submit();
-												return;
-  										}
-  										else{
-	      								$('update_scan').style.display="none";
-	      								$('update_states').innerHTML="";
-											}
-    								}else{
-											$('update_states').innerHTML="<%tcWebApi_get("String_Entry","is_latest","s")%>";
-											$('update_scan').style.display="none";
-    								}
-      						}
-      						else{		//miss-match model FW
-      								$('update_scan').style.display="none";
-      								$('update_states').innerHTML="<%tcWebApi_get("String_Entry","unavailable_update","s")%>.";
-      								return;
-      						}
+      							if(current_firm < Latest_firm){
+												document.getElementById('update_scan').style.display="none";
+												if(confirm("<%tcWebApi_get("String_Entry","exist_new","s")%>\n\nDo not power off <%tcWebApi_get("String_Entry","Web_Title2","s")%> while upgrade in progress.")){
+													document.start_update.action_mode.value="apply";
+													document.start_update.action_script.value="start_webs_upgrade";
+													document.start_update.live_upgrade_flag.value="1";
+													document.start_update.DOWNLOAD_HEADER_TYPE.value="1";
+													startDownloading();
+													document.start_update.submit();
+													return;
+  											}
+  											else{
+  												document.getElementById('update_scan').style.display="none";
+													document.getElementById('update_states').innerHTML="";
+												}    							
+									}
+									else{												
+												document.getElementById('update_states').innerHTML="<%tcWebApi_get("String_Entry","is_latest","s")%>";
+												
+												document.getElementById('update_scan').style.display="none";
+    							}
+      					}
+      					else{		//miss-match model FW
+      							
+									document.getElementById('update_scan').style.display="none";
+									document.getElementById('update_states').innerHTML="<%tcWebApi_get("String_Entry","unavailable_update","s")%>.";
+									return;
 								}
+							}
 						}
   			}
   	});
@@ -130,22 +132,22 @@ function detect_update(){
 
   document.start_update.live_update_flag.value="1";
 
-	if(link_status == "2" && link_auxstatus == "0"){
-	  $('update_states').innerHTML="<%tcWebApi_get("String_Entry","check_proceeding","s")%>";
-	  $('update_scan').style.display="";
+	if((link_status == "2" && (link_auxstatus == "0" || link_auxstatus == "2")) || (secondary_link_status == "2" && (secondary_link_auxstatus == "0" || secondary_link_auxstatus == "2"))){
+	  document.getElementById('update_states').innerHTML="<%tcWebApi_get("String_Entry","check_proceeding","s")%>";
+	  document.getElementById('update_scan').style.display="";
 	  setTimeout("redirect_current();", 10000);
 		document.start_update.submit();
 	}
 	else{
-		$('update_scan').style.display="none";
-		$('update_states').innerHTML="<%tcWebApi_get("String_Entry","USB_App_No_Internet","s")%>";
+		document.getElementById('update_scan').style.display="none";
+		document.getElementById('update_states').innerHTML="<%tcWebApi_get("String_Entry","USB_App_No_Internet","s")%>";
 	}
 }
 
 function initial(){
 	show_menu();
 	if(live_update_support == -1)
-		$("update").style.display = "none";
+		document.getElementById("update").style.display = "none";
 	else if('<% tcWebApi_get("WebCustom_Entry", "webs_state_update", "s" ) %>' != '')
 		detect_firmware();
 }
@@ -176,13 +178,13 @@ function uiDoUpdate()
 			}
 			else if(model_name == "DSL-N55U-C1" || model_name == "DSL-N16U")
 			{
-				showLoading(132);
-				setTimeout("redirect();", 132000);
+				showLoading(142);
+				setTimeout("redirect();", 142000);
 			}
 			else //DSL-N14U ...
 			{
-				showLoading(162);
-				setTimeout("redirect();", 162000);
+				showLoading(172);
+				setTimeout("redirect();", 172000);
 			}
 			chk_upgrade();
 			form.submit();
@@ -246,18 +248,15 @@ function isDownloading(){
 						$("hiddenMask").style.visibility = "hidden";
 						if(model_name == "DSL-N66U"){
 								showLoadingBar(220);
-								//setTimeout("redirect();", 220000);
 								setTimeout("detect_httpd();", 220000);
 						}
 						else if(model_name == "DSL-N55U-C1" || model_name == "DSL-N16U"){
-								showLoadingBar(132);
-								//setTimeout("redirect();", 132000);
-								setTimeout("detect_httpd();", 132000);
+								showLoadingBar(142);
+								setTimeout("detect_httpd();", 142000);
 						}
 						else{	 //DSL-N14U ...else
-								showLoadingBar(162);
-								//setTimeout("redirect();", 162000);
-								setTimeout("detect_httpd();", 162000);
+								showLoadingBar(172);
+								setTimeout("detect_httpd();", 172000);
 						}
 												
 					}
@@ -278,18 +277,15 @@ function DownloadDone(){
 						$("hiddenMask").style.visibility = "hidden";
 						if(model_name == "DSL-N66U"){
 								showLoadingBar(220);
-								//setTimeout("redirect();", 220000);
 								setTimeout("detect_httpd();", 220000);
 						}
 						else if(model_name == "DSL-N55U-C1" || model_name == "DSL-N16U"){
-								showLoadingBar(132);
-								//setTimeout("redirect();", 132000);
-								setTimeout("detect_httpd();", 132000);
+								showLoadingBar(142);
+								setTimeout("detect_httpd();", 142000);
 						}
 						else{	 //DSL-N14U ...else
-								showLoadingBar(162);
-								//setTimeout("redirect();", 162000);
-								setTimeout("detect_httpd();", 162000);
+								showLoadingBar(172);
+								setTimeout("detect_httpd();", 172000);
 						
 						}
 						document.redirectForm.live_do_upgrade_flag.value = "1";
@@ -346,7 +342,7 @@ function chk_upgrade(){
 <span id="proceeding_img_text" ></span>
 <div id="proceeding_img"></div>
 </div>
-		<div id="loading_block2" style="margin:5px auto; width:85%;"><%tcWebApi_get("String_Entry","FIRM_ok_desc","s")%></div>
+		<div id="loading_block2" style="margin:5px auto; width:85%;"><%tcWebApi_get("String_Entry","FIRM_ok_desc","s")%><br>Do not power off <%tcWebApi_get("String_Entry","Web_Title2","s")%> while upgrade in progress.</div>
 		<div id="loading_block3" style="margin:5px auto;width:85%; font-size:12pt;"></div>
 </td>
 </tr>
@@ -408,10 +404,10 @@ function chk_upgrade(){
 					<li><%tcWebApi_get("String_Entry","FW_n0","s")%></li>
 					<li><%tcWebApi_get("String_Entry","FW_n1","s")%></li>
 					<li><%tcWebApi_get("String_Entry","FW_n2","s")%></li>
+					<li><%tcWebApi_get("String_Entry","FW_desc0","s")%></li>
 				</ol>
 			</div>
 			<br>
-		  <div class="formfontdesc"><%tcWebApi_get("String_Entry","FW_desc0","s")%></div>
 
 			<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
 			<tr>

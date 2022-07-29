@@ -7,7 +7,7 @@
 	tcWebApi_set("QoS_Entry0","qos_fin", "qos_fin")
 	tcWebApi_set("QoS_Entry0","qos_rst", "qos_rst")
 	tcWebApi_set("QoS_Entry0","qos_icmp", "qos_icmp")
-	
+	tcWebApi_CommitWithoutSave("Firewall")
 	tcWebApi_commit("QoS")
 End If
 %>
@@ -16,7 +16,7 @@ End If
 <html xmlns="http://www.w3.org/1999/xhtml">
 <html xmlns:v>
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -114,7 +114,7 @@ function save_options(){
 		var upload_bw_min = eval("document.form.upload_bw_min_"+j);
 		var download_bw_max = eval("document.form.download_bw_max_"+j);
 		if(parseInt(upload_bw_max.value) < parseInt(upload_bw_min.value)){
-			alert("Bandwidth limit is not valid.");
+			alert("<% tcWebApi_Get("String_Entry", "QoS_invalid_period", "s") %>");
 			upload_bw_max.focus();
 			return false;
 		}
@@ -161,7 +161,7 @@ function validForm(){
 	if(document.form.qos_max_transferred_x_0.value.length > 0 
 	   && document.form.qos_max_transferred_x_0.value < document.form.qos_min_transferred_x_0.value){
 				document.form.qos_max_transferred_x_0.focus();
-				alert("This value should be higher than "+document.form.qos_min_transferred_x_0.value);	
+				alert("<% tcWebApi_Get("String_Entry", "vlaue_haigher_than", "s") %> "+document.form.qos_min_transferred_x_0.value);	
 				return false;
 	}
 	

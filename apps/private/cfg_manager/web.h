@@ -16,10 +16,20 @@
 #ifndef _WEB_H
 #define _WEB_H
 
-#include "cfg_manager.h"
 #ifdef TCSUPPORT_PRODUCTIONLINE
 #include "../../public/mtd/tc_partition.h"
 #endif
+
+typedef signed char CHAR;
+typedef signed short SHORT;
+typedef signed int INT;
+typedef signed long LONG;
+
+typedef unsigned char UCHAR;
+typedef unsigned short USHORT;
+typedef unsigned int UINT32;
+typedef unsigned long ULONG;
+
 //the index of dynamic display
 #define DYN_DISP_MAIN_INDEX				0
 #define DYN_DISP_MAIN_VOIP_INDEX			6 
@@ -299,11 +309,11 @@
 #define GET_WLAN_INFO_CMD_0	"/userfs/bin/iwpriv ra00_0 stat"	//For RT-6856. Javier.20120813
 #define GET_WLAN_INFO_CMD_1	"/userfs/bin/iwpriv ra01_0 stat"	//For RT-6856. Javier.20120813
 #else	/* Non-iNIC */
-#if !defined(TCSUPPORT_DUAL_WLAN_RT5592_RT3593)	//signle band.
-#define GET_WLAN_INFO_CMD	"/userfs/bin/iwpriv ra0 stat"
-#else
+#if defined(TCSUPPORT_DUAL_WLAN)	//dual band.
 #define GET_WLAN_INFO_CMD_0	"/userfs/bin/iwpriv ra0 stat"
 #define GET_WLAN_INFO_CMD_1	"/userfs/bin/iwpriv rai0 stat"
+#else
+#define GET_WLAN_INFO_CMD	"/userfs/bin/iwpriv ra0 stat"
 #endif
 #endif
 /*krammer add 2008 11 4*/
@@ -366,9 +376,12 @@
 
 //added by ybyue
 
+#define WANDUCK_NODE_NAME	"Wanduck"
+#define WANDUCK_SUBNODE_NAME	"Common"
 
 //add by brian
-#ifdef CWMP
+//#ifdef CWMP
+#if defined(CWMP) || defined(RTCONFIG_TR069)
 #define DSL_DIAGNOSTIC_PATH "/proc/tc3162/adsl_cwmp_diagnostic"
 #define MAX_SPLIT_LEN 		512
 #define MAX_SPLIT_OFFSET 	9// mod 512
@@ -581,7 +594,8 @@ get_dhcpClient_count_vlaue(char *str, char *keyword, int length, int base);
 int
 get_dhcpClient_Info_vlaue(char *str, char *keyword, int length, char *val);
 #endif
-#ifdef CWMP
+//#ifdef CWMP
+#if defined(CWMP) || defined(RTCONFIG_TR069)
 //add by brian for dsl diagnostic
 int 
 cwmp_dsl_diagnostic_init(void);
@@ -600,7 +614,7 @@ IPInterface_init(void);
 #endif
 #ifdef TCSUPPORT_WLAN
 #if defined(TCSUPPORT_WLAN_MAXSTANUM_GUI)
-#if (defined(RT3390) && defined(VENDOR_FEATURE3_SUPPORT)) || (defined(RT5392) && defined(BB_SOC))
+#if (defined(RT3390) && defined(VENDOR_FEATURE3_SUPPORT)) || (defined(RT5392) && defined(BB_SOC)) || (defined(MT7601E) && defined(BB_SOC)) || (defined(MT7592) && defined(BB_SOC))
 #define MAX_STA_NUM "7"
 #else
 #define MAX_STA_NUM "31"
@@ -613,7 +627,7 @@ wifiMacTab_init(void);
 int 
 getIpFromArp(char *macAttr, char *ip);
 
-#if defined(RT3390) || defined(RT3090) || defined(RT5392)
+#if defined(RT3390) || defined(RT3090) || defined(RT5392) || defined(MT7601E)|| defined(MT7592)
 #define MAX_LEN_OF_MAC_TABLE 32
 #define MAC_ADDR_LENGTH		6
 #ifndef ETHER_ADDR_LEN
@@ -633,19 +647,6 @@ getIpFromArp(char *macAttr, char *ip);
 
 
 // MIMO Tx parameter, ShortGI, MCS, STBC, etc.  these are fields in TXWI. Don't change this definition!!!
-#if 0	//ASUS WRT
-typedef union  _MACHTTRANSMIT_SETTING {
-	struct  {
-	unsigned short	MCS:7;	// MCS
-	unsigned short	BW:1;	//channel bandwidth 20MHz or 40 MHz
-	unsigned short	ShortGI:1;
-	unsigned short	STBC:2;	//SPACE
-	unsigned short	rsv:3;
-	unsigned short	MODE:2;	// Use definition MODE_xxx.
-	} field;
-	unsigned short	word;
- } MACHTTRANSMIT_SETTING, *PMACHTTRANSMIT_SETTING;
-#endif
 #if defined(TCSUPPORT_WLAN_RT6856)	//iNIC, little endian
 typedef union  _MACHTTRANSMIT_SETTING {
 	struct  {
@@ -672,35 +673,50 @@ typedef union  _MACHTTRANSMIT_SETTING {
  } MACHTTRANSMIT_SETTING, *PMACHTTRANSMIT_SETTING;
 #endif
 
+//Remember to sync with WiFi_driver/include/oid.h if WiFi driver is updated.
 #if defined(TCSUPPORT_WLAN_RT6856)	//iNIC
 typedef struct _RT_802_11_MAC_ENTRY {
-    unsigned char	ApIdx;
-    unsigned char	Addr[ETHER_ADDR_LEN];
-    unsigned char	Aid;
-    unsigned char	Psm;	/* 0:PWR_ACTIVE, 1:PWR_SAVE */
-    unsigned char	MimoPs;	/* 0:MMPS_STATIC, 1:MMPS_DYNAMIC, 3:MMPS_Enabled */
-    char		AvgRssi0;
-    char		AvgRssi1;
-    char		AvgRssi2;
-    unsigned int	ConnectedTime;
-    MACHTTRANSMIT_SETTING	TxRate;
-    MACHTTRANSMIT_SETTING	MaxRate;
+	UCHAR ApIdx;
+	UCHAR Addr[ETHER_ADDR_LEN];
+	UCHAR Aid;
+	UCHAR Psm;	/* 0:PWR_ACTIVE, 1:PWR_SAVE */
+	UCHAR MimoPs;	/* 0:MMPS_STATIC, 1:MMPS_DYNAMIC, 3:MMPS_Enabled */
+	CHAR AvgRssi0;
+	CHAR AvgRssi1;
+	CHAR AvgRssi2;
+	UINT32 ConnectedTime;
+	MACHTTRANSMIT_SETTING TxRate;
+	MACHTTRANSMIT_SETTING MaxRate;
 } RT_802_11_MAC_ENTRY, *PRT_802_11_MAC_ENTRY;
-#else	//Non-iNIC
+#elif defined(MT7592)
 typedef struct _RT_802_11_MAC_ENTRY {
-    unsigned char	ApIdx;
-    unsigned char	Addr[ETHER_ADDR_LEN];
-    unsigned char	Aid;
-    unsigned char	Psm;	/* 0:PWR_ACTIVE, 1:PWR_SAVE */
-    unsigned char	MimoPs;	/* 0:MMPS_STATIC, 1:MMPS_DYNAMIC, 3:MMPS_Enabled */
-    char		AvgRssi0;
-    char		AvgRssi1;
-    char		AvgRssi2;
-    unsigned int	ConnectedTime;
-    MACHTTRANSMIT_SETTING	TxRate;
-    unsigned int	LastRxRate;
-    short		StreamSnr[3];	/* BF SNR from RXWI. Units=0.25 dB. 22 dB offset removed */
-    short		SoundingRespSnr[3];
+	UCHAR ApIdx;
+	UCHAR Addr[ETHER_ADDR_LEN];
+	UCHAR Aid;
+	UCHAR Psm;		/* 0:PWR_ACTIVE, 1:PWR_SAVE */
+	UCHAR MimoPs;		/* 0:MMPS_STATIC, 1:MMPS_DYNAMIC, 3:MMPS_Enabled */
+	CHAR AvgRssi0;
+	CHAR AvgRssi1;
+	CHAR AvgRssi2;
+	UINT32 ConnectedTime;
+	MACHTTRANSMIT_SETTING TxRate;
+	UINT32 LastRxRate;
+} RT_802_11_MAC_ENTRY, *PRT_802_11_MAC_ENTRY;
+#else
+typedef struct _RT_802_11_MAC_ENTRY {
+	UCHAR ApIdx;
+	UCHAR Addr[ETHER_ADDR_LEN];
+	UCHAR Aid;
+	UCHAR Psm;	/* 0:PWR_ACTIVE, 1:PWR_SAVE */
+	UCHAR MimoPs;	/* 0:MMPS_STATIC, 1:MMPS_DYNAMIC, 3:MMPS_Enabled */
+	CHAR AvgRssi0;
+	CHAR AvgRssi1;
+	CHAR AvgRssi2;
+	UINT32 ConnectedTime;
+	MACHTTRANSMIT_SETTING TxRate;
+	UINT32 LastRxRate;
+	SHORT StreamSnr[3];	/* BF SNR from RXWI. Units=0.25 dB. 22 dB offset removed */
+	SHORT SoundingRespSnr[3];
 } RT_802_11_MAC_ENTRY, *PRT_802_11_MAC_ENTRY;
 #endif
 
@@ -791,7 +807,7 @@ typedef struct GNU_PACKED _RT_802_11_ACL {
 //
 
 #ifdef TCSUPPORT_PRODUCTIONLINE
-static int tcgetProLinePara(void*buf,int flag);
+int tcgetProLinePara(void*buf,int flag);
 void GetEtherAddr(unsigned char *mac_addr);
 int
 proLineInfo_read(mxml_node_t *top,mxml_node_t *node);

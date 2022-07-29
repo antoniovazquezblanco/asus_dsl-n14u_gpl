@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <html xmlns:v>
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -61,16 +61,16 @@ function initial(){
 							<a href="cloud_main.asp"><div class="tab"><span>AiCloud</span></div></a>
 						</td>
 						<td>
-							<a href="cloud_sync.asp"><div class="tab"><span>Smart Sync</span></div></a>
+							<a href="cloud_sync.asp"><div class="tab"><span><% tcWebApi_Get("String_Entry","smart_sync","s") %></span></div></a>
 						</td>
 						<td>
-							<a id="rrsLink" href="cloud_router_sync.asp"><div class="tab"><span>Sync Server</span></div></a>
+							<a id="rrsLink" href="cloud_router_sync.asp"><div class="tab"><span><% tcWebApi_Get("String_Entry","Server_Sync","s") %></span></div></a>
 						</td>
 						<td>
-							<a href="cloud_settings.asp"><div class="tab"><span>Settings</span></div></a>
+							<a href="cloud_settings.asp"><div class="tab"><span><% tcWebApi_Get("String_Entry","Settings","s") %></span></div></a>
 						</td>
 						<td>
-							<div class="tabclick"><span>Log</span></div>
+							<div class="tabclick"><span><% tcWebApi_Get("String_Entry","Log","s") %></span></div>
 						</td>
 					</tr>
 					</tbody>
@@ -85,7 +85,7 @@ function initial(){
 							<tr>
 							  <td bgcolor="#4D595D" valign="top">
 									<div>&nbsp;</div>
-									<div class="formfonttitle">AiCloud - Settings</div>
+									<div class="formfonttitle">AiCloud - <% tcWebApi_Get("String_Entry","Log","s") %></div>
 									<div style="margin-left:5px;margin-top:10px;margin-bottom:10px"><img src="/images/New_ui/export/line_export.png"></div>
 
 								  <div class="formfontdesc" style="font-style: italic;font-size: 14px;"><%tcWebApi_get("String_Entry","AiCloud_Log_desc","s")%></div>

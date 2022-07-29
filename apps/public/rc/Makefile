@@ -1,7 +1,6 @@
 
 CFLAGS = -Wall -Os $(TC_CFLAGS)
 CFLAGS += -I.
-CFLAGS += -I$(KERNEL_DIR)/include
 CFLAGS += -I../shared
 LDFLAGS = -L../shared -lshared
 ifneq ($(RTCONFIG_USB),)
@@ -20,22 +19,31 @@ endif
 
 OBJS := rc.o
 OBJS += init.o common.o services.o wan.o ppp.o
-OBJS += wanduck.o udhcpc.o
+OBJS += wanduck.o udhcpc.o interface.o lan.o
 OBJS += tcpcheck.o
 ifneq ($(RTCONFIG_USB),)
 OBJS += usb.o
 OBJS += usb_devices.o
+OBJS += pppd.o
 endif
 
 ifeq ($(RTCONFIG_ACCEL_PPTPD),y)
 OBJS += vpn.o
 endif
 
+ifeq ($(RTCONFIG_VPNC),y)
+OBJS += vpnc.o
+endif
+
+ifeq ($(RTCONFIG_TR069),y)
+OBJS += tr069.o
+endif
+
 all: rc
 
 rc: $(OBJS)
 	@echo " [rc] CC $@"
-	@$(CC) -o $@ $^ $(LDFLAGS)
+	$(CC) -o $@ $^ $(LDFLAGS)
 
 	$(SIZECHECK)
 	$(CPTMP)
@@ -48,9 +56,9 @@ size: rc
 
 %.o: %.c .%.depend
 	@echo " [rc] CC $@"
-	@$(CC) $(CFLAGS) -c $<
+	$(CC) $(CFLAGS) -c $<
 
 .%.depend: %.c
-	@$(CC) $(CFLAGS) -M $< > $@
+	$(CC) $(CFLAGS) -M $< > $@
 
 -include $(OBJS:%.o=.%.depend)

@@ -598,10 +598,10 @@ else
 fi
 
 	/sbin/ifconfig nas$i 0.0.0.0
-	brctl addif br0 nas$i
+	brctl addif br1 nas$i
 	WAN_IF=nas$i
-	ebtables -t filter -A INPUT -i nas$i -p IPv4 --ip-proto 17 --ip-dport 67 -j DROP
-	ebtables -t filter -A INPUT -i nas$i -p IPv6 --ip6-proto 17 --ip6-dport 547 -j DROP
+#	ebtables -t filter -A INPUT -i nas$i -p IPv4 --ip-proto 17 --ip-dport 67 -j DROP
+#	ebtables -t filter -A INPUT -i nas$i -p IPv6 --ip6-proto 17 --ip6-dport 547 -j DROP
 fi
 #jrchen
 #	if [ "$IPVERSION" = "IPv4/IPv6" ] ; then

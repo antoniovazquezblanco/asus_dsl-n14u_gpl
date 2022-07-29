@@ -41,6 +41,17 @@ function QKfinish_load_body(){
 	else
 		document.form.dsltmp_cfg_encap.value = "0";
 
+	if (vpi_val == "0" && vci_val == "40" && encap_val == "1")
+	{
+		//UK ISP SKY Broadband, MER requires some tweak.
+		//PPP Username and Password needs to be added into DHCP option 61.
+		document.getElementById("ppp_username1").style.display = "";
+		document.getElementById("ppp_username2").style.display = "";
+		document.getElementById("ppp_password1").style.display = "";
+		document.getElementById("ppp_password2").style.display = "";
+	}
+
+
 	if(wan_type == "ATM")
 		document.form.prev_page.value = "/cgi-bin/qis/QIS_manual_setting.asp";
 	else //PTM
@@ -56,18 +67,21 @@ function submitForm(){
 		return false;
 	}
 	<%end if%>
+
+	if (vpi_val == "0" && vci_val == "40" && encap_val == "1")
+	{
+		//Only for UK ISP SKY Broadband
+		if(document.form.ppp_username.value != "")
+			document.form.dsltmp_dhcp_clientid.value = document.form.ppp_username.value + "|" + document.form.ppp_password.value;
+
+		document.form.ppp_username.disabled = true;
+		document.form.ppp_password.disabled = true;
+	}
+
 	document.form.next_page.value = "/cgi-bin/qis/QIS_wireless.asp";
 	document.form.submit();
 }
 
-function gotoIndex(){
-	if (w_Setting == "0") {
-		alert("<% tcWebApi_Get("String_Entry", "QIS_recommand_encryption", "s") %>");
-		location.href = '/cgi-bin/qis/QIS_wireless.asp';
-	}
-	else
-		parent.location.href = '../index2.asp';
-}
 </script>
 </head>
 <body onLoad="QKfinish_load_body();" >
@@ -87,6 +101,7 @@ function gotoIndex(){
 <input type="hidden" name="dsltmp_cfg_dnsenable" id="dsltmp_cfg_dnsenable" value="1">
 <input type="hidden" name="dsltmp_wanTypeOption" value="0">
 <input type="hidden" name="with_wan_setting" value="1">
+<input type="hidden" name="dsltmp_dhcp_clientid" value="">
 <div class="QISmain">
 <div>
 <table width="730px">
@@ -101,9 +116,9 @@ function gotoIndex(){
 			</script>
 			</span>
 		</td>
-		<td align="right">
+		<!--td align="right">
 			<img onclick="gotoIndex();" style="cursor:pointer;" align="right" title="Go to Home" src="/images/backtohome.png" onMouseOver="this.src='/images/backtohomeclick.png'" onMouseOut="this.src='/images/backtohome.png'">
-		</td>
+		</td-->
 	</tr>
 </table>
 </div>
@@ -121,6 +136,26 @@ function gotoIndex(){
 		</td>
 	</tr>
 </table>
+
+<table style="margin-left:50px;">
+  <tr>
+	<th width="120" class="test_css"><span id="ppp_username1" style="display:none;">SKY <% tcWebApi_Get("String_Entry", "HSDPAC_Username_in", "s") %>:</span></th>
+	<td>
+	  <span id="ppp_username2" style="display:none;">
+	  <input type="text" name="ppp_username" class="input_25_table" value="" maxlength="32" autocapitalization="off" autocomplete="off">
+	  </span>
+	</td>
+  </tr>
+  <tr>
+	<th width="120" class="test_css"><span id="ppp_password1" style="display:none;">SKY <% tcWebApi_Get("String_Entry", "HSDPAC_Password_in", "s") %>:</span></th>
+	<td>
+	  <span id="ppp_password2" style="display:none;">
+	  <input type="text" name="ppp_password" class="input_25_table" value="" maxlength="32" autocapitalization="off" autocomplete="off">
+	  </span>
+	</td>
+  </tr>
+</table>
+
 <br><br>
 <%if tcWebApi_get("AutoPVC_Common","Detect_XDSL","h") = "PTM" then %>
 <table id="tblsetting_2" class="QISform" width="400" border="0" align="center" cellpadding="3" cellspacing="0">

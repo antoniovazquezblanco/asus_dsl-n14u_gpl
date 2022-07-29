@@ -1,7 +1,7 @@
 #!/bin/sh
 
 forsq=`/userfs/bin/tcapi get Apps_Entry apps_sq`
-echo "forsq = ${forsq}" >> /tmp/notif.log #1 for sq
+echo "forsq = ${forsq}" > /tmp/notif.log #1 for sq
 model=`/userfs/bin/tcapi get SysInfo_Entry ProductName`
 echo "model = ${model}" >> /tmp/notif.log #DSL-N66U
 
@@ -45,7 +45,11 @@ else
 			elif [ "`/userfs/bin/tcapi get WebCustom_Entry webs_notif_index`" != "$index" ]; then
 					/userfs/bin/tcapi set WebCustom_Entry webs_notif_flag 1 &
 			fi
-			/userfs/bin/tcapi set WebCustom_Entry webs_notif_index "$index" &
+			if [ "$forsq" = "1" ]; then
+				/userfs/bin/tcapi set WebCustom_Entry webs_notif_index "0000" &
+			else
+				/userfs/bin/tcapi set WebCustom_Entry webs_notif_index "$index" &
+			fi
 		fi			
 		if [ "`echo $line | grep $model`" != "" ]; then	#Parsing single model
 				EQ_qual=`echo $line | grep $model | sed 's/.*#EQ_//;' | sed 's/#.*//;'`

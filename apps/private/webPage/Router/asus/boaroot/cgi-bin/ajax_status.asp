@@ -16,4 +16,11 @@
   <wan>wan_line_state=<% tcWebApi_staticGet("Info_Adsl", "lineState", "s") %></wan>
   <wan>wlan0_radio_flag=<% tcWebApi_staticGet("WLan_Entry", "wl0_radio_flag", "s") %></wan>
   <wan>wlan1_radio_flag=<% tcWebApi_staticGet("WLan_Entry", "wl1_radio_flag", "s") %></wan>
+  <vpn>vpnc_proto=<% tcWebApi_staticGet("VPNC_Entry", "proto", "s") %></vpn>  
+  <vpn>vpnc_state_t=<% tcWebApi_staticGet("VPNC_Entry", "state_t", "s") %></vpn>  
+  <vpn>vpnc_sbstate_t=<% tcWebApi_staticGet("VPNC_Entry", "sbstate_t", "s") %></vpn>  
+  <vpn>vpn_client1_state=0</vpn>  
+  <vpn>vpn_client2_state=0</vpn>    
+  <% secondary_ajax_wanstate(); %>
+  <usb>modem_enable=<% tcWebApi_staticGet("USBModem_Entry","modem_enable","s") %></usb>
 </devicemap>

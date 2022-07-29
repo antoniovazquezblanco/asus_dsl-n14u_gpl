@@ -16,6 +16,8 @@ enum WAN_UNIT{
 	WAN_UNIT_PTM1,
 	WAN_UNIT_SECOND,
 	WAN_UNIT_ETH=10,
+	WAN_UNIT_USB,
+	WAN_UNIT_ETH_LAN,
 	WAN_UNIT_MAX
 };
 
@@ -26,7 +28,8 @@ enum {
 	WAN_STATE_DISCONNECTED,
 	WAN_STATE_STOPPED,
 	WAN_STATE_DISABLED,
-	WAN_STATE_STOPPING
+	WAN_STATE_STOPPING,
+	WAN_STATE_USBMODEM_CONNECTING
 };
 
 enum {
@@ -57,6 +60,13 @@ enum {
 	WAN_AUXSTATE_NOPHY,
 	WAN_AUXSTATE_NO_INTERNET_ACTIVITY,
 	WAN_AUXSTATE_PPP_AUTH_FAIL
+};
+
+enum Transfer_Mode{
+	TMode_ADSL = 0,
+	TMode_VDSL,
+	TMode_Ether,
+	TMode_USB
 };
 
 #ifdef RTCONFIG_IPV6
@@ -101,7 +111,7 @@ enum {
 	LAN_STOPPED_REASON_SYSTEM_ERR
 };
 
-#ifdef RTCONFIG_WIRELESSREPEATER
+#if defined(CONFIG_BCMWL5) || (defined(RTCONFIG_RALINK) && defined(RTCONFIG_WIRELESSREPEATER))
 enum { 
 	WLC_STATE_INITIALIZING=0,
 	WLC_STATE_CONNECTING,
@@ -137,6 +147,13 @@ enum {
 
 #ifdef RTCONFIG_USB
 enum {
+	USB_HOST_NONE=0,
+	USB_HOST_OHCI,
+	USB_HOST_EHCI,
+	USB_HOST_XHCI
+};
+
+enum {
 	APPS_AUTORUN_INITIALIZING=0,
 	APPS_AUTORUN_CHECKING_DISK,
 	APPS_AUTORUN_CREATING_SWAP,
@@ -148,6 +165,7 @@ enum {
 	APPS_INSTALL_INITIALIZING=0,
 	APPS_INSTALL_CHECKING_PARTITION,
 	APPS_INSTALL_CHECKING_SWAP,
+	APPS_INSTALL_DOWNLOADING,
 	APPS_INSTALL_INSTALLING,
 	APPS_INSTALL_FINISHED
 };
@@ -188,6 +206,7 @@ enum {
 
 enum {
 	APPS_UPGRADE_INITIALIZING=0,
+	APPS_UPGRADE_DOWNLOADING,
 	APPS_UPGRADE_REMOVING,
 	APPS_UPGRADE_INSTALLING,
 	APPS_UPGRADE_FINISHED
@@ -208,16 +227,32 @@ enum {
 };
 
 enum {
-	DISKCHECK_STATE_NONE=0,
-	DISKCHECK_STATE_CHECKING_COMPLETENESS,
-	DISKCHECK_STATE_CREATING_SWAP,
-	DISKCHECK_STATE_DISKCHECKING,
-	DISKCHECK_STATE_FORMATTING,
-	DISKCHECK_STATE_MIRRORING
+	DISKMON_IDLE=0,
+	DISKMON_START,
+	DISKMON_UMOUNT,
+	DISKMON_SCAN,
+	DISKMON_REMOUNT,
+	DISKMON_FINISH,
+	DISKMON_FORCE_STOP
 };
+
+#define DISKMON_FREQ_DISABLE 0
+#define DISKMON_FREQ_MONTH 1
+#define DISKMON_FREQ_WEEK 2
+#define DISKMON_FREQ_DAY 3
+
+#define DISKMON_SAFE_RANGE 10 // min.
+#define DISKMON_DAY_HOUR 24
+#define DISKMON_HOUR_SEC 3600
+
+#define MAX_USB_PORT 3
+#define MAX_USB_HUB_PORT 6
+#define MAX_USB_DISK_NUM 26
+#define MAX_USB_PART_NUM 16
+#define MAX_USB_PRINTER_NUM 10
+#define MAX_USB_TTY_NUM 10
 #endif
 
-#ifdef RTCONFIG_DUALWAN
 // the following definition is for wans_cap
 #define WANSCAP_DSL	0x01
 #define WANSCAP_WAN	0x02
@@ -234,7 +269,6 @@ enum {
 #define WANS_DUALWAN_IF_USB	4
 #define WANS_DUALWAN_IF_2G	5
 #define WANS_DUALWAN_IF_5G	6
-#endif
 
 // the following definition is for free_caches()
 #define FREE_MEM_NONE  "0"
@@ -245,10 +279,17 @@ enum {
 #define is_routing_enabled() 1//tmp, sw_mode=1 only currently	(nvram_get_int("sw_mode")==SW_MODE_ROUTER||nvram_get_int("sw_mode")==SW_MODE_HOTSPOT)
 #define is_nat_enabled()     ((nvram_get_int("sw_mode")==SW_MODE_ROUTER||nvram_get_int("sw_mode")==SW_MODE_HOTSPOT)&&nvram_get_int("wan0_nat_x")==1)
 #define is_lan_connected()   (nvram_get_int("lan_state")==LAN_STATE_CONNECTED)
+#ifdef RTCONFIG_WIRELESSWAN
 #define is_wirelesswan_enabled() (nvram_get_int("sw_mode")==SW_MODE_HOTSPOT)
+#endif
+#define is_apmode_enabled() (nvram_get_int("sw_mode")==SW_MODE_AP)
 // todo: multiple wan
 
 int wan_primary_ifunit(void);
+int wan_secondary_ifunit(void);
+int get_wan_primary_ifunit(void);
+int getTransferMode(void);
+extern int is_wan_connect(int unit);
 extern int get_wan_state(int unit);
 extern int get_wan_unit(char *ifname);
 extern char *get_wan_ifname(int unit);
@@ -256,6 +297,9 @@ extern int get_wanports_status(int wan_unit);
 extern char *get_usb_ehci_port(int port);
 extern char *get_usb_ohci_port(int port);
 extern int get_usb_port_number(const char *usb_port);
+extern int get_usb_port_host(const char *usb_port);
+extern int get_cur_lanwan_port(void);
+extern int set_lanwan_if(int from, int to);
 #ifdef RTCONFIG_DUALWAN
 extern void set_wanscap_support(char *feature);
 extern void add_wanscap_support(char *feature);
@@ -263,5 +307,14 @@ extern int get_wans_dualwan(void);
 extern int get_dualwan_by_unit(int unit);
 extern int get_dualwan_primary(void);
 extern int get_dualwan_secondary(void);
+int wan_primary_pvcunit(void);
+int wan_secondary_pvcunit(void);
+extern int is_running_as_second_wan(int unit);
 #endif
+int get_pvcunit_by_dualwan(int wans_dualwan_if);
+int get_dualwan_by_pvcunit(int pvcunit);
+#endif
+
+#if (defined(TCSUPPORT_WAN_ETHER) || defined(TCSUPPORT_WAN_PTM)) && defined(TCSUPPORT_MULTISERVICE_ON_WAN)
+#define MAX_SERVICE_NUM 	8
 #endif

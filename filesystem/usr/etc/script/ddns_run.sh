@@ -28,9 +28,9 @@ if [	"$WanIP" = "$ddns_ipaddr" -a \
 	tcapi set GUITemp_Entry2 ddns_return_code "no_change"
 	exit 0
 fi
-if [	-n $ddns_server_x_old -a \
+if [	-n "$ddns_server_x_old" -a \
 	"ddns_server_x" != "ddns_server_x_old" -o \
-	-n $ddns_server_x_old -a \
+	-n "$ddns_server_x_old" -a \
 	"ddns_hostname_x" != "ddns_hostname_old" ]; then
 	rm -f /tmp/ddns.cache
 fi

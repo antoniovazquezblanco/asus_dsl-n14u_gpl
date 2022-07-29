@@ -1,9 +1,27 @@
 #!/bin/sh
+# $1: only update the list name.
 
 
 apps_ipkg_old=`tcapi get Apps_Entry apps_ipkg_old`
-is_arm_machine=`uname -m |grep arm`
-
+f=`tcapi get Apps_Entry apps_install_folder`
+case $f in
+	"asusware.arm")
+		pkg_type=`echo $f|sed -e "s,asusware\.,,"`
+		;;
+	"asusware.big")
+		pkg_type="mipsbig"
+		;;
+	"asusware.mipsbig")
+		pkg_type=`echo $f|sed -e "s,asusware\.,,"`
+		;;
+	"asusware")
+		pkg_type="mipsel"
+		;;
+	*)
+		echo "Unknown apps_install_folder: $f"
+		exit 1
+		;;
+esac
 ASUS_SERVER=`tcapi get Apps_Entry apps_ipkg_server`
 wget_timeout=`tcapi get Apps_Entry apps_wget_timeout`
 #wget_options="-nv -t 2 -T $wget_timeout --dns-timeout=120"
@@ -32,7 +50,7 @@ if [ "$link_internet" != "1" ]; then
 	exit 1
 fi
 
-if [ -n "$is_arm_machine" ]; then
+if [ "$pkg_type" = "arm" ]; then
 	sed -i '/^#src\/gz.*ASUSWRT$/c src/gz optware.mbwe-bluering http://ipkg.nslu2-linux.org/feeds/optware/mbwe-bluering/cross/stable' $CONF_FILE
 fi
 
@@ -56,7 +74,7 @@ while [ $i -lt $row_num ]; do
 	fi
 
 	if [ "$list_name" = "optware.asus" ]; then
-		if [ -z "$is_arm_machine" ] && [ -n "$apps_ipkg_old" ] && [ "$apps_ipkg_old" = "1" ]; then
+		if [ "$pkg_type" != "arm" ] && [ -n "$apps_ipkg_old" ] && [ "$apps_ipkg_old" = "1" ]; then
 			if [ "$SQ_TEST" = "1" ]; then
 				server_name=http://dlcdnet.asus.com/pub/ASUS/LiveUpdate/Release/Wireless_SQ
 			else

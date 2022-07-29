@@ -20,6 +20,7 @@ margin:0px auto;
 ime-mode:disabled;
 }
 </style>
+<script type="text/Javascript" src="/help.js"></script>
 <script type="text/Javascript" src="/jquery.js"></script>
 <script type="text/javascript">
 var auth_mode2 = '<% tcWebApi_get("GUITemp_Entry0","dsltmp_cfg_wl0_auth_mode_x","s"); %>';
@@ -36,9 +37,9 @@ function QKfinish_load_body(){
 	parent.$("LoadingBar").style.visibility = 'hidden';
 
 	$("#ssid_2_item")[0].innerHTML = "<% tcWebApi_Get("String_Entry", "QIS_finish_wireless_item1", "s") %>";
-	$("#ssid_2")[0].innerHTML = "<% tcWebApi_get("GUITemp_Entry0","dsltmp_cfg_wl0_ssid","s"); %>";
+	$("#ssid_2")[0].innerHTML = handle_show_str("<% tcWebApi_get("GUITemp_Entry0","dsltmp_cfg_wl0_ssid","s"); %>");
 	$("#ssid_5_item")[0].innerHTML = "<% tcWebApi_Get("String_Entry", "QIS_finish_wireless_item1", "s") %>";
-	$("#ssid_5")[0].innerHTML = "<% tcWebApi_get("GUITemp_Entry0","dsltmp_cfg_wl1_ssid","s"); %>";
+	$("#ssid_5")[0].innerHTML = handle_show_str("<% tcWebApi_get("GUITemp_Entry0","dsltmp_cfg_wl1_ssid","s"); %>");
 	$("#security_item2")[0].innerHTML = "<% tcWebApi_Get("String_Entry", "QIS_finish_wireless_item2", "s") %>";
 	$("#security_item5")[0].innerHTML = "<% tcWebApi_Get("String_Entry", "QIS_finish_wireless_item2", "s") %>";
 	if(auth_mode2 == "OPEN"){
@@ -48,7 +49,7 @@ function QKfinish_load_body(){
 	else if(auth_mode2 == "WPA2PSK"){
 		$("#security2")[0].innerHTML = "WPA2–Personal - AES";
 		$("#key2_item")[0].innerHTML = "<% tcWebApi_Get("String_Entry", "Network_key", "s") %>";
-		$("#key2")[0].innerHTML = "<% tcWebApi_get("GUITemp_Entry0","dsltmp_cfg_wl0_wpa_psk","s"); %>";
+		$("#key2")[0].innerHTML = handle_show_str("<% tcWebApi_get("GUITemp_Entry0","dsltmp_cfg_wl0_wpa_psk","s"); %>");
 	}
 	else{
 		$("#freqtitle2")[0].style.display = "none";
@@ -72,7 +73,7 @@ function QKfinish_load_body(){
 		else if(auth_mode == "WPA2PSK"){
 			$("#security5")[0].innerHTML = "WPA2–Personal - AES";
 			$("#key5_item")[0].innerHTML = "<% tcWebApi_Get("String_Entry", "Network_key", "s") %>";
-			$("#key5")[0].innerHTML = "<% tcWebApi_get("GUITemp_Entry0","dsltmp_cfg_wl1_wpa_psk","s"); %>";
+			$("#key5")[0].innerHTML = handle_show_str("<% tcWebApi_get("GUITemp_Entry0","dsltmp_cfg_wl1_wpa_psk","s"); %>");
 		}
 		else{
 			$("#freqtitle5")[0].style.display = "none";

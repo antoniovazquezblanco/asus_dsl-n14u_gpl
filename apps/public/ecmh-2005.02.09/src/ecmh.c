@@ -28,6 +28,9 @@
 ***************************************/
 
 #include "ecmh.h"
+#ifdef TCSUPPORT_MULTICAST_SPEED
+#include <linux/foe_hook.h>
+#endif
 
 #define ICMP6_MEMBERSHIP_QUERY      130
 #define ICMP6_MEMBERSHIP_REPORT     131
@@ -38,8 +41,13 @@
 
 
 /* Configuration Variables */
+#ifdef TCSUPPORT_MULTICAST_SPEED	
+#define PACKET_SKB_FOE_INFO 18
+struct SkbFoeInfo skbfoeinfo;
+#endif
 struct conf	*g_conf;
 volatile int	g_needs_timeout = false;
+bool allowGlobalSource = true;
 
 /* Prototypes, to forward some functions */
 void update_interfaces(struct intnode *intn);
@@ -1413,6 +1421,9 @@ void l4_ipv6_multicast(struct intnode *intn, struct ip6_hdr *iph, const uint16_t
 	struct grpintnode	*grpintn;
 	struct subscrnode	*subscrn;
 	struct listnode		*in, *in2;
+#ifdef TCSUPPORT_MULTICAST_SPEED
+	int foelen ;
+#endif
 
 	/* 
 	 * Don't route multicast packets that:
@@ -1486,6 +1497,14 @@ D(
 			/* Get the interface */
 			interface = int_find(grpintn->ifindex);
 			if (!interface) continue;
+
+			#ifdef TCSUPPORT_MULTICAST_SPEED
+			foelen = sizeof(struct SkbFoeInfo);
+			if (setsockopt(g_conf->rawsocket, SOL_PACKET, PACKET_SKB_FOE_INFO, &skbfoeinfo, &foelen)) {
+				/* dbg_info */
+				;//tcdbg_printf("%s,getsockopt error\n", __FUNCTION__);
+			}
+			#endif
 
 			/* Send the packet to this interface */
 			sendpacket6(interface, iph, len);
@@ -1620,6 +1639,9 @@ void l3_ipv6(struct intnode *intn, struct ip6_hdr *iph, const uint16_t len)
 	uint8_t			ipe_type;
 	uint16_t		plen;
 	uint32_t		l;
+#ifdef TCSUPPORT_MULTICAST_SPEED
+	int foelen;
+#endif
 
 	/*
 	 * Destination must be multicast
@@ -1687,6 +1709,16 @@ void l3_ipv6(struct intnode *intn, struct ip6_hdr *iph, const uint16_t len)
 			g_conf->stat_hlim_exceeded++;
 			return;
 		}
+
+		#ifdef TCSUPPORT_MULTICAST_SPEED
+			foelen = sizeof(struct SkbFoeInfo);
+				//tcdbg_printf("\r\nfoelen=%d",foelen);
+			memset(&skbfoeinfo,0,sizeof(struct SkbFoeInfo));
+			if (getsockopt(g_conf->rawsocket, SOL_PACKET, PACKET_SKB_FOE_INFO, &skbfoeinfo, &foelen)) {
+				/* dbg_info */
+				;//tcdbg_printf("%s,getsockopt error\n", __FUNCTION__);
+			}
+		#endif
 
 		l4_ipv6_multicast(intn, iph, len);
 		return;

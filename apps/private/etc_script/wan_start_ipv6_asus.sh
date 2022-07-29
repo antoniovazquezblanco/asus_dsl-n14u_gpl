@@ -33,7 +33,7 @@ fi
 
 i=$1
 k=$1
-if [ "$i" = "8" ] || [ "$i" = "9" ] || [ "$i" = "10" ] ; then
+if [ "$i" = "8" ] || [ "$i" = "9" ] || [ "$i" = "10" ] || [ "$i" = "12" ]; then
 	isPTMETHER=1
 else
 	isPTMETHER=0
@@ -44,8 +44,8 @@ if [ "$TCSUPPORT_MULTISERVICE_ON_WAN" != "" ] && [ "$TCSUPPORT_WAN_PTM" != "" -o
 		serv_num=$2
 		i="$i"_"$serv_num"
 		k="$org_i""$serv_num"
-	fi	
-	ifconfig nas$org_i up
+		ifconfig nas$org_i up
+	fi
 fi
 
 if [ "$TCSUPPORT_UNIQUEMAC" != "" ] ;then
@@ -77,10 +77,16 @@ if [ "$Active" != "Yes" ] ; then
 fi
 
 # power up Ethernet Wan
+#this case means the model including Ethernet WAN.
 if [ "$TCSUPPORT_MTK_INTERNAL_ETHER_SWITCH" = "" -a "$i" = "10" ]; then
 	#rtkethcmd up wan
 	#sleep 2
+if [ "$TCSUPPORT_MT7530_EXTERNAL" != "" ] ; then
+	isEtherUp=`cat /proc/tc3162/eth1_link_st`
+else
+	#this case means the model using RTK giga switch.
 	isEtherUp=`cat /proc/tc3162/eth_wan_link_st`
+fi
 	if [ "$isEtherUp" = "0" ]; then
 		exit 0
 	fi
@@ -94,7 +100,7 @@ if [ "$TCSUPPORT_MULTISERVICE_ON_WAN" != "" ] && [ "$TCSUPPORT_WAN_PTM" != "" -o
 			isIPTV=0
 		fi
 	else
-		if [ "$org_i" != "0" ]; then
+		if [ "$i" != "0" ]; then
 			isIPTV=1
 		else
 			isIPTV=0
@@ -125,6 +131,11 @@ else
 	/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_state_t" "1" &
 	/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_sbstate_t" "0" &
 	/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_auxstate_t" "0" &
+fi
+
+VPNC_CFG=/etc/vpnc.conf
+if [ -f $VPNC_CFG ] ; then
+    . $VPNC_CFG
 fi
 
 if [ $ISP = "0" ] ; then
@@ -212,6 +223,7 @@ fi
 	if [ "$TCSUPPORT_UNIQUEMAC" != "" ] ;then
 		if [ "$UNIQUEMAC_FLAG" = "1" ]; then
 			if [ "$DEFAULTROUTE" = "Yes" ] ; then
+				#/sbin/udhcpc -i nas$i -s /sbin/udhcpc_wan -p /var/run/udhcpc-nas$i.pid -m $UNIQUE_MAC $UDHCPC_PARAM &
 				/sbin/udhcpc -i nas$i -s /usr/script/udhcpc.sh -p /var/run/udhcpc-nas$i.pid -m $UNIQUE_MAC $UDHCPC_PARAM &
 			else
 				/sbin/udhcpc -i nas$i -s /usr/script/udhcpc_nodef.sh -p /var/run/udhcpc-nas$i.pid -m $UNIQUE_MAC $UDHCPC_PARAM &
@@ -219,8 +231,9 @@ fi
 		else	
 			if [ "$WAN_MAC" != "" ]; then
 				if [ "$DEFAULTROUTE" = "Yes" ] ; then
+					#/sbin/udhcpc -i nas$i -s /sbin/udhcpc_wan -p /var/run/udhcpc-nas$i.pid -m $WAN_MAC $UDHCPC_PARAM &
 					/sbin/udhcpc -i nas$i -s /usr/script/udhcpc.sh -p /var/run/udhcpc-nas$i.pid -m $WAN_MAC $UDHCPC_PARAM &
-				else	
+				else
 					/sbin/udhcpc -i nas$i -s /usr/script/udhcpc_nodef.sh -p /var/run/udhcpc-nas$i.pid -m $WAN_MAC $UDHCPC_PARAM &
 				fi
 			fi
@@ -229,12 +242,31 @@ fi
 		if [ "$TCSUPPORT_WPA_SUPPLICANT" = "" ] || [ "$IPOE_DOT1X_STATUS" != "Enable" ];then
 			if [ "$WAN_MAC" != "" ]; then
 				if [ "$DEFAULTROUTE" = "Yes" ] ; then
+					#/sbin/udhcpc -i nas$i -s /sbin/udhcpc_wan -p /var/run/udhcpc-nas$i.pid -m $WAN_MAC $UDHCPC_PARAM &
 					/sbin/udhcpc -i nas$i -s /usr/script/udhcpc.sh -p /var/run/udhcpc-nas$i.pid -m $WAN_MAC $UDHCPC_PARAM &
-				else	
+				else
 					/sbin/udhcpc -i nas$i -s /usr/script/udhcpc_nodef.sh -p /var/run/udhcpc-nas$i.pid -m $WAN_MAC $UDHCPC_PARAM &
 				fi
 			fi
-		fi	
+		fi
+	fi
+
+	# Set dns info
+	if [ "$DNS_type" = "1" ] ; then
+		if [ "$TCSUPPORT_MULTISERVICE_ON_WAN" != "" ] && [ "$TCSUPPORT_WAN_PTM" != "" -o "$TCSUPPORT_WAN_ETHER" != "" ] ;then
+			if [ "$isPTMETHER" = "1" ] ; then
+				if [ "$serv_num" = "0" ]; then
+					/userfs/bin/tcapi set "WanExt_PVC"$org_i"e"$serv_num "dns_x" "$Primary_DNS $Secondary_DNS" &
+					/userfs/bin/tcapi set "Wanduck_Common" "wan"$org_i"_dns" "$Primary_DNS $Secondary_DNS" &
+				fi
+			else
+				/userfs/bin/tcapi set "Wan_PVC"$i "dns_x" "$Primary_DNS $Secondary_DNS" &
+				/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_dns" "$Primary_DNS $Secondary_DNS" &
+			fi
+		else
+			/userfs/bin/tcapi set "Wan_PVC"$i "dns_x" "$Primary_DNS $Secondary_DNS" &
+			/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_dns" "$Primary_DNS $Secondary_DNS" &
+		fi
 	fi
 
 	# if [ "$NATENABLE" = "Enable" ] ; then
@@ -352,6 +384,7 @@ fi
 		#echo -e "server=$DNSIPv61st@nas$i\\nserver=$DNSIPv62nd@nas$i">>/etc/dnsmasq.conf
 	# route add default gw 
 	fi
+
 	# if [ "$IPVERSION" != "IPv6" ] ; then
 	# if [ "$NATENABLE" = "Enable" ] ; then
 		# iptables -t nat -A POSTROUTING -j ADDRMAP_POS$i
@@ -373,33 +406,83 @@ fi
 	# fi
 	WAN_IF=nas$i
 	
-	# WAN_STATE_CONNECTED
 	if [ "$TCSUPPORT_MULTISERVICE_ON_WAN" != "" ] && [ "$TCSUPPORT_WAN_PTM" != "" -o "$TCSUPPORT_WAN_ETHER" != "" ] ;then
 		if [ "$isPTMETHER" = "1" ] ; then
 			if [ "$serv_num" = "0" ]; then
+				# WAN_STATE_CONNECTED
 				/userfs/bin/tcapi set "Wanduck_Common" "wan"$org_i"_state_t" "2" &
 				/userfs/bin/tcapi set "Wanduck_Common" "wan"$org_i"_sbstate_t" "0" &
 				/userfs/bin/tcapi set "Wanduck_Common" "wan"$org_i"_auxstate_t" "0" &
+				# Set IP info
+				/userfs/bin/tcapi set "Wanduck_Common" "wan"$org_i"_ipaddr" "$IPADDR" &
+				/userfs/bin/tcapi set "Wanduck_Common" "wan"$org_i"_netmask" "$NETMASK" &
+				# Set gateway info
+				/userfs/bin/tcapi set "WanExt_PVC"$org_i"e"$serv_num "gateway_x" "$GATEWAY" &
+				/userfs/bin/tcapi set "Wanduck_Common" "wan"$org_i"_gateway" "$GATEWAY" &
+				# Set dns info
+				/userfs/bin/tcapi set "WanExt_PVC"$org_i"e"$serv_num "dns_x" "$Primary_DNS $Secondary_DNS" &
+				/userfs/bin/tcapi set "Wanduck_Common" "wan"$org_i"_dns" "$Primary_DNS $Secondary_DNS" &
 			fi
 		else
+			# WAN_STATE_CONNECTED
 			/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_state_t" "2" &
 			/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_sbstate_t" "0" &
 			/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_auxstate_t" "0" &
+			# Set IP info
+			/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_ipaddr" "$IPADDR" &
+			/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_netmask" "$NETMASK" &
+			# Set gateway info
+			/userfs/bin/tcapi set "Wan_PVC"$i "gateway_x" "$GATEWAY" &
+			/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_gateway" "$GATEWAY" &
+			# Set dns info
+			/userfs/bin/tcapi set "Wan_PVC"$i "dns_x" "$Primary_DNS $Secondary_DNS" &
+			/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_dns" "$Primary_DNS $Secondary_DNS" &
 		fi
 	else
+		# WAN_STATE_CONNECTED
 		/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_state_t" "2" &
 		/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_sbstate_t" "0" &
 		/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_auxstate_t" "0" &
+		# Set IP info
+		/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_ipaddr" "$IPADDR" &
+		/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_netmask" "$NETMASK" &
+		# Set gateway info
+		/userfs/bin/tcapi set "Wan_PVC"$i "gateway_x" "$GATEWAY" &
+		/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_gateway" "$GATEWAY" &
+		# Set dns info
+		/userfs/bin/tcapi set "Wan_PVC"$i "dns_x" "$Primary_DNS $Secondary_DNS" &
+		/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_dns" "$Primary_DNS $Secondary_DNS" &
 	fi
 
+	/sbin/wan_up $WAN_IF &
+
 	# restart firewall
-		/userfs/bin/tcapi commit "Firewall" &
+	#/userfs/bin/tcapi commit "Firewall" &
 
 	# restart QoS
-	/userfs/bin/tcapi commit "QoS" &
+	#/userfs/bin/tcapi commit "QoS" &
 
 	# restart ddns
-	/userfs/bin/tcapi commit "Ddns" &
+	#/userfs/bin/tcapi commit "Ddns" &
+
+	# check and start vpnc
+	#if [ "$auto_conn" = "1" ] ; then
+		#/userfs/bin/tcapi commit "VPNC" &
+		#killall run_vpnc
+		#if [ -f /var/run/l2tpd-vpnc.pid ] ; then
+			#kill -15 `cat /var/run/l2tpd-vpnc.pid`
+			#sleep 1
+		#fi
+		#if [ -f /var/run/ppp20.pid ] ; then
+			#kill -15 `cat /var/run/ppp20.pid`
+			#sleep 2 
+			#if [ -f /var/run/ppp20.pid ] ; then
+				#kill -9 `cat /var/run/ppp20.pid`
+				#rm -f /var/run/ppp20.pid
+			#fi
+		#fi
+		#/sbin/run_vpnc &
+	#fi
 
 elif [ $ISP = "2" ] ; then
 	# for pppd success or fail
@@ -447,9 +530,9 @@ elif [ $ISP = "2" ] ; then
 
 	if [ "$TCSUPPORT_WAN_ATM" != "" -o "$TCSUPPORT_WAN_PTM" != "" -o "$TCSUPPORT_WAN_ETHER" != "" ]; then
 		if [ "$isPTMETHER" = "1" ] ; then
-			if [ "$AUTHEN" = "PAP" ] ; then
+			if [ "$AUTHEN" = "CHAP" ] ; then
 				PPP_PARAM="$PPP_PARAM -pap"
-			elif [ "$AUTHEN" = "CHAP" ] ; then
+			elif [ "$AUTHEN" = "PAP" ] ; then
 				PPP_PARAM="$PPP_PARAM -chap -mschap -mschap-v2"
 			fi
 if [ "$TCSUPPORT_UNIQUEMAC" != "" ] ;then
@@ -655,6 +738,7 @@ fi
 		WAN_IF=ppp$i
 	fi
 
+	#this case means the model including Ethernet WAN.
 	if [ "$TCSUPPORT_MTK_INTERNAL_ETHER_SWITCH" = "" ]; then
 		if [ "$i" = "10" ]; then
 			rand1=`expr $RANDOM % 255`
@@ -747,13 +831,11 @@ fi
 
 	/sbin/ifconfig nas$i 0.0.0.0
 	WAN_IF=nas$i
-	# tmp
-	if [ "$TCSUPPORT_MTK_INTERNAL_ETHER_SWITCH" = "" ]; then
-		if [ "$isIPTV" = "1" ]; then
-			brctl addif br1 $WAN_IF
-		else
-			brctl addif br0 $WAN_IF
-		fi
+
+	if [ "$isIPTV" = "1" ]; then
+		brctl addif br1 $WAN_IF
+		#Arcadyan require bridge WAN port to all LAN port in the xDSL and Ethernet WAN bridge mode for their testing.
+		brctl addif br0 $WAN_IF
 	else
 		brctl addif br0 $WAN_IF
 	fi
@@ -787,6 +869,7 @@ fi
 
 if [ "$isIPTV" = "1" ]; then
 	# restart IPTV
+	#this case means the model including Ethernet WAN.
 	if [ "$TCSUPPORT_MTK_INTERNAL_ETHER_SWITCH" = "" ]; then
 		/userfs/bin/tcapi commit "IPTV" &
 	fi
@@ -796,7 +879,7 @@ else
 	fi
 fi
 
-/usr/bin/qoscmd dev add nas$i &
+#/usr/bin/qoscmd dev add nas$i &
 #FW_CONF=/etc/firewall.conf
 #if [ -f $FW_CONF ]; then
 #	chmod +x $FW_CONF

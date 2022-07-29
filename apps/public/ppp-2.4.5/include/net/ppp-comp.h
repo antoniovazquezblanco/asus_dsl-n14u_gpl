@@ -168,6 +168,13 @@ struct compressor {
 #define CI_MPPE			18	/* config option for MPPE */
 #define CILEN_MPPE		6	/* length of config option */
 
+/* MPPE/MPPC definitions by J.D.*/
+#define MPPE_STATELESS          MPPE_H_BIT	/* configuration bit H */
+#define MPPE_40BIT              MPPE_L_BIT	/* configuration bit L */
+#define MPPE_56BIT              MPPE_M_BIT	/* configuration bit M */
+#define MPPE_128BIT             MPPE_S_BIT	/* configuration bit S */
+#define MPPE_MPPC               MPPE_C_BIT	/* configuration bit C */
+
 /*
  * Definitions for other, as yet unsupported, compression methods.
  */

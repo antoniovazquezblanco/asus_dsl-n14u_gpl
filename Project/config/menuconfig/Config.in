@@ -5,12 +5,22 @@
 choice
 	prompt "CPU Type"
 	
+config TCSUPPORT_CPU_MT7510
+	bool "TCSUPPORT_CPU_MT7510 Support"
+	select WAN_ATM
+	select WAN_PTM
+	select WAN_ETHER
+	help
+	      CPU MT7510 support
+
 config TCSUPPORT_CPU_RT63365
 	bool "TCSUPPORT_CPU_RT63365 Support"
 	select WAN_ATM
 	select WAN_ETHER
+	select WAN_ETHER_LAN
 	help
 	      CPU RT63365 support
+
 config TCSUPPORT_CPU_RT63368
 	bool "TCSUPPORT_CPU_RT63368 Support"
 	select WAN_ATM
@@ -27,6 +37,39 @@ config TCSUPPORT_CPU_RT65168
 	      CPU RT65168 support
 endchoice
 
+choice
+	prompt "Kernel"
+	
+config TCSUPPORT_KERNEL
+	bool "2.6.22.15 Kernel"
+	depends on !TC_RELEASE_2_6_36_KERNEL
+	help
+	      2.6.22.15 Kernel
+
+config TCSUPPORT_2_6_36_KERNEL
+	bool "2.6.36 Kernel"
+	depends on !TC_RELEASE_2_6_22_15_KERNEL
+	select TCSUPPORT_MEMORY_CONTROL
+	help
+	      2.6.36 Kernel donnot support 3162/3162u
+endchoice
+
+choice
+	prompt "SDK Config Selected"
+	depends on TCSUPPORT_2_6_36_KERNEL
+	default TCSUPPORT_2_6_36_KERNEL_v7_3_94_4
+
+config TCSUPPORT_2_6_36_KERNEL_v7_3_83_0
+	bool "2.6.36 Kernel in SDK v7.3.83.0"
+	help
+	      SDK v7.3.83.0 kernel 2.6.36
+
+config TCSUPPORT_2_6_36_KERNEL_v7_3_94_4
+	bool "2.6.36 Kernel in SDK v7.3.94.4"
+	help
+	      SDK v7.3.94.4 kernel 2.6.36
+endchoice
+
 config WAN_ATM
 	bool
 
@@ -36,7 +79,10 @@ config WAN_PTM
 config WAN_ETHER
 	bool
 
-if WAN_ATM || WAN_PTM || WAN_ETHER
+config WAN_ETHER_LAN
+	bool
+
+if WAN_ATM || WAN_PTM || WAN_ETHER || WAN_GPON || WAN_EPON || WAN_ETHER_LAN
 
 menu "WAN Transfer Mode Support"
 
@@ -59,12 +105,30 @@ config TCSUPPORT_WAN_ETHER
 	bool "Support Ethernet WAN Transfer Mode"
 	help
 		  Support Ethernet WAN Transfer Mode
+
+config TCSUPPORT_WAN_ETHER_LAN
+	depends (WAN_ETHER_LAN && ASUS_DUALWAN)
+	bool "Support Ethernet LAN as WAN"
+	default n
+	help
+		  Support Ethernet LAN as WAN
+
 endmenu
 endif
 
 choice
 	prompt "Bootbase Suppport SDRAMSIZE"
 	
+config TCSUPPORT_SDRAM_8M
+	bool "Support 8M SDRAM"
+	help
+	      Support 8M SDRAM
+
+config TCSUPPORT_SDRAM_16M
+	bool "Support 16M SDRAM"
+	help
+	      Support 16M SDRAM
+
 config TCSUPPORT_SDRAM_32M
 	bool "Support 32M SDRAM"
 	help
@@ -85,7 +149,7 @@ config TCSUPPORT_BOOT_LZMA
 
 choice
 	prompt "Bootbase Suppport Flash"
-	depends (TCSUPPORT_CPU_RT63365 || TCSUPPORT_CPU_RT63368) 
+	depends (TCSUPPORT_CPU_RT63365 || TCSUPPORT_CPU_RT63368 || TCSUPPORT_CPU_MT7510 || TCSUPPORT_CPU_MT7520) 
 
 config TCSUPPORT_BB_SPI
 	bool "TCSUPPORT_BB_SPI Support"
@@ -97,10 +161,26 @@ config TCSUPPORT_BB_NAND
 	help
 			Bootbase Nand flash support
 
+config TCSUPPORT_BB_NAND_4K
+	depends on TCSUPPORT_BB_NAND && (TCSUPPORT_CPU_MT7510 || TCSUPPORT_CPU_MT7520)
+	bool "Bootloader Support 4K page NAND"
+	help
+			Bootbase Nand flash support 4K page size
+
 endchoice
 
 
-
+config TCSUPPORT_DDR_CALI
+	depends (TCSUPPORT_CPU_MT7510 || TCSUPPORT_CPU_MT7520)
+	bool "Bootloader Support DDR calibration"
+	help
+			MT75XX DDR calibration support
+			
+config TCSUPPORT_BOOTROM_LARGE_SIZE
+	depends (TCSUPPORT_CPU_MT7510 || TCSUPPORT_CPU_MT7520) && TCSUPPORT_BOOT_LZMA
+	bool "Bootloader Extend to 128K"
+	help
+			Bootloader Extend to 128K from 64K
 
 #No support Purebridge Mode
 #config TCSUPPORT_PUREBRIDGE
@@ -175,7 +255,7 @@ config TCSUPPORT_KERNELCONFIG_RT63165
 	      RT63165 Kernel config support	
 	      
 config TCSUPPORT_KERNELCONFIG_RT63365
-	depends TCSUPPORT_CPU_RT63365  || TCSUPPORT_CPU_RT63368
+	depends TCSUPPORT_CPU_RT63365  || TCSUPPORT_CPU_RT63368 || TCSUPPORT_CPU_MT7510
 	bool "TCSUPPORT_KERNELCONFIG_RT63365 Support"
 	help
 	      RT63365 Kernel config support	
@@ -184,7 +264,19 @@ config TCSUPPORT_KERNELCONFIG_RT65168
 	depends TCSUPPORT_CPU_RT65168
 	bool "TCSUPPORT_KERNELCONFIG_RT65168 Support"
 	help
-	      RT65168 Kernel config support	
+	      RT65168 Kernel config support
+
+config TCSUPPORT_KERNELCONFIG_MT7510
+	depends TCSUPPORT_CPU_MT7510
+	bool "TCSUPPORT_KERNELCONFIG_MT7510 Support"
+	help
+	      MT7510 Kernel config support
+
+config TCSUPPORT_KERNELCONFIG_MT7520
+	depends TCSUPPORT_CPU_MT7520
+	bool "TCSUPPORT_KERNELCONFIG_MT7520 Support"
+	help
+	      MT7520 Kernel config support
 
 endchoice
 
@@ -228,17 +320,23 @@ config TCSUPPORT_BUSYBOXCONFIG_TC3162U_IPv6
 	      TC3162U IPv6 Busybox config support
 	      
 config TCSUPPORT_BUSYBOXCONFIG_TC3262
-	depends TCSUPPORT_CPU_TC3262 || TCSUPPORT_CPU_TC3182 || TCSUPPORT_CPU_RT63165 || TCSUPPORT_CPU_RT63365  || TCSUPPORT_CPU_RT63368 || TCSUPPORT_CPU_RT65168
+	depends TCSUPPORT_CPU_TC3262 || TCSUPPORT_CPU_TC3182 || TCSUPPORT_CPU_RT63165 || TCSUPPORT_CPU_RT63365  || TCSUPPORT_CPU_RT63368 || TCSUPPORT_CPU_RT65168 || TCSUPPORT_CPU_MT7510 || TCSUPPORT_CPU_MT7520
 	bool "TCSUPPORT_BUSYBOXCONFIG_TC3262 Support"
 	help
-	      TC3262 & TC3182 & RT63165 & RT63365  & RT63368 & RT65168 Busybox config support   
+	      TC3262 & TC3182 & RT63165 & RT63365  & RT63368 & RT65168 & 7510 & 7520 Busybox config support   
 	      
 endchoice
+
+config ASUS_BUSYBOX_NEW
+	bool "Busybox-new Support"
+	help
+	   Busybox-new support
 
 menu "Driver Feature"
 
 choice
 	prompt "DMT Type Selected"
+	depends !TCSUPPORT_PON_SEL
 	default TCSUPPORT_DMT_3086
 config TCSUPPORT_DMT_3085
 	bool "TCSUPPORT_DMT_3085 Support"
@@ -262,22 +360,56 @@ config TCSUPPORT_DMT_3095
 	      
 endchoice
 config TCSUPPORT_DUAL_IMAGE
-	depends TCSUPPORT_CPU_TC3162U || TCSUPPORT_CPU_TC3182 || TCSUPPORT_CPU_RT63365  || TCSUPPORT_CPU_RT63368
+	depends TCSUPPORT_CPU_TC3162U || TCSUPPORT_CPU_TC3182 || TCSUPPORT_CPU_RT63365  || TCSUPPORT_CPU_RT63368 || TCSUPPORT_CPU_MT7510 || TCSUPPORT_CPU_MT7520
 	bool "Dual image support"
 	help
 	      Dual image support(flash must support 8m or larger)
+
+config TCSUPPORT_GPON_DUAL_IMAGE
+	depends TCSUPPORT_DUAL_IMAGE && TCSUPPORT_WAN_GPON
+	bool "GPON dual image support"
+	help
+		GPON dual image support			
+			
+config TCSUPPORT_EPON_DUAL_IMAGE
+	depends TCSUPPORT_DUAL_IMAGE && TCSUPPORT_WAN_EPON
+	bool "EPON dual image support"
+	help
+		EPON dual image support		
+			
 config TCSUPPORT_DUAL_IMAGE_ENHANCE
 	depends TCSUPPORT_DUAL_IMAGE
 	bool "Dual image enhance support"
 	help
 	      Support main img and slave img auto backup function
 
+config TCSUPPORT_MT7520_PCIE
+	depends TCSUPPORT_CPU_MT7520
+	bool "TCSUPPORT_MT7520_PCIE Support"
+	help
+	      MT7520 PCI-E init support(for Test WiFi)
+	      
+config TCSUPPORT_MT7520S
+	depends TCSUPPORT_CPU_MT7520
+	bool "TCSUPPORT_MT7520S Support"
+	help
+	      MT7520S Single Lan Giga Port
 
 config TCSUPPORT_TR68LED
 	bool "TR68 LED support"
 	help
 	      TR68 LED support
 
+config TCSUPPORT_GPIO_ECM	
+	depends TCSUPPORT_CPU_MT7510
+	bool "TCSUPPORT_GPIO_ECM Support"
+	help
+	      GPIO enchancement support(for serial gpio)   		  
+	           		  
+config TCSUPPORT_I2C
+	bool "TCSUPPORT_I2C Support"
+	help
+	      i2c driver support   	
 config TCSUPPORT_LEDKEY
 	bool 
 	default y
@@ -327,6 +459,12 @@ config TCSUPPORT_WLAN_IGMPSNOOP
 	help
 	      WLAN IGMP Snooping support
 
+config TCSUPPORT_HTBW_40M
+	depends TCSUPPORT_WLAN_RT3390 || TCSUPPORT_WLAN_RT5390 || TCSUPPORT_WLAN_RT5392
+	bool "TCSUPPORT_HTBW_40M Support"
+	help
+		Add WIFI channel bandwidth 40MHz
+		  
 config TCSUPPORT_WLAN_ATE
 	depends TCSUPPORT_WLAN
 	bool "TCSUPPORT_WLAN_ATE Support"
@@ -346,10 +484,22 @@ config TCSUPPORT_WLAN_WPS_LEDSPEC
 	      WLAN WPS LED Blink Spec support		     
 
 config TCSUPPORT_WLAN_GPIO
-	depends TCSUPPORT_WLAN && (TCSUPPORT_CPU_RT63365  || TCSUPPORT_CPU_RT63368)
+	depends TCSUPPORT_WLAN && (TCSUPPORT_CPU_RT63365  || TCSUPPORT_CPU_RT63368 || TCSUPPORT_CPU_MT7510 || TCSUPPORT_CPU_MT7520)
 	bool "TCSUPPORT_WLAN_GPIO Support"
 	help
-	      WLAN GPIO support		     
+	      WLAN GPIO support       
+
+config TCSUPPORT_WLAN_LED_BY_SW
+	depends TCSUPPORT_WLAN_GPIO
+bool "TCSUPPORT_WLAN_LED_BY_SW Support"
+	help
+	      WLAN LED light by sw support
+
+config TCSUPPORT_WLAN_PMF
+	depends TCSUPPORT_WLAN && TCSUPPORT_WLAN_MT7592
+	bool "TCSUPPORT_WLAN_PMF Support"
+	help
+	      WLAN PMF Function(11n optional)
 
 choice
 	prompt "WiFi Chipset Selected"
@@ -384,23 +534,11 @@ config TCSUPPORT_WLAN_RT5392
 	help
 	      RT5392 WiFi Driver support
 
-config TCSUPPORT_MTK_INTERNAL_ETHER_SWITCH
-	depends TCSUPPORT_WLAN && TCSUPPORT_CPU_RT63365 &&(TCSUPPORT_WLAN_RT5392 || TCSUPPORT_WLAN_RT5390 ||TCSUPPORT_WLAN_RT5390HL)
-	bool "TCSUPPORT_MTK_INTERNAL_ETHER_SWITCH Support"
-	help
-	      MTK INTERNAL ETHER SWITCH support
-
 config TCSUPPORT_WLAN_RT5390
 	depends TCSUPPORT_WLAN
 	bool "TCSUPPORT_WLAN_RT5390 Support"
 	help
 	      RT5390 WiFi Driver support
-
-config TCSUPPORT_MTK_INTERNAL_ETHER_SWITCH
-	depends TCSUPPORT_WLAN && TCSUPPORT_CPU_RT63365 &&(TCSUPPORT_WLAN_RT5392 || TCSUPPORT_WLAN_RT5390 ||TCSUPPORT_WLAN_RT5390HL)
-	bool "TCSUPPORT_MTK_INTERNAL_ETHER_SWITCH Support"
-	help
-	      MTK INTERNAL ETHER SWITCH support
 
 config TCSUPPORT_WLAN_RT5390HL
 	depends TCSUPPORT_WLAN
@@ -408,18 +546,18 @@ config TCSUPPORT_WLAN_RT5390HL
 	help
 	      RT5390HL WiFi Driver support
 
-config TCSUPPORT_MTK_INTERNAL_ETHER_SWITCH
-	depends TCSUPPORT_WLAN && TCSUPPORT_CPU_RT63365 &&(TCSUPPORT_WLAN_RT5392 || TCSUPPORT_WLAN_RT5390 ||TCSUPPORT_WLAN_RT5390HL)
-	bool "TCSUPPORT_MTK_INTERNAL_ETHER_SWITCH Support"
-	help
-	      MTK INTERNAL ETHER SWITCH support
-
 config TCSUPPORT_WLAN_RT3090
 	depends TCSUPPORT_WLAN && !TCSUPPORT_RELEASED_CODE
 	bool "TCSUPPORT_WLAN_RT3090 Support"
 	help
 	      RT3090 WiFi Driver support
-	      	      
+
+config TCSUPPORT_WLAN_MT7592
+	depends TCSUPPORT_WLAN
+	bool "TCSUPPORT_WLAN_MT7592 Support"
+	help
+	      MT7592 WiFi Driver support
+
 config TCSUPPORT_WLAN_MULTIDRIVER
 	depends TCSUPPORT_WLAN
 	bool "TCSUPPORT_WLAN_MULTIDRIVER Support"
@@ -429,7 +567,7 @@ endchoice
 
 choice
 prompt "Dual band WiFi Chipset Selected"
-depends TCSUPPORT_WLAN && TCSUPPORT_CPU_RT63368 && !TCSUPPORT_WLAN_MULTIDRIVER
+depends TCSUPPORT_WLAN && (TCSUPPORT_CPU_RT63368 || TCSUPPORT_CPU_MT7510 || TCSUPPORT_CPU_MT7520) && !TCSUPPORT_WLAN_MULTIDRIVER
 config TCSUPPORT_NODUAL_BAND
 	bool "No Support"
 	help
@@ -447,11 +585,17 @@ config TCSUPPORT_DUAL_WLAN_RT3593
         help
                 RT3593 WiFi Driver support
 
+config TCSUPPORT_DUAL_WLAN_MT7612E
+	depends TCSUPPORT_WLAN
+	bool "TCSUPPORT_DUAL_WLAN_MT7612E Support"
+	help
+	      MT7612E WiFi Driver support
+
 endchoice
 
 choice
 prompt "Dual band multi driver WiFi Chipset Selected"
-depends TCSUPPORT_WLAN && TCSUPPORT_CPU_RT63368 && TCSUPPORT_WLAN_MULTIDRIVER
+depends TCSUPPORT_WLAN && (TCSUPPORT_CPU_RT63368 || TCSUPPORT_CPU_MT7510 || TCSUPPORT_CPU_MT7520)&& TCSUPPORT_WLAN_MULTIDRIVER
 config TCSUPPORT_NODUAL_BAND
 	bool "No Support"
 	help
@@ -464,22 +608,43 @@ config TCSUPPORT_DUAL_WLAN_RT5592_RT3593
 		Dual Band WiFi Driver support
 endchoice
 
+config TCSUPPORT_MTK_INTERNAL_ETHER_SWITCH
+	bool "TCSUPPORT_MTK_INTERNAL_ETHER_SWITCH Support"
+	help
+	      MTK INTERNAL ETHER SWITCH support
+
+menu	"Choose Switch chip"
+	config RTL8367B_SDK
+		tristate
+
+	config SWITCH_CHIP_RTL8367RB
+		tristate "Realtek RTL8367RB support"
+		default n
+		select RTL8367B_SDK
+		help
+			Realtek RTL8367RB support
+endmenu
+
 menu "Virtual Private Network(VPN) Support"
 
 config TCSUPPORT_VPN
 	bool "TCSUPPORT_VPN Support"
 	help
-		use ipsec-tools to build a VPN client.
+		use ipsec-tools, openl2tp, and pppd to build a VPN client.
 
 config TCSUPPORT_HW_CRYPTO
 	bool "TCSUPPORT_HW_CRYPTO Support"
 	help
 		The crypto driver for HW Crypto Engine and the MTK_CRYPTO_DRIVER for Linux IPSec modification.
+config TCSUPPORT_EIP93_VERIFY
+	bool "TCSUPPORT_EIP93_VERIFY Support"
+	help
+		  Includes V-Driver, SLAD_testTool, and Regress_testTool.
 
 endmenu
 
 config TCSUPPORT_USBHOST
-	depends TCSUPPORT_CPU_TC3162U || TCSUPPORT_CPU_TC3262 || TCSUPPORT_CPU_TC3182 || TCSUPPORT_CPU_RT63165 || TCSUPPORT_CPU_RT63365  || TCSUPPORT_CPU_RT63368 || TCSUPPORT_CPU_RT65168
+	depends TCSUPPORT_CPU_TC3162U || TCSUPPORT_CPU_TC3262 || TCSUPPORT_CPU_TC3182 || TCSUPPORT_CPU_RT63165 || TCSUPPORT_CPU_RT63365  || TCSUPPORT_CPU_RT63368 || TCSUPPORT_CPU_RT65168 || TCSUPPORT_CPU_MT7510 || TCSUPPORT_CPU_MT7520
 	bool "TCSUPPORT_USBHOST Support"
 	help
 	      USB Host 2.0 Driver support	
@@ -517,11 +682,25 @@ config TCSUPPORT_USB_3G_DONGLE
 	help
 		USB 3G DONGLE support
 
+#when open TCSUPPORT_USB_3G_DONGLE ,also open TCSUPPORT_USB_MODESWITCH
+#config TCSUPPORT_USB_MODESWITCH
+#	depends TCSUPPORT_USB_3G_DONGLE
+#	bool "TCSUPPORT_USB_MODESWITCH"
+#	help
+#		USB_MODESWITCH for 3G DONGLE support
+
+
 config TCSUPPORT_USB_CAMERA
     depends TCSUPPORT_USBHOST
 	bool "TCSUPPORT_USB_CAMERA"
 	help
 	     USB Camera support
+
+config TCSUPPORT_USB_HOST_LED
+    depends TCSUPPORT_USBHOST
+	bool "TCSUPPORT_USB_HOST_LED"
+	help
+	     USB Host led support(only storage device)
 	      
 config TCSUPPORT_USBDEVICE11
 	depends TCSUPPORT_CPU_TC3162 && !TCSUPPORT_RELEASED_CODE
@@ -549,6 +728,44 @@ config TCSUPPORT_CMDAPI
 	help
 	      Driver CMD API support	    
 
+		 
+config TCSUPPORT_AUTOBENCH
+	depends TCSUPPORT_CPU_TC3162U  || TCSUPPORT_CPU_TC3182 || TCSUPPORT_CPU_RT63365  || TCSUPPORT_CPU_RT63368 || TCSUPPORT_CPU_RT65168 || TCSUPPORT_CPU_RT63260 || TCSUPPORT_CPU_MT7510
+	bool "TCSUPPORT_AUTOBENCH Support"
+	help
+	     Auto-bench driver
+choice
+	prompt "AutoBench Support for dmt3095 or rt65168"
+	depends TCSUPPORT_CPU_RT65168 && TCSUPPORT_AUTOBENCH
+
+config TCSUPPORT_AUTOBENCH_DMT3095
+	bool "TCSUPPORT_AUTOBENCH_DMT3095 Support"
+	help
+		AutoBench Support for dmt3095 on rt65168
+
+config TCSUPPORT_AUTOBENCH_RT65168
+	bool "TCSUPPORT_AUTOBENCH_RT65168 Support"
+	help
+		AutoBench Support for rt65168
+
+endchoice
+
+choice
+	prompt "AutoBench Support for dmt3087 or rt63365"
+	depends TCSUPPORT_CPU_RT63365 && TCSUPPORT_AUTOBENCH
+
+config TCSUPPORT_AUTOBENCH_DMT3087
+	bool "TCSUPPORT_AUTOBENCH_DMT3087 Support"
+	help
+		AutoBench Support for dmt3087 on rt63365
+
+config TCSUPPORT_AUTOBENCH_RT63365
+	bool "TCSUPPORT_AUTOBENCH_RT63365 Support"
+	help
+		AutoBench Support for rt63365
+
+endchoice
+
 config TCSUPPORT_HWNAT
 	depends TCSUPPORT_CPU_RT65168
 	bool "TCSUPPORT_HWNAT Support"
@@ -556,7 +773,7 @@ config TCSUPPORT_HWNAT
 	      HWNAT support	
 
 config TCSUPPORT_NAND_FLASH
-	depends TCSUPPORT_CPU_RT63368
+	depends TCSUPPORT_CPU_RT63368 || TCSUPPORT_CPU_MT7510 || TCSUPPORT_CPU_MT7520
 	bool "TCSUPPORT_NAND_FLASH Support"
 	default n
 	help
@@ -570,7 +787,7 @@ config NOT_SUPPORT_BADBLOCK_CHECK
 		Not Support Nand Badblock Check
 
 config TCSUPPORT_NAND_BADBLOCK_CHECK
-	bool "TCSUPPORT_NAND_BADBLOCK_CHECK support"
+	bool "TCSUPPORT_NAND_BADBLOCK_CHECK Support"
 	help
 		Nand Flash Badblock Check Support
 
@@ -581,21 +798,191 @@ config TCSUPPORT_NAND_RT63368
 endchoice
 
 config TCSUPPORT_NAND_BMT
-	bool "TCSUPPORT_NAND_BMT Support"
-	depends TCSUPPORT_NAND_RT63368
+	bool "TCSUPPORT_NAND_BMT Support"	
+	depends TCSUPPORT_NAND_RT63368 || TCSUPPORT_CPU_MT7510 || TCSUPPORT_CPU_MT7520
 	help
-		Nand Flash Badblock Management Table
-
+		  Nand Flash Badblock Management Table
+		  
+config TCSUPPORT_SQUASHFS_ADD_YAFFS
+	bool "NAND YAFFS2 File system Support"	
+	depends TCSUPPORT_NAND_BMT && (TCSUPPORT_CPU_MT7510 || TCSUPPORT_CPU_MT7520)
+	help
+		  Nand Flash Badblock Management Table			
+			
 config TCSUPPORT_RA_HWNAT
-	depends TCSUPPORT_CPU_RT63365  || TCSUPPORT_CPU_RT63368
+	depends TCSUPPORT_CPU_RT63365 || TCSUPPORT_CPU_RT63368 || TCSUPPORT_CPU_MT7510 || TCSUPPORT_CPU_MT7520
 	bool "TCSUPPORT_RA_HWNAT Support"
 	help
 	      RA HWNAT support	
 
+config TCSUPPORT_RA_HWNAT_ENHANCE_HOOK
+	depends TCSUPPORT_RA_HWNAT
+	bool "TCSUPPORT_RA_HWNAT_ENHANCE_HOOK Support"
+	help
+		add drop and clean hook support
+
+config TCSUPPORT_DYING_GASP
+	depends TCSUPPORT_CPU_RT63365  || TCSUPPORT_CPU_RT63368 || TCSUPPORT_CPU_RT65168 || TCSUPPORT_CPU_MT7510 || TCSUPPORT_CPU_MT7520
+	bool "TCSUPPORT_DYING_GASP Support"
+	help
+	      DYING GASP support	
+
+config TCSUPPORT_QDMA_BUFMGR
+	bool "TCSUPPORT_QDMA_BUFMGR Support"
+	help
+		The bufmgr driver for QDMA buffer management.
+
+
+config TCSUPPORT_OMCI
+	depends TCSUPPORT_WAN_GPON
+	bool "TCSUPPORT_OMCI"
+	help
+		GPON OMCI support
+
+config TCSUPPORT_OMCI_EXTENDED_MSG
+    depends TCSUPPORT_OMCI
+	bool "TCSUPPORT_OMCI_EXTENDED_MSG"
+	help
+		OMCI extended message support	
+	
+config TCSUPPORT_OMCI_CTC
+    depends TCSUPPORT_OMCI
+	bool "TCSUPPORT_OMCI_CTC"
+	help
+		OMCI CTC support	
+
+config TCSUPPORT_OMCI_DOT1AG
+    depends TCSUPPORT_OMCI
+	bool "TCSUPPORT_OMCI_DOT1AG"
+	help
+		OMCI DOT1AG support	
+
+config TCSUPPORT_OMCI_LAN_DEBUG
+    depends TCSUPPORT_OMCI
+	bool "TCSUPPORT_OMCI_LAN_DEBUG"
+	help
+		OMCI LAN DEBUG support	
+
+config TCSUPPORT_EPON_OAM
+	depends TCSUPPORT_WAN_EPON
+	bool "TCSUPPORT_EPON_OAM"
+	help
+		EPON OAM support
+		
+config TCSUPPORT_EPON_OAM_CTC
+	depends TCSUPPORT_EPON_OAM
+	bool "TCSUPPORT_EPON_OAM_CTC"
+	help
+		EPON OAM CTC support
+		
+config TCSUPPORT_EPON_OAM_LAN_DBG
+	depends TCSUPPORT_EPON_OAM
+	bool "TCSUPPORT_EPON_OAM_LAN_DBG"
+	help
+		EPON OAM LAN Debug support
+
+config TCSUPPORT_EPON_FPGA_WORKAROUND
+	depends TCSUPPORT_WAN_EPON
+	bool "TCSUPPORT_EPON_FPGA_WORKAROUND"
+	help
+		EPON SOME WORKAROUND FUNCTION FOR FPGA		
+
+config TCSUPPORT_EPONCMD
+	depends TCSUPPORT_WAN_EPON
+	bool "TCSUPPORT_EPONCMD"
+	help
+		EPON CMD support
+
+config TCSUPPORT_MT7530_EXTERNAL
+	depends TCSUPPORT_CPU_RT65168 || TCSUPPORT_CPU_RT63368 || TCSUPPORT_CPU_MT7510 || TCSUPPORT_CPU_MT7520
+	bool "TCSUPPORT_MT7530_EXTERNAL"
+	help
+	      Support MT7530 External Switch
+
+config TCSUPPORT_MT7530_SLT
+	depends TCSUPPORT_CPU_RT65168
+	bool "TCSUPPORT_MT7530_SLT"
+	help
+	      Support MT7530 SLT Program
+
+config TCSUPPORT_SIM_CONTROLLER
+	depends TCSUPPORT_CPU_MT7510 || TCSUPPORT_CPU_MT7520
+	bool "TCSUPPORT_SIM_CONTROLLER"
+	help
+	      Support SIM Controller
 endmenu
 
 menu "Common Feature"
 	depends !TCSUPPORT_PUREBRIDGE
+
+menu "Passave Optical Network(PON) Support"
+	depends TCSUPPORT_PON_SEL
+
+config TCSUPPORT_PON_SEL
+	bool "TCSUPPORT_PON_SEL Support"
+	help
+		xPon support.
+		
+config TCSUPPORT_MAX_PACKET_2000
+	depends TCSUPPORT_CPU_MT7520
+	bool "TCSUPPORT_MAX_PACKET_2000 Support"
+	help
+		Max Packet Size support to 2000
+
+config TCSUPPORT_GPON_MAPPING
+	depends TCSUPPORT_WAN_GPON
+	bool "TCSUPPORT_GPON_MAPPING Support"
+	help
+		GPON mapping support
+
+config TCSUPPORT_GPON_DOWNSTREAM_MAPPING
+	depends TCSUPPORT_GPON_MAPPING
+	bool "TCSUPPORT_GPON_DOWNSTREAM_MAPPING Support"
+	help
+		gpon downstream mapping support
+
+config TCSUPPORT_EPON_MAPPING
+	depends TCSUPPORT_WAN_EPON
+	bool "TCSUPPORT_EPON_MAPPING Support"
+	help
+		EPON mapping support
+		
+config TCSUPPORT_PONMGR
+	bool "TCSUPPORT_PONMGR"
+	help
+		xPON PONMGR support
+
+config TCSUPPORT_PMMGR
+	bool "TCSUPPORT_PMMGR"
+	help
+		xPON Performance monitor support
+
+config TCSUPPORT_XPON_IGMP
+	bool "TCSUPPORT_XPON_IGMP"
+	help
+		xPON IGMP support
+		
+config TCSUPPORT_PON_MAC_FILTER
+	bool "TCSUPPORT_PON_MAC_FILTER Support"
+	help
+		xPON MAC Filter support.
+
+config TCSUPPORT_PON_USER_ISOLATION
+	bool "TCSUPPORT_PON_USER_ISOLATION Support"
+	help
+		xPON user isolation support.
+		
+config TCSUPPORT_PON_VLAN
+	bool "TCSUPPORT_PON_VLAN Support"
+	help
+		xPON VLAN support.
+
+config TCSUPPORT_PON_VLAN_FILTER
+    depends TCSUPPORT_PON_VLAN
+	bool "TCSUPPORT_PON_VLAN_FILTER Support"
+	help
+		xPON VLAN FILTER support
+endmenu
 
 menu "ASUS Feature"
 
@@ -646,6 +1033,41 @@ config ASUS_DSL_POWER_SAVING
 	help
 		Close DSL if not used.
 
+config ASUS_VPNC
+	bool "ASUS_VPNC"
+	help
+		VPN(PPTP&L2TP) client.
+
+config ASUS_DUALWAN
+	bool "ASUS_DUALWAN"
+	help
+		Dual Wan support.
+
+config ASUSSUPPORT_EMAIL
+	bool "ASUSSUPPORT_EMAIL Support"
+	help
+	   Email support
+
+config ASUS_WOL
+	bool "Wake-on-LAN Support"
+	help
+	   Wake-on-LAN support
+
+config ASUS_TR069
+	bool "ASUS_TR069"
+	help
+		TR069 w/ TR098 data model support.
+
+config ASUS_TR181
+	bool "ASUS_TR181"
+	help
+		TR181 data model support.		
+
+config ASUS_CFGMGR_RESTART
+	bool "Restart cfg_manager Support"
+	help
+	   When cfg_manager is stuck or gone, restart it.
+
 endmenu
 
 config TCSUPPORT_IPV6
@@ -684,6 +1106,13 @@ config TCSUPPORT_IPV6_ADVANCE
 	bool "TCSUPPORT_IPV6_ADVANCE"
 	help
 	      IPv6 advance feature,like firewall,acl,filter 
+
+config TCSUPPORT_IPV6_ACL
+	default n
+	depends TCSUPPORT_IPV6_ADVANCE
+	bool "TCSUPPORT_IPV6_ACL"
+	help
+	      IPv6 ACL feature 
 
 config TCSUPPORT_IPV6_FIREWALL
 	default n
@@ -744,6 +1173,12 @@ config	TCSUPPORT_IPV6_PRIVACYADDRS
 	help
 		 support ipv6 privacy addresss
 
+config TCSUPPORT_IPV6_STATIC_ROUTE
+	default n
+	depends TCSUPPORT_IPV6
+	bool "TCSUPPORT_IPV6_STATIC_ROUTE Support"
+	help 
+		Support IPv6 static route support
 
 config TCSUPPORT_VOIP
 	depends TCSUPPORT_CPU_TC3262 || TCSUPPORT_CPU_TC3182 || TCSUPPORT_CPU_RT63165 || TCSUPPORT_CPU_RT65168 || TCSUPPORT_CPU_RT63368
@@ -785,11 +1220,6 @@ config TCSUPPORT_VOIP_WITH_DSP_EVA_1S_89156
 		VOIP WITH EVA 1S 89156 support
 
 endchoice
-	
-config ASUSSUPPORT_EMAIL
-bool "ASUSSUPPORT_EMAIL Support"
-	help
-	   Email support
 
 config TCSUPPORT_CWMP
 	bool "TCSUPPORT_CWMP Support"
@@ -813,6 +1243,12 @@ config TCSUPPORT_CWMP_CS_BSNL
 	help
 	      Support shrink TR69 parameters for BSNL  
 
+config TCSUPPORT_CWMP_FAST_GET
+	depends on TCSUPPORT_CWMP
+	bool "TCSUPPORT_CWMP_FAST_GET Support"
+	help
+	      SUPPORT GET CWMP PARAMETERS QUICKLY  	      
+
 config TCSUPPORT_RANDOM_INFORM
 	depends TCSUPPORT_CWMP
 	default y
@@ -826,11 +1262,35 @@ config TCSUPPORT_TRACEROUTE
 	help
 	      TC3162 IPv6 Kernel config support(Make sure your busybox has opened the traceroute)
 
+config TCSUPPORT_TRACEROUTE_GUI
+	depends TCSUPPORT_TRACEROUTE
+	bool "TCSUPPORT_TRACEROUTE_GUI Support(Make sure your busybox has opened the traceroute)"
+	help
+	      Do Traceroute Diagnostic by tcapi and webpage
+
 config TCSUPPORT_CWMP_VDSL
 	depends TCSUPPORT_CWMP && WAN_PTM
 	bool "TCSUPPORT_CWMP_VDSL Support"
 	help
 	      Support VDSL PTM TR069 node
+
+config TCSUPPORT_CWMP_XPON
+	depends TCSUPPORT_CWMP && (TCSUPPORT_WAN_GPON || TCSUPPORT_WAN_EPON)
+	bool "TCSUPPORT_CWMP_XPON Support"
+	help
+	      Support XPON TR069 node
+
+config TCSUPPORT_CWMP_ACL
+	depends TCSUPPORT_CWMP
+	bool "TCSUPPORT_CWMP_ACL Support"
+	help
+	      Support ACL TR069 node
+
+config TCSUPPORT_CWMP_IPV6_ACL
+	depends TCSUPPORT_CWMP_ACL && TCSUPPORT_IPV6_ACL
+	bool "TCSUPPORT_CWMP_IPV6_ACL Support"
+	help
+	      Support IPv6 ACL TR069 node
 
 config TCSUPPORT_DOWNSTREAM_QOS
     bool "TCSUPPORT_DOWNSTREAM_QOS Support"
@@ -935,6 +1395,11 @@ config TCSUPPORT_START_TRAP
 	bool "TCSUPPORT_START_TRAP Support"
 	help
 	      support start trap.
+config TCSUPPORT_SNMP_CHT
+	depends TCSUPPORT_SNMP_FULL
+	bool "TCSUPPORT_SNMP_CHT Support"
+	help
+	      support CHT SNMP Issue.
 
 config TCSUPPORT_SNMP_V3
 	depends TCSUPPORT_SNMP_FULL
@@ -1012,6 +1477,19 @@ config TCSUPPORT_IGMP_SNOOPING
 	help
 	      igmp snooping function support	
 
+config TCSUPPORT_IGMPSNOOPING_ENHANCE
+	depends on TCSUPPORT_IGMP_SNOOPING && TCSUPPORT_2_6_36_KERNEL
+	default y
+	bool "TCSUPPORT_IGMPSNOOPING_ENHANCE Support"
+	help
+	      igmp snooping  support above kernel 2.6.36
+
+config TCSUPPORT_MULTICAST_SPEED
+	depends TCSUPPORT_IGMPSNOOPING_ENHANCE && TCSUPPORT_CPU_MT7510
+	bool "TCSUPPORT_MULTICAST_SPEED Support"
+	help
+		multicast speed.
+
 config TCSUPPORT_IGMP_SNOOPING_V3
 	bool 
 	default y
@@ -1021,7 +1499,7 @@ config TCSUPPORT_IGMP_SNOOPING_V3
 	      igmp snooping v3 function support
 		  
 config TCSUPPORT_SMUX
-	depends TCSUPPORT_CPU_RT63365  || TCSUPPORT_CPU_RT63368 ||TCSUPPORT_CPU_RT65168
+	depends TCSUPPORT_CPU_RT63365  || TCSUPPORT_CPU_RT63368 ||TCSUPPORT_CPU_RT65168 || TCSUPPORT_CPU_MT7510 || TCSUPPORT_CPU_MT7520
 	bool "TCSUPPORT_SMUX Support"
 	help
 	      Multi interfaces for Each PVC support	
@@ -1175,6 +1653,12 @@ config TCSUPPORT_SIPROXD
 	default n
 	help
 		Siproxd support
+choice
+	prompt "Samba Support"
+
+config TCSUPPORT_SAMBA_NONE
+	bool "TCSUPPORT_SAMBA_NONE Support"
+
 config TCSUPPORT_SAMBA
 	bool "TCSUPPORT_SAMBA Support"
 	default n
@@ -1188,8 +1672,25 @@ config TCSUPPORT_SAMBA
 								[Simplified Chinese charset(CP936,GB2312) set]
 								[ASCII (United States) not set]
 								[NLS UTF-8 set]
+config TCSUPPORT_SAMBA_IPv6
+	depends TCSUPPORT_IPV6
+	bool "TCSUPPORT_SAMBA_IPv6 Support"
+	default n
+	help
+		Samba_ipv6 Server support
+		When you select this item, please change kernel_config:
+		DOS/FAT/NT Filesystem [Default codepage for FAT:437->936]
+							  [Default iocharset for FAT:ascii->utf8]
+		Native Language Support [Default NLS Option:iso8859-1->utf8]
+								[Codepage 437 not set]
+								[Simplified Chinese charset(CP936,GB2312) set]
+								[ASCII (United States) not set]
+								[NLS UTF-8 set]
+
+endchoice
+
 config TCSUPPORT_CODE_SHRINK
-	depends TCSUPPORT_CPU_TC3162U || TCSUPPORT_CPU_RT63260
+#	depends TCSUPPORT_CPU_TC3162U || TCSUPPORT_CPU_RT63260
 	bool "TCSUPPORT_CODE_SHRINK Support"
 	default n
 	help
@@ -1252,6 +1753,10 @@ config TCSUPPORT_3NTP_SERVER
 	help
 	      Support 3 ntp servers.
 endchoice
+config TCSUPPORT_UPNP
+	bool "TCSUPPORT_UPNP"
+	help
+	      Support UPnP deamon.
 config TCSUPPORT_UPNP_CERT
 	bool
 	default y
@@ -1293,8 +1798,15 @@ config TCSUPPORT_MEMORY_CONTROL
 	bool "TCSUPPORT_MEMORY_CONTROL Support"
 	help
 		Support memory control
+config	TCSUPPORT_OOM_RB_NEXT
+	depends TCSUPPORT_2_6_36_KERNEL
+	bool "TCSUPPORT_OOM_RB_NEXT Support"
+	default y
+	help
+		Add a workaround method to avoid oom and rb_next crash. 
+
 config TCSUPPORT_ETH4_WAN_PORT
-	depends !TCSUPPORT_CPU_RT63365  && !TCSUPPORT_CPU_RT63368
+	depends !TCSUPPORT_CPU_RT63365  && !TCSUPPORT_CPU_RT63368 && !TCSUPPORT_CPU_MT7510 && !TCSUPPORT_CPU_MT7520
 	bool "TCSUPPORT_ETH4_WAN_PORT Support"
 	help
 		ether port 4 as wan port
@@ -1373,6 +1885,11 @@ config TCSUPPORT_RESTORE_ROM_T
 	help
 		Support retore LiNOS key parameters to linux romfile when upgrade from LiNOS to linux.	
 
+config TCSUPPORT_CMDPROMPT
+	bool "TCSUPPORT_CMDPROMPT"
+	help
+		Support commands prompt.	
+
 config TCSUPPORT_WLAN_MAXSTANUM_GUI
 	depends TCSUPPORT_WLAN
 	bool "TCSUPPORT_WLAN_MAXSTANUM_GUI"
@@ -1380,7 +1897,7 @@ config TCSUPPORT_WLAN_MAXSTANUM_GUI
 		Add Max station number on WLan webpage for TC2 general.
 
 config	TCSUPPORT_MULTISERVICE_ON_WAN
-	depends TCSUPPORT_CPU_RT63365  || TCSUPPORT_CPU_RT63368 || TCSUPPORT_CPU_RT65168
+	depends TCSUPPORT_CPU_RT63365  || TCSUPPORT_CPU_RT63368 || TCSUPPORT_CPU_RT65168 || TCSUPPORT_CPU_MT7510
 	depends on WAN_PTM || WAN_ETHER
 	bool "TCSUPPORT_MULTISERVICE_ON_WAN Support"
 	help
@@ -1389,16 +1906,126 @@ config TCSUPPORT_AGEOUT_MAC
 	bool "TCSUPPORT_AGEOUT_MAC"
 	help
 		support when IVL MAC enable, lan 2 lan can not communicate in some case
+config TCSUPPORT_POWERSAVE_ENABLE
+	depends TCSUPPORT_CPU_RT63365 && TCSUPPORT_WLAN_GPIO
+	bool "TCSUPPORT_POWERSAVE_ENABLE SUPPORT"
+	help
+		support power save function and COC test for 2013-1014 standard
+config TCSUPPORT_CZ_H108N_COC_FOR_SDR
+	depends TCSUPPORT_POWERSAVE_ENABLE
+	bool "TCSUPPORT_CZ_H108N_COC_FOR_SDR Support"
+	help 
+		support power save function and COC test for 2013-1014 standard with DRAM is SDR
+config	TCSUPPORT_FON
+	depends TCSUPPORT_WLAN
+	bool "TCSUPPORT_FON Support"
+	help
+		Support fon function.
+
+config TCSUPPORT_FON_MODEL_A
+	depends TCSUPPORT_FON
+	bool "TCSUPPORT_FON_MODEL_A Support"
+	help 
+		Support fon model a function
+		
+config TCSUPPORT_FON_MODEL_B
+	depends TCSUPPORT_FON
+	bool "TCSUPPORT_FON_MODEL_B Support"
+	help 
+		Support fon model b function
+
+config TCSUPPORT_FON_CHILLI_ENHANCE
+	depends TCSUPPORT_FON
+	bool "TCSUPPORT_FON_CHILLI_ENHANCE Support"
+	help 
+		Support independ chilli's start from fonsmcd
+
+config	TCSUPPORT_TR069_UPGRADE_CUSTOM
+	depends TCSUPPORT_FW_UPGRADE_16M
+	bool "TCSUPPORT_TR069_UPGRADE_CUSTOM Support"
+	help
+		Support t&w tr069 firmware upgrade request.
+
+config	TCSUPPORT_MULTI_UPGRADE_LIONS
+	bool "TCSUPPORT_MULTI_UPGRADE_LIONS Support"
+	default n
+	help
+		Support multi upgrade linos allinone
+		
+config TCSUPPORT_ETHER_ALL_LED
+	bool "TCSUPPORT_ETHER_ALL_LED"
+	help
+		Add led for all lan ether status.
+		
+config TCSUPPORT_FW_INTERNET_LED
+	bool "TCSUPPORT_FW_INTERNET_LED"
+	help
+		Internet led bink when update firmware.
+
+config TCSUPPORT_VLAN_DOT1P
+	depends TCSUPPORT_VLAN_TAG
+	bool "TCSUPPORT_VLAN_DOT1P"
+	help
+		802.1P support on wan page.
+		
+config TCSUPPORT_BONDING
+	depends TCSUPPORT_CPU_MT7510
+	bool "TCSUPPORT_BONDING Support"
+	help
+		 PCIe Line Bonding support		
+		
+config TCSUPPORT_WAN_ETHER_LED
+	bool "TCSUPPORT_WAN_ETHER_LED"
+	help 
+		Support ether wan has own led for traffic.
+
+
+config TCSUPPORT_FTP_CMD
+	bool "TCSUPPORT_FTP_CMD Support"
+	help
+	      Support more ftp cmd
+	      
+config TCSUPPORT_CWMP_FAULT_RESPONSE
+	depends TCSUPPORT_CWMP
+	bool "TCSUPPORT_CWMP_FAULT_RESPONSE"
+	help
+		Support ACS returns the whole fail information if set series of tr69 parameters when they are not correct.
+
+config TCSUPPORT_DHCP_NOFORWARD
+	bool "TCSUPPORT_DHCP_NOFORWARD"
+	help
+		Discard packets which src port is 67 from ppp interface out. 
+
+config TCSUPPORT_WPS_BTN_NEWSPEC
+	depends TCSUPPORT_WLAN_WPS
+	bool "TCSUPPORT_WPS_BTN_NEWSPEC"
+	help
+		If wps button is pressed, all states are freed and a new negotiation begins.
+		
+config TCSUPPORT_ARPSTORM
+	bool "TCSUPPORT_ARPSTORM"
+	help
+		Enable run-in mode for arpstorm.
+
+config TCSUPPORT_EDCCA
+	bool "TCSUPPORT_EDCCA"
+	help
+		Enable EDCCA for CE adaptive certificate
 
 menu "Ethernet Port Mapping to Switch Port"
-	depends TCSUPPORT_CPU_RT63368 || TCSUPPORT_CPU_RT63365
+	depends TCSUPPORT_CPU_RT63368 || TCSUPPORT_CPU_RT63365 || TCSUPPORT_CPU_MT7510 || TCSUPPORT_CPU_MT7520
 
 config TCSUPPORT_MANUAL_ETHERNET_PORTMAP
-	depends TCSUPPORT_CPU_RT63368 || TCSUPPORT_CPU_RT63365
+	depends TCSUPPORT_CPU_RT63368 || TCSUPPORT_CPU_RT63365 || TCSUPPORT_CPU_MT7510 || TCSUPPORT_CPU_MT7520
 	bool "TCSUPPORT_MANUAL_ETHERNET_PORTMAP Support"
 	help
 	      Manual Ethernet Port Mapping support
 	
+config TCSUPPORT_GUI_ALG_CONTROL
+	bool "TCSUPPORT_GUI_ALG_CONTROL"
+	help
+	      Support to control the ALG through GUI.
+	      
 config TCSUPPORT_WAN_PORT
 	int "TCSUPPORT_WAN_PORT"
 	default "-1"
@@ -1448,7 +2075,8 @@ config TCSUPPORT_LAN5_PORT
 	help
 	  	 the switch port number which lan5 port map to
 
-endmenu	
+endmenu
+
 endmenu	
 	      	      	      	     	      	      	     
 source "CustomConfig" 
@@ -1460,3 +2088,5 @@ config TCSUPPORT_RELEASED_CODE
     help
          The flag of code release
 endchoice
+config TC_RELEASE_2_6_36_KERNEL
+    bool "TC_RELEASE_2_6_36_KERNEL"

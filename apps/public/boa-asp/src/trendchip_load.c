@@ -10,6 +10,9 @@
 
 #include "trendchip_load.h"
 
+#include <linux/version.h>
+#define KERNEL_2_6_36 	(LINUX_VERSION_CODE > KERNEL_VERSION(2,6,31))
+
 extern unsigned char StartChannelNumber;
 extern unsigned char EndChannelNumber;
 
@@ -3203,7 +3206,11 @@ int check_MTU_change(int filter_state)
 
   if(filter_state != filter_on){
     if(filter_on){
-      system("insmod /lib/modules/2.6.22.15/kernel/net/ipv4/netfilter/iptable_filter.ko");
+#if KERNEL_2_6_36
+			system("insmod /lib/modules/2.6.36/kernel/net/ipv4/netfilter/iptable_filter.ko");
+#else
+			system("insmod /lib/modules/2.6.22.15/kernel/net/ipv4/netfilter/iptable_filter.ko");			
+#endif
     }else{
       system("iptables -t filter -F");
       system("rmmod iptable_filter");

@@ -105,6 +105,10 @@ static void add_requests(struct dhcpMessage *packet)
 	if(enable121)
 		packet->options[end + OPT_DATA + len++] = OPT_CLASSLESS_STATIC_ROUTE;
 #endif
+
+#ifdef RTCONFIG_TR181
+	packet->options[end + OPT_DATA + len++] = OPT_VI_VENDOR_SPECIFIC;
+#endif
 	packet->options[end + OPT_LEN] = len;
 	packet->options[end + OPT_DATA + len] = DHCP_END;
 }
@@ -121,6 +125,9 @@ int send_discover(unsigned long xid, unsigned long requested)
 		add_simple_option(packet.options, DHCP_REQUESTED_IP, requested);
 
 	add_requests(&packet);
+#ifdef RTCONFIG_TR181
+	addDeviceVIOption(packet.options);
+#endif
 	LOG(LOG_DEBUG, "Sending discover...");
 	return raw_packet(&packet, INADDR_ANY, CLIENT_PORT, INADDR_BROADCAST,
 				SERVER_PORT, MAC_BCAST_ADDR, client_config.ifindex);
@@ -140,6 +147,9 @@ int send_selecting(unsigned long xid, unsigned long server, unsigned long reques
 	add_simple_option(packet.options, DHCP_SERVER_ID, server);
 
 	add_requests(&packet);
+#ifdef RTCONFIG_TR181
+	addDeviceVIOption(packet.options);
+#endif
 	addr.s_addr = requested;
 	LOG(LOG_DEBUG, "Sending select for %s...", inet_ntoa(addr));
 	return raw_packet(&packet, INADDR_ANY, CLIENT_PORT, INADDR_BROADCAST,
@@ -158,6 +168,9 @@ int send_renew(unsigned long xid, unsigned long server, unsigned long ciaddr)
 	packet.ciaddr = ciaddr;
 
 	add_requests(&packet);
+#ifdef RTCONFIG_TR181
+	addDeviceVIOption(packet.options);
+#endif
 	LOG(LOG_DEBUG, "Sending renew...");
 	if (server)
 		ret = kernel_packet(&packet, ciaddr, CLIENT_PORT, server, SERVER_PORT);

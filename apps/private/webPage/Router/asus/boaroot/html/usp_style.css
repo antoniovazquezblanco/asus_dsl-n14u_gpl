@@ -17,10 +17,10 @@
 	display:none;
 }
 
-#game {background-image:url(/images/band-color1.asp);}
-#internet {background-image:url(/images/band-color2.asp);}
-#aidisk {background-image:url(/images/band-color3.asp);}
-#streaming {background-image:url(/images/band-color4.asp);}
+#game {background-image:url(/images/band-color1.gif);}
+#internet {background-image:url(/images/band-color2.gif);}
+#aidisk {background-image:url(/images/band-color3.gif);}
+#streaming {background-image:url(/images/band-color4.gif);}
 #p2p {
 	font-size:11px;
 	color: #333333;
@@ -43,33 +43,33 @@
 	border:2px inset #CCC;	
 }
 
-.qosbutton1 { background: url(/images/band-1.asp) no-repeat center; width:100px; height:90px;}
-.qosbutton1:hover{ background: url(/images/band-1r.asp) no-repeat center; cursor:pointer;}
-.qosbutton2 { background: url(/images/band-2.asp) no-repeat center;}
-.qosbutton2:hover{ background: url(/images/band-2r.asp) no-repeat center; cursor:pointer;}
-.qosbutton3 { background: url(/images/band-3.asp) no-repeat center;}
-.qosbutton3:hover{ background: url(/images/band-3r.asp) no-repeat center; cursor:pointer;}
-.qosbutton4 { background: url(/images/band-4.asp) no-repeat center;}
-.qosbutton4:hover{ background: url(/images/band-4r.asp) no-repeat center; cursor:pointer;}	
+.qosbutton1 { background: url(/images/band-1.gif) no-repeat center; width:100px; height:90px;}
+.qosbutton1:hover{ background: url(/images/band-1r.gif) no-repeat center; cursor:pointer;}
+.qosbutton2 { background: url(/images/band-2.gif) no-repeat center;}
+.qosbutton2:hover{ background: url(/images/band-2r.gif) no-repeat center; cursor:pointer;}
+.qosbutton3 { background: url(/images/band-3.gif) no-repeat center;}
+.qosbutton3:hover{ background: url(/images/band-3r.gif) no-repeat center; cursor:pointer;}
+.qosbutton4 { background: url(/images/band-4.gif) no-repeat center;}
+.qosbutton4:hover{ background: url(/images/band-4r.gif) no-repeat center; cursor:pointer;}	
 
 #qosbox a span{ display:none}
 #qosbox a:hover span{ display:block; font-size:11px; font-family:Verdana, Arial, Helvetica, sans-serif;}
 .band{font-family :Verdana;font-size : 11px;line-height : 160%;text-align:center;}
-.bandtext{ width:400px; height:50px; font-family :Verdana; font-size:13px; color:#4e73a1; font-weight:bold; text-align:center; line-height:50px; background-image:url(/images/band-arrow.asp);}
+.bandtext{ width:400px; height:50px; font-family :Verdana; font-size:13px; color:#4e73a1; font-weight:bold; text-align:center; line-height:50px; background-image:url(/images/band-arrow.gif);}
 
 .apply1 {width:105px; font-family:Verdana; font-size:11px; text-align:center;}
 .apply1 a {height:16px; text-decoration:none;}
 .apply1 a:link, .apply1 a:visited {
-	color:#002157; display:block; background:url(/images/button-next.asp);
+	color:#002157; display:block; background:url(/images/button-next.gif);
 	padding-left:5px; padding-top:5px; padding-bottom:10px;}
-.apply1 a:hover, .apply1 a:active {color:#ffffff; background:url(/images/button-next.asp) 0 -31px;}
+.apply1 a:hover, .apply1 a:active {color:#ffffff; background:url(/images/button-next.gif) 0 -31px;}
 
 .apply1 {width:105px; font-family:Verdana; font-size:11px; text-align:center;}
 .apply1 a {height:16px; text-decoration:none;}
 .apply1 a:link, .apply1 a:visited {
-	color:#002157; display:block; background:url(/images/button-next.asp);
+	color:#002157; display:block; background:url(/images/button-next.gif);
 	padding-left:5px; padding-top:5px; padding-bottom:10px;}
-.apply1 a:hover, .apply1 a:active {color:#ffffff; background:url(/images/button-next.asp) 0 -31px;}
+.apply1 a:hover, .apply1 a:active {color:#ffffff; background:url(/images/button-next.gif) 0 -31px;}
 
 
 #Senario{
@@ -96,7 +96,7 @@
 
 #switch_hint{
 	margin:167px 0px 0px 143px;
-	background:url(/images/switch_hint.asp) 0 0 no-repeat;
+	background:url(/images/switch_hint.gif) 0 0 no-repeat;
 	position:absolute;
 	z-index:97;
 	width:200px;
@@ -104,7 +104,7 @@
 }
 #mode_btn{
 	margin:297px 0px 0px 223px;
-	background:url(/images/mode_btn.asp) 0 0 no-repeat;
+	background:url(/images/mode_btn.gif) 0 0 no-repeat;
 	position:absolute;
 	z-index:98;
 	width:19px;
@@ -117,8 +117,9 @@
 }
 .gninfo_th_table th{
 	font-size: 14px;
-	color: #AAA;
+	color: #BBB;
 	padding-left: 10px;
+	text-shadow: 1px 1px 0px #000;
 	/*line-height:28px;*/
 }
 
@@ -128,11 +129,11 @@
 .gninfo_table th{
 	font-size: 14px;
 	color: #AAA;
-	/*line-height:28px;*/
+	line-height:28px;
 }
 .gninfo_table td{
 	font-size: 12px;
-	line-height:30px;
+	line-height:40px;
 }
 .gninfo_table tbody:hover{
 	background-color: #444f53;

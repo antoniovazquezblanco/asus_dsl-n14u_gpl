@@ -10,164 +10,308 @@
 <link rel="icon" href="/images/favicon.png">
 <title>device-map/clients.asp</title>
 <style>
-	a:link {
-	text-decoration: underline;
-	color: #FFFFFF;
-	font-family: Lucida Console;
-}
-a:visited {
-	text-decoration: underline;
-	color: #FFFFFF;
-}
-a:hover {
-	text-decoration: underline;
-	color: #FFFFFF;
-}
-a:active {
-	text-decoration: none;
-	color: #FFFFFF;
-}
 p{
 	font-weight: bolder;
 }
-.ClientName{
-	font-size: 12px;
-	font-family: Lucida Console;
+.type0:hover{
+	background-image:url('/images/New_ui/networkmap/client.png') !important;
+	background-position:57% -10% !important;
 }
-
-#device_img6{
-  background: url(/images/wl_device/wl_devices.png) no-repeat;
-  background-position: 7px -152px; width: 30px; height: 33px;
+.circle {
+	position: absolute;
+	width: 23px;
+	height: 23px;
+	border-radius: 50%;
+	background: #333;
+	margin-top: -77px;
+	margin-left: 57px;
+}
+.circle div{
+	height: 23px;
+	text-align: center;
+	margin-top: 4px;
+}
+.nav {
+	display:none;
+    float: left;
+    width: 108%;
+    margin-bottom: 30px;
+    margin-top: -5px;
+}
+.nav ul{
+    margin: 0;
+    padding: 0;
+    border-top:solid 2px #666;
+}
+.nav li{
+	font-family:Arial;
+    position: relative;
+    float: left;
+    color: #FFF;
+    list-style: none;
+    background:#4d595d;
+    cursor:pointer;
+    width: 100%;
+}
+.nav li:hover{
+	background-color:#77A5C6;
+}
+.nav li a {
+    display: block; 
+    padding: 6px;      
+    color: #FFF;
+    border-bottom:solid 1px #666;
+    text-decoration: none;
+    cursor:pointer;
+} 
+.ipMethod{
+	background-color: #222;
+	font-size: 10px;
+	font-family: monospace;
+	padding: 2px;
+	border-radius: 3px;
+}
+.imgUserImage{
+	cursor: pointer;
+	position: relative; 
+	left: 15px; 
+	width: 52px;
+	height: 52px;
+	-webkit-border-radius: 5px;
+	-moz-border-radius: 5px;
+	border-radius: 5px;
 }
 </style>
-<link href="/NM_style.css" rel="stylesheet" type="text/css" />
 <link href="/form_style.css" rel="stylesheet" type="text/css" />
+<link href="/NM_style.css" rel="stylesheet" type="text/css" />
+<link href="/device-map/device-map.css" rel="stylesheet" type="text/css" />
 <script type="text/javascript" src="/state.js"></script>
+<script type="text/javascript" src="/client_function.js"></script>
 <script type="text/javascript" src="/jquery.js"></script>
 <script type="text/javascript" src="/jquery.xdomainajax.js"></script>
 <script type="text/javascript" src="/help.js"></script>
 
 <script>
+overlib.isOut = true;
 var $j = jQuery.noConflict();
-function initial(){}
+var pagesVar = {
+	curTab: "online",
+	CLIENTSPERPAGE: 7,
+	startIndex: 0,
+	endIndex: 7, /* refer to startIndex + CLIENTSPERPAGE */
+	startArray: [0],
 
-var overlib_str_tmp = "";
-function showTable(id,data,keyIndex){
-	//var arp_list = [['192.168.1.8','00:60:6E:92:EC:53'],['192.168.1.2','84:38:35:C0:C4:33'],['','']];
-	var arp_list = [<% tcWebApi_get_arp_list() %>['','']];
+	resetVar: function(){
+		pagesVar.CLIENTSPERPAGE = 7;
+		pagesVar.startIndex = 0;
+		pagesVar.endIndex = pagesVar.startIndex + pagesVar.CLIENTSPERPAGE;
+		pagesVar.startArray = [0];
+	}
+}
 
-	var code = "";
-	code += '<table width="100%" border="1" cellspacing="0" cellpadding="4" align="center" class="list_table" id="client_list_table">';
-	
-	// Generate table data, ["1", "BVA-NB","192.168.177.168","00:22:15:A5:03:68"],
-	var emptyList = "1";
-	var overlib_str = "";	
-	
-	for(var i =0; i<data.length; i++){
-	var overlib_str = "";
-		if(data[i][keyIndex] != ""){
-			if(data[i][3] == "00:00:00:00:00:00")	//Viz add special case, remove it after tableData fixed
-				continue;
-			else{
-				emptyList = "0";
-				overlib_str += "<p><% tcWebApi_Get("String_Entry", "PPPC_UserName_in","s")%></p>" + data[i][1];
-				overlib_str += "<p><% tcWebApi_Get("String_Entry", "MAC_Address","s")%>:</p>" + data[i][3];								
-				if(parent.login_ip_str() == data[i][2])
-					overlib_str += "<p><% tcWebApi_Get("String_Entry", "CTL_localdevice","s")%>:</p>YES";
-	
-				code +='<tr>';
-				//["1", "BVA-NB","192.168.177.168","00:22:15:A5:03:68"],
-				for(var j=0; j<data[i].length-1; j++){
-					if(j==0){
-						code +='<td width="12%" height="30px;">';	// title="PC"
-						code +='<div id="device_img6"></div></td>';
-					}
-					else if(j==1){
-						if(data[i][1] != "")
-							code += '<td width="40%" title="'+ data[i][3] +'" onclick="oui_query(\'' + data[i][3] + '\');overlib_str_tmp=\''+ overlib_str +'\';return overlib(\''+ overlib_str +'\');" onmouseout="nd();" class="ClientName" style="cursor:pointer;text-decoration:underline;">'+ data[i][1] +'</td>';	// Show Device-name
-						else
-							code += '<td width="40%" title="'+ data[i][3] +'" onclick="oui_query(\'' + data[i][3] + '\');overlib_str_tmp=\''+ overlib_str +'\';return overlib(\''+ overlib_str +'\');" onmouseout="nd();" class="ClientName" style="cursor:pointer;text-decoration:underline;">'+ data[i][3] +'</td>';	// Show MAC	
-					}
-					else if(j==2){
-						code += '<td width="36%"><span title="<% tcWebApi_Get("String_Entry", "LAN_IP_client","s")%>" class="ClientName">'+ data[i][2] +'</span></td>';	
-					}
-				}
-				code += '</tr>';
-				overlib_str = "";
-			}	
-		}
+function initial(){	
+	//parent.hideEditBlock(); Viz hide temp	
+	updateClientList();	
+}
+
+function convRSSI(val){
+	if(val == "") return "wired";
+
+	val = parseInt(val);
+	if(val >= -50) return 5;
+	else if(val >= -80)	return Math.ceil((24 + ((val + 80) * 26)/10)/20);
+	else if(val >= -90)	return Math.ceil((((val + 90) * 26)/10)/20);
+	else return 0;
+}
+
+function drawClientList(tab){		
+	var clientHtml = '<table width="100%" cellspacing="0" align="center"><tbody><tr><td>';
+	var clientHtmlTd = '';
+	var i = pagesVar.startIndex;
+	var userImage = "";
+	var custom_usericon = '';	//<nvram_dump("usericon.log","");>
+	if(typeof tab == "undefined"){
+		tab = pagesVar.curTab;		
 	}
-	
-	overlib_str = ""; 
-	if(emptyList == "0"){
-		for(var i =0; i<arp_list.length-1; i++){
-			var found = "0";
-			
-			if(arp_list[i][0] != ""){
-				for(var j =0; j<data.length; j++){				
-					if(arp_list[i][0] == data[j][2]){
-						found = "1";
-						
-						//Viz add special case, remove it after tableData fixed
-						if(data[j][3] == "00:00:00:00:00:00")
-								found = "0";
-								
-						break;		
-					}
-				}
-			}	
+	genClientList();
+	pagesVar.endIndex = pagesVar.startIndex + pagesVar.CLIENTSPERPAGE;	
+	while(i < pagesVar.endIndex){
+		var clientObj = clientList[clientList[i]];
+		// fileter /*
 				
-			if(found == "0"){
-				overlib_str += "<p><% tcWebApi_Get("String_Entry", "MAC_Address","s")%>:</p>" + arp_list[i][1];
-				if(parent.login_ip_str() == arp_list[i][0])
-					overlib_str += "<p><% tcWebApi_Get("String_Entry", "CTL_localdevice","s")%>:</p>YES";									
-				
-				code += '<tr>';
-				code += '<td align="center" class="tabdata"><div id="device_img6"></div></td>';
-				code += '<td align="center" class="ClientName" title="'+ arp_list[i][1] +'" onClick="oui_query(\''+ arp_list[i][1] +'\');overlib_str_tmp=\'' + overlib_str + '\';return overlib(\'' + overlib_str + '\');" onmouseout="nd();" style="cursor:pointer;text-decoration:underline;">' + arp_list[i][1] + '</td>';
-				code += '<td align="center" class="tabdata">' + arp_list[i][0] + '</td>';
-				code += '</tr>';
-			}
+		if(i > clientList.length-1) break;		
+		if(tab == 'online' && !clientObj.isOnline){i++; pagesVar.endIndex++; continue;}		
+		if((tab == 'wired' && clientObj.isWL != 0) || !clientObj.isOnline){i++; pagesVar.endIndex++; continue;}		
+		if(((tab == 'wireless' || tab == 'wireless0') && clientObj.isWL == 0) || !clientObj.isOnline){i++; pagesVar.endIndex++; continue;}
+		if((tab == 'wireless1' && (clientObj.isWL == 0 || clientObj.isWL == 2 || clientObj.isWL == 3)) || !clientObj.isOnline){i++; pagesVar.endIndex++; continue;}
+		if((tab == 'wireless2' && (clientObj.isWL == 0 || clientObj.isWL == 1 || clientObj.isWL == 3)) || !clientObj.isOnline){i++; pagesVar.endIndex++; continue;}
+		if((tab == 'wireless3' && (clientObj.isWL == 0 || clientObj.isWL == 1 || clientObj.isWL == 2)) || !clientObj.isOnline){i++; pagesVar.endIndex++; continue;}
+		if(tab == 'custom' && clientObj.from != "customList"){i++; pagesVar.endIndex++; continue;}
+		if(clientObj.Name.toString().toLowerCase().indexOf(document.getElementById("searchingBar").value.toLowerCase()) == -1){i++; pagesVar.endIndex++; continue;}
+		// filter */ 
+
+		clientHtmlTd += '<div class="clientBg"><table width="100%" height="85px" border="0"><tr><td rowspan="3" width="85px">';
+		userImage = getUserIcon(clientObj.MacAddr, custom_usericon);		
+		if(userImage != "") {
+			clientHtmlTd += '<div title="'+ clientObj.dpiType + '"">';
+			clientHtmlTd += '<img id="imgUserImage_'+ i +'" class="imgUserImage" src="' + userImage + '"';
+			clientHtmlTd += 'onclick="popupCustomTable(\'' + clientObj.MacAddr + '\');"';
+			clientHtmlTd += '></div>';
 		}
+		else {
+			clientHtmlTd += '<div class="clientIcon type';
+			clientHtmlTd += clientObj.type;
+			//clientHtmlTd += '" onclick="popupCustomTable(\'';		Viz hide temporary
+			//clientHtmlTd += clientObj.MacAddr;
+			//clientHtmlTd += '\')" title="';
+			clientHtmlTd += '" title="';
+			clientHtmlTd += clientObj.dpiType;
+			clientHtmlTd += '"></div>';			
+		}
+
+		clientHtmlTd += '</td><td style="height:30px;" title="'; 
+		clientHtmlTd += clientObj.Name;
+		clientHtmlTd += '" class="radioIcon radio_';		
+		clientHtmlTd += convRSSI(clientObj.rssi);		
+		clientHtmlTd += '">';
+		clientHtmlTd += (clientObj.Name.length > 18) ? (clientObj.Name.substr(0,16) + "...") : clientObj.Name;
+		clientHtmlTd += '</td></tr><tr><td style="height:20px;">';
+		clientHtmlTd += (clientObj.isWebServer) ? '<a class="link" href="http://' + clientObj.IP + '" target="_blank">' + clientObj.IP + '</a>' : clientObj.IP;
+
+		if(parent.sw_mode == 1){
+			clientHtmlTd += ' <span class="ipMethod" onmouseover="return overlib(\''
+			clientHtmlTd += clientObj.isStaticIP ? "<%tcWebApi_get("String_Entry","BOP_ctype_title5","s")%>" : "<%tcWebApi_get("String_Entry","BOP_ctype_title1","s")%>";
+			clientHtmlTd += '\')" onmouseout="nd();">'
+			clientHtmlTd += clientObj.isStaticIP ? "Static" : "DHCP" + '</span>';
+		}
+
+		clientHtmlTd += '</td></tr><tr><td><div style="margin-top:-15px;" class="link" onclick="oui_query(\'';
+		clientHtmlTd += clientObj.MacAddr;
+		clientHtmlTd += '\',\''+retOverLibStr(clientObj)+'\');return overlib(\'';		//Viz patched 2014.12.22
+		clientHtmlTd += retOverLibStr(clientObj);
+		clientHtmlTd += '\');" onmouseout="nd();">';
+		clientHtmlTd += clientObj.MacAddr;
+		clientHtmlTd += '</td></tr></table></div>';
+
+		// display how many clients that hide behind a repeater.
+		if(clientObj.macRepeat > 1){
+			clientHtmlTd += '<div class="circle"><div>';
+			clientHtmlTd += clientObj.macRepeat;
+			clientHtmlTd += '</div></div>';
+		}
+
+		i++;
 	}
-	else if(emptyList == "1"){
-		if(arp_list.length == 1){
-			code += '<tr><td style="color:#FFCC00;" colspan="4"><%tcWebApi_get("String_Entry","IPC_VSList_Norule","s")%></td></tr>';
+		
+	if(clientHtmlTd == ''){
+		if(networkmap_fullscan == 1){
+			clientHtmlTd = '<div style="color:#FC0;height:30px;text-align:center;margin-top:15px"><%tcWebApi_get("String_Entry","Device_Searching","s")%><img src="/images/InternetScan.gif"></div>';
 		}
 		else{
-			for(var i =0; i<arp_list.length; i++){
-				if(arp_list[i][0] != ""){		
-					code += '<tr>';
-					code += '<td align="center" class="tabdata"><div id="device_img6"></div></td>';
-					code += '<td align="center" class="ClientName" title="'+ arp_list[i][1] +'" onClick="oui_query(\''+ arp_list[i][1] +'\');overlib_str_tmp=\'' + overlib_str +'\';return overlib(\'' + overlib_str + '\');" onmouseout="nd();" style="cursor:pointer;text-decoration:underline;">' + arp_list[i][1] + '</td>';
-					code += '<td align="center" class="tabdata">' + arp_list[i][0] + '</td>';
-					code += '</tr>';
-				}
-			}
+			clientHtmlTd = '<div style="color:#FC0;height:30px;text-align:center;margin-top:15px"><%tcWebApi_get("String_Entry","IPC_VSList_Norule","s")%></div>';
+		}	
+	}
+
+	clientHtml += clientHtmlTd;
+	clientHtml += '</td></tr></tbody></table>';	
+	document.getElementById("client_list_Block").innerHTML = clientHtml;
+
+	document.getElementById("leftBtn").style.visibility = (pagesVar.startIndex == 0) ? "hidden" : "visible";
+	document.getElementById("rightBtn").style.visibility = (pagesVar.endIndex >= clientList.length) ? "hidden" : "visible";
+
+	document.getElementById("tabWired").style.display = (totalClientNum.wired == 0)? "none" : "";	
+	document.getElementById("tabWiredNum").innerHTML = 	totalClientNum.wired;
+
+	document.getElementById("tabWireless").style.display = (totalClientNum.wireless == 0)? "none" : "";
+
+	if(smart_connect_support != -1){
+		if(tab.indexOf('wireless') == -1){
+			//Viz rm 2015.2.6 document.getElementById("select_wlclient_band").style.display="none";
+			display_wlclient_band = '0';
+			document.getElementById("searchingBar").placeholder = 'Search';
 		}
+		document.getElementById("tabWirelessNum").innerHTML = totalClientNum.wireless;
+		document.getElementById("liWirelessNum1").innerHTML = totalClientNum.wireless_1;
+		document.getElementById("liWirelessNum2").innerHTML = totalClientNum.wireless_2;
+		document.getElementById("liWirelessNum3").innerHTML = totalClientNum.wireless_3;
+
+		if(tab == 'wireless1')
+			document.getElementById("searchingBar").placeholder = '[2.4GHz]('+totalClientNum.wireless_1+')';
+		else if(tab =='wireless2')
+			document.getElementById("searchingBar").placeholder = '[5GHz-1]('+totalClientNum.wireless_2+')';
+		else if(tab =='wireless3')
+			document.getElementById("searchingBar").placeholder = '[5GHz-2]('+totalClientNum.wireless_3+')';
+		else if(tab =='wireless0')
+			document.getElementById("searchingBar").placeholder = '[All]('+totalClientNum.wireless+')';				
+	}else{
+		document.getElementById("tabWirelessNum").innerHTML = totalClientNum.wireless;
 	}
-	
-	
-	code += '</table>';
-	$("client_list_Block").innerHTML = code;
-	
-	/*	
-	if(parseInt(<%TcWebApi_get("DhcpLease","LeaseNum","s")%>)>10)
-	{
-		//html.push("<input type=button name=MORE  value=More... onClick=javascript:window.open(\"/cgi-bin/more_client_list.asp\")>")
+
+
+	if(pagesVar.curTab != tab){
+		document.getElementById("client_list_Block").style.display = 'none';
+		$j("#client_list_Block").fadeIn(300);
+		pagesVar.curTab = tab;
 	}
-	document.getElementById(id).innerHTML = html.join('');
-	*/
+
+	
+	$j(".circle").mouseover(function(){
+		return overlib(this.firstChild.innerHTML + " clients are connecting to <% nvram_get("productid"); %> through this device.");
+	});
+
+	$j(".circle").mouseout(function(){
+		nd();
+	});
+}
+
+function updatePagesVar(direction){
+	if(typeof direction != "undefined"){
+		if(direction == '-'){
+			pagesVar.startArray.length--;
+			pagesVar.startIndex = pagesVar.startArray.slice(-1)[0];
+			pagesVar.endIndex = pagesVar.startIndex + pagesVar.CLIENTSPERPAGE;
+		}
+		else if(direction == '+'){
+			pagesVar.startIndex = pagesVar.endIndex;
+			pagesVar.endIndex = pagesVar.startIndex + pagesVar.CLIENTSPERPAGE;
+			pagesVar.startArray.push(pagesVar.startIndex);
+		}
+
+		pagesVar.startIndex = (pagesVar.startIndex < 0) ? 0 : pagesVar.startIndex;
+		pagesVar.endIndex = (pagesVar.endIndex > clientList.length) ? clientList.length : pagesVar.endIndex;
+		pagesVar.endIndex = (pagesVar.endIndex < pagesVar.CLIENTSPERPAGE) ? pagesVar.CLIENTSPERPAGE : pagesVar.endIndex;
+	}
+		
+	drawClientList(pagesVar.curTab);
 }
 
 function doRefresh()
 {
-		parent.showLoading(3);
-		setTimeout("window.location.reload()", 3000);
+		parent.manualUpdate = true;
+		document.form.refresh_networkmap_Flag.value = 1;
+		document.form.submit();
+		setTimeout("window.location.reload()", 1000);
 }
 
-overlib.isOut = true;
-function oui_query(mac) {
+function retOverLibStr(client){
+	var overlibStr = "<p><%tcWebApi_get("String_Entry","MAC_Address","s")%>:</p>" + client.MacAddr.toUpperCase();
+
+	if(client.ssid)
+		overlibStr += "<p>SSID:</p>" + client.ssid;
+	if(client.isLogin)
+		overlibStr += "<p><%tcWebApi_get("String_Entry","CTL_localdevice","s")%>:</p>YES";
+	if(client.isPrinter)
+		overlibStr += "<p><%tcWebApi_get("String_Entry","Device_service_Printer","s")%></p>YES";
+	if(client.isITunes)
+		overlibStr += "<p><%tcWebApi_get("String_Entry","Device_service_iTune","s")%></p>YES";
+	if(client.isWL > 0)
+		overlibStr += "<p><%tcWebApi_get("String_Entry","Wireless_Radio","s")%>:</p>" + ((client.isWL == 2) ? "5GHz (" : "2.4GHz (") + client.rssi + "db)";
+	
+	return overlibStr;
+}
+
+var overlib_str_tmp = "";
+function oui_query(mac, content) {
 	var tab = new Array();	
 	tab = mac.split(mac.substr(2,1));
 
@@ -183,160 +327,177 @@ function oui_query(mac) {
     success: function(response) {
 			//if(overlib.isOut)
 				//return nd();
-			var retData = response.responseText.split("pre")[1].split("(base 16)")[1].replace("PROVINCE OF CHINA", "R.O.C").split("&lt;/");
-			overlib_str_tmp += "<p><span>.....................................</span></p>";
+			var retData = response.responseText.split("pre")[1].split("(base 16)")[1].replace("PROVINCE OF CHINA", "R.O.C").split("&lt;/");			
+			overlib_str_tmp = content+"<p><span>.....................................</span></p>";
 			return overlib(overlib_str_tmp + "<p style='margin-top:5px'>Manufacturer:</p>" + retData[0]);
 		}    
   });
 }
+
+function popupCustomTable(mac){
+	parent.popupEditBlock(clientList[mac]);
+}
+
+function updateClientList(e){
+	$j.ajax({
+		url: '/update_clients.asp',
+		dataType: 'script', 
+		error: function(xhr) {
+			setTimeout("updateClientList();", 1000);
+		},
+		success: function(response){			
+			document.getElementById("loadingIcon").style.visibility = (networkmap_fullscan == 1 && parent.manualUpdate) ? "visible" : "hidden";			
+			if(isJsonChanged(originData, originDataTmp) || originData.fromNetworkmapd == ""){
+				drawClientList();				
+			}
+			
+			parent.show_client_status(originData.size);
+			if(networkmap_fullscan == 0){
+				parent.manualUpdate = false;
+			}		
+			
+			setTimeout("updateClientList();", 3000);				
+		}    
+	});
+}
 </script>
 </head>
 <body class="statusbody" onload="initial();">
-<FORM METHOD="POST" name="uiViewLanForm">
-<table width="320px" align border="0" cellpadding="0" cellspacing="0">
-<tr>
-<td>
-<table width="100px" border="0" align="left" cellpadding="0" cellspacing="0">
-<tr>
-<td >
-</td>
-<td ></td>
-<td>&nbsp</td>
-</tr>
-</table>
-</td>
-</tr>
-<tr>
-<td>
-<table width="95%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="table1px">
-<tr>
-<td style="padding:3px 3px 5px 5px;">
-<div id="client_list_Block">
-<div id="dhcpclientList"></div>
-<script language="JavaScript">
-	var tableData = [
-		//["1", "BVA-NB","192.168.177.168","00:22:15:A5:03:68"],
-		["1", "<%tcWebApi_staticGet("DhcpLease_Entry0", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry0", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry0", "MAC","s")%>"],
-		["2", "<%tcWebApi_staticGet("DhcpLease_Entry1", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry1", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry1", "MAC","s")%>"],
-		["3", "<%tcWebApi_staticGet("DhcpLease_Entry2", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry2", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry2", "MAC","s")%>"],
-		["4", "<%tcWebApi_staticGet("DhcpLease_Entry3", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry3", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry3", "MAC","s")%>"],
-		["5", "<%tcWebApi_staticGet("DhcpLease_Entry4", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry4", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry4", "MAC","s")%>"],
-		["6", "<%tcWebApi_staticGet("DhcpLease_Entry5", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry5", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry5", "MAC","s")%>"],
-		["7", "<%tcWebApi_staticGet("DhcpLease_Entry6", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry6", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry6", "MAC","s")%>"],
-		["8", "<%tcWebApi_staticGet("DhcpLease_Entry7", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry7", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry7", "MAC","s")%>"],
-		["9", "<%tcWebApi_staticGet("DhcpLease_Entry8", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry8", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry8", "MAC","s")%>"],
-		["10", "<%tcWebApi_staticGet("DhcpLease_Entry9", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry9", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry9", "MAC","s")%>"],
-		["11", "<%tcWebApi_staticGet("DhcpLease_Entry10", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry10", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry10", "MAC","s")%>"],
-		["12", "<%tcWebApi_staticGet("DhcpLease_Entry11", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry11", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry11", "MAC","s")%>"],
-		["13", "<%tcWebApi_staticGet("DhcpLease_Entry12", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry12", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry12", "MAC","s")%>"],
-		["14", "<%tcWebApi_staticGet("DhcpLease_Entry13", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry13", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry13", "MAC","s")%>"],
-		["15", "<%tcWebApi_staticGet("DhcpLease_Entry14", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry14", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry14", "MAC","s")%>"],
-		["16", "<%tcWebApi_staticGet("DhcpLease_Entry15", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry15", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry15", "MAC","s")%>"],
-		["17", "<%tcWebApi_staticGet("DhcpLease_Entry16", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry16", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry16", "MAC","s")%>"],
-		["18", "<%tcWebApi_staticGet("DhcpLease_Entry17", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry17", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry17", "MAC","s")%>"],
-		["19", "<%tcWebApi_staticGet("DhcpLease_Entry18", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry18", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry18", "MAC","s")%>"],
-		["20", "<%tcWebApi_staticGet("DhcpLease_Entry19", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry19", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry19", "MAC","s")%>"],
-		["21", "<%tcWebApi_staticGet("DhcpLease_Entry20", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry20", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry20", "MAC","s")%>"],
-		["22", "<%tcWebApi_staticGet("DhcpLease_Entry21", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry21", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry21", "MAC","s")%>"],
-		["23", "<%tcWebApi_staticGet("DhcpLease_Entry22", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry22", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry22", "MAC","s")%>"],
-		["24", "<%tcWebApi_staticGet("DhcpLease_Entry23", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry23", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry23", "MAC","s")%>"],
-		["25", "<%tcWebApi_staticGet("DhcpLease_Entry24", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry24", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry24", "MAC","s")%>"],
-		["26", "<%tcWebApi_staticGet("DhcpLease_Entry25", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry25", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry25", "MAC","s")%>"],
-		["27", "<%tcWebApi_staticGet("DhcpLease_Entry26", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry26", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry26", "MAC","s")%>"],
-		["28", "<%tcWebApi_staticGet("DhcpLease_Entry27", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry27", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry27", "MAC","s")%>"],
-		["29", "<%tcWebApi_staticGet("DhcpLease_Entry28", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry28", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry28", "MAC","s")%>"],
-		["30", "<%tcWebApi_staticGet("DhcpLease_Entry29", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry29", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry29", "MAC","s")%>"],
-		["31", "<%tcWebApi_staticGet("DhcpLease_Entry30", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry30", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry30", "MAC","s")%>"],
-		["32", "<%tcWebApi_staticGet("DhcpLease_Entry31", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry31", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry31", "MAC","s")%>"],
-		["33", "<%tcWebApi_staticGet("DhcpLease_Entry32", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry32", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry32", "MAC","s")%>"],
-		["34", "<%tcWebApi_staticGet("DhcpLease_Entry33", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry33", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry33", "MAC","s")%>"],
-		["35", "<%tcWebApi_staticGet("DhcpLease_Entry34", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry34", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry34", "MAC","s")%>"],
-		["36", "<%tcWebApi_staticGet("DhcpLease_Entry35", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry35", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry35", "MAC","s")%>"],
-		["37", "<%tcWebApi_staticGet("DhcpLease_Entry36", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry36", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry36", "MAC","s")%>"],
-		["38", "<%tcWebApi_staticGet("DhcpLease_Entry37", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry37", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry37", "MAC","s")%>"],
-		["39", "<%tcWebApi_staticGet("DhcpLease_Entry38", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry38", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry38", "MAC","s")%>"],
-		["40", "<%tcWebApi_staticGet("DhcpLease_Entry39", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry39", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry39", "MAC","s")%>"],
-		["41", "<%tcWebApi_staticGet("DhcpLease_Entry40", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry40", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry40", "MAC","s")%>"],
-		["42", "<%tcWebApi_staticGet("DhcpLease_Entry41", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry41", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry41", "MAC","s")%>"],
-		["43", "<%tcWebApi_staticGet("DhcpLease_Entry42", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry42", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry42", "MAC","s")%>"],
-		["44", "<%tcWebApi_staticGet("DhcpLease_Entry43", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry43", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry43", "MAC","s")%>"],
-		["45", "<%tcWebApi_staticGet("DhcpLease_Entry44", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry44", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry44", "MAC","s")%>"],
-		["46", "<%tcWebApi_staticGet("DhcpLease_Entry45", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry45", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry45", "MAC","s")%>"],
-		["47", "<%tcWebApi_staticGet("DhcpLease_Entry46", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry46", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry46", "MAC","s")%>"],
-		["48", "<%tcWebApi_staticGet("DhcpLease_Entry47", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry47", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry47", "MAC","s")%>"],
-		["49", "<%tcWebApi_staticGet("DhcpLease_Entry48", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry48", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry48", "MAC","s")%>"],
-		["50", "<%tcWebApi_staticGet("DhcpLease_Entry49", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry49", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry49", "MAC","s")%>"],
-		["51", "<%tcWebApi_staticGet("DhcpLease_Entry50", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry50", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry50", "MAC","s")%>"],
-		["52", "<%tcWebApi_staticGet("DhcpLease_Entry51", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry51", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry51", "MAC","s")%>"],
-		["53", "<%tcWebApi_staticGet("DhcpLease_Entry52", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry52", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry52", "MAC","s")%>"],
-		["54", "<%tcWebApi_staticGet("DhcpLease_Entry53", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry53", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry53", "MAC","s")%>"],
-		["55", "<%tcWebApi_staticGet("DhcpLease_Entry54", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry54", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry54", "MAC","s")%>"],
-		["56", "<%tcWebApi_staticGet("DhcpLease_Entry55", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry55", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry55", "MAC","s")%>"],
-		["57", "<%tcWebApi_staticGet("DhcpLease_Entry56", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry56", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry56", "MAC","s")%>"],
-		["58", "<%tcWebApi_staticGet("DhcpLease_Entry57", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry57", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry57", "MAC","s")%>"],
-		["59", "<%tcWebApi_staticGet("DhcpLease_Entry58", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry58", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry58", "MAC","s")%>"],
-		["60", "<%tcWebApi_staticGet("DhcpLease_Entry59", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry59", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry59", "MAC","s")%>"],
-		["61", "<%tcWebApi_staticGet("DhcpLease_Entry60", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry60", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry60", "MAC","s")%>"],
-		["62", "<%tcWebApi_staticGet("DhcpLease_Entry61", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry61", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry61", "MAC","s")%>"],
-		["63", "<%tcWebApi_staticGet("DhcpLease_Entry62", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry62", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry62", "MAC","s")%>"],
-		["64", "<%tcWebApi_staticGet("DhcpLease_Entry63", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry63", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry63", "MAC","s")%>"],
-		["65", "<%tcWebApi_staticGet("DhcpLease_Entry64", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry64", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry64", "MAC","s")%>"],
-		["66", "<%tcWebApi_staticGet("DhcpLease_Entry65", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry65", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry65", "MAC","s")%>"],
-		["67", "<%tcWebApi_staticGet("DhcpLease_Entry66", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry66", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry66", "MAC","s")%>"],
-		["68", "<%tcWebApi_staticGet("DhcpLease_Entry67", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry67", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry67", "MAC","s")%>"],
-		["69", "<%tcWebApi_staticGet("DhcpLease_Entry68", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry68", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry68", "MAC","s")%>"],
-		["70", "<%tcWebApi_staticGet("DhcpLease_Entry69", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry69", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry69", "MAC","s")%>"],
-		["71", "<%tcWebApi_staticGet("DhcpLease_Entry70", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry70", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry70", "MAC","s")%>"],
-		["72", "<%tcWebApi_staticGet("DhcpLease_Entry71", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry71", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry71", "MAC","s")%>"],
-		["73", "<%tcWebApi_staticGet("DhcpLease_Entry72", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry72", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry72", "MAC","s")%>"],
-		["74", "<%tcWebApi_staticGet("DhcpLease_Entry73", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry73", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry73", "MAC","s")%>"],
-		["75", "<%tcWebApi_staticGet("DhcpLease_Entry74", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry74", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry74", "MAC","s")%>"],
-		["76", "<%tcWebApi_staticGet("DhcpLease_Entry75", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry75", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry75", "MAC","s")%>"],
-		["77", "<%tcWebApi_staticGet("DhcpLease_Entry76", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry76", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry76", "MAC","s")%>"],
-		["78", "<%tcWebApi_staticGet("DhcpLease_Entry77", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry77", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry77", "MAC","s")%>"],
-		["79", "<%tcWebApi_staticGet("DhcpLease_Entry78", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry78", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry78", "MAC","s")%>"],
-		["80", "<%tcWebApi_staticGet("DhcpLease_Entry79", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry79", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry79", "MAC","s")%>"],
-		["81", "<%tcWebApi_staticGet("DhcpLease_Entry80", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry80", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry80", "MAC","s")%>"],
-		["82", "<%tcWebApi_staticGet("DhcpLease_Entry81", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry81", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry81", "MAC","s")%>"],
-		["83", "<%tcWebApi_staticGet("DhcpLease_Entry82", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry82", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry82", "MAC","s")%>"],
-		["84", "<%tcWebApi_staticGet("DhcpLease_Entry83", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry83", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry83", "MAC","s")%>"],
-		["85", "<%tcWebApi_staticGet("DhcpLease_Entry84", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry84", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry84", "MAC","s")%>"],
-		["86", "<%tcWebApi_staticGet("DhcpLease_Entry85", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry85", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry85", "MAC","s")%>"],
-		["87", "<%tcWebApi_staticGet("DhcpLease_Entry86", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry86", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry86", "MAC","s")%>"],
-		["88", "<%tcWebApi_staticGet("DhcpLease_Entry87", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry87", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry87", "MAC","s")%>"],
-		["89", "<%tcWebApi_staticGet("DhcpLease_Entry88", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry88", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry88", "MAC","s")%>"],
-		["90", "<%tcWebApi_staticGet("DhcpLease_Entry89", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry89", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry89", "MAC","s")%>"],
-		["91", "<%tcWebApi_staticGet("DhcpLease_Entry90", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry90", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry90", "MAC","s")%>"],
-		["92", "<%tcWebApi_staticGet("DhcpLease_Entry91", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry91", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry91", "MAC","s")%>"],
-		["93", "<%tcWebApi_staticGet("DhcpLease_Entry92", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry92", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry92", "MAC","s")%>"],
-		["94", "<%tcWebApi_staticGet("DhcpLease_Entry93", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry93", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry93", "MAC","s")%>"],
-		["95", "<%tcWebApi_staticGet("DhcpLease_Entry94", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry94", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry94", "MAC","s")%>"],
-		["96", "<%tcWebApi_staticGet("DhcpLease_Entry95", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry95", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry95", "MAC","s")%>"],
-		["97", "<%tcWebApi_staticGet("DhcpLease_Entry96", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry96", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry96", "MAC","s")%>"],
-		["98", "<%tcWebApi_staticGet("DhcpLease_Entry97", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry97", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry97", "MAC","s")%>"],
-		["99", "<%tcWebApi_staticGet("DhcpLease_Entry98", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry98", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry98", "MAC","s")%>"],
-		["100", "<%tcWebApi_staticGet("DhcpLease_Entry99", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry99", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry99", "MAC","s")%>"]
-	];
+<iframe name="hidden_frame" id="hidden_frame" src="" width="0" height="0" frameborder="0"></iframe>	
+<form method="POST" name="form" action="/start_apply.asp" target="hidden_frame">
+<input type="hidden" name="refresh_networkmap_Flag" value="0">	
+</form>
 
-	showTable('dhcpclientList',tableData,2);
-</script>
-</div>
-</td>
-</tr>
+<table width="320px" border="0" cellpadding="0" cellspacing="0">
+	<tr>
+		<td>		
+			<table width="100px" border="0" align="left" style="margin-left:8px;" cellpadding="0" cellspacing="0">
+				<td>
+					<div id="tabOnline" class="tabclick_NW" align="center">
+						<span>
+							Online
+						</span>
+					</div>
+					<script>
+						document.getElementById('tabOnline').onclick = function(){
+							pagesVar.resetVar();
+							drawClientList('online');
+							document.getElementById('tabOnline').className = 'tabclick_NW';
+							document.getElementById('tabWired').className = 'tab_NW';
+							document.getElementById('tabWireless').className = 'tab_NW';
+							document.getElementById('tabCustom').className = 'tab_NW';
+						}
+					</script>
+				</td>
+				<td>
+					<div id="tabWired" class="tab_NW" align="center" style="display:none">
+						<span>
+							Wired (<b style="font-size:10px;" id="tabWiredNum">0</b>)
+						</span>
+					</div>
+					<script>
+						document.getElementById('tabWired').onclick = function(){
+							pagesVar.resetVar();
+							drawClientList('wired');
+							document.getElementById('tabOnline').className = 'tab_NW';
+							document.getElementById('tabWired').className = 'tabclick_NW';
+							document.getElementById('tabWireless').className = 'tab_NW';
+							document.getElementById('tabCustom').className = 'tab_NW';
+						}
+					</script>
+				</td>
+				<td>
+					<div id="tabWireless" class="tab_NW" align="center" style="display:none">
+    					<span>Wireless (<b style="font-size:10px;" id="tabWirelessNum">0</b>)</span>
+					<!-- Viz rm 2015.2.6 nav class="nav" id="select_wlclient_band">
+					<ul>
+						<li><a onclick="wlclient_band('1')">&nbsp;&nbsp;2.4GHz&nbsp;&nbsp;(<b style="font-size:11px;" id="liWirelessNum1">0</b>)</a></li>
+						<li><a onclick="wlclient_band('2')">&nbsp;&nbsp;5GHz-1&nbsp;&nbsp;(<b style="font-size:11px;" id="liWirelessNum2">0</b>)</a></li>
+						<li><a onclick="wlclient_band('3')">&nbsp;&nbsp;5GHz-2&nbsp;&nbsp;(<b style="font-size:11px;" id="liWirelessNum3">0</b>)</a></li>
+						<li><a onclick="wlclient_band('0')">ALL</a></li>
+					</ul>
+					</nav-->    
+					</div>
+					<script>
+						var wband_val="";
+						function switchTab_drawClientList(wband_val){
+							pagesVar.resetVar();
+							drawClientList('wireless'+parseInt(wband_val));
+							document.getElementById('tabOnline').className = 'tab_NW';
+							document.getElementById('tabWired').className = 'tab_NW';
+							document.getElementById('tabWireless').className = 'tabclick_NW';
+							document.getElementById('tabCustom').className = 'tab_NW';
+						}
 
-</table>
-	<div id="macFilterHint" style="padding:5px 0px 5px 25px;display:none;">
-		<ul style="font-size:11px; font-family:Arial; padding:0px; margin:0px; list-style:outside; line-height:150%;">
-			<li><a onclick="gotoMACFilter();" style="font-weight:bolder;cursor:pointer;text-decoration:underline;">Click here to block the client</a></li>
-			</ul>
-	</div>
-</td>
-</tr>
+						if(smart_connect_support != -1)
+						{
+							document.getElementById('tabWireless').onclick = function(){
+								show_wlclient_band();
+							}
+
+							function wlclient_band(wband_val){						
+								switchTab_drawClientList(wband_val);
+							}								
+
+						}else{
+
+							document.getElementById('tabWireless').onclick = function(){
+								switchTab_drawClientList(0);
+							}
+
+						}
+					</script>
+				</td>
+				<td>
+					<div id="tabCustom" class="tab_NW" align="center" style="display:none">
+						<span>
+							History (<b style="font-size:10px;" id="tabCustomNum">0</b>)
+						</span>
+					</div>
+					<script>
+						document.getElementById('tabCustom').onclick = function(){
+							pagesVar.resetVar();
+							drawClientList('custom');
+							document.getElementById('tabOnline').className = 'tab_NW';
+							document.getElementById('tabWired').className = 'tab_NW';
+							document.getElementById('tabWireless').className = 'tab_NW';
+							document.getElementById('tabCustom').className = 'tabclick_NW';
+						}
+					</script>
+				</td>
+
+				<td>
+				</td>
+			</table>
+		</td>
+	</tr>
+
+	<tr>
+		<td>				
+			<table width="95%" border="0" align="center" cellpadding="4" cellspacing="0" style="background-color:#4d595d;">
+  				<tr>
+    				<td style="padding:3px 3px 5px 5px;">
+						<input type="text" placeholder="Search" id="searchingBar" class="input_25_table" style="width:96%;margin-top:3px;margin-bottom:3px" maxlength="" value="">
+						<script>
+							document.getElementById('searchingBar').onkeyup = function(){
+								pagesVar.resetVar();
+								drawClientList();
+							}
+						</script>
+
+						<div id="client_list_Block"></div>
+	    			</td>
+  				</tr>
+ 			</table>
+		</td>
+	</tr>
 </table>
 <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+<img height="25" id="leftBtn" onclick="updatePagesVar('-');" style="cursor:pointer;margin-left:10px;" src="/images/arrow-left.png">
 <input type="button" id="refresh_list" class="button_gen" onClick="return doRefresh();" value="<%tcWebApi_get("String_Entry","CTL_refresh","s")%>" style="margin-left:70px;">
-</form>
+<img src="/images/InternetScan.gif" id="loadingIcon" style="visibility:hidden">
+<img height="25" id="rightBtn" onclick="updatePagesVar('+');" style="cursor:pointer;margin-left:25px;" src="/images/arrow-right.png">	
+
 </body>
 
 <!--device-map/clients.asp-->

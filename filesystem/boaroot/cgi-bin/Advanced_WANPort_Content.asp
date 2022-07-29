@@ -4,7 +4,7 @@
 
 <!--Advanced_WANPort_Content.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -13,6 +13,48 @@
 <title>ASUS <%tcWebApi_get("String_Entry","Web_Title2","s")%> <% tcWebApi_staticGet("SysInfo_Entry","ProductTitle","s") %> - Dual WAN</title>
 <link rel="stylesheet" type="text/css" href="/index_style.css">
 <link rel="stylesheet" type="text/css" href="/form_style.css">
+<style>
+.ISPProfile{
+	display:none;
+}
+#ClientList_Block_PC{
+	border:1px outset #999;
+	background-color:#576D73;
+	position:absolute;
+	*margin-top:26px;
+	margin-left:2px;
+	*margin-left:-353px;
+	width:346px;
+	text-align:left;
+	height:auto;
+	overflow-y:auto;
+	z-index:200;
+	padding: 1px;
+	display:none;
+}
+#ClientList_Block_PC div{
+	background-color:#576D73;
+	height:auto;
+	*height:20px;
+	line-height:20px;
+	text-decoration:none;
+	font-family: Lucida Console;
+	padding-left:2px;
+}
+
+#ClientList_Block_PC a{
+	background-color:#EFEFEF;
+	color:#FFF;
+	font-size:12px;
+	font-family:Arial, Helvetica, sans-serif;
+	text-decoration:none;
+}
+#ClientList_Block_PC div:hover{
+	background-color:#3366FF;
+	color:#FFFFFF;
+	cursor:default;
+}
+</style>
 <script language="JavaScript" type="text/javascript" src="/state.js"></script>
 <script language="JavaScript" type="text/javascript" src="/help.js"></script>
 <script language="JavaScript" type="text/javascript" src="/general.js"></script>
@@ -23,348 +65,756 @@
 <script>
 wan_route_x = '';
 wan_nat_x = '1';
-var wans_caps = 'dsl usb lan';
-var wans_dualwan_orig = 'dsl usb';
-var wans_mode_orig = 'fo';
-var wans_routing_isp_enable_orig = parseInt('');
-var wans_routing_rulelist_array = '';
+var wans_caps = '<%tcWebApi_Get("Dualwan_Entry", "wans_cap", "s")%>';
+var wans_dualwan_orig = '<%tcWebApi_Get("Dualwan_Entry", "wans_dualwan", "s")%>';
+var wandog_maxfail_orig = '<% tcWebApi_Get("Dualwan_Entry", "wandog_maxfail", "s") %>';
+var wans_routing_rulelist_array = '<%tcWebApi_Get("Dualwan_Entry", "wans_routing_rulelist", "s")%>';
 var wans_flag;
-var switch_stb_x = '0';
+var switch_stb_x = '<%tcWebApi_Get("IPTV_Entry", "switch_stb_x", "s")%>';
 var wans_caps_primary;
 var wans_caps_secondary;
+function login_ip_str() { return '<% tcWebApi_get("WebCurSet_Entry","login_ip_tmp","s"); %>'; }
+function login_mac_str() { return ''; }
+var wireless = []; // [[MAC, associated, authorized], ...]
+
 var $j = jQuery.noConflict();
 
+var country = new Array("None", "China");
+var country_n_isp = new Array;
+country_n_isp[0] = new Array("");
+country_n_isp[1] = new Array("edu","telecom","mobile","unicom");
 
-function login_ip_str() { return '<% tcWebApi_get("WebCurSet_Entry","login_ip_tmp","s"); %>'; }
-
-function login_mac_str() { return ''; }
-
-var wireless = []; // [[MAC, associated, authorized], ...]
 function initial(){
-show_menu();
-wans_flag = (wans_dualwan_orig.search("none") == -1) ? 1:0;
-wans_caps_primary = wans_caps;
-addWANOption(document.form.wans_primary, wans_caps_primary.split(" "));
-document.form.wans_primary.value = wans_dualwan_orig.split(" ")[0];
-appendLANoption1(document.form.wans_primary);
-if(wans_dualwan_orig.search(" ") < 0 || wans_dualwan_orig.split(" ")[1] == "none"){ // single wan
-inputCtrl(document.form.wans_second, 0);
-inputCtrl(document.form.wans_mode, 0);
-inputCtrl(document.form.wans_lb_ratio_0, 0);
-inputCtrl(document.form.wans_lb_ratio_1, 0);
-inputCtrl(document.form.wans_routing_isp_enable[1], 0);
-inputCtrl(document.form.wans_routing_isp_enable[0], 0);
-inputCtrl(document.form.wans_isp_unit, 0);
-inputCtrl(document.form.isp_country, 0);
-inputCtrl(document.form.isp_list, 0);
-inputCtrl(document.form.wans_routing_enable[1], 0);
-inputCtrl(document.form.wans_routing_enable[0], 0);
+	show_menu();
+	wans_flag = (wans_dualwan_orig.search("none") == -1) ? 1:0;
+	wans_caps_primary = wans_caps;
+	wans_caps_secondary = wans_caps;
+
+	addWANOption(document.form.wans_primary, wans_caps_primary.split(" "));
+	addWANOption(document.form.wans_second, wans_caps_secondary.split(" "));	
+
+	form_show(wans_flag);
+	setTimeout("showLANIPList();", 1000);
 }
-else{ // init dual WAN
-wans_caps_secondary = wans_caps.split(" ").splice(1);
-addWANOption(document.form.wans_second, wans_caps_secondary);
-document.form.wans_second.value = wans_dualwan_orig.split(" ")[1];
-appendLANoption2(document.form.wans_second);
+
+function form_show(v){
+	if(v == 0){	//Dual WAN disable
+		inputCtrl(document.form.wans_second, 0);
+		inputCtrl(document.form.wans_lb_ratio_0, 0);
+		inputCtrl(document.form.wans_lb_ratio_1, 0);
+		inputCtrl(document.form.wans_isp_unit[0], 0);
+		inputCtrl(document.form.wans_isp_unit[1], 0);
+		inputCtrl(document.form.wans_isp_unit[2], 0);
+		inputCtrl(document.form.wan0_isp_country, 0);
+		inputCtrl(document.form.wan0_isp_list, 0);
+		inputCtrl(document.form.wan1_isp_country, 0);
+		inputCtrl(document.form.wan1_isp_list, 0);
+		document.form.wans_routing_enable[1].checked = true;
+		document.form.wans_routing_enable[0].disabled = true;
+		document.form.wans_routing_enable[1].disabled = true;
+		$('Routing_rules_table').style.display = "none";
+		$('wans_RoutingRules_Block').style.display = "none";
+		document.form.wans_primary.value = wans_dualwan_orig.split(" ")[0];
+		appendLANoption1(document.form.wans_primary);
+		appendModeOption2("0");
+		document.form.wandog_enable_radio[1].checked = true;
+		document.form.wandog_enable_radio[0].disabled = true;
+		document.form.wandog_enable_radio[1].disabled = true;
+		document.getElementById("wans_mode_tr").style.display = "none";
+		document.getElementById("watchdog_table").style.display = "none";
+		document.getElementById("routing_table").style.display = "none";
+		inputCtrl(document.form.wans_primary, 0);	//dualwan disable, also hidden primary, we change wan mode at internet connnection page
+	}
+	else{		//Dual WAN enable
+		
+		inputCtrl(document.form.wans_primary, 1);
+		document.form.wans_primary.value = wans_dualwan_orig.split(" ")[0];
+		
+		if(wans_dualwan_orig.split(" ")[1] == "none"){
+			
+			if(wans_dualwan_orig.split(" ")[0] == "dsl"){
+				
+				if(wans_caps.search("wan") >= 0)
+					document.form.wans_second.value = "wan";
+				else if(wans_caps.search("usb") >= 0)
+					document.form.wans_second.value = "usb";
+				else
+					document.form.wans_second.value = "lan";
+					
+			}
+			else if(wans_dualwan_orig.split(" ")[0] == "wan"){
+				
+				if(wans_caps.search("dsl") >= 0)
+					document.form.wans_second.value = "dsl";
+				else if(wans_caps.search("usb") >= 0)
+					document.form.wans_second.value = "usb";
+				else	
+					document.form.wans_second.value = "lan";
+			}
+			else{
+				
+				if(wans_caps.search("dsl") >= 0)
+					document.form.wans_second.value = "dsl";
+				else if(wans_caps.search("wan") >= 0)
+					document.form.wans_second.value = "wan";
+				
+			}
+		}
+		else{
+			document.form.wans_second.value = wans_dualwan_orig.split(" ")[1];
+		
+		}	
+
+		appendLANoption1(document.form.wans_primary);
+		appendLANoption2(document.form.wans_second);
+
+		if(document.form.wans_mode.value == "lb")
+			document.getElementById("wans_mode_option").value = "lb";
+		else{
+			document.getElementById("wans_mode_option").value = "fo";
+		}
+
+		appendModeOption(document.form.wans_mode.value);
+		show_wans_rules();
+		document.getElementById("wans_mode_tr").style.display = "";
+	}
 }
-appendModeOption(wans_mode_orig);
-show_wans_rules();
-}
-function removeOptions(obj) {
-if (obj == null) return;
-if (obj.options == null) return;
-obj.options.length = 0;
-}
+
 function applyRule(){
-if(document.form.wans_primary.value == document.form.wans_second.value){
-alert("It is not allowed to setup dual WAN with the same interface!");
-document.form.wans_second.focus();
-return;
+	if(wans_flag == 1){
+		document.form.wans_dualwan.value = document.form.wans_primary.value +" "+ document.form.wans_second.value;
+
+		document.form.wan_unit.value = "0";
+		if(document.form.wans_mode.value == "lb"){
+			if(document.form.wans_lb_ratio_0.value !=0 && document.form.wans_lb_ratio_1.value!=0)	// To check LoadBalance ratio value is zero or not, Jieming add 2012/08/01
+				document.form.wans_lb_ratio.value = document.form.wans_lb_ratio_0.value + ":" + document.form.wans_lb_ratio_1.value;
+				else{
+				if(document.form.wans_lb_ratio_0.value == 0)
+					document.form.wans_lb_ratio_0.focus();
+				else
+					document.form.wans_lb_ratio_1.focus();
+
+				alert("<%tcWebApi_Get("String_Entry", "dualwan_mode_lb_note", "s")%>");
+				return false;
+			}
+
+			if(document.form.wan0_isp_country.options[0].selected == true){
+					document.form.wan0_routing_isp.value = country[document.form.wan0_isp_country.value];
+			}else{
+					document.form.wan0_routing_isp.value = country[document.form.wan0_isp_country.value].toLowerCase()+"_"+country_n_isp[document.form.wan0_isp_country.value][document.form.wan0_isp_list.value];
+			}
+
+			if(document.form.wan1_isp_country.options[0].selected == true){
+					document.form.wan1_routing_isp.value = country[document.form.wan1_isp_country.value];
+			}else{
+					document.form.wan1_routing_isp.value = country[document.form.wan1_isp_country.value].toLowerCase()+"_"+country_n_isp[document.form.wan1_isp_country.value][document.form.wan1_isp_list.value];
+			}
+
+			save_table();
+		}
+		else{		//fo / fb
+			
+			document.form.wans_lb_ratio.disabled = true;
+			document.form.wan0_routing_isp_enable.disabled = true;
+			document.form.wan0_routing_isp.disabled = true;
+			document.form.wan1_routing_isp_enable.disabled = true;
+			document.form.wan1_routing_isp.disabled = true;
+			document.form.wans_routing_rulelist.disabled =true;
+			if(document.form.wandog_enable_radio[0].checked)
+				document.form.wandog_enable.value = "1";
+			else
+				document.form.wandog_enable.value = "0";
+				
+			if(!validate_range(document.form.wandog_interval, 1, 9))
+					return false;
+			if(!validate_range(document.form.wandog_delay, 0, 99))
+					return false;	
+		}
+	}
+	else{
+		document.form.wans_mode.value = "fo";
+		appendModeOption("fo");
+		document.form.wans_lb_ratio.disabled = true;
+		document.form.wan0_routing_isp_enable.disabled = true;
+		document.form.wan0_routing_isp.disabled = true;
+		document.form.wan1_routing_isp_enable.disabled = true;
+		document.form.wan1_routing_isp.disabled = true;
+		document.form.wans_routing_rulelist.disabled =true;
+		document.form.wans_dualwan.value = document.form.wans_primary.value + " none";
+		document.form.wan_unit.value = 0;
+		document.form.wandog_enable.value = "0";
+	}
+
+	if(document.form.wans_primary.value == "lan")
+		document.form.wans_lanport.value = document.form.wans_lanport1.value;
+	else if(document.form.wans_second.value =="lan")
+		document.form.wans_lanport.value = document.form.wans_lanport2.value;
+	else
+		document.form.wans_lanport.disabled = true;
+
+	if (document.form.wans_primary.value == "lan" || document.form.wans_second.value == "lan") {
+		var port_conflict = false;
+		var lan_port_num = document.form.wans_lanport.value;
+
+		if(switch_stb_x == lan_port_num)
+			port_conflict = true;
+		else if (switch_stb_x == '5' && (lan_port_num == '1' || lan_port_num == '2'))
+			port_conflict = true;
+		else if (switch_stb_x == '6' && (lan_port_num == '3' || lan_port_num == '4'))
+			port_conflict = true;
+
+		if (port_conflict) {
+			alert("<%tcWebApi_Get("String_Entry", "RC_IPTV_conflict", "s")%>");
+			return;
+		}
+	}
+
+	if (document.form.wans_primary.value == "dsl") document.form.next_page.value = "Advanced_DSL_Content.asp";
+	if (document.form.wans_primary.value == "lan") document.form.next_page.value = "Advanced_DSL_Content.asp";
+	if (document.form.wans_primary.value == "wan") document.form.next_page.value = "Advanced_DSL_Content.asp";
+	if (document.form.wans_primary.value == "usb") document.form.next_page.value = "Advanced_Modem_Content.asp";
+
+	if(wans_dualwan_orig.split(" ")[1] == "none")
+		document.form.wan_unit.value = 0;
+
+	showLoading();
+	document.form.submit();
 }
-if(wans_flag == 1){
-document.form.wans_dualwan.value = document.form.wans_primary.value +" "+ document.form.wans_second.value;
-}else{
-document.form.wans_dualwan.value = document.form.wans_primary.value + " none";
-}
-if(document.form.wans_lanport1 && !document.form.wans_lanport2)
-document.form.wans_lanport.value = document.form.wans_lanport1.value;
-else if(!document.form.wans_lanport1 && document.form.wans_lanport2)
-document.form.wans_lanport.value = document.form.wans_lanport2.value;
-var tmp_pri_if = wans_dualwan_orig.split(" ")[0].toUpperCase();
-var tmp_sec_if = wans_dualwan_orig.split(" ")[1].toUpperCase();
-if (tmp_pri_if != 'LAN' || tmp_sec_if != 'LAN') {
-var port_conflict = false;
-var lan_port_num = document.form.wans_lanport.value;
-if (switch_stb_x == '1') {
-if (lan_port_num == '1') {
-port_conflict = true;
-}
-}
-else if (switch_stb_x == '2') {
-if (lan_port_num == '2') {
-port_conflict = true;
-}
-}
-else if (switch_stb_x == '3') {
-if (lan_port_num == '3') {
-port_conflict = true;
-}
-}
-else if (switch_stb_x == '4') {
-if (lan_port_num == '4') {
-port_conflict = true;
-}
-}
-else if (switch_stb_x == '5') {
-if (lan_port_num == '1' || lan_port_num == '2') {
-port_conflict = true;
-}
-}
-else if (switch_stb_x == '6') {
-if (lan_port_num == '3' || lan_port_num == '4') {
-port_conflict = true;
-}
-}
-if (port_conflict) {
-alert("IPTV port number is same as dual wan LAN port number");
-return;
-}
-}
-document.form.wans_lb_ratio.value = document.form.wans_lb_ratio_0.value + ":" + document.form.wans_lb_ratio_1.value;
-if (document.form.wans_primary.value == "dsl") document.form.next_page = "Advanced_DSL_Content.asp";
-if (document.form.wans_primary.value == "lan") document.form.next_page = "Advanced_WAN_Content.asp";
-if (document.form.wans_primary.value == "usb") document.form.next_page = "Advanced_Modem_Content.asp";
-if(document.form.wans_mode.value != "fo" && document.form.wans_routing_isp_enable[0].checked){
-if(document.form.wans_isp_unit.value == 0){
-document.form.wan0_routing_isp.value = country[document.form.isp_country.value]+"_"+country_n_isp[document.form.isp_country.value][document.form.isp_list.value];
-}
-if(document.form.wans_isp_unit.value == 1){
-document.form.wan1_routing_isp.value = country[document.form.isp_country.value]+"_"+country_n_isp[document.form.isp_country.value][document.form.isp_list.value];
-}
-}
-save_table();
-showLoading();
-document.form.submit();
-}
+
 function addWANOption(obj, wanscapItem){
-free_options(obj);
-for(i=0; i<wanscapItem.length; i++){
-if(wanscapItem[i].length > 0){
-obj.options[i] = new Option(wanscapItem[i].toUpperCase(), wanscapItem[i]);
+	free_options(obj);
+
+	for(i=0; i<wanscapItem.length; i++){
+		if(wanscapItem[i].length > 0){
+			var wanscapName = wanscapItem[i].toUpperCase();
+			if(wanscapName == "LAN")
+				wanscapName = "Ethernet WAN";
+			else if(wanscapName == "WAN")
+				wanscapName = "Ethernet WAN";
+			obj.options[i] = new Option(wanscapName, wanscapItem[i]);
+		}
+	}
 }
+
+function changeWANProto(obj){
+	
+	if(wans_flag == 1){	//dual WAN enabled
+		if(document.form.wans_primary.value == document.form.wans_second.value){
+			if(obj.name == "wans_primary"){	//Primary WAN changed to switch Secondary WAN
+								
+				if(obj.value == "dsl"){
+					
+					if(wans_caps.search("wan") >= 0)
+						document.form.wans_second.value = "wan";
+					else if(wans_caps.search("usb") >= 0)
+						document.form.wans_second.value = "usb";
+					else
+						document.form.wans_second.value = "lan";	
+						
+				}
+				else if(obj.value == "wan"){
+					
+					if(wans_caps.search("dsl") >= 0)
+						document.form.wans_second.value = "dsl";
+					else if(wans_caps.search("usb") >= 0)
+						document.form.wans_second.value = "usb";
+					else
+						document.form.wans_second.value = "lan";	
+
+				}
+				else{
+					
+					if(wans_caps.search("dsl") >= 0)
+						document.form.wans_second.value = "dsl";
+					else if(wans_caps.search("wan") >= 0)
+						document.form.wans_second.value = "wan";
+						
+				}
+			}
+			else if(obj.name == "wans_second"){	//Secondary WAN changed to switch Primary WAN
+				
+				if(obj.value == "dsl"){
+					
+					if(wans_caps.search("wan") >= 0)
+						document.form.wans_primary.value = "wan";
+					else if(wans_caps.search("usb") >= 0)
+						document.form.wans_primary.value = "usb";
+					else	
+						document.form.wans_primary.value = "lan";
+
+				}
+				else if(obj.value == "wan"){
+					
+					if(wans_caps.search("dsl") >= 0)
+						document.form.wans_primary.value = "dsl";
+					else if(wans_caps.search("usb") >= 0)
+						document.form.wans_primary.value = "usb";
+					else	
+						document.form.wans_primary.value = "lan";
+
+				}
+				else{
+					
+					if(wans_caps.search("dsl") >= 0)
+						document.form.wans_primary.value = "dsl";
+					else if(wans_caps.search("wan") >= 0)
+						document.form.wans_primary.value = "wan";
+					
+				}				
+			}
+		}
+		appendLANoption1(document.form.wans_primary);
+		appendLANoption2(document.form.wans_second);
+	}
+	else
+		appendLANoption1(document.form.wans_primary);		//Viz: seems useless 
 }
-if(wans_dualwan_orig.search(" ") < 0 || wans_dualwan_orig.split(" ")[1] == "none"){
-appendLANoption1(document.form.wans_primary);
-}else{
-appendLANoption1(document.form.wans_primary);
-appendLANoption2(document.form.wans_second);
-}
-}
+
 function appendLANoption1(obj){
-if(obj.value == "lan"){
-if(!document.form.wans_lanport1){
-var childsel=document.createElement("select");
-childsel.setAttribute("id","wans_lanport1");
-childsel.setAttribute("name","wans_lanport1");
-childsel.setAttribute("class","input_option");
-obj.parentNode.appendChild(childsel);
-document.form.wans_lanport1.options[0] = new Option("LAN Port 1", "1");
-document.form.wans_lanport1.options[1] = new Option("LAN Port 2", "2");
-document.form.wans_lanport1.options[2] = new Option("LAN Port 3", "3");
-document.form.wans_lanport1.options[3] = new Option("LAN Port 4", "4");
-}else{
-document.form.wans_lanport1.style.display = "";
+	if(obj.value == "lan"){
+		if(document.form.wans_lanport1){
+			document.form.wans_lanport1.style.display = "";
+		}
+	}
+	else if(document.form.wans_lanport1){
+		document.form.wans_lanport1.style.display = "none";
+	}
 }
-if('1' == 0)
-document.form.wans_lanport1.selectedIndex = 0;
-else
-document.form.wans_lanport1.selectedIndex = '1' - 1;
-}
-else if(document.form.wans_lanport1){
-document.form.wans_lanport1.style.display = "none";
-}
-}
+
 function appendLANoption2(obj){
-if(obj.value == "lan"){
-if(!document.form.wans_lanport2){
-var childsel=document.createElement("select");
-childsel.setAttribute("id","wans_lanport2");
-childsel.setAttribute("name","wans_lanport2");
-childsel.setAttribute("class","input_option");
-obj.parentNode.appendChild(childsel);
-document.form.wans_lanport2.options[0] = new Option("LAN Port 1", "1");
-document.form.wans_lanport2.options[1] = new Option("LAN Port 2", "2");
-document.form.wans_lanport2.options[2] = new Option("LAN Port 3", "3");
-document.form.wans_lanport2.options[3] = new Option("LAN Port 4", "4");
-}else{
-document.form.wans_lanport2.style.display = "";
+	if(obj.value == "lan"){
+		if(document.form.wans_lanport2){
+			document.form.wans_lanport2.style.display = "";
+		}
+	}
+	else if(document.form.wans_lanport2){
+		document.form.wans_lanport2.style.display = "none";
+	}
 }
-if('1' == 0)
-document.form.wans_lanport2.selectedIndex = 0;
-else
-document.form.wans_lanport2.selectedIndex = '1' - 1;
-}
-else if(document.form.wans_lanport2){
-document.form.wans_lanport2.style.display = "none";
-}
-}
+
 function appendModeOption(v){
-if(v == "fo"){
-inputCtrl(document.form.wans_lb_ratio_0, 0);
-inputCtrl(document.form.wans_lb_ratio_1, 0);
-inputCtrl(document.form.wans_routing_isp_enable[1], 0);
-inputCtrl(document.form.wans_routing_isp_enable[0], 0);
-inputCtrl(document.form.wans_isp_unit, 0);
-inputCtrl(document.form.isp_country, 0);
-inputCtrl(document.form.wans_routing_enable[1], 0);
-inputCtrl(document.form.wans_routing_enable[0], 0);
-}else{
-inputCtrl(document.form.wans_lb_ratio_0, 1);
-inputCtrl(document.form.wans_lb_ratio_1, 1);
-inputCtrl(document.form.wans_routing_isp_enable[1], 1);
-inputCtrl(document.form.wans_routing_isp_enable[0], 1);
-change_isp_radio(wans_routing_isp_enable_orig);
-inputCtrl(document.form.wans_routing_enable[1], 1);
-inputCtrl(document.form.wans_routing_enable[0], 1);
-document.form.wans_lb_ratio_0.value = '3:1'.split(':')[0];
-document.form.wans_lb_ratio_1.value = '3:1'.split(':')[1];
+		var wandog_enable_orig = "<% tcWebApi_Get("Dualwan_Entry", "wandog_enable", "s") %>";
+		if(v == "lb"){
+			document.getElementById("lb_note").style.display = "";
+			inputCtrl(document.form.wans_lb_ratio_0, 1);
+			inputCtrl(document.form.wans_lb_ratio_1, 1);
+			document.form.wans_lb_ratio_0.value = '<% tcWebApi_Get("Dualwan_Entry", "wans_lb_ratio", "s") %>'.split(':')[0];
+			document.form.wans_lb_ratio_1.value = '<% tcWebApi_Get("Dualwan_Entry", "wans_lb_ratio", "s") %>'.split(':')[1];
+			inputCtrl(document.form.wans_isp_unit[0], 1);
+			inputCtrl(document.form.wans_isp_unit[1], 1);
+			inputCtrl(document.form.wans_isp_unit[2], 1);
+			if('<% tcWebApi_Get("Dualwan_Entry", "wan0_routing_isp_enable", "s") %>' == 1 && '<% tcWebApi_Get("Dualwan_Entry", "wan1_routing_isp_enable", "s") %>' == 0){
+				document.form.wans_isp_unit[1].checked =true;
+				change_isp_unit(1);
+			}else if('<% tcWebApi_Get("Dualwan_Entry", "wan0_routing_isp_enable", "s") %>' == 0 && '<% tcWebApi_Get("Dualwan_Entry", "wan1_routing_isp_enable", "s") %>' == 1){
+				document.form.wans_isp_unit[2].checked =true;
+				change_isp_unit(2);
+			}else{
+				document.form.wans_isp_unit[0].checked =true;
+				change_isp_unit(0);
+			}
+
+			Load_ISP_country();
+			appendcountry(document.form.wan0_isp_country);
+			appendcountry(document.form.wan1_isp_country);
+			inputCtrl(document.form.wans_routing_enable[0], 1);
+			inputCtrl(document.form.wans_routing_enable[1], 1);
+			if('<% tcWebApi_Get("Dualwan_Entry", "wans_routing_enable", "s") %>' == 1)
+				document.form.wans_routing_enable[0].checked = true;
+			else
+				document.form.wans_routing_enable[1].checked = true;
+
+			$('Routing_rules_table').style.display = "";
+			$('wans_RoutingRules_Block').style.display = "";
+
+			appendModeOption2("0");
+			document.form.wandog_enable_radio[1].checked = true;
+			document.form.wandog_enable_radio[0].disabled = true;
+			document.form.wandog_enable_radio[1].disabled = true;
+			document.getElementById("watchdog_table").style.display = "none";
+			document.getElementById("routing_table").style.display = "";
+			document.getElementById("fb_span").style.display = "none";
+			document.form.wans_mode.value = "lb";
+		}
+		else{		//failover //failback
+			
+			document.getElementById('lb_note').style.display = "none";
+			inputCtrl(document.form.wans_lb_ratio_0, 0);
+			inputCtrl(document.form.wans_lb_ratio_1, 0);
+			inputCtrl(document.form.wans_isp_unit[0], 0);
+			inputCtrl(document.form.wans_isp_unit[1], 0);
+			inputCtrl(document.form.wans_isp_unit[2], 0);
+			inputCtrl(document.form.wan0_isp_country, 0);
+			inputCtrl(document.form.wan0_isp_list, 0);
+			inputCtrl(document.form.wan1_isp_country, 0);
+			inputCtrl(document.form.wan1_isp_list, 0);
+			document.form.wans_routing_enable[1].checked = true;
+			document.form.wans_routing_enable[0].disabled = true;
+			document.form.wans_routing_enable[1].disabled = true;
+			$('Routing_rules_table').style.display = "none";
+			$('wans_RoutingRules_Block').style.display = "none";
+
+			document.form.wandog_enable_radio[0].disabled = false;
+			document.form.wandog_enable_radio[1].disabled = false;
+			if(wandog_enable_orig == "1")
+				document.form.wandog_enable_radio[0].checked = true;
+			else
+				document.form.wandog_enable_radio[1].checked = true;
+			appendModeOption2(wandog_enable_orig);
+
+			document.getElementById("watchdog_table").style.display = "";
+			document.getElementById("routing_table").style.display = "none";
+
+			//document.getElementById("fb_span").style.display = "";
+			document.getElementById("fb_span").style.display = "none";	//Viz tmp
+			
+			add_option_count(document.form.wandog_interval, document.form.wandog_maxfail, wandog_maxfail_orig);
+			
+			if("<% tcWebApi_Get("Dualwan_Entry", "wans_mode", "s") %>" == "fb" ? true : false)
+			{
+				document.getElementById("fb_checkbox").checked = true;
+				document.getElementById("wandog_fb_count_tr").style.display = "";
+				document.form.wans_mode.value = "fb";
+			}
+			else
+			{
+				document.getElementById("fb_checkbox").checked = false;
+				document.getElementById("wandog_fb_count_tr").style.display = "none";
+				document.form.wans_mode.value = "fo";
+			}
+		}
 }
+
+function appendModeOption2(v){
+	if(v == "1"){
+			inputCtrl(document.form.wandog_target, 1);
+	}else{
+			inputCtrl(document.form.wandog_target, 0);
+	}
 }
-function change_isp_radio(v){
-if(v == 1){
-inputCtrl(document.form.wans_isp_unit, 1);
-inputCtrl(document.form.isp_country, 1);
-inputCtrl(document.form.isp_list, 1);
-Load_ISP_country();
-appendcoutry(document.form.isp_country.value);
-}else{
-inputCtrl(document.form.wans_isp_unit, 0);
-inputCtrl(document.form.isp_country, 0);
-inputCtrl(document.form.isp_list, 0);
-}
-}
+
 function addRow_Group(upper){
-var rule_num = $('wans_RoutingRules_table').rows.length;
-var item_num = $('wans_RoutingRules_table').rows[0].cells.length;
-if(rule_num >= upper){
-alert("<%tcWebApi_get("String_Entry","JS_itemlimit1","s")%> " + upper + " <%tcWebApi_get("String_Entry","JS_itemlimit2","s")%>");
-return false;
+	var rule_num = $('wans_RoutingRules_table').rows.length;
+	var item_num = $('wans_RoutingRules_table').rows[0].cells.length;
+	if(rule_num >= upper){
+		alert("<%tcWebApi_get("String_Entry","JS_itemlimit1","s")%> " + upper + " <%tcWebApi_get("String_Entry","JS_itemlimit2","s")%>");
+		return false;
+	}
+
+	if(document.form.wans_FromIP_x_0.value==""){
+		document.form.wans_FromIP_x_0.value = "all";
+	}
+	else if(valid_IP_form(document.form.wans_FromIP_x_0,2) != true){
+		return false;
+	}
+
+	if(document.form.wans_ToIP_x_0.value==""){
+		document.form.wans_ToIP_x_0.value = "all";
+	}
+	else if(valid_IP_form(document.form.wans_ToIP_x_0,2) != true){
+		document.form.wans_FromIP_x_0.value = "";
+		document.form.wans_ToIP_x_0.value = "";
+		return false;
+	}
+
+	//Viz check same rule  //match(From IP, To IP) is not accepted
+	if(item_num >=2){
+		for(i=0; i<rule_num; i++){
+			if((document.form.wans_FromIP_x_0.value == $('wans_RoutingRules_table').rows[i].cells[0].innerHTML
+					&& document.form.wans_ToIP_x_0.value == $('wans_RoutingRules_table').rows[i].cells[1].innerHTML)
+				|| (document.form.wans_FromIP_x_0.value == $('wans_RoutingRules_table').rows[i].cells[0].innerHTML
+						&& (document.form.wans_ToIP_x_0.value == 'all' || $('wans_RoutingRules_table').rows[i].cells[1].innerHTML == 'all') )
+				|| (document.form.wans_ToIP_x_0.value == $('wans_RoutingRules_table').rows[i].cells[1].innerHTML
+						&& (document.form.wans_FromIP_x_0.value == 'all' || $('wans_RoutingRules_table').rows[i].cells[0].innerHTML == 'all') )		){
+
+				alert("<%tcWebApi_get("String_Entry","JS_duplicate","s")%>");
+				document.form.wans_FromIP_x_0.focus();
+				document.form.wans_FromIP_x_0.select();
+				return false;
+			}
+		}
+	}
+
+	addRow(document.form.wans_FromIP_x_0 ,1);
+	addRow(document.form.wans_ToIP_x_0, 0);
+	addRow(document.form.wans_unit_x_0, 0);
+	document.form.wans_unit_x_0.value = 0;
+	show_wans_rules();
 }
-if(document.form.wans_FromIP_x_0.value==""){
-alert("<%tcWebApi_get("String_Entry","JS_fieldblank","s")%>");
-document.form.wans_FromIP_x_0.focus();
-document.form.wans_FromIP_x_0.select();
-return false;
-}else if(document.form.wans_ToIP_x_0.value==""){
-alert("<%tcWebApi_get("String_Entry","JS_fieldblank","s")%>");
-document.form.wans_ToIP_x_0.focus();
-document.form.wans_ToIP_x_0.select();
-return false;
-}else if(valid_IP_form(document.form.wans_FromIP_x_0,0)==true && valid_IP_form(document.form.wans_ToIP_x_0,0)==true){
-if(item_num >=2){
-for(i=0; i<rule_num; i++){
-if(document.form.wans_FromIP_x_0.value == $('wans_RoutingRules_table').rows[i].cells[0].innerHTML
-&& document.form.wans_ToIP_x_0.value == $('wans_RoutingRules_table').rows[i].cells[1].innerHTML){
-alert("This entry has been in list.");
-document.form.wans_FromIP_x_0.focus();
-document.form.wans_FromIP_x_0.select();
-return false;
-}
-}
-}
-addRow(document.form.wans_FromIP_x_0 ,1);
-addRow(document.form.wans_ToIP_x_0, 0);
-addRow(document.form.wans_unit_x_0, 0);
-document.form.wans_unit_x_0.value = 0;
-show_wans_rules();
-}else{
-return false;
-}
-}
+
 function addRow(obj, head){
-if(head == 1)
-wans_routing_rulelist_array += "&#60"
-else
-wans_routing_rulelist_array += "&#62"
-wans_routing_rulelist_array += obj.value;
-obj.value = "";
+	if(head == 1)
+		wans_routing_rulelist_array += "&#60"
+	else
+		wans_routing_rulelist_array += "&#62"
+
+	wans_routing_rulelist_array += obj.value;
+	obj.value = "";
 }
+
 function show_wans_rules(){
-var wans_rules_row = wans_routing_rulelist_array.split('&#60');
-var code = "";
-code +='<table width="100%" cellspacing="0" cellpadding="4" align="center" class="list_table" id="wans_RoutingRules_table">';
-if(wans_rules_row.length == 1)
-code +='<tr><td style="color:#FFCC00;" colspan="4"><%tcWebApi_get("String_Entry","checkbox_No","s")%> data in table.</td></tr>';
-else{
-for(var i = 1; i < wans_rules_row.length; i++){
-code +='<tr id="row'+i+'">';
-var routing_rules_col = wans_rules_row[i].split('&#62');
-for(var j = 0; j < routing_rules_col.length; j++){
-if(j != 2){
-code +='<td width="30%">'+ routing_rules_col[j] +'</td>'; //IP width="98"
-}else{
-code += '<td width="25%"><select class="input_option">';
-if(routing_rules_col[2] =="0")
-code += '<option value="0" selected>Primary WAN</option>';
-else
-code += '<option value="0">Primary WAN</option>';
-if(routing_rules_col[2] =="1")
-code += '<option value="1" selected>Secondary WAN</option>';
-else
-code += '<option value="1">Secondary WAN</option>';
-code += '</select></td>';
+	var wans_rules_row = wans_routing_rulelist_array.split('&#60');
+	var code = "";
+
+	code +='<table width="100%" cellspacing="0" cellpadding="4" align="center" class="list_table" id="wans_RoutingRules_table">';
+	if(wans_rules_row.length == 1)
+		code +='<tr><td style="color:#FFCC00;" colspan="4"><%tcWebApi_get("String_Entry","checkbox_No","s")%> data in table.</td></tr>';
+	else{
+		for(var i = 1; i < wans_rules_row.length; i++){
+			code +='<tr id="row'+i+'">';
+			var routing_rules_col = wans_rules_row[i].split('&#62');
+			for(var j = 0; j < routing_rules_col.length; j++){
+				if(j != 2){
+					code +='<td width="30%">'+ routing_rules_col[j] +'</td>'; //IP width="98"
+				}
+				else{
+					code += '<td width="25%"><select class="input_option">';
+					if(routing_rules_col[2] =="0")
+						code += '<option value=\"0\" selected>Primary WAN</option>';
+					else
+						code += '<option value=\"0\">Primary WAN</option>';
+
+					if(routing_rules_col[2] =="1")
+						code += '<option value=\"1\" selected>Secondary WAN</option>';
+					else
+						code += '<option value=\"1\">Secondary WAN</option>';
+
+					code += '</select></td>';
+				}
+			}
+			code +='<td width="15%">';
+			code +='<input class="remove_btn" onclick="del_Row(this);" value=""/></td></tr>';
+		}
+	}
+	code +='</table>';
+	$("wans_RoutingRules_Block").innerHTML = code;
 }
-}
-code +='<td width="15%"><!--input class="edit_btn" onclick="edit_Row(this);" value=""/-->';
-code +='<input class="remove_btn" onclick="del_Row(this);" value=""/></td></tr>';
-}
-}
-code +='</table>';
-$("wans_RoutingRules_Block").innerHTML = code;
-}
+
 function save_table(){
-var rule_num = $('wans_RoutingRules_table').rows.length;
-var item_num = $('wans_RoutingRules_table').rows[0].cells.length;
-var tmp_value = "";
-var comp_tmp = "";
-for(i=0; i<rule_num; i++){
-tmp_value += "<"
-for(j=0; j<item_num-1; j++){
-if(j==2){
-tmp_value += $('wans_RoutingRules_table').rows[i].cells[2].firstChild.value;
-}else{
-tmp_value += $('wans_RoutingRules_table').rows[i].cells[j].innerHTML;
+	var rule_num = $('wans_RoutingRules_table').rows.length;
+	var item_num = $('wans_RoutingRules_table').rows[0].cells.length;
+	var tmp_value = "";
+	var comp_tmp = "";
+
+	for(i=0; i<rule_num; i++){
+		tmp_value += "<"
+		for(j=0; j<item_num-1; j++){
+			if(j==2){
+				tmp_value += $('wans_RoutingRules_table').rows[i].cells[2].firstChild.value;
+			}else{
+				tmp_value += $('wans_RoutingRules_table').rows[i].cells[j].innerHTML;
+			}
+
+			if(j != item_num-2)
+				tmp_value += ">";
+		}
+	}
+	if(tmp_value == "<"+"No data in table." || tmp_value == "<")
+		tmp_value = "";
+
+	document.form.wans_routing_rulelist.value = tmp_value;
 }
-if(j != item_num-2)
-tmp_value += ">";
-}
-}
-if(tmp_value == "<"+"No data in table." || tmp_value == "<")
-tmp_value = "";
-document.form.wans_routing_rulelist.value = tmp_value;
-}
+
 function change_isp_unit(v){
-if(v == 0){
-document.form.wan0_routing_isp_enable.value = 1;
-document.form.wan1_routing_isp_enable.value = 0;
-}else{
-document.form.wan0_routing_isp_enable.value = 0;
-document.form.wan1_routing_isp_enable.value = 1;
+	inputCtrl(document.form.wan0_isp_country, 1);
+	inputCtrl(document.form.wan1_isp_country, 1);
+
+	if(v == 1){
+			document.form.wan0_routing_isp_enable.value = 1;
+			document.form.wan1_routing_isp_enable.value = 0;
+			document.form.wan0_isp_country.disabled = false;
+			document.form.wan0_isp_list.disabled = false;
+			document.form.wan1_isp_country.disabled = true;
+			document.form.wan1_isp_list.disabled = true;
+	}else if(v == 2){
+			document.form.wan0_routing_isp_enable.value = 0;
+			document.form.wan1_routing_isp_enable.value = 1;
+			document.form.wan0_isp_country.disabled = true;
+			document.form.wan0_isp_list.disabled = true;
+			document.form.wan1_isp_country.disabled = false;
+			document.form.wan1_isp_list.disabled = false;
+	}else{
+			document.form.wan0_routing_isp_enable.value = 0;
+			document.form.wan1_routing_isp_enable.value = 0;
+			document.form.wan0_isp_country.disabled = true;
+			document.form.wan0_isp_list.disabled = true;
+			document.form.wan1_isp_country.disabled = true;
+			document.form.wan1_isp_list.disabled = true;
+	}
 }
-}
-var country = new Array("china");
-var country_n_isp = new Array();
-for(i=0; i < country.length; i++){
-country_n_isp[i]=new Array("edu","telecom","mobile","unicom");
-}
+
 function Load_ISP_country(){
-document.form.isp_country.options[0] = new Option("China", 0);
+	var country_num = country.length;
+	for(c = 0; c < country_num; c++){
+		document.form.wan0_isp_country.options[c] = new Option(country[c], c);
+		if(document.form.wan0_isp_country.options[c].text.toLowerCase() == '<% tcWebApi_Get("Dualwan_Entry", "wan0_routing_isp", "s") %>'.split("_")[0])
+			document.form.wan0_isp_country.options[c].selected =true;
+
+		document.form.wan1_isp_country.options[c] = new Option(country[c], c);
+		if(document.form.wan1_isp_country.options[c].text.toLowerCase() == '<% tcWebApi_Get("Dualwan_Entry", "wan1_routing_isp", "s") %>'.split("_")[0])
+			document.form.wan1_isp_country.options[c].selected =true;
+	}
+	if('<% tcWebApi_Get("Dualwan_Entry", "wan0_routing_isp", "s") %>' == "")
+		document.form.wan0_isp_country.options[0].selected =true;
+	if('<% tcWebApi_Get("Dualwan_Entry", "wan1_routing_isp", "s") %>' == "")
+		document.form.wan1_isp_country.options[0].selected =true;
 }
-function appendcoutry(v){
-var country_isp_num = country_n_isp[v].length;
-for(j = 0; j < country_isp_num; j++){
-document.form.isp_list.style.display = "";
-document.form.isp_list.options[j] = new Option(country_n_isp[v][j], j);
+
+function appendcountry(obj){
+	if(obj.name == "wan0_isp_country"){
+		if(obj.value == 0){	//none
+			document.form.wan0_isp_list.style.display = "none";
+		}
+		else{	//other country
+			var wan0_country_isp_num = country_n_isp[obj.value].length;
+			document.form.wan0_isp_list.style.display = "";
+			for(j = 0; j < wan0_country_isp_num; j++){
+				document.form.wan0_isp_list.options[j] = new Option(country_n_isp[obj.value][j], j);
+				if(document.form.wan0_isp_list.options[j].text == '<% tcWebApi_Get("Dualwan_Entry", "wan0_routing_isp", "s") %>'.split("_")[1])
+					document.form.wan0_isp_list.options[j].selected =true;
+			}
+		}
+	}else if(obj.name == "wan1_isp_country"){
+		if(obj.value == 0){	//none
+			document.form.wan1_isp_list.style.display = "none";
+		}else{	//other country
+			var wan1_country_isp_num = country_n_isp[obj.value].length;
+			document.form.wan1_isp_list.style.display = "";
+			for(j = 0; j < wan1_country_isp_num; j++){
+				document.form.wan1_isp_list.options[j] = new Option(country_n_isp[obj.value][j], j);
+				if(document.form.wan1_isp_list.options[j].text == '<% tcWebApi_Get("Dualwan_Entry", "wan1_routing_isp", "s") %>'.split("_")[1])
+					document.form.wan1_isp_list.options[j].selected =true;
+			}
+
+		}
+	}
 }
+
+function is_ipaddr_plus_netmask(o,event){
+	keyPressed = event.keyCode ? event.keyCode : event.which;
+
+	if (is_functionButton(event)){
+		return true;
+	}
+
+	if((keyPressed > 46 && keyPressed < 58)){
+		j = 0;
+
+		for(i = 0; i < o.value.length; i++){
+			if(o.value.charAt(i) == '.'){
+				j++;
+			}
+		}
+
+		if(j < 3 && i >= 3){
+			if(o.value.charAt(i-3) != '.' && o.value.charAt(i-2) != '.' && o.value.charAt(i-1) != '.'){
+				o.value = o.value+'.';
+			}
+		}
+
+		return true;
+	}
+	else if(keyPressed == 46){
+		j = 0;
+
+		for(i = 0; i < o.value.length; i++){
+			if(o.value.charAt(i) == '.'){
+				j++;
+			}
+		}
+
+		if(o.value.charAt(i-1) == '.' || j == 3){
+			return false;
+		}
+
+		return true;
+	}
+	return false;
+}
+
+
+function del_Row(obj){
+  var i=obj.parentNode.parentNode.rowIndex;
+  $('wans_RoutingRules_table').deleteRow(i);
+
+  var routing_rules_value = "";
+	for(k=0; k<$('wans_RoutingRules_table').rows.length; k++){
+		for(j=0; j<$('wans_RoutingRules_table').rows[k].cells.length-1; j++){
+			if(j == 0)
+				routing_rules_value += "&#60";
+			else
+				routing_rules_value += "&#62";
+			routing_rules_value += $('wans_RoutingRules_table').rows[k].cells[j].innerHTML;
+		}
+	}
+
+	wans_routing_rulelist_array = routing_rules_value;
+	if(wans_routing_rulelist_array == "")
+		show_wans_rules();
+}
+
+
+function showLANIPList(){
+	//copy array from Main_Analysis page
+	var APPListArray = [
+		["Google ", "www.google.com"], ["Facebook", "www.facebook.com"], ["Youtube", "www.youtube.com"], ["Yahoo", "www.yahoo.com"],
+		["Baidu", "www.baidu.com"], ["Wikipedia", "www.wikipedia.org"], ["Windows Live", "www.live.com"], ["QQ", "www.qq.com"],
+		["Amazon", "www.amazon.com"], ["Twitter", "www.twitter.com"], ["Taobao", "www.taobao.com"], ["Blogspot", "www.blogspot.com"],
+		["Linkedin", "www.linkedin.com"], ["Sina", "www.sina.com"], ["eBay", "www.ebay.com"], ["MSN", "msn.com"], ["Bing", "www.bing.com"],
+		["Яндекс", "www.yandex.ru"], ["WordPress", "www.wordpress.com"], ["ВКонтакте", "www.vk.com"]
+	];
+
+	var code = "";
+	for(var i = 0; i < APPListArray.length; i++){
+		code += '<a><div onmouseover="over_var=1;" onmouseout="over_var=0;" onclick="setClientIP(\''+APPListArray[i][1]+'\');"><strong>'+APPListArray[i][0]+'</strong></div></a>';
+	}
+	code +='<!--[if lte IE 6.5]><iframe class="hackiframe2"></iframe><![endif]-->';
+	$("ClientList_Block_PC").innerHTML = code;
+}
+
+function setClientIP(ipaddr){
+	document.form.wandog_target.value = ipaddr;
+	hideClients_Block();
+	over_var = 0;
+}
+
+var over_var = 0;
+var isMenuopen = 0;
+function hideClients_Block(){
+	$("pull_arrow").src = "/images/arrow-down.gif";
+	$('ClientList_Block_PC').style.display='none';
+	isMenuopen = 0;
+}
+
+function pullLANIPList(obj){
+	if(isMenuopen == 0){
+		obj.src = "/images/arrow-top.gif"
+		$("ClientList_Block_PC").style.display = 'block';
+		document.form.wandog_target.focus();
+		isMenuopen = 1;
+	}
+	else
+		hideClients_Block();
+}
+
+var str0="";
+function add_option_count(obj, obj_t, selected_flag){
+		
+		if(obj_t.name == "wandog_maxfail"){		// Viz  || (obj_t.name == "wandog_fb_count" && document.getElementById("wandog_fb_count_tr").style.display == "") 
+				
+				free_options(obj_t);
+				for(var i=1; i<100; i++){
+						//add_option(selectObj, str, value, selected)
+						str0 = i*parseInt(obj.value);
+						if(selected_flag == i)
+								add_option(obj_t, str0, i, 1);
+						else
+								add_option(obj_t, str0, i, 0);
+				}
+		}
+		else{
+				return;
+		}		
 }
 </script>
 </head>
@@ -375,190 +825,275 @@ document.form.isp_list.options[j] = new Option(country_n_isp[v][j], j);
 <form method="post" name="form" id="ruleForm" action="start_apply.asp" target="hidden_frame">
 <input type="hidden" name="current_page" value="Advanced_WANPort_Content.asp">
 <input type="hidden" name="next_page" value="Advanced_WANPort_Content.asp">
-<input type="hidden" name="next_host" value="">
 <input type="hidden" name="modified" value="0">
 <input type="hidden" name="action_mode" value="apply">
 <input type="hidden" name="action_wait" value="30">
 <input type="hidden" name="action_script" value="reboot">
 <input type="hidden" name="preferred_lang" id="preferred_lang" value="EN">
 <input type="hidden" name="firmver" value="<% tcWebApi_staticGet("DeviceInfo","FwVer","s") %>">
-<input type="hidden" name="wl_ssid" value="IBIZA_2.4G">
-<input type="hidden" name="wans_dualwan" value="dsl usb">
-<input type="hidden" name="wans_lanport" value="1">
-<input type="hidden" name="wans_lb_ratio" value="3:1">
-<input type="hidden" name="wan0_routing_isp_enable" value="0">
-<input type="hidden" name="wan0_routing_isp" value="china_mobile">
-<input type="hidden" name="wan1_routing_isp_enable" value="0">
-<input type="hidden" name="wan1_routing_isp" value="china_mobile">
+<input type="hidden" name="wl_ssid" value="ASUS">
+<input type="hidden" name="wan_unit" value="0">
+<input type="hidden" name="wans_dualwan" value="<%tcWebApi_Get("Dualwan_Entry", "wans_dualwan", "s")%>">
+<input type="hidden" name="wans_lanport" value="<%tcWebApi_Get("Dualwan_Entry", "wans_lanport", "s")%>">
+<input type="hidden" name="wans_lb_ratio" value="<%tcWebApi_Get("Dualwan_Entry", "wans_lb_ratio", "s")%>">
+<input type="hidden" name="wandog_enable" value="<%tcWebApi_Get("Dualwan_Entry", "wandog_enable", "s")%>">
+<input type="hidden" name="wan0_routing_isp_enable" value="<% tcWebApi_Get("Dualwan_Entry", "wan0_routing_isp_enable", "s") %>">
+<input type="hidden" name="wan0_routing_isp" value="<% tcWebApi_Get("Dualwan_Entry", "wan0_routing_isp", "s") %>">
+<input type="hidden" name="wan1_routing_isp_enable" value="<% tcWebApi_Get("Dualwan_Entry", "wan0_routing_isp_enable", "s") %>">
+<input type="hidden" name="wan1_routing_isp" value="<% tcWebApi_Get("Dualwan_Entry", "wan1_routing_isp", "s") %>">
 <input type="hidden" name="wans_routing_rulelist" value=''>
+
 <table class="content" align="center" cellpadding="0" cellspacing="0">
-<tr>
-<td width="17">&nbsp;</td>
-<td valign="top" width="202">
-<div id="mainMenu"></div>
-<div id="subMenu"></div>
-</td>
-<td valign="top">
-<div id="tabMenu" class="submenuBlock"></div>
-<table width="98%" border="0" align="left" cellpadding="0" cellspacing="0">
-<tr>
-<td valign="top">
-<table width="760px" border="0" cellpadding="4" cellspacing="0" class="FormTitle" id="FormTitle">
-<tbody>
-<tr>
-<td bgcolor="#4D595D" valign="top">
-<div>&nbsp;</div>
-<div class="formfonttitle">Wan Port Setup</div>
-<div style="margin-left:5px;margin-top:10px;margin-bottom:10px"><img src="/images/New_ui/export/line_export.png"></div>
-<div class="formfontdesc"><%tcWebApi_get("String_Entry","L3F_x_ConnectionType_sd","s")%></div>
-<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
-<thead>
-<tr>
-<td colspan="2"><%tcWebApi_get("String_Entry","t2BC","s")%></td>
-</tr>
-</thead>
-<tr>
-<th><%tcWebApi_get("String_Entry","WC11b_WirelessCtrl_button1name","s")%> Dual Wan</th>
-<td>
-<div class="left" style="width:94px; float:left; cursor:pointer;" id="radio_dualwan_enable"></div>
-<div class="iphone_switch_container" style="height:32px; width:74px; position: relative; overflow: hidden">
-<script type="text/javascript">
-$j('#radio_dualwan_enable').iphoneSwitch(wans_dualwan_orig.split(' ')[1] != 'none',
-function() {
-wans_flag = 1;
-inputCtrl(document.form.wans_second, 1);
-wans_caps_secondary = wans_caps.split(" ").splice(1);
-addWANOption(document.form.wans_second, wans_caps_secondary);
-document.form.wans_second.value = wans_dualwan_orig.split(" ")[1];
-inputCtrl(document.form.wans_mode, 1);
-appendModeOption(wans_mode_orig);
-},
-function() {
-wans_flag = 0;
-document.form.wans_dualwan.value = document.form.wans_primary.value + " none";
-inputCtrl(document.form.wans_second, 0);
-inputCtrl(document.form.wans_mode, 0);
-inputCtrl(document.form.wans_lb_ratio_0, 0);
-inputCtrl(document.form.wans_lb_ratio_1, 0);
-inputCtrl(document.form.wans_routing_isp_enable[1], 0);
-inputCtrl(document.form.wans_routing_isp_enable[0], 0);
-inputCtrl(document.form.wans_isp_unit, 0);
-inputCtrl(document.form.isp_country, 0);
-inputCtrl(document.form.isp_list, 0);
-inputCtrl(document.form.wans_routing_enable[1], 0);
-inputCtrl(document.form.wans_routing_enable[0], 0);
-},
-{
-switch_on_container_path: '/switcherplugin/iphone_switch_container_off.png'
-}
-);
-</script>
-</div>
-</td>
-</tr>
-<tr>
-<th>Primary WAN</th>
-<td>
-<select name="wans_primary" class="input_option" onchange="appendLANoption1(this);"></select>
-</td>
-</tr>
-<tr>
-<th>Secondary WAN</th>
-<td>
-<select name="wans_second" class="input_option" onchange="appendLANoption2(this);"></select>
-</td>
-</tr>
-<tr>
-<th>Multi WAN Mode</th>
-<td>
-<select name="wans_mode" class="input_option" onchange="appendModeOption(this.value);">
-<option value="fo" selected>Fail Over</option>
-<option value="lb" >LoadBalance</option>
-</select>
-</td>
-</tr>
-<tr>
-<th>Load Balance Configuration</th>
-<td>
-<input type="text" maxlength="1" class="input_3_table" name="wans_lb_ratio_0" value="" onkeypress="" onkeyup="" onBlur=""/>&nbsp;:
-<input type="text" maxlength="1" class="input_3_table" name="wans_lb_ratio_1" value="" onkeypress="" onkeyup="" onBlur=""/>
-</td>
-</tr>
-<tr>
-<th><%tcWebApi_get("String_Entry","WC11b_WirelessCtrl_button1name","s")%> ISP profile rules?</th>
-<td>
-<input type="radio" value="1" name="wans_routing_isp_enable" class="content_input_fd" onClick="change_isp_radio(this.value);" ><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
-<input type="radio" value="0" name="wans_routing_isp_enable" class="content_input_fd" onClick="change_isp_radio(this.value);" ><%tcWebApi_get("String_Entry","checkbox_No","s")%>
-</td>
-</tr>
-<tr>
-<th>WAN to apply ISP profile rules</th>
-<td>
-<select name="wans_isp_unit" class="input_option" onchange="change_isp_unit(this.value)">
-<option class="content_input_fd" value="0" >Primary WAN</option>
-<option class="content_input_fd" value="1">Secondary WAN</option>
-</select>
-</td>
-</tr>
-<tr>
-<th>Country / ISP </th>
-<td>
-<select name="isp_country" class="input_option" onchange="appendcoutry(this.value);" value=""></select>
-<select name="isp_list" class="input_option" style="display:none;"value=""></select>
-</td>
-</tr>
-<tr>
-<th><%tcWebApi_get("String_Entry","WC11b_WirelessCtrl_button1name","s")%> the Routing Tables?</th>
-<td>
-<input type="radio" value="1" name="wans_routing_enable" class="content_input_fd" onClick="" ><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
-<input type="radio" value="0" name="wans_routing_enable" class="content_input_fd" onClick="" checked><%tcWebApi_get("String_Entry","checkbox_No","s")%>
-</td>
-</tr>
-</table>
-<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" class="FormTable_table" style="margin-top:8px;" >
-<thead>
-<tr><td colspan="4" id="Routing_table">Routing rules table for dual WAN</td></tr>
-</thead>
-<tr>
-<th>Source IP</th>
-<th>Destination IP</th>
-<th>WAN Unit</th>
-<th><% tcWebApi_Get("String_Entry", "list_add_delete", "s") %></th>
-</tr>
-<tr>
-<div id="ClientList_Block_PC" class="ClientList_Block_PC"></div>
-<td width="30%">
-<input type="text" class="input_15_table" maxlength="15" name="wans_FromIP_x_0" style="" onKeyPress="return is_ipaddr(this,event)">
-</td>
-<td width="30%">
-<input type="text" class="input_15_table" maxlength="15" name="wans_ToIP_x_0" onkeypress="return is_ipaddr(this,event)">
-</td>
-<td width="25%">
-<select name="wans_unit_x_0" class="input_option">
-<option value="0">Primary WAN</option>
-<option value="1">Secondary WAN</option>
-</select>
-</td>
-<td width="15%">
-<div>
-<input type="button" class="add_btn" onClick="addRow_Group(32);" value="">
-</div>
-</td>
-</tr>
-</table>
-<div id="wans_RoutingRules_Block"></div>
-<div class="apply_gen">
-<input class="button_gen" onclick="applyRule()" type="button" value="<%tcWebApi_get("String_Entry","CTL_apply","s")%>"/>
-</div>
-</td>
-</tr>
-</tbody>
-</table>
-</td>
-</tr>
-</table>
-<td width="10" align="center" valign="top">&nbsp;</td>
-</tr>
+	<tr>
+		<td width="17">&nbsp;</td>
+		<td valign="top" width="202">
+			<div id="mainMenu"></div>
+			<div id="subMenu"></div>
+		</td>
+		<td valign="top">
+			<div id="tabMenu" class="submenuBlock"></div>
+
+			<!--===================================Beginning of Main Content===========================================-->
+
+			<table width="98%" border="0" align="left" cellpadding="0" cellspacing="0">
+				<tr>
+					<td valign="top">
+						<table width="760px" border="0" cellpadding="4" cellspacing="0" class="FormTitle" id="FormTitle">
+							<tbody>
+								<tr>
+									<td bgcolor="#4D595D" valign="top">
+										<div>&nbsp;</div>
+										<div class="formfonttitle"><%tcWebApi_Get("String_Entry", "menu5_3", "s")%> - <%tcWebApi_Get("String_Entry", "dualwan", "s")%></div>
+										<div style="margin-left:5px;margin-top:10px;margin-bottom:10px"><img src="/images/New_ui/export/line_export.png"></div>
+										<div class="formfontdesc"><%tcWebApi_Get("String_Entry", "dualwan_desc_tmp", "s")%></div>
+										<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
+											<thead>
+											<tr>
+												<td colspan="2"><%tcWebApi_get("String_Entry","t2BC","s")%></td>
+											</tr>
+											</thead>
+											<tr>
+												<th><%tcWebApi_Get("String_Entry", "dualwan_enable", "s")%></th>
+												<td>
+													<div class="left" style="width:94px; float:left; cursor:pointer;" id="radio_dualwan_enable"></div>
+													<div class="iphone_switch_container" style="height:32px; width:74px; position: relative; overflow: hidden">
+														<script type="text/javascript">
+															$j('#radio_dualwan_enable').iphoneSwitch(wans_dualwan_orig.split(' ')[1] != 'none',
+																 function() {
+																	wans_flag = 1;
+																	inputCtrl(document.form.wans_second, 1);
+																	form_show(wans_flag);
+																 },
+																 function() {
+																	wans_flag = 0;
+																	document.form.wans_dualwan.value = document.form.wans_primary.value + ' none';
+																	form_show(wans_flag);
+																 },
+																 {
+																	switch_on_container_path: '/switcherplugin/iphone_switch_container_off.png'
+																 }
+															);
+														</script>
+													</div>
+												</td>
+											</tr>
+											<tr>
+												<th><%tcWebApi_Get("String_Entry", "dualwan_primary", "s")%></th>
+												<td>
+													<select name="wans_primary" class="input_option" onchange="changeWANProto(this);"></select>
+													<select id="wans_lanport1" name="wans_lanport1" class="input_option" style="margin-left:7px;display:none;">
+														<option value="1" <% if tcWebApi_Get("Dualwan_Entry", "wans_lanport", "h") = "1" then asp_Write("selected") end if %>>LAN Port 1</option>
+														<option value="2" <% if tcWebApi_Get("Dualwan_Entry", "wans_lanport", "h") = "2" then asp_Write("selected") end if %>>LAN Port 2</option>
+														<option value="3" <% if tcWebApi_Get("Dualwan_Entry", "wans_lanport", "h") = "3" then asp_Write("selected") end if %>>LAN Port 3</option>
+														<option value="4" <% if tcWebApi_Get("Dualwan_Entry", "wans_lanport", "h") = "4" then asp_Write("selected") end if %>>LAN Port 4</option>
+													</select>
+												</td>
+											</tr>
+											<tr>
+												<th><%tcWebApi_Get("String_Entry", "dualwan_secondary", "s")%></th>
+												<td>
+													<select name="wans_second" class="input_option" onchange="changeWANProto(this);"></select>
+													<select id="wans_lanport2" name="wans_lanport2" class="input_option" style="margin-left:7px;display:none;">
+														<option value="1" <% if tcWebApi_Get("Dualwan_Entry", "wans_lanport", "h") = "1" then asp_Write("selected") end if %>>LAN Port 1</option>
+														<option value="2" <% if tcWebApi_Get("Dualwan_Entry", "wans_lanport", "h") = "2" then asp_Write("selected") end if %>>LAN Port 2</option>
+														<option value="3" <% if tcWebApi_Get("Dualwan_Entry", "wans_lanport", "h") = "3" then asp_Write("selected") end if %>>LAN Port 3</option>
+														<option value="4" <% if tcWebApi_Get("Dualwan_Entry", "wans_lanport", "h") = "4" then asp_Write("selected") end if %>>LAN Port 4</option>
+													</select>
+												</td>
+											</tr>
+											<tr id="wans_mode_tr">
+												<th><%tcWebApi_Get("String_Entry", "dualwan_mode", "s")%></th>
+												<td>
+													<input type="hidden" name="wans_mode" value='<% tcWebApi_Get("Dualwan_Entry", "wans_mode", "s") %>'>
+													<select id="wans_mode_option" class="input_option" onchange="appendModeOption(this.value);">
+														<option value="fo" ><%tcWebApi_Get("String_Entry", "dualwan_mode_fo", "s")%></option>
+														<!--	tmp
+														<option value="lb" <% if tcWebApi_Get("Dualwan_Entry", "wans_mode", "h") = "lb" then asp_Write("selected") end if %>><%tcWebApi_Get("String_Entry", "dualwan_mode_lb", "s")%></option>
+														-->
+													</select>
+													<span id="fb_span" style="display:none"><input type="checkbox" id="fb_checkbox"><%tcWebApi_Get("String_Entry", "dualwan_failback_allow", "s")%></span>													
+													<script>
+										  			document.getElementById("fb_checkbox").onclick = function(){
+											  				document.form.wans_mode.value = (this.checked == true ? "fb" : "fo");
+											  				document.getElementById("wandog_fb_count_tr").style.display = (this.checked == true ? "" : "none");
+																if(document.getElementById("wandog_fb_count_tr").style.display == "")
+																		add_option_count(document.form.wandog_interval, document.form.wandog_fb_count, wandog_fb_count_orig);	
+										  			}
+										  		</script>
+													<div id="lb_note" style="color:#FFCC00; display:none;"><%tcWebApi_Get("String_Entry", "dualwan_lb_note", "s")%></div>
+												</td>
+											</tr>
+											<tr>
+												<th><%tcWebApi_Get("String_Entry", "dualwan_mode_lb_setting", "s")%></th>
+												<td>
+													<input type="text" maxlength="1" class="input_3_table" name="wans_lb_ratio_0" value="" onkeypress="return is_number(this,event);" />
+													&nbsp; : &nbsp;
+													<input type="text" maxlength="1" class="input_3_table" name="wans_lb_ratio_1" value="" onkeypress="return is_number(this,event);" />
+												</td>
+											</tr>
+											<tr class="ISPProfile">
+												<th><%tcWebApi_Get("String_Entry", "dualwan_isp_rules", "s")%></th>
+												<td>
+													<input type="radio" value="0" name="wans_isp_unit" class="content_input_fd" onClick="change_isp_unit(this.value);">None
+													<input type="radio" value="1" name="wans_isp_unit" class="content_input_fd" onClick="change_isp_unit(this.value);"><%tcWebApi_Get("String_Entry", "dualwan_primary", "s")%>
+													<input type="radio" value="2" name="wans_isp_unit" class="content_input_fd" onClick="change_isp_unit(this.value);"><%tcWebApi_Get("String_Entry", "dualwan_secondary", "s")%>
+												</td>
+											</tr>
+
+											<tr class="ISPProfile">
+												<th><%tcWebApi_Get("String_Entry", "dualwan_isp_primary", "s")%></th>
+												<td>
+													<select name="wan0_isp_country" class="input_option" onchange="appendcountry(this);" value=""></select>
+													<select name="wan0_isp_list" class="input_option" style="display:none;"value=""></select>
+												</td>
+											</tr>
+
+											<tr class="ISPProfile">
+												<th><%tcWebApi_Get("String_Entry", "dualwan_isp_secondary", "s")%></th>
+												<td>
+													<select name="wan1_isp_country" class="input_option" onchange="appendcountry(this);" value=""></select>
+													<select name="wan1_isp_list" class="input_option" style="display:none;"value=""></select>
+												</td>
+											</tr>
+										</table>
+
+										<!-- -----------Enable Ping time watch dog start----------------------- -->
+										<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" class="FormTable" style="margin-top:8px;" id="watchdog_table">
+											<thead>
+											<tr>
+												<td colspan="2"><%tcWebApi_Get("String_Entry", "dualwan_pingtime_wd", "s")%></td>
+											</tr>
+											</thead>
+											<tr>
+												<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(26,4);"><%tcWebApi_Get("String_Entry", "Delay", "s")%></a></th>
+												<td>
+													<input type="text" name="wandog_delay" class="input_3_table" maxlength="2" value="<% tcWebApi_Get("Dualwan_Entry", "wandog_delay", "s") %>" onKeyPress="return is_number(this, event);" placeholder="0">&nbsp;&nbsp;<%tcWebApi_Get("String_Entry", "Second", "s")%>
+												</td>
+											</tr>											
+											<tr>
+												<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(26,3);"><%tcWebApi_Get("String_Entry", "Interval", "s")%></a></th>
+												<td>
+													<input type="text" name="wandog_interval" class="input_3_table" maxlength="1" value="<% tcWebApi_Get("Dualwan_Entry", "wandog_interval", "s") %>" onBlur="add_option_count(this, document.form.wandog_maxfail, document.form.wandog_maxfail.value);" onKeyPress="return is_number(this, event);" placeholder="5">&nbsp;&nbsp;<%tcWebApi_Get("String_Entry", "Second", "s")%>
+												</td>
+											</tr>
+											<tr>
+												<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(26,5);"><%tcWebApi_Get("String_Entry", "dualwan_pingtime_detect", "s")%></a></th>
+												<td>
+													<select name="wandog_maxfail" class="input_option">
+													</select>&nbsp;&nbsp;<%tcWebApi_Get("String_Entry", "Second", "s")%>
+												</td>
+											</tr>
+											<tr id="wandog_fb_count_tr">
+												<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(26,6);"><%tcWebApi_Get("String_Entry", "dualwan_pingtime_fb_detect", "s")%></a></th>
+												<td>
+													<select name="wandog_fb_count" class="input_option">
+													</select>&nbsp;&nbsp;<%tcWebApi_Get("String_Entry", "Second", "s")%>
+												</td>
+											</tr>
+											<tr>
+												<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(26,1);"><%tcWebApi_Get("String_Entry", "wandog_enable", "s")%></a></th>
+												<td>
+													<input type="radio" value="1" name="wandog_enable_radio" class="content_input_fd" <% if tcWebApi_Get("Dualwan_Entry", "wandog_enable", "h") = "1" then asp_Write("checked") end if %> onClick="appendModeOption2(this.value);"><%tcWebApi_Get("String_Entry", "checkbox_Yes", "s")%>
+													<input type="radio" value="0" name="wandog_enable_radio" class="content_input_fd" <% if tcWebApi_Get("Dualwan_Entry", "wandog_enable", "h") = "0" then asp_Write("checked") end if %> onClick="appendModeOption2(this.value);"><%tcWebApi_Get("String_Entry", "checkbox_No", "s")%>
+												</td>
+											</tr>
+											<tr>
+												<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(26,2);"><%tcWebApi_Get("String_Entry", "NetworkTools_target", "s")%></a></th>
+												<td>
+														<input type="text" class="input_32_table" name="wandog_target" maxlength="100" value="<% tcWebApi_Get("Dualwan_Entry", "wandog_target", "s"); %>" placeholder="ex: www.google.com">
+														<img id="pull_arrow" height="14px;" src="/images/arrow-down.gif" style="position:absolute;*margin-left:-3px;*margin-top:1px;" onclick="pullLANIPList(this);" title="<%tcWebApi_Get("String_Entry", "select_network_host", "s")%>" onmouseover="over_var=1;" onmouseout="over_var=0;">
+														<div id="ClientList_Block_PC" class="ClientList_Block_PC" style="display:none;"></div>
+												</td>
+											</tr>
+										</table>
+										<!-- -----------Enable Ping time watch dog end----------------------- -->
+
+										<!-- -----------Enable Routing rules table start----------------------- -->
+										<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" class="FormTable" style="margin-top:8px;" id="routing_table">
+											<thead>
+											<tr>
+												<td colspan="2"><%tcWebApi_Get("String_Entry", "dualwan_routing_rule", "s")%></td>
+											</tr>
+											</thead>
+											<tr>
+												<th><%tcWebApi_Get("String_Entry", "dualwan_routing_rule_enable", "s")%></th>
+												<td>
+													<input type="radio" value="1" name="wans_routing_enable" class="content_input_fd" <% if tcWebApi_Get("Dualwan_Entry", "wans_routing_enable", "h") = "1" then asp_Write("checked") end if %>><%tcWebApi_Get("String_Entry", "checkbox_Yes", "s")%>
+													<input type="radio" value="0" name="wans_routing_enable" class="content_input_fd" <% if tcWebApi_Get("Dualwan_Entry", "wans_routing_enable", "h") = "0" then asp_Write("checked") end if %>><%tcWebApi_Get("String_Entry", "checkbox_No", "s")%>
+												</td>
+											</tr>
+										</table>
+
+										<!-- ----------Routing Rules Table  ---------------- -->
+										<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" class="FormTable_table" style="margin-top:8px;" id="Routing_rules_table">
+											<thead>
+												<tr><td colspan="4" id="Routing_table"><%tcWebApi_Get("String_Entry", "dualwan_routing_rule_list", "s")%>&nbsp;(<%tcWebApi_Get("String_Entry", "List_limit", "s")%>&nbsp;32)</td></tr>
+											</thead>
+
+											<tr>
+												<th><!--a class="hintstyle" href="javascript:void(0);"--><%tcWebApi_Get("String_Entry", "FC_LanWanSrcIP_in", "s")%><!--/a--></th>
+												<th><%tcWebApi_Get("String_Entry", "FC_LanWanDstIP_in", "s")%></th>
+												<th><%tcWebApi_Get("String_Entry", "dualwan_unit", "s")%></th>
+												<th><%tcWebApi_Get("String_Entry", "list_add_delete", "s")%></th>
+											</tr>
+											<tr>
+												<!-- rules info -->
+												<td width="30%">
+													<input type="text" class="input_15_table" maxlength="18" name="wans_FromIP_x_0" style="" onKeyPress="return is_ipaddr_plus_netmask(this,event)">
+												</td>
+												<td width="30%">
+													<input type="text" class="input_15_table" maxlength="18" name="wans_ToIP_x_0" onkeypress="return is_ipaddr_plus_netmask(this,event)">
+												</td>
+												<td width="25%">
+													<select name="wans_unit_x_0" class="input_option">
+														<option value="0"><%tcWebApi_Get("String_Entry", "dualwan_primary", "s")%></option>
+														<option value="1"><%tcWebApi_Get("String_Entry", "dualwan_secondary", "s")%></option>
+													</select>
+												</td>
+												<td width="15%">
+													<div>
+													<input type="button" class="add_btn" onClick="addRow_Group(32);" value="">
+													</div>
+												</td>
+											</tr>
+										</table>
+
+										<div id="wans_RoutingRules_Block"></div>
+
+										<!-- manually assigned the DHCP List end-->
+
+										<div class="apply_gen">
+											<input class="button_gen" onclick="applyRule()" type="button" value="<%tcWebApi_get("String_Entry","CTL_apply","s")%>"/>
+										</div>
+									</td>
+								</tr>
+							</tbody>
+						</table>
+					</td>
+				</tr>
+			</table>
+		<td width="10" align="center" valign="top">&nbsp;</td>
+	</tr>
 </table>
 </form>
 <div id="footer"></div>

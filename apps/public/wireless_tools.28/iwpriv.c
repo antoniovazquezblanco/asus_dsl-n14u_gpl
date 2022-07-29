@@ -1066,19 +1066,20 @@ main(int	argc,
   int skfd;		/* generic raw socket desc.	*/
   int goterr = 0;
 
-  /* Create a channel to the NET kernel. */
-  if((skfd = iw_sockets_open()) < 0)
-    {
-      perror("socket");
-      return(-1);
-    }
+	/* Create a channel to the NET kernel. */
+	if((skfd = iw_sockets_open()) < 0)
+	{
+	perror("socket");
+	return(-1);
+	}
 
 	if(argc == 3)
 	{
 		if( (strcmp(argv[1], "show")==0) && (strcmp(argv[2], "traffic")==0))
 		{
 			showtraffic(); //Ren
-			return 0;
+			iw_sockets_close(skfd);
+			return goterr;
 		}
 	}
 

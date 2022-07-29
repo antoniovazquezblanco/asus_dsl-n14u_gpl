@@ -86,7 +86,7 @@
 }
 
 .FormTitle_firefox{
-	margin-top:-105px;
+	margin-top:-95px;
 	line-height:160%;
 	font-size:12px;
 	font-family:Arial, Verdana, Arial, Helvetica, sans-serif;
@@ -122,7 +122,7 @@
 	padding-left: 10px;
 	border: 1px solid #222;
 	border-collapse: collapse;
-	background: url(/images/general_th.gif) repeat;
+	background:	#2F3A3E;
 }
 .FormTable thead td{
 	color: #FFF;
@@ -134,7 +134,14 @@
 	padding: 3px;
 	padding-left: 10px;
 	border-collapse: collapse;
- 	background: url(/images/statusTitle.gif) repeat-x center;
+ 	background: #92A0A5; /* Old browsers */
+	background: -moz-linear-gradient(top, #92A0A5  0%, #66757C 100%); /* FF3.6+ */
+	background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#92A0A5 ), color-stop(100%,#66757C)); /* Chrome,Safari4+ */
+	background: -webkit-linear-gradient(top, #92A0A5  0%, #66757C 100%); /* Chrome10+,Safari5.1+ */
+	background: -o-linear-gradient(top,  #92A0A5 0%, #66757C 100%); /* Opera 11.10+ */
+	background: -ms-linear-gradient(top,  #92A0A5  0%, #66757C 100%); /* IE10+ */
+	background: linear-gradient(to bottom, #92A0A5  0%, #66757C 100%); /* W3C */
+	filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#92A0A5', endColorstr='#66757C',GradientType=0 ); /* IE6-9 */
 }
 .FormTable thead th{
 	color: #000000;
@@ -146,10 +153,9 @@
 }
 .FormTable td{
 	padding-left: 10px;
-	background-color:#475a5f;
+	background-color:#475A5F;
 	border: 1px solid #222;
 	border-collapse: collapse;
-	/*background: url(/images/general_td.gif) repeat-x;*/
 }
 .FormTable td span{
 	background-color:#475a5f;
@@ -176,7 +182,7 @@
 	height:25px;
 	border: 1px solid #222;
 	border-collapse: collapse;
- 	background: url(/images/general_th.gif) repeat-x;
+ 	background:	#2F3A3E;
 }
 .FormTable_table th.select_table{
 	width:100px;
@@ -209,7 +215,14 @@
 	padding: 3px;
 	border-collapse: collapse;
 	padding-left: 10px;
- 	background: url(/images/statusTitle.gif) repeat-x center;
+	background: #92A0A5; /* Old browsers */
+	background: -moz-linear-gradient(top, #92A0A5  0%, #66757C 100%); /* FF3.6+ */
+	background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#92A0A5 ), color-stop(100%,#66757C)); /* Chrome,Safari4+ */
+	background: -webkit-linear-gradient(top, #92A0A5  0%, #66757C 100%); /* Chrome10+,Safari5.1+ */
+	background: -o-linear-gradient(top,  #92A0A5 0%, #66757C 100%); /* Opera 11.10+ */
+	background: -ms-linear-gradient(top,  #92A0A5  0%, #66757C 100%); /* IE10+ */
+	background: linear-gradient(to bottom, #92A0A5  0%, #66757C 100%); /* W3C */
+	filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#92A0A5', endColorstr='#66757C',GradientType=0 ); /* IE6-9 */
 }
 .FormTable_table thead th{
 	width: 98px;
@@ -239,7 +252,14 @@
 	height:25px;
 	border: 1px solid #222;
 	border-collapse: collapse;
- 	background: url(/images/statusTitle.gif) repeat-x;
+ 	background: #92A0A5; /* Old browsers */
+	background: -moz-linear-gradient(top, #92A0A5  0%, #66757C 100%); /* FF3.6+ */
+	background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#92A0A5 ), color-stop(100%,#66757C)); /* Chrome,Safari4+ */
+	background: -webkit-linear-gradient(top, #92A0A5  0%, #66757C 100%); /* Chrome10+,Safari5.1+ */
+	background: -o-linear-gradient(top,  #92A0A5 0%, #66757C 100%); /* Opera 11.10+ */
+	background: -ms-linear-gradient(top,  #92A0A5  0%, #66757C 100%); /* IE10+ */
+	background: linear-gradient(to bottom, #92A0A5  0%, #66757C 100%); /* W3C */
+	filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#92A0A5', endColorstr='#66757C',GradientType=0 ); /* IE6-9 */
 }
 .FormTable_NWM th.select_table{
 	width:100px;
@@ -274,7 +294,7 @@
 	border: 1px solid #222;
 	padding: 2px;
 	border-collapse: collapse;
- 	background: url(/images/general_th.gif) repeat-x center;
+ 	background:	#2F3A3E;
 }
 .FormTable_NWM thead th{
 	width: 98px;
@@ -351,11 +371,35 @@
 	border-width:0;
 	color:#FFFFFF;
 }
+.input_30_table{
+	margin-left:2px;
+	padding-left:0.4em;
+	height:23px;
+	width:315px;
+	line-height:23px \9;	/*IE*/
+	font-size:12px;
+	font-family: Lucida Console;
+	background-image:url(/images/New_ui/inputbg.png);
+	border-width:0;
+	color:#FFFFFF;
+}
 .input_25_table{
 	margin-left:2px;	
 	padding-left:0.4em;
 	height:23px;
 	width:235px;
+	line-height:23px \9;	/*IE*/
+	font-size:12px;
+	font-family: Lucida Console;
+	background-image:url(/images/New_ui/inputbg.png);
+	border-width:0;
+	color:#FFFFFF;
+}
+.input_22_table{
+	margin-left:2px;
+	padding-left:0.4em;
+	height:23px;
+	width:202px;
 	line-height:23px \9;	/*IE*/
 	font-size:12px;
 	font-family: Lucida Console;
@@ -450,9 +494,11 @@
 
 /*	Viz add	start */
 .titledownbutton{
-  	background: transparent url(/images/New_ui/contentbt_normal.png) no-repeat scroll center top;
-  	border:0;
-  	color: #FFFFFF;
+	text-shadow: 1px 1px 0px black;
+	font-weight: bolder;
+ 	background: transparent url(/images/New_ui/contentbt_normal.png) no-repeat scroll center top;
+ 	border:0;
+ 	color: #FFFFFF;
 	height:34px;
 	font-family:Verdana;
 	font-size:12px;
@@ -548,7 +594,7 @@
 	height:34px;
 	font-family:Verdana;
 	font-size:12px;
- 	width:150px;
+ 	width:155px;
   overflow:visible;
 	cursor:pointer;
 	outline: none; /* for Firefox */
@@ -561,21 +607,52 @@
 	height:34px;
 	font-family:Verdana;
 	font-size:12px;
- 	width:150px;
+ 	width:155px;
   overflow:visible;
 	cursor:pointer;
 	outline: none; /* for Firefox */
  	hlbr:expression(this.onFocus=this.blur()); /* for IE */
 }
+
+.button_gen_long_dis{
+	font-weight: bolder;
+	text-shadow: 1px 1px 0px black;
+  background: transparent url(/images/New_ui/logout_bt.png) no-repeat scroll center top;
+  border:0;
+  color: #333333;
+	height:34px;
+	font-family:Verdana;
+	font-size:12px;
+ 	width:155px; 	
+  overflow:visible;
+	/*cursor:pointer;*/
+	outline: none; /* for Firefox */
+ 	hlbr:expression(this.onFocus=this.blur()); /* for IE */
+}
+.button_gen_long_dis:hover	/*, .button:active*/{
+  background: transparent url(/images/New_ui/logout_btover.png) no-repeat scroll center top;
+  border:0;
+  color: #333333;
+	height:34px;
+	font-family:Verdana;
+	font-size:12px;
+ 	width:155px;
+  overflow:visible;
+	/*cursor:pointer;*/
+	outline: none; /* for Firefox */
+ 	hlbr:expression(this.onFocus=this.blur()); /* for IE */
+}
+
 .button_gen_long_touch{
   color: #FFFFFF;
 	background:url(/images/New_ui/contentbt_over.png) no-repeat;
 	height:33px;
- 	width:150px;
+ 	width:155px;
  	padding:0 .70em 0 .70em;  
  	background-position:0px;
 	cursor:pointer;
 }
+
 
 .button_gen_short{
 	font-weight: bolder;
@@ -625,10 +702,6 @@
 
 form{ 
 	margin:0px;
-}
-
-textarea{
-	width:99%;	
 }
 
 .hint_word{
@@ -783,7 +856,7 @@ textarea{
 	position:absolute;
 	margin-top:25px;
 	margin-left:1px;
-	*margin-left:-136px;
+	*margin-left:-132px;
 	text-align:left;
 	width:250px;
 	height:400px;
@@ -1133,11 +1206,11 @@ color:#FFFFFF;
 }
 
 .tab:hover{
-	background-position:right -73px;/*Viz 2011.04*/
+	background-position:right -73px;
 	cursor: pointer;
 }	
 .tab:hover span{
-	background-position:left -73px;/*Viz 2011.04*/	
+	background-position:left -73px;
 	cursor: pointer;
 } 
 .tab {	
@@ -1199,6 +1272,7 @@ div.tabclick {
 }
 
 .tab_NW {	
+	font-weight: bolder;
 	background: transparent url(/images/New_ui/taba.png) no-repeat scroll right top;
 	color: White;
 	display: block;
@@ -1208,9 +1282,13 @@ div.tabclick {
 	margin-right:2px;
 	text-decoration: none;
 	text-align:center;
-	max-width:130px;
+	max-width:240px;
 }
 .tab_NW span {
+	cursor:pointer;
+	font-weight: bolder;
+	white-space:nowrap;
+	font-weight: bolder;
 	background: transparent url(/images/New_ui/tabspan.png) no-repeat;
 	display: block;
 	padding: 5px 4px 5px 12px;
@@ -1226,25 +1304,30 @@ div.tabclick {
 } 
 
 .tabclick_NW {	   
-      background: transparent url(/images/New_ui/tabclicka.png) no-repeat scroll right top;
-			font-family: Verdana;	
-      color: White;
-      display: block;
-      float: left;
-      height: 28px;
-      padding-right: 8px;      
-      margin-right:2px;
-      text-align:center;
-      text-decoration: none;
-	 		max-width:130px;
-    }
+	font-weight: bolder;
+	background: transparent url(/images/New_ui/tabclicka.png) no-repeat scroll right top;
+	font-family: Verdana;	
+    color: White;
+    display: block;
+    float: left;
+    height: 28px;
+    padding-right: 8px;      
+    margin-right:2px;
+    text-align:center;
+    text-decoration: none;
+	max-width:240px;
+}
 .tabclick_NW span {
-	  background: transparent url(/images/New_ui/tabclickspan.png) no-repeat;
-		font-family: Verdana;	 
+	cursor:pointer;
+	font-weight: bolder;
+	white-space:nowrap;
+	font-weight: bolder;
+	background: transparent url(/images/New_ui/tabclickspan.png) no-repeat;
+	font-family: Arial, Helvetica, sans-serif;	 
     display: block;
     padding: 5px 4px 5px 12px;
     line-height: 20px;	
-		font-size: 13px; 
+	font-size: 13px; 
 }	
 
 .radioleft {	
@@ -1353,18 +1436,18 @@ background-image:url(/images/New_ui/networkmap/flowbt_over.png);
 
 .fromdropdownbt{
 font:Arial, Helvetica, sans-serif;
-background-image:url(/images/New_ui/networkmap/formdropdown.asp);
+background-image:url(/images/New_ui/networkmap/formdropdown.png);
 color:#FFFFFF;
 font-size:12px;
 }
 .fromdropdownbt:link{
 font:Arial, Helvetica, sans-serif;
-background-image:url(/images/New_ui/networkmap/formdropdown.asp);
+background-image:url(/images/New_ui/networkmap/formdropdown.png);
 color:#FFFFFF;
 font-size:12px;
 }
 .fromdropdownbt:hover{
-background-image:url(/images/New_ui/networkmap/formdropdown_over.asp);
+background-image:url(/images/New_ui/networkmap/formdropdown_over.png);
 
 }
 
@@ -1471,6 +1554,25 @@ font-size:12px;
 
 .notification_on1{
 	cursor: pointer;
+}
+
+.vpnstatuson{
+	background-image:url(/images/New_ui/vpnstatus.png);
+	background-repeat:no-repeat;	
+	background-position:2px 2px;
+	height:29px;
+	width:30px;
+	cursor: pointer;
+	display: none;
+}
+.vpnstatusoff{
+	background-image:url(/images/New_ui/vpnstatus.png);
+	background-repeat:no-repeat;	
+	background-position:2px -48px;
+	height:29px;
+	width:30px;
+	cursor: pointer;
+	display: none;
 }
 
 .wifihwswstatuson{
@@ -1583,7 +1685,7 @@ font-size:12px;
 
 .notificationon{
 	display:inline;
-	background-image:url(images/New_ui/notification.png);
+	background-image:url(/images/New_ui/notification.png);
 	background-repeat:no-repeat;	
 	background-position:2px 2px;
 	height:30px;
@@ -1592,7 +1694,7 @@ font-size:12px;
 }
 .notificationoff{
 	display:none;
-	background-image:url(images/New_ui/notification.png);
+	background-image:url(/images/New_ui/notification.png);
 	background-repeat:no-repeat;	
 	background-position:2px -48px;
 	height:30px;
@@ -1814,10 +1916,12 @@ font-size:12px;
 /*Folder Tree*/
 .folder_tree{
 	font-size:10pt;
-	margin:0px 0px 1px 30px;
-	height:339px;
+	margin:7px 0px 1px 30px;
+	height:332px;
 	overflow:auto;
-	width:455px;
+	overflow-x: hidden;
+	width:450px;
+	padding-right: 5px;
 }
 
 .single_wan_connected{
@@ -1833,4 +1937,72 @@ font-size:12px;
 	margin-left:160px;
 	height:40px;
 	width:20px;
+}
+.primary_wan_connected{
+	background-image:url(/images/New_ui/networkmap/line_dualwan.png);
+	background-repeat:no-repeat;
+	margin-left:68px;
+	height:40px;
+	width:20px;
+}
+.primary_wan_disconnected{
+	background-image:url(/images/New_ui/networkmap/line_dualwan_disconnected.png);
+	background-repeat:no-repeat;
+	margin-left:68px;
+	height:40px;
+	width:20px;
+}
+.primary_wan_standby{
+	background-image:url(/images/New_ui/networkmap/line_dualwan_dot.png);
+	background-repeat:no-repeat;
+	margin-left:68px;
+	height:40px;
+	width:20px;
+}
+.secondary_wan_connected{
+	background-image:url(/images/New_ui/networkmap/line_dualwan.png);
+	background-repeat:no-repeat;
+	margin-left:105px;
+	*margin-left:103px;
+	height:40px;
+	width:20px;
+}
+.secondary_wan_disconnected{
+	background-image:url(/images/New_ui/networkmap/line_dualwan_disconnected.png);
+	background-repeat:no-repeat;
+	margin-left:105px;
+	*margin-left:103px;
+	height:40px;
+	width:20px;
+}
+.secondary_wan_standby{
+	background-image:url(/images/New_ui/networkmap/line_dualwan_dot.png);
+	background-repeat:no-repeat;
+	margin-left:105px;
+	*margin-left:103px;
+	height:40px;
+	width:20px;
+}
+
+.textarea_ssh_table{
+	color: #FFFFFF;
+	background-color: #475A5F;
+}
+
+.vpnClientTitle_td_unclick{
+	background-color: #000;
+	height: 30px;
+	cursor: pointer;
+	border: 1px solid #222;
+}
+
+.vpnClientTitle_td_click{
+	background-color: #4D595D;
+	height: 30px;
+	cursor: pointer;
+	border: 1px solid #222;
+}
+.link{
+	cursor:pointer !important;
+	text-decoration:underline !important;
 }

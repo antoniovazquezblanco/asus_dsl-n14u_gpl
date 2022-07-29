@@ -2020,7 +2020,7 @@
 	"\t-p\tPrint the date and time."
 
 #define readlink_trivial_usage \
-	""
+	"[-f] pathname"
 #define readlink_full_usage \
 	"Displays the value of a symbolic link."
 

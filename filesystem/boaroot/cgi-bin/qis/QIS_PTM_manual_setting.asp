@@ -60,7 +60,8 @@ function setIptvNumPvc() {
 function showCountryList(o){
 	var code = "";
 	var showed_country = "";
-	code +="<select name='country' onchange='showAllList(this.value);' class='input_option'>";
+	code +="<select name='country' onchange='showAllList(this.value);' tabindex='1' class='input_option'>";
+	code +="<option value='default'><%tcWebApi_get("String_Entry","Select_menu_default","s")%></option>";
 	for(var i = 0; i < ISP_PTM_List.length; i++){
 		if(showed_country != ISP_PTM_List[i][1]){
 			code +="<option value='"+ISP_PTM_List[i][1];
@@ -78,7 +79,7 @@ function showCountryList(o){
 function showCityList(o){
 	var code = "";
 	var showedCity = "";
-	code +="<select name='city' onchange='showRussiaISPList(this.value);' class='input_option'>";
+	code +="<select name='city' onchange='showRussiaISPList(this.value);' tabindex='2' class='input_option'>";
 	for(var i = 0; i < ISP_PTM_List.length; i++){
 		if((showedCity != ISP_PTM_List[i][3]) && (o == ISP_PTM_List[i][1])){
 			code +="<option value='"+ISP_PTM_List[i][3]+"'>"+ISP_PTM_List[i][3]+"</option>";
@@ -90,7 +91,7 @@ function showCityList(o){
 }
 function showNomoISPList(o){
 	var code = "";
-	code +="<select id='ISP' name='ISP' onChange='ShowPVC(this.value);' class='input_option'>";
+	code +="<select id='ISP' name='ISP' onChange='ShowPVC(this.value);' tabindex='3' class='input_option'>";
 	var first_element = 0;
 	for(var i = 0; i < ISP_PTM_List.length; i++){
 		if(o == ISP_PTM_List[i][1]){
@@ -149,7 +150,7 @@ function showRussiaISPServiceByIdx(c, idx){
 	else {
 		$("Service_tr").style.display="";
 		var code = "";
-		code +="<select id='ISPSVC' name='ISPSVC' onChange='ChgSVC(this.value);' class='input_option'>";
+		code +="<select id='ISPSVC' name='ISPSVC' onChange='ChgSVC(this.value);' tabindex='4' class='input_option'>";
 		var first_element = 0;
 		for(var i = ru_idx_start; i < ISP_PTM_List.length; i++){
 			if((c == ISP_PTM_List[i][3]) && (isp_str == ISP_PTM_List[i][4])){
@@ -171,7 +172,7 @@ function showRussiaISPService(c, o){
 	else {
 		$("Service_tr").style.display="";
 		var code = "";
-		code +="<select id='ISPSVC' name='ISPSVC' onChange='ChgSVC(this.value);' class='input_option'>";
+		code +="<select id='ISPSVC' name='ISPSVC' onChange='ChgSVC(this.value);' tabindex='4' class='input_option'>";
 		var first_element = 0;
 		for(var i = ru_idx_start; i < ISP_PTM_List.length; i++){
 			if((c == ISP_PTM_List[i][3]) && (o == ISP_PTM_List[i][4])){
@@ -271,7 +272,7 @@ function ChgSVC(idx) {
 function QIS_menual_setting_load_body() {
 	hidePVCInfo(1);
 	if(country_code=="")
-		country_code = "Germany";
+		country_code = "default";
 	showCountryList(country_code);
 	showAllList(country_code);
 }
@@ -284,7 +285,12 @@ function submit_page(){
 }
 function btnNext() {
 	var connection_type = 0;
-	if ( document.form.country.value=='NO'|| document.form.ISP.value=='NO' ){
+	if(document.form.country.value=='default'){
+                        alert("<%tcWebApi_get("String_Entry","JS_fieldblank","s")%>");
+                        document.form.country.focus();
+                        return false;           
+        }
+        else if ( document.form.country.value=='NO'|| document.form.ISP.value=='NO' ){
 		var tmp_vlanid = document.form.user_vlanid.value;
 		if ( isNaN(tmp_vlanid) == true ) {
 			alert('<%tcWebApi_get("String_Entry","WANVLANIDText","s")%> "' + tmp_vlanid + '" <%tcWebApi_get("String_Entry","Manual_Setting_JS_invalid","s")%>');
@@ -340,15 +346,6 @@ function btnNext() {
 		return;
 }
 
-function gotoIndex(){
-	if (w_Setting == "0") {
-		alert("<% tcWebApi_Get("String_Entry", "QIS_recommand_encryption", "s") %>");
-		location.href = '/cgi-bin/qis/QIS_wireless.asp';
-	}
-	else
-		parent.location.href = '../index2.asp';
-}
-
 function submit_detect(){
 	document.form.current_page.value = "init_detection";
 	document.form.next_page.value = "QIS_detect.asp";
@@ -386,9 +383,9 @@ function submit_detect(){
 			<td align="left">
 				<span class="description_down"><% tcWebApi_Get("String_Entry", "Manual_Setting_Title", "s") %></span>
 			</td>
-			<td align="right">
+			<!--td align="right">
 				<img onclick="gotoIndex();" style="cursor:pointer;" align="right" title="Go to Home" src="/images/backtohome.png" onMouseOver="this.src='/images/backtohomeclick.png'" onMouseOut="this.src='/images/backtohome.png'">
-			</td>
+			</td-->
 		</tr>
 	</table>
 	</div>
@@ -445,24 +442,24 @@ function submit_detect(){
 	<tr>
 		<th><%tcWebApi_get("String_Entry","L3F_x_ConnectionType_in","s")%></th>
 		<td>
-			<select name='user_prctl' class="input_option">
+			<select name='user_prctl' class="input_option" tabindex="5">
 				<option value = 0>PPPoE</option>
 				<option value = 2>Automatic IP</option>
 				<option value = 4>Static IP</option>
-				<option value = 3>BRIDGE</option>
+				<!--option value = 3>BRIDGE</option--><!-- remove bridge if service number is 0(internet)  -->
 			</select>
 		</td>
 	</tr>
 	<tr>
 		<th><%tcWebApi_get("String_Entry","WANVLANIDText","s")%></th>
-		<td><input type='text' name='user_vlanid' size='4' maxlength="5" class="input_6_table"><span></span></td>
+		<td><input type='text' name='user_vlanid' tabindex="6" maxlength="5" class="input_6_table"><span></span></td>
 	</tr>
 	</tbody>
 </table>
 </div>
 <div class="apply_gen" style="margin-top:30px">
-	<input type="button" id="detectButton" value="<% tcWebApi_Get("String_Entry", "QKS_detect_freshbtn", "s") %>" onclick="submit_detect();" class="button_gen" >
-	<input type="button" id="nextButton" value="<% tcWebApi_Get("String_Entry", "btn_next", "s") %>" onclick="btnNext();" class="button_gen">
+	<input type="button" id="detectButton" value="<% tcWebApi_Get("String_Entry", "QKS_detect_freshbtn", "s") %>" tabindex="8" onclick="submit_detect();" class="button_gen" >
+	<input type="button" id="nextButton" value="<% tcWebApi_Get("String_Entry", "btn_next", "s") %>" tabindex="7" onclick="btnNext();" class="button_gen">
 </div>
 </div>
 </form>

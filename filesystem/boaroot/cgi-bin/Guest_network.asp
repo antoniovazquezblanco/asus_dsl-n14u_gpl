@@ -46,7 +46,7 @@ load_MBSSID_parameters_to_generic()
 <html xmlns="http://www.w3.org/1999/xhtml">
 <html xmlns:v>
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -124,6 +124,16 @@ function initial(){
 
 	$("wl_vifname").innerHTML = document.form.wl_subunit.value;
 	change_wl_expire_radio();
+	if(macmode == "disabled"){
+		document.form.wl_macmode_option.disabled = "disabled";
+		$('ACL_disabled_hint').style.display = "";
+		$('ACL_enabled_hint').style.display = "none";
+	}
+	else{
+		document.form.wl_macmode_option.disabled = "";
+		$('ACL_disabled_hint').style.display = "none";
+		$('ACL_enabled_hint').style.display = "";
+	}
 
 	if(radio_2 != 1){
 		$('2g_radio_hint').style.display ="";
@@ -135,10 +145,6 @@ function initial(){
 	if(document.form.preferred_lang.value == "JP"){    //use unique font-family for JP
 		$('2g_radio_hint').style.fontFamily = "MS UI Gothic,MS P Gothic";
 		$('5g_radio_hint').style.fontFamily = "MS UI Gothic,MS P Gothic";
-	}
-	
-	if(macmode != "disabled"){
-		$("mac_filter_guest").style.display = "";
 	}
 
 	GN_limit_auth_method();
@@ -191,6 +197,7 @@ function gen_gntable_tr(unit, gn_array){
 	htmlcode += "<tr><th align=\"left\" style=\"height:30px;\"><% tcWebApi_Get("String_Entry", "WC11b_AuthenticationMethod_in", "s") %></th></tr>";
 	htmlcode += '<tr><th align="left" style="height:30px;"><% tcWebApi_Get("String_Entry", "Network_key", "s") %></th></tr>';
 	htmlcode += '<tr><th align="left" style="height:30px;"><% tcWebApi_Get("String_Entry", "mssid_time_remaining", "s") %></th></tr>';
+	//DSL-N66U seems workless for this option Access Intranet
 	if(sw_mode != "3"){
 			htmlcode += '<tr><th align="left" style="width:20%;height:30px;"><% tcWebApi_Get("String_Entry", "Access_Intranet", "s") %></th></tr>';
 	}
@@ -219,17 +226,17 @@ function gen_gntable_tr(unit, gn_array){
 					}
 
 					if(gn_array[i][11] == 0)
-							htmlcode += '<tr><td align="center" onclick="change_guest_unit('+ unit +','+ subunit +');">Limitless</td></tr>';
+							htmlcode += '<tr><td align="center" onclick="change_guest_unit('+ unit +','+ subunit +');"><% tcWebApi_Get("String_Entry", "Limitless", "s") %></td></tr>';
 					else{
 							var expire_hr = Math.floor(gn_array[i][13]/3600);
 							var expire_min = Math.floor((gn_array[i][13]%3600)/60);
 							if(expire_hr > 0)
-									htmlcode += '<tr><td align="center" onclick="change_guest_unit('+ unit +','+ subunit +');"><b id="expire_hr_'+i+'">'+ expire_hr + '</b> Hr <b id="expire_min_'+i+'">' + expire_min +'</b> Min</td></tr>';
+									htmlcode += '<tr><td align="center" onclick="change_guest_unit('+ unit +','+ subunit +');"><b id="expire_hr_'+i+'">'+ expire_hr + '</b><% tcWebApi_Get("String_Entry", "Hour", "s") %> <b id="expire_min_'+i+'">' + expire_min +'</b> <% tcWebApi_Get("String_Entry", "Minute", "s") %></td></tr>';
 							else{
 									if(expire_min > 0)
-											htmlcode += '<tr><td align="center" onclick="change_guest_unit('+ unit +','+ subunit +');"><b id="expire_min_'+i+'">' + expire_min +'</b> Min</td></tr>';
+											htmlcode += '<tr><td align="center" onclick="change_guest_unit('+ unit +','+ subunit +');"><b id="expire_min_'+i+'">' + expire_min +'</b> <% tcWebApi_Get("String_Entry", "Minute", "s") %></td></tr>';
 									else
-											htmlcode += '<tr><td align="center" onclick="change_guest_unit('+ unit +','+ subunit +');"><b id="expire_min_'+i+'">< 1</b> Min</td></tr>';
+											htmlcode += '<tr><td align="center" onclick="change_guest_unit('+ unit +','+ subunit +');"><b id="expire_min_'+i+'">< 1</b> <% tcWebApi_Get("String_Entry", "Minute", "s") %></td></tr>';
 							}
 					}
 
@@ -237,6 +244,7 @@ function gen_gntable_tr(unit, gn_array){
 					htmlcode += '<tfoot><tr rowspan="3"><td align="center"><input type="button" class="button_gen" value="<% tcWebApi_Get("String_Entry", "WC11b_WirelessCtrl_button1name", "s") %>" onclick="create_guest_unit('+ unit +','+ subunit +');"></td></tr></tfoot>';
 			}
 
+			//DSL-N66U seems workless for this option Access Intranet
 			if(sw_mode != "3"){
 					if(gn_array[i][0] == "1")
 							htmlcode += '<tr><td align="center" onclick="change_guest_unit('+ unit +','+ subunit +');">'+ gn_array[i][12] +'</td></tr>';
@@ -435,6 +443,7 @@ function guest_divctrl(flag){
 		if(band5g_support != -1)
 			$("guest_table5").style.display = "none";
 		$("gnset_table").style.display = "";
+		//DSL-N66U seems workless for this option Access Intranet 
 		if(sw_mode == "3")
 				inputCtrl(document.form.wl_lanaccess, 0);
 		$("applyButton").style.display = "";
@@ -653,14 +662,14 @@ function clean_input(obj){
 				</tr>
 
 				<tr>
-					<th>Guest Network index</th>
+					<th><%tcWebApi_get("String_Entry","Guest_network_index","s")%></th>
 					<td>
 						<p id="wl_vifname"></p>
 					</td>
 				</tr>
 
 				<tr style="display:none">
-					<th><%tcWebApi_get("String_Entry","WC11b_WirelessCtrl_button1name","s")%> Guest Network</th>
+					<th><%tcWebApi_get("String_Entry","Guest_Network_enable","s")%></th>
 					<td>
 						<select id="wl_bss_enabled_field" name="wl_bss_enabled" class="input_option">
 							<option class="content_input_fd" value="0" <% if tcWebApi_get("WLan_Entry","bss_enabled","h") = "0" then asp_Write("checked") end if %>><%tcWebApi_get("String_Entry","checkbox_No","s")%></option>
@@ -670,7 +679,7 @@ function clean_input(obj){
 				</tr>
 
 				<tr>
-					<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(0, 1);"><%tcWebApi_get("String_Entry","WC11b_SSID_in","s")%></a></th>
+					<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(0, 1);"><% tcWebApi_Get("String_Entry", "QIS_finish_wireless_item1", "s") %></a></th>
 					<td>
 						<input type="text" maxlength="32" class="input_32_table" name="wl_ssid" value="<% If tcWebApi_get("WLan_Entry","ssid","h") <> "" then  tcWebApi_get("WLan_Entry","ssid","s") else asp_Write("ASUS_VSL_N66U") end if %>" onkeypress="return is_string(this, event)">
 					</td>
@@ -802,9 +811,9 @@ function clean_input(obj){
 					<th><%tcWebApi_get("String_Entry","Access_Time","s")%></th>
 					<td>
 					<input type="radio" value="1" name="wl_expire_radio" class="content_input_fd" onClick="">
-					<input type="text" maxlength="2" name="wl_expire_hr" class="input_3_table" value="" onKeyPress="return is_number(this,event);" onblur="validate_number_range(this, 0, 23)"> Hr
-					<input type="text" maxlength="2" name="wl_expire_min" class="input_3_table" value="" onKeyPress="return is_number(this,event);" onblur="validate_number_range(this, 0, 59)"> Min
-					<input type="radio" value="0" name="wl_expire_radio" class="content_input_fd" onClick="">Limitless
+					<input type="text" maxlength="2" name="wl_expire_hr" class="input_3_table" value="" onKeyPress="return is_number(this,event);" onblur="validate_number_range(this, 0, 23)"><% tcWebApi_Get("String_Entry", "Hour", "s") %>
+					<input type="text" maxlength="2" name="wl_expire_min" class="input_3_table" value="" onKeyPress="return is_number(this,event);" onblur="validate_number_range(this, 0, 59)"> <% tcWebApi_Get("String_Entry", "Minute", "s") %>
+					<input type="radio" value="0" name="wl_expire_radio" class="content_input_fd" onClick=""><% tcWebApi_Get("String_Entry", "Limitless", "s") %>
 					</td>
 				</tr>
 
@@ -826,7 +835,8 @@ function clean_input(obj){
 							<option class="content_input_fd" value="disabled" <% if tcWebApi_get("ACL_Entry","wl_macmode","h") = "disabled" then asp_Write("selected") end if %>><%tcWebApi_get("String_Entry","checkbox_No","s")%></option>
 						</select>
 						&nbsp;
-						<span style="cursor:pointer" onclick="goToACLFilter();">MAC filter list</span>
+						<span id="ACL_enabled_hint" style="cursor:pointer;display:none;text-decoration:underline;" onclick="goToACLFilter();"><%tcWebApi_get("String_Entry","FC_MFList_groupitemname","s")%></span>
+						<span id="ACL_disabled_hint" style="cursor:pointer;display:none;text-decoration:underline;" onclick="goToACLFilter();"><%tcWebApi_get("String_Entry","Guest_Network_enable_ACL","s")%></span>	
 					</td>
 				</tr>
 			</table>

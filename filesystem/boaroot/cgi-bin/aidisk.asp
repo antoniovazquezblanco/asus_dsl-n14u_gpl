@@ -4,7 +4,7 @@
 
 <!--aidisk.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -102,16 +102,15 @@ function createAccount(){
 	document.applyForm.account.value = $("account1").value;
 	document.applyForm.password.value = $("passwd1").value;
 	document.applyForm.submit();
-/*}
-else
-alert("Wrong! No account!");//*/ // No translate
 }
+
 function resultOfCreateAccount(){
 	pools = pool_devices();
 	if(pools && pools.length > 0)
 		folderlist = get_sharedfolder_in_pool(pools[0]);
 	submitChangePermission($("account1").value, $("permission1").value, "ftp");
 }
+
 function submitChangePermission(account, permission, protocol){
 	if(pools && pools.length > 0){
 		if(folderlist && folderlist.length > 0){
@@ -141,8 +140,8 @@ function submitChangePermission(account, permission, protocol){
 			}
 		}
 	}
-	/*accounts.shift();
-	if(accounts.length > 0)//*/
+}	
+function submitChangePermission(account, permission, protocol){	
 	if($("dummyShareway").value == "1"){
 		$("dummyShareway").value = "";
 		pools = pool_devices();

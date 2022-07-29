@@ -30,7 +30,9 @@ helpcontent[0] = new Array("",
 helpcontent[1] = new Array("",
 "<%tcWebApi_get("String_Entry","WC11b_x_APMode_id","s")%>",
 "<%tcWebApi_get("String_Entry","WC11b_Channel_id","s")%>",
-"<%tcWebApi_get("String_Entry","WC11b_x_BRApply_id","s")%>");
+"<%tcWebApi_get("String_Entry","WC11b_x_BRApply_id","s")%>",
+"<%tcWebApi_get("String_Entry","WC11b_x_Mode_id5","s")%>",
+"<%tcWebApi_get("String_Entry","WC11b_x_Mode_idAC","s")%>");
 
 helpcontent[2] = new Array("",
 "<%tcWebApi_get("String_Entry","WA11a_ExAuthDBIPAddr_id","s")%>",
@@ -132,7 +134,8 @@ helpcontent[8] = new Array("",
 "<%tcWebApi_get("String_Entry","FC_x_WanPingEnable_id","s")%>",
 "<%tcWebApi_get("String_Entry","FC_FirewallEnable_id","s")%>",
 "<%tcWebApi_get("String_Entry","FC_DoSEnable_id","s")%>",
-"USB flash drive/HDD can be used as virtual memory by creating swap space, default this feature is enabled and 256MB of virtual memory will be created, the swap file (swap.sys) is located in your USB disk /asus_swap directory. Instead of abruptly running out of memory when the physical RAM is full, a portion will be swapped to the USB disk in order to ensure the applications continue to run normally, however this approach slightly impacts the speed.");
+"USB flash drive/HDD can be used as virtual memory by creating swap space, default this feature is enabled and 256MB of virtual memory will be created, the swap file (swap.sys) is located in your USB disk /asus_swap directory. Instead of abruptly running out of memory when the physical RAM is full, a portion will be swapped to the USB disk in order to ensure the applications continue to run normally, however this approach slightly impacts the speed.",
+"This feature allows browser to redirect to failed connection warning page when Internet is down, if disabled warning page would not appear.");
 
 helpcontent[9] = new Array("",
 "<%tcWebApi_get("String_Entry","FC_URLActiveDate_id","s")%>",
@@ -237,16 +240,16 @@ helpcontent[23] = new Array("",
 
 // QIS 
 helpcontent[24] = new Array("",
-							"<#IPConnection_x_DNSServer1_itemdesc#>",			//7,13
-							"<#IPConnection_x_DNSServer2_itemdesc#>",			//7,14
-							"<#IPConnection_x_DNSServerEnable_itemdesc#>",//7,12
-							"<#IPConnection_x_ExternalGateway_itemdesc#>",//7,3
-							"<#LANHostConfig_IPRouters_itemdesc#>",				//4,1
-							"<#LANHostConfig_SubnetMask_itemdesc#>",			//4,2
-							"<#LANHostConfig_x_Password_itemdesc#>",			//11,4
-							"<#qis_pppoe_help1#>",												//7,27
-							"<#qis_wireless_help1#>",											//0,22	
-							"<#qis_wireless_help2#>");										//0,23
+							"<%tcWebApi_get("String_Entry","IPC_x_DNSServer1_id","s")%>",			//7,13
+							"<%tcWebApi_get("String_Entry","IPC_x_DNSServer2_id","s")%>",			//7,14
+							"<%tcWebApi_get("String_Entry","IPC_x_DNSServerEnable_id","s")%>",//7,12
+							"<%tcWebApi_get("String_Entry","IPC_x_ExternalGateway_id","s")%>",//7,3
+							"<%tcWebApi_get("String_Entry","LHC_IPRouters_id","s")%>",				//4,1
+							"<%tcWebApi_get("String_Entry","LHC_SubnetMask_id","s")%>",			//4,2
+							"<%tcWebApi_get("String_Entry","LHC_x_Password_id","s")%>",			//11,4
+							"<%tcWebApi_get("String_Entry","qis_pppoe_help1","s")%>",					//7,27
+							"<%tcWebApi_get("String_Entry","qis_wireless_help1","s")%>",			//0,22	
+							"<%tcWebApi_get("String_Entry","qis_wireless_help2","s")%>");										//0,23
 
 //xDSL
 helpcontent[25] = new Array("",
@@ -259,4 +262,22 @@ helpcontent[25] = new Array("",
 							"This item configures Profile to be used for VDSL connection, default is 30a multi mode. However in order to work around the non-standard 30a multi mode VDSL DSLAM sync issue, which deployed by some of Germany ISP, set to 17a multi mode might be needed in order for the VDSL line to sync up. For users of other countries, there is no need to change this setting.",
 							"This item allows you to tweak the Tx Power of VDSL. Reduce Tx Power(-1 dB ~ -7 dB) would increase the downstream performance(reduce more Tx Power leads to higher downstream data rate), but will impact upstream and vice versa.",
 							"This item configures Rx AGC(Auto Gain Control) GAIN for VDSL, if tweak the Stability Adjustment (VDSL) setting still could not get desired downstream speed, then could try to set Rx AGC GAIN Adjustment to High Performance mode. However if your VDSL connection is unstable and has some CRC then could set to Stable mode.",
-							"This item allows you to control whether to Enable/Disable UPBO(Upstream Power Back Off) for VDSL. DSLAM could use UPBO to reduce the Tx Power of your xDSL modem router, in some cases abnormal UPBO control from DSLAM could leads to sync up issue(such as not enough Tx Power to sync with minimum rate). Thus with this feature now you could disable UPBO and won’t get affected by DSLAM setting.");
+							"This item allows you to control whether to Enable/Disable UPBO(Upstream Power Back Off) for VDSL. DSLAM could use UPBO to reduce the Tx Power of your xDSL modem router, in some cases abnormal UPBO control from DSLAM could leads to sync up issue(such as not enough Tx Power to sync with minimum rate). Thus with this feature now you could disable UPBO and won’t get affected by DSLAM setting.",
+							"The G.INP stands for Impulse Noise Protection. It works on ADSL2, ADSL2+, and VDSL2 only. It is enabled to provide enhanced protection against impulse noise or to increase the efficiency of providing impulse noise protection. If your DSLAM does not support it, please disable it.",
+							"This item allows system to monitor the ADSL line, designed to maintain stability of the line. Based on current line condition necessary changes will be adopted.",
+							"This item configures Rx AGC(Auto Gain Control) GAIN for VDSL, if after tweak the Stability Adjustment (VDSL) setting, VDSL connection is still unstable and has some CRC then could set to Stable mode.",
+							"This item configures Rx AGC(Auto Gain Control) GAIN for ADSL, if tweak the Stability Adjustment (ADSL) setting still could not get desired downstream speed, then could try to set Rx AGC GAIN Adjustment to High Performance mode. However if your ADSL connection is unstable and has some CRC then could set to Stable mode.",
+							"This item configures Rx AGC(Auto Gain Control) GAIN for ADSL, if after tweak the Stability Adjustment (ADSL) setting, ADSL connection is still unstable and has some CRC then could set to Stable mode.",
+							"This item supports G.vector. With G.vector crosstalk among the signals in the same cable could be canceled, such as far-end crosstalk (FEXT). Which would significantly improve Signal-to-Noise Ratio (SNR) that leads to higher achievable bit rates. However CO must deploy Vectored VDSL2 DSLAM in order for this feature to work. If you find it doesn't work well or you know the G.vector of your ISP is non-standard, please enable both of this option and Non-standard G.vector.",
+							"This item supports Non-standard G.vector for specific countries. Please note that if your G.vector is standard, please do not enable this option for optimized performance.",
+							"This command is  helpful for some impulse noise environment to enhance line stability."
+							);
+
+//DualWAN
+helpcontent[26] = new Array("",
+							"<% tcWebApi_Get("String_Entry", "dualwan_pingtime_desc", "s") %>",
+							"<% tcWebApi_Get("String_Entry", "dualwan_pingtime_target", "s") %>",
+							"<% tcWebApi_Get("String_Entry", "dualwan_pingtime_interval", "s") %>",
+							"<% tcWebApi_Get("String_Entry", "dualwan_pingtime_delay", "s") %>",
+							"<% tcWebApi_Get("String_Entry", "dualwan_pingtime_upper", "s") %>",
+							"<% tcWebApi_Get("String_Entry", "dualwan_failback_desc", "s") %>");

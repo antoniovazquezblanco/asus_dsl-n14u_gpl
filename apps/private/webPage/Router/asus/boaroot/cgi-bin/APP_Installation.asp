@@ -3,7 +3,7 @@
 
 <!--APP_Installation.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -18,10 +18,57 @@
 <script type="text/javascript" src="/help.js"></script>
 <script type="text/javascript" src="/disk_functions.js"></script>
 <script type="text/javascript" src="/jquery.js"></script>
+<style>
+#Aidisk_png{
+  background: url(/images/New_ui/USBExt/APP_list.png);
+  background-position: 0px 0px;
+  width: 66px;
+  height: 66px;
+}
+#server_png{
+  background: url(/images/New_ui/USBExt/APP_list.png);
+  background-position: 0px -76px;
+  width: 66px;
+  height: 66px;
+}
+#PrinterServer_png{
+  background: url(/images/New_ui/USBExt/APP_list.png);
+  background-position: 0px -152px;
+  width: 66px;
+  height: 66px;
+}
+#modem_png{
+  background: url(/images/New_ui/USBExt/APP_list.png);
+  background-position: 0px -228px;
+  width: 66px;
+  height: 66px;
+}
+#downloadmaster_png{
+  background: url(/images/New_ui/USBExt/APP_list.png);
+  background-position: 0px -304px;
+  width: 66px;
+  height: 66px;
+}
+#mediaserver_png{
+  background: url(/images/New_ui/USBExt/APP_list.png);
+  background-position: 0px -380px;
+  width: 66px;
+  height: 66px;
+}
+#aicloud_png{
+  background: url(/images/New_ui/USBExt/APP_list.png);
+  background-position: 0px -456px;
+  width: 66px;
+  height: 66px;
+}
+#TimeMachine_png{
+  background: url(/images/New_ui/USBExt/TimeMachine.png);
+  width: 66px;
+  height: 66px;
+}
+</style>
 <script>
 var $j = jQuery.noConflict();
-</script>
-<script>
 
 var apps_array = <% apps_info("asus") %>;
 var apps_state_upgrade = "<% tcWebApi_Get("Apps_Entry", "apps_state_upgrade", "s") %>";
@@ -70,11 +117,11 @@ var usb_path2_index;
 function initial(){
 	show_menu();
 
-	default_apps_array = [["AiDisk", "aidisk.asp", "<% tcWebApi_Get("String_Entry", "AiDiskWelcome_desp1", "s") %>", "Aidisk.png"],
-		["<%tcWebApi_get("String_Entry","Servers_Center","s")%>", tablink[3][1], "<%tcWebApi_get("String_Entry","UPnPMediaServer_Help","s")%>", "server.png"],
-		["<%tcWebApi_get("String_Entry","Network_Printer_Server","s")%>", "PrinterServer.asp", "<%tcWebApi_get("String_Entry","Network_Printer_desc","s")%>", "PrinterServer.png"],
-		["3G/WiMax", "Advanced_WANPort_Content.asp", "<%tcWebApi_get("String_Entry","HSDPAC_hsdpa_enable_hint1","s")%>", "modem.png"],
-		["Time Machine", "Advanced_TimeMachine.asp", "Time Machine Support.", "TimeMachine.png", "1.0.0.1"]];
+	default_apps_array = [["AiDisk", "aidisk.asp", "<% tcWebApi_Get("String_Entry", "AiDiskWelcome_desp1", "s") %>", "Aidisk_png"],
+		["<%tcWebApi_get("String_Entry","Servers_Center","s")%>", tablink[3][1], "<%tcWebApi_get("String_Entry","UPnPMediaServer_Help","s")%>", "server_png"],
+		["<%tcWebApi_get("String_Entry","Network_Printer_Server","s")%>", "PrinterServer.asp", "<%tcWebApi_get("String_Entry","Network_Printer_desc","s")%>", "PrinterServer_png"],
+		["3G/4G", "Advanced_Modem_Content.asp", "<%tcWebApi_get("String_Entry","HSDPAC_hsdpa_enable_hint1","s")%>", "modem_png"],
+		["Time Machine", "Advanced_TimeMachine.asp", "Time Machine Support.", "TimeMachine_png", "1.0.0.1"]];
 
 	if(!media_support){
 		default_apps_array[1].splice(2,1,"<% tcWebApi_Get("String_Entry", "MediaServer_Help", "s") %>");
@@ -110,8 +157,7 @@ function initial(){
 	}
 
 	if(nodm_support == -1){
-		addOnlineHelp($("faq"), ["ASUSWRT", "download","master"]);
-		addOnlineHelp($("faq2"), ["ASUSWRT", "download","tool"]);
+		addOnlineHelp($("faq2"), ["ASUSWRT", "download", "associated"]);
 	}
 }
 
@@ -126,8 +172,8 @@ function calHeight(_trNum){
 	menu_height = Math.round(optionHeight*calculate_height - manualOffSet*calculate_height/14 - $("tabMenu").clientHeight) - 18;
 
 	if(menu_height > _trNum){
-		if(menu_height < 522)
-			$("applist_table").style.height = "522px";
+		if(menu_height < 580)
+			$("applist_table").style.height = "580px";
 		else	
 		$("applist_table").style.height = menu_height + "px";
 }
@@ -429,8 +475,8 @@ function show_apps(){
 	appnum = 0;
 
 	if(apps_array == "" && (appnet_support != -1 || appbase_support != -1)){
-		apps_array = [["downloadmaster", "", "", "no", "no", "", "", "Download tools", "downloadmaster.png", "", "", ""],
-									["mediaserver", "", "", "no", "no", "", "", "", "mediaserver.png", "", "", ""]];
+		apps_array = [["downloadmaster", "", "", "no", "no", "", "", "Download tools", "downloadmaster_png", "", "", ""],
+									["mediaserver", "", "", "no", "no", "", "", "", "mediaserver_png", "", "", ""]];
 		if(nodm_support != -1)
 			apps_array[1][0] = "mediaserver2";
 
@@ -473,7 +519,7 @@ function show_apps(){
 		var media_idx = apps_array.getIndexByValue2D("mediaserver");
 		if(nodm_support == -1 && (media_idx == -1 || media_idx[1] == -1)){
 			var apps_len = apps_array.length;
-			apps_array[apps_len] = ["mediaserver", "", "", "no", "no", "", "", "", "mediaserver.png", "", "", ""];
+			apps_array[apps_len] = ["mediaserver", "", "", "no", "no", "", "", "", "mediaserver_png", "", "", ""];
 		}
 	}
 
@@ -482,9 +528,18 @@ function show_apps(){
 
 	//show default Apps
 	for(var i = 0; i < default_apps_array.length; i++){
-		htmlcode += '<tr><td align="center" class="app_table_radius_left" style="width:85px"><img style="margin-top:0px;" src="/images/New_ui/USBExt/'+ default_apps_array[i][3] +'" style="cursor:pointer" onclick="location.href=\''+ default_apps_array[i][1] +'\';"></td><td class="app_table_radius_right" style="width:350px;">\n';
+		htmlcode += '<tr><td align="center" class="app_table_radius_left" style="width:85px">';
+		//Viz modified to CSS sprites : htmlcode += '<img style="margin-top:0px;" src="/images/New_ui/USBExt/'+ default_apps_array[i][3] +'" style="cursor:pointer" onclick="location.href=\''+ default_apps_array[i][1] +'\';">';
+		htmlcode += '<div id="'+default_apps_array[i][3]+'" style="cursor:pointer" onclick="location.href=\''+ default_apps_array[i][1] +'\';"></div>';
+		htmlcode += '</td><td class="app_table_radius_right" style="width:350px;">\n';
 		htmlcode += '<div class="app_name"><a style="text-decoration: underline;" href="' + default_apps_array[i][1] + '">' + default_apps_array[i][0] + '</a></div>\n';
-		htmlcode += '<div class="app_desc">' + default_apps_array[i][2] + '</div>\n';
+		if(i ==3){
+			htmlcode += '<div class="app_desc">' + default_apps_array[i][2] + ' <a href="http://www.asus.com/event/networks_3G4G_support/" target="_blank" style="text-decoration:underline;">Support</a></div>\n';
+		}
+		else{
+			htmlcode += '<div class="app_desc">' + default_apps_array[i][2] + '</div>\n';
+		}
+
 		htmlcode += '<div style="margin-top:10px;"></div><br/><br/></td></tr>\n';
 	}
 
@@ -515,20 +570,16 @@ function show_apps(){
 		htmlcode += '<tr style="height: 100px;"><td class="app_table_radius_left" align="center" style="width:85px">\n';
 		if(apps_array[i][4] == "yes" && apps_array[i][3] == "yes"){
 			if(apps_array[i][6] != ""){
-				if(apps_array[i][0] == "mediaserver" || apps_array[i][0] == "mediaserver2")
-					htmlcode += '<img style="margin-top:0px;" src="/images/New_ui/USBExt/mediaserver.png" style="cursor:pointer" onclick="location.href=\''+ apps_array[i][6] +'\';"></td>\n';
-				else
-					htmlcode += '<img style="margin-top:0px;" src="/images/New_ui/USBExt/'+ apps_array[i][0] +'.png" style="cursor:pointer" onclick="location.href=\''+ apps_array[i][6] +'\';"></td>\n';
+				htmlcode += '<div id="'+apps_array[i][0]+'_png" style="cursor:pointer" onclick="location.href=\''+ apps_array[i][6] +'\';"></div>';
 			}
-			else
-				htmlcode += '<img style="margin-top:0px;" src="/images/New_ui/USBExt/'+ apps_array[i][0] +'.png"></td>\n';				
-		}
+			else{
+				htmlcode += '<div id="'+apps_array[i][0]+'_png"></div>';	
+			}
+		}	
 		else{
-			if(apps_array[i][0] == "mediaserver" || apps_array[i][0] == "mediaserver2")
-				htmlcode += '<img style="margin-top:0px;" src="/images/New_ui/USBExt/mediaserver.png"></td>\n';
-			else
-				htmlcode += '<img style="margin-top:0px;" src="/images/New_ui/USBExt/'+ apps_array[i][0] +'.png"></td>\n';
+			htmlcode += '<div id="'+apps_array[i][0]+'_png"></div>';
 		}
+		htmlcode += '</td>\n';
 
 		// apps_name
 		htmlcode += '<td class="app_table_radius_right" style="width:350px;">\n';
@@ -562,8 +613,8 @@ function show_apps(){
 						htmlcode += '<a target="_blank" href="' + apps_array[i][6] + '" style="text-decoration: underline;">' + apps_array[i][0] + '</a><span class="app_ver">ver. ' + apps_array[i][1] + '</sapn></div>\n';
 					else
 						htmlcode += '<a href="' + apps_array[i][6] + '" style="text-decoration: underline;">' + apps_array[i][0] + '</a><span class="app_ver">ver. ' + apps_array[i][1] + '</sapn></div>\n';
+				}
 			}
-		}
 		}
 		else{ // without hyper-link
 			if(apps_array[i][4] == "no" && apps_array[i][3] == "yes")
@@ -658,11 +709,11 @@ var hasNewVer = function(arr){
 		return false;
 	
 	for(var i=0; i<4; i++){ 
-		if(newVer[i] > oldVer[i]){
+		if(parseInt(newVer[i]) > parseInt(oldVer[i])){
 			return true;
 			break;
 		}
-		else if(newVer[i] == oldVer[i])
+		else if(parseInt(newVer[i]) == parseInt(oldVer[i]))
 			continue;
 		else
 			return false;
@@ -789,9 +840,7 @@ function divdisplayctrl(flag1, flag2, flag3, flag4){
 			var _quick_dmlink = "http://" + location.host + ":" + dm_http_port;
 
 		if(_dm_enable == "yes"){
-		$("realLink").href = _quick_dmlink;
-		//$("quick_dmlink").onclick = function(){$("realLink").click();}					
-			//$("quick_dmlink").onclick = function(){location.href=_quick_dmlink;}
+			$("realLink").href = _quick_dmlink;
 		}
 		else
 			$("quick_dmlink").onclick = function(){alert("You cannot use Download Master because Download Master is disabled!")}
@@ -854,12 +903,12 @@ function reloadAPP(){
 		<div id="tabMenu" style="*margin-top: -160px;"></div>
 		<br>
 <!--=====Beginning of Main Content=====-->
-		<div class="app_table" id="applist_table">
-		<table>
-			<tr>
-				<td class="formfonttitle"><!--#Menu_usb_application","s")%>
-					<img id="return_btn" onclick="show_apps();" align="right" style="cursor:pointer;margin-right:10px;margin-top:-10px" title="Back to USB Extension" src="/images/backprev.png" onMouseOver="this.src='/images/backprevclick.png'" onMouseOut="this.src='/images/backprev.png'"-->
-					<div style="width:730px">
+<div class="app_table" id="applist_table">
+<table>
+
+  <tr>
+  	<td class="formfonttitle">
+				<div style="width:730px">
 					<table width="730px">
 					<tr>
 						<td align="left">
@@ -914,7 +963,7 @@ function reloadAPP(){
 						<ul style="margin-left:10px;">
 							<br>
 							<li>
-								<a id="faq" href="" target="_blank" style="text-decoration:underline;font-size:14px;font-weight:bolder;color:#FFF">Download Master FAQ</a>
+								<a id="faq" href="http://www.asus.com/support/FAQ/1009773/" target="_blank" style="text-decoration:underline;font-size:14px;font-weight:bolder;color:#FFF">Download Master FAQ</a>
 							</li>
 							<li style="margin-top:10px;">
 								<a id="faq2" href="" target="_blank" style="text-decoration:underline;font-size:14px;font-weight:bolder;color:#FFF">Download Master Tool FAQ</a>
@@ -926,24 +975,28 @@ function reloadAPP(){
 								<a target="_blank" style="font-weight: bolder; cursor:pointer;text-decoration: underline;" href="http://www.youtube.com/v/Em6Hddyytlw"><% tcWebApi_Get("String_Entry", "Video_Link1", "s") %></a>
 							</li>
 						</ul>
-						</td>
-						</tr>
-						</tbody>
-					</table>
-				</td>
-			</tr>
-			<tr>
-				<td valign="top" id="app_table_td" height="0px">
-					<div id="app_table"></div>
-				</td>
-			</tr>
-		</table>
-		</div>
-<!--=====End of Main Content=====-->
-	</td>
-	<td width="20" align="center" valign="top"></td>
-</tr>
+					</td>
+					</tr>
+				</tbody>
+			</table>													
+   	</td> 
+  </tr>  
+	   
+  <tr>
+   	<td valign="top" id="app_table_td" height="0px">
+				<div id="app_table"></div>
+   	</td> 
+  </tr>  
 </table>
+</div>
+<!--=====End of Main Content=====-->
+		</td>
+
+		<td width="20" align="center" valign="top"></td>
+	</tr>
+</table>
+</div>
+
 <div id="footer"></div>
 </body>
 

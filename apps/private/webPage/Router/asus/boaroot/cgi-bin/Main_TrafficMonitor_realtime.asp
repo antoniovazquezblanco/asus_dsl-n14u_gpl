@@ -130,7 +130,7 @@ function init()
 	wdogWarn = E('warnwd');
 	watchdogReset();
 	ref.start();
-	//addOnlineHelp($("faq0"), ["ASUSWRT", "Traffic", "Monitor"]);				
+	document.getElementById("faq0").href = "http://www.asus.com/us/support/Search-Result-Detail/69B50762-C9C0-15F1-A5B8-C7B652F50ACF/?keyword=ASUSWRT%20Traffic%20Monitor" ;
 }
 
 function switchPage(page){
@@ -216,7 +216,7 @@ function switchPage(page){
         			<tr>
           				<td align="left" valign="middle">
 							<table width="95%" border="1" align="left" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="DescTable">
-								<tr><th width="16%"></th><th width="26%"><% tcWebApi_Get("String_Entry", "tm_internet", "s") %></th><th width="29%"><% tcWebApi_Get("String_Entry", "tm_wired", "s") %></th><th width="29%"><% tcWebApi_Get("String_Entry", "tm_wireless", "s") %></th></tr>
+								<tr><th width="16%"></th><th width="26%"><% tcWebApi_Get("String_Entry", "Internet", "s") %></th><th width="29%"><% tcWebApi_Get("String_Entry", "tm_wired", "s") %></th><th width="29%"><% tcWebApi_Get("String_Entry", "tm_wireless", "s") %></th></tr>
 								<tr><th><% tcWebApi_Get("String_Entry", "tm_reception", "s") %></th><td style="color:#FF9000;"><% tcWebApi_Get("String_Entry", "tm_recp_int", "s") %></td><td style="color:#3CF;"><% tcWebApi_Get("String_Entry", "tm_recp_wired", "s") %></td><td style="color:#3CF;"><% tcWebApi_Get("String_Entry", "tm_recp_wireless", "s") %></td></tr>
 								<tr><th><% tcWebApi_Get("String_Entry", "tm_transmission", "s") %></th><td style="color:#3CF;"><% tcWebApi_Get("String_Entry", "tm_trans_int", "s") %></td><td style="color:#FF9000;"><% tcWebApi_Get("String_Entry", "tm_trans_wired", "s") %></td><td style="color:#FF9000;"><% tcWebApi_Get("String_Entry", "tm_trans_wireless", "s") %></td></tr>
 							</table>
@@ -225,7 +225,7 @@ function switchPage(page){
         			<tr>
           				<td height="30" align="left" valign="middle" >
 							<div class="formfontcontent"><p class="formfontcontent"><%tcWebApi_get("String_Entry","traffic_monitor_desc2","s")%></p></div>
-							<div class="formfontcontent"><p class="formfontcontent"><a id="faq0" href="http://www.asus.com/support/Knowledge-searchV2/?keyword=ASUSWRT%20Traffic%20Monitor%20" target="_blank" style="font-weight: bolder;text-decoration:underline;"><% tcWebApi_Get("String_Entry", "traffic_monitor", "s") %> FAQ</a></p></div>
+							<div class="formfontcontent"><p class="formfontcontent"><a id="faq0" href="" target="_blank" style="font-weight: bolder;text-decoration:underline;"><% tcWebApi_Get("String_Entry", "traffic_monitor", "s") %> FAQ</a></p></div>
           				</td>
         			</tr>
         			<tr>

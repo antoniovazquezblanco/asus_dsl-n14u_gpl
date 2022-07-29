@@ -138,7 +138,7 @@ function go_next_page(){
 									if(preferLang == "1")
 										document.getElementById("tosLink").href = "http://www.asus.com/us";
 									else if(preferLang == "2")
-										document.getElementById("tosLink").href = "http://www.asus.com/br";										
+										document.getElementById("tosLink").href = "http://www.asus.com/br";
 									else if(preferLang == "3")
 										document.getElementById("tosLink").href = "http://www.asus.com.cn";
 									else if(preferLang == "4")
@@ -147,7 +147,7 @@ function go_next_page(){
 										document.getElementById("tosLink").href = "http://www.asus.com/dk";
 									else if(preferLang == "6")
 										document.getElementById("tosLink").href = "http://www.asus.com/de";
-									else if(preferLang == "7")										
+									else if(preferLang == "7")
 										document.getElementById("tosLink").href = "http://www.asus.com/es";
 									else if(preferLang == "8")
 										document.getElementById("tosLink").href = "http://www.asus.com/fi";
@@ -158,7 +158,7 @@ function go_next_page(){
 									else if(preferLang == "11")
 										document.getElementById("tosLink").href = "http://www.asus.com/my";
 									else if(preferLang == "12")
-										document.getElementById("tosLink").href = "http://www.asus.com/no";																				
+										document.getElementById("tosLink").href = "http://www.asus.com/no";
 									else if(preferLang == "13")
 										document.getElementById("tosLink").href = "http://www.asus.com/pl";
 									else if(preferLang == "14")
@@ -192,18 +192,18 @@ function go_next_page(){
 					<li>
 						<span id="noWAN_link" style="display:none;"></span>
 						<span id="ddnslink1" style="display:none;">
-						<%tcWebApi_get("String_Entry","Internet","s")%>&nbsp;<%tcWebApi_get("String_Entry","AiDisk_linktoFTP_fromInternet","s")%>&nbsp;<a target="_blank" href="ftp://<%tcWebApi_get("Ddns_Entry","MYHOST","s")%>" style="text-decoration: underline; font-family:Lucida Console;">ftp://<%tcWebApi_get("Ddns_Entry","MYHOST","s")%></a>
+							Internet FTP address: <a target="_blank" style="text-decoration: underline; font-family:Lucida Console;">ftp://<%tcWebApi_get("Ddns_Entry","MYHOST","s")%></a>
 						</span>
 						<span id="ddnslink2" style="display:none;">
-						<%tcWebApi_get("String_Entry","Internet","s")%>&nbsp;<%tcWebApi_get("String_Entry","AiDisk_linktoFTP_fromInternet","s")%>&nbsp;<a target="_blank" href="ftp://<%tcWebApi_get("Ddns_Entry","MYHOST","s")%>" style="text-decoration: underline; font-family:Lucida Console;">ftp://<%tcWebApi_get("Ddns_Entry","MYHOST","s")%></a>
+							Internet FTP address: <a target="_blank" style="text-decoration: underline; font-family:Lucida Console;">ftp://<%tcWebApi_get("Ddns_Entry","MYHOST","s")%></a>
 						</span>
 					</li>
 					<li id="desc_2" style="display:none;margin-top:8px;">
 						<span id="ddnslink1_LAN" style="display:none;">
-						<%tcWebApi_get("String_Entry","t2LAN","s")%>&nbsp;<%tcWebApi_get("String_Entry","AiDisk_linktoFTP_fromInternet","s")%><a target="_blank" href="ftp://<% tcWebApi_Get("Lan_Entry0", "IP", "s") %>">ftp://<% tcWebApi_Get("Lan_Entry0", "IP", "s") %></a>
+							LAN FTP address: <a target="_blank" style="text-decoration: underline; font-family:Lucida Console;">ftp://<% tcWebApi_Get("Lan_Entry0", "IP", "s") %></a>
 						</span>
 						<span id="ddnslink2_LAN" style="display:none;">
-						<%tcWebApi_get("String_Entry","t2LAN","s")%>&nbsp;<%tcWebApi_get("String_Entry","AiDisk_linktoFTP_fromInternet","s")%><a target="_blank" href="ftp://<% tcWebApi_Get("Lan_Entry0", "IP", "s") %>">ftp://<% tcWebApi_Get("Lan_Entry0", "IP", "s") %></a>
+							LAN FTP address: <a target="_blank" style="text-decoration: underline; font-family:Lucida Console;">ftp://<% tcWebApi_Get("Lan_Entry0", "IP", "s") %></a>
 						</span>
 					</li>
 					<li><%tcWebApi_get("String_Entry","AiDisk_moreconfig","s")%></li>
@@ -219,7 +219,7 @@ function go_next_page(){
 									if(preferLang == "1")
 										document.getElementById("tosLink2").href = "http://www.asus.com/us";
 									else if(preferLang == "2")
-										document.getElementById("tosLink2").href = "http://www.asus.com/br";										
+										document.getElementById("tosLink2").href = "http://www.asus.com/br";
 									else if(preferLang == "3")
 										document.getElementById("tosLink2").href = "http://www.asus.com.cn";
 									else if(preferLang == "4")
@@ -228,7 +228,7 @@ function go_next_page(){
 										document.getElementById("tosLink2").href = "http://www.asus.com/dk";
 									else if(preferLang == "6")
 										document.getElementById("tosLink2").href = "http://www.asus.com/de";
-									else if(preferLang == "7")										
+									else if(preferLang == "7")	
 										document.getElementById("tosLink2").href = "http://www.asus.com/es";
 									else if(preferLang == "8")
 										document.getElementById("tosLink2").href = "http://www.asus.com/fi";
@@ -239,7 +239,7 @@ function go_next_page(){
 									else if(preferLang == "11")
 										document.getElementById("tosLink2").href = "http://www.asus.com/my";
 									else if(preferLang == "12")
-										document.getElementById("tosLink2").href = "http://www.asus.com/no";																				
+										document.getElementById("tosLink2").href = "http://www.asus.com/no";
 									else if(preferLang == "13")
 										document.getElementById("tosLink2").href = "http://www.asus.com/pl";
 									else if(preferLang == "14")

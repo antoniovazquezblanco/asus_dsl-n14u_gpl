@@ -211,10 +211,9 @@ function updateSVG(rxData, txData, maxValue, mode, rxColor, txColor, intv, maxLe
 	dataDiv = dataD;
 	samp = avgSamp;
 	tockD = clock;
-//	tockD = new Date();
 	tock = tockD.getTime();
 
-	if (intv < 60) {
+	if (intv < 5) {
 		// realtime
 		x = z = (vWidth / 5);
 		for (i = 0; i < 4; ++i) {

@@ -20,9 +20,7 @@ var acc0_name = "<% tcWebApi_get("Account_Entry0","username", "s") %>";
 function initial(){
 	parent.hideLoading();
 	parent.restore_help_td();
-	//parent.$("dummyShareway").value = "<% tcWebApi_get("Samba_Entry", "dummyShareway", "s") %>";
-	//if(parent.$("dummyShareway").value == "")
-	parent.$("dummyShareway").value = 1;
+	parent.$("dummyShareway").value = 2;
 	showTextinWizard(parent.$("dummyShareway").value);
 }
 
@@ -40,8 +38,8 @@ function showTextinWizard(flag){
 	}
 	else if(dummyShareway == 1){
 		parent.$("dummyShareway").value = dummyShareway;
-		document.getElementsByName('dummyoption')[0].focus();
-		document.getElementsByName('dummyoption')[0].checked = true;
+		document.getElementsByName('dummyoption')[1].focus();
+		document.getElementsByName('dummyoption')[1].checked = true;
 		document.getElementById("share0_Hint").style.display = "none";
 		showtext(document.getElementById("user1"), acc0_name);
 		showtext(document.getElementById("user2"), "Family");
@@ -52,8 +50,8 @@ function showTextinWizard(flag){
 	}
 	else if(dummyShareway == 2){
 		parent.$("dummyShareway").value = dummyShareway;
-		document.getElementsByName('dummyoption')[1].focus();
-		document.getElementsByName('dummyoption')[1].checked = true;		
+		document.getElementsByName('dummyoption')[0].focus();
+		document.getElementsByName('dummyoption')[0].checked = true;		
 		document.getElementById("share0_Hint").style.display = "none";
 		showtext(document.getElementById("user1"), acc0_name);
 		document.getElementById("share1").style.display = "";
@@ -174,13 +172,13 @@ function checkPasswdValid(passwd){
 		<td valign="top">
 			<div style="margin-left:20px;">
 				<br/>
-					<p><input type="radio" id="d2" name="dummyoption" value="1" width="10" onclick="showTextinWizard(this.value);"/>
-            	<label for="d2"><%tcWebApi_get("String_Entry","Step2_method2","s")%></label>
-					</p>
-				<br/>
 					<p><input type="radio" id="d3" name="dummyoption" value="2" width="10" onclick="showTextinWizard(this.value);"/>
             	<label for="d3"><%tcWebApi_get("String_Entry","Step2_method3","s")%></label>
 					</p>				
+				<br/>
+					<p><input type="radio" id="d2" name="dummyoption" value="1" width="10" onclick="showTextinWizard(this.value);"/>
+            	<label for="d2"><%tcWebApi_get("String_Entry","Step2_method2","s")%></label>
+					</p>
 				<br/>	
 					<p><input type="radio" id="d1" name="dummyoption" value="0" width="10" onclick="showTextinWizard(this.value);"/>
             	<label for="d1"><%tcWebApi_get("String_Entry","Step2_method1","s")%></label>

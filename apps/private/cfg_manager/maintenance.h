@@ -86,6 +86,14 @@ enum NTP_STATUS{
 */
 #define LED_PATH "/userfs/led.conf"
 #define LED_PROC_PATH "/proc/tc3162/led_def"
+
+//Andy Chiu, 2014/11/06
+#ifdef RTCONFIG_ARPSTORM
+#define ARPSTORM_NODE		"Arpstorm"
+#define ARPSTORM_ENTRY	"Entry"
+#define ARPSTORM_RUNIN	"runin"
+#endif
+
 #if 0  /*Orginal ci-command mode */
 #define _XOPEN_SOURCE
 
@@ -170,4 +178,11 @@ correctPPPtime(int difference);
 
 int
 vendorCfgFile_init(void);
+
+//Andy Chiu, 2014/11/06
+#ifdef RTCONFIG_ARPSTORM
+int arpstorm_boot(mxml_node_t *top);
+int arpstorm_init(void);
+#endif
+
 #endif

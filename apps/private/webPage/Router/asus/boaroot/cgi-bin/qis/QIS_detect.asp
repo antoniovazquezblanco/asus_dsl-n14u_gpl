@@ -27,9 +27,48 @@ var wan_type = "<%tcWebApi_get("AutoPVC_Common","Detect_XDSL","s")%>";
 var dsl_autodet_state = "<% tcWebApi_get("AutoPVC_Common","dsltmp_autodet_state","s") %>";
 var w_Setting = "<%tcWebApi_get("SysInfo_Entry","w_Setting","s")%>";
 
+var makeRequest = {
+        _notSuccessCount: 0,
+        _notSupportXML: false,
+
+        start: function(url, callBackSuccess, callBackError){
+                var xmlHttp;
+                if(window.XMLHttpRequest)
+                        xmlHttp = new XMLHttpRequest();
+                else if(window.ActiveXObject)
+                        xmlHttp = new ActiveXObject("Microsoft.XMLHTTP");
+                else{
+                        makeRequest._notSupportXML = true;
+                        alert("Your browser does not support XMLHTTP.");
+                        return false;
+                }
+
+                xmlHttp.onreadystatechange = function(){
+                        if(xmlHttp.readyState == 4){
+                                if(xmlHttp.status == 200){
+                                        callBackSuccess(xmlHttp.responseXML);
+                                }
+                                else{
+                                        makeRequest._notSuccessCount++;
+                                        callBackError();
+                                }       
+                        }
+                }
+
+                xmlHttp.open('GET', url, true);
+                xmlHttp.send(null);
+        }
+};
+
 function QKDetect_load_body(){
 	//parent.set_step("t1");
 	parent.document.title = "ASUS <%tcWebApi_get("String_Entry","Web_Title2","s")%> <% tcWebApi_staticGet("SysInfo_Entry","ProductTitle","s") %> - <%tcWebApi_get("String_Entry","QKS_detect_sanglass","s")%>";
+	if(parent.autodet_annex_counter == 1){	//trigger dsl autodetect again after switch Annex mode
+		var update_dsl_info = function(){
+			makeRequest.start('/cgi-bin/start_dsl_autodet.asp', function(){}, update_dsl_info);
+		};
+		setTimeout(update_dsl_info, 700);
+	}		
 	getWANStatus();
 }
 function getWANStatus(){
@@ -66,6 +105,7 @@ function getWANStatus(){
 					++Redirect_count;
 					if(Redirect_count >= 24){
 					Redirect_count = 0;
+					++parent.autodet_annex_counter;
 					if(dsl_autodet_state == "up"){
 						if(extend_autodet == 1){ //(ATM)extend for another (24-9)*5=75 seconds for auto detection to finish, so max 195 seconds
 							extend_autodet = 0;
@@ -83,8 +123,17 @@ function getWANStatus(){
 							return;
 						}
 					}
-					else
+					else if(parent.autodet_annex_counter == 1 && parent.model_name != "DSL-N66U" && parent.model_name != "DSL-N12U-C1"){	//MODELDEP : Skip DSL-N66U, DSL-N12U-C1
+						if(document.redirectForm.AnnexTypeA.value == "ANNEX A/I/J/L/M")
+							document.redirectForm.AnnexTypeA.value = "ANNEX B/J/M";
+						else if(document.redirectForm.AnnexTypeA.value == "ANNEX B/J/M")
+							document.redirectForm.AnnexTypeA.value = "ANNEX A/I/J/L/M";
+						document.redirectForm.submit();
+					}
+					else{
+						parent.autodet_annex_counter == 0;
 						redirect_page("annex_setting");
+					}
 				}
 				else{
 					if(dsl_autodet_state == "down" || dsl_autodet_state == ""){
@@ -116,14 +165,6 @@ function redirect_page(redirect_flag){
 	document.form.submit();
 }
 
-function gotoIndex(){
-	if (w_Setting == "0") {
-		alert("<% tcWebApi_Get("String_Entry", "QIS_recommand_encryption", "s") %>");
-		location.href = '/cgi-bin/qis/QIS_wireless.asp';
-	}
-	else
-		parent.location.href = '../index2.asp';
-}
 </script>
 </head>
 <body onLoad="QKDetect_load_body();">
@@ -141,9 +182,9 @@ function gotoIndex(){
 		<td align="left">
 			<span class="description_down"><%tcWebApi_get("String_Entry","QKS_detect_desc1","s")%></span>
 		</td>
-		<td align="right">
+		<!--td align="right">
 			<img onclick="gotoIndex();" style="cursor:pointer;" align="right" title="Go to Home" src="/images/backtohome.png" onMouseOver="this.src='/images/backtohomeclick.png'" onMouseOut="this.src='/images/backtohome.png'">
-		</td>
+		</td-->
 	</tr>
 </table>
 </div>
@@ -168,9 +209,14 @@ function gotoIndex(){
 </table>
 </div>
 </form>
-<form method="post" name="redirectForm" action="#">
-	<input type="hidden" name="flag" value="">
-	<input type="hidden" name="next_page" value="">
-	<input type="hidden" name="prev_page" value="">
+<form method="post" name="redirectForm" action="QIS_process.asp" target="">
+<input type="hidden" name="flag" value="detect">
+<input type="hidden" name="current_page" value="/cgi-bin/qis/QIS_detect.asp">
+<input type="hidden" name="next_page" value="/cgi-bin/qis/QIS_detect.asp">
+<input type="hidden" name="prev_page" value="">
+<input type="hidden" name="action_mode" value="apply">
+<input type="hidden" name="action_script" value="restart_dsl_setting">
+<input type="hidden" name="action_wait" value="1">
+<input type="hidden" name="AnnexTypeA" value="<%tcWebApi_get("Adsl_Entry","ANNEXTYPEA","s")%>">
 </form>
 </body>

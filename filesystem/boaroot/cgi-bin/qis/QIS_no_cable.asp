@@ -99,9 +99,7 @@ function redirect_page(redirect_flag){
 function goWireless(){
 	location.href = '/qis/QIS_wireless.asp';
 }
-function gotoIndex(){
-	parent.location.href = '../index2.asp';
-}
+
 </script>
 </head>
 <body onLoad="QKfinish_load_body();" >
@@ -120,9 +118,9 @@ function gotoIndex(){
 			<td align="left">
 				<span class="description_down">Unable to connect to the Internet</span>
 			</td>
-			<td align="right">
+			<!--td align="right">
 				<img onclick="gotoIndex();" style="cursor:pointer;" align="right" title="Go to Home" src="/images/backtohome.png" onMouseOver="this.src='/images/backtohomeclick.png'" onMouseOut="this.src='/images/backtohome.png'">
-			</td>
+			</td-->
 		</tr>
 	</table>
 	</div>
@@ -132,8 +130,8 @@ function gotoIndex(){
 	<p class='QISGeneralFont'>Please ensure that the phone cable is connected to the DSL port.</p>
 	</p>
 	<div class="apply_gen" style="margin-top:30px">
-		<input type="button" id="nextButton" value="<% tcWebApi_Get("String_Entry", "Manual_Setting_btn", "s") %>" onclick="redirect_page('manual_setting');" class="button_gen" >
-		<input type="button" id="nextButton" value="Wireless Setting" onclick="goWireless();" class="button_gen">
+		<input type="button" id="nextButton" value="<% tcWebApi_Get("String_Entry", "Manual_Setting_btn", "s") %>" onclick="redirect_page('manual_setting');" class="button_gen_long" >
+		<input type="button" id="nextButton" value="Wireless Setting" onclick="goWireless();" class="button_gen_long">
 	</div>
 </div>
 </form>

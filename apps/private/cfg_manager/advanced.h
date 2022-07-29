@@ -15,6 +15,9 @@
 /******************************************************************************/
 #ifndef _ADVANCED_H
 #define _ADVANCED_H
+#include <linux/version.h>
+
+#define KERNEL_2_6_36 	(LINUX_VERSION_CODE > KERNEL_VERSION(2,6,31))
 
 #define MISC "Misc"
 #define FIREWALL  "Firewall"
@@ -111,11 +114,17 @@
 #define DISABLE     0
 #endif
 #define QOS_SH					"/etc/qos_rule.sh"
+#if KERNEL_2_6_36
+#define QOS_MODULE_PATH 		"/lib/modules/2.6.36/kernel/net/bridge/netfilter/"
+#define QOS_TC_MODULE_PATH		"/lib/modules/2.6.36/kernel/net/sched/"
+#define QOS_EBT_MODULE_PATH 	"/lib/modules/2.6.36/kernel/net/bridge/netfilter/"
+#else
 #define QOS_MODULE_PATH 		"/lib/modules/2.6.22.15/kernel/net/bridge/netfilter/"
-#define QOS_MODULE_NUM  		8
 #define QOS_TC_MODULE_PATH		"/lib/modules/2.6.22.15/kernel/net/sched/"
-#define QOS_TC_MODULE_NUM		4
 #define QOS_EBT_MODULE_PATH 	"/lib/modules/2.6.22.15/kernel/net/bridge/netfilter/"
+#endif
+#define QOS_MODULE_NUM  		8
+#define QOS_TC_MODULE_NUM		4
 #ifdef IPV6
 #define QOS_EBT_MODULE_NUM		8
 #else
@@ -174,20 +183,30 @@
 #define IPADDRMAP	"IpAddrMap"
 #define IPADDRMAP_SERVER "Server"
 #define IPADDRMAP_SH	"/usr/script/ipaddr_mapping.sh"
+#define ADSL_ATTR_TRANSMODE	"TransMode"
 #define ADSL_ATTR_MODE	"MODULATIONTYPE"
 #define ADSL_ATTR_TYPE	"ANNEXTYPEA"
 #define ADSL_ATTR_SRA	"dslx_sra"
 #define ADSL_ATTR_BITSWAP	"dslx_bitswap"
 #define ADSL_ATTR_SNRMOFFSET	"dslx_snrm_offset"
+#define ADSL_ATTR_GINP	"dslx_ginp"
+#define ADSL_ATTR_RXAGC	"adsl_rx_agc"
 #define ADSL_OPEN_CMD "wan adsl opencmd"
 #define ADSL_SETANNEX_CMD "wan ghs set annex"
+#define ADSL_ATTR_DLA	"dslx_dla_enable"
 
 #ifdef TCSUPPORT_WAN_PTM
 #define VDSL_ATTR_TARGETSNRM	"vdsl_snrm_offset"
 #define VDSL_ATTR_TXGAINOFF	"vdsl_tx_gain_off" //tx power cut off
 #define VDSL_ATTR_RXAGC	"vdsl_rx_agc" //rx agc gain
 #define VDSL_ATTR_UPBO	"vdsl_upbo" //upstream power back off
+#define VDSL_ATTR_ESNP	"dslx_vdsl_esnp" //Enhanced Sudden Noise Protection
+#define VDSL_ATTR_BITSWAP	"dslx_vdsl_bitswap"
+#define VDSL_ATTR_GVECTOR "dslx_vdsl_vectoring"
+#define VDSL_ATTR_NONSTD_GVECTOR	"dslx_vdsl_nonstd_vectoring"
 #endif /* TCSUPPORT_WAN_PTM */
+
+#define DSLX_TESTLAB "dslx_testlab"
 
 #define ADSL_NAME "Adsl"
 #define ADSL_ACTIVE "Active"
@@ -198,7 +217,7 @@
 #define ADSL_PATH "/etc/adsl.conf"
 #define ADSL_SH	"/etc/adsl.sh"
 #define ADSL_BOOT_SH	"/etc/adsl_boot.sh"
-/*#define ADSL_ENTRY 	"Adsl_Entry"*/
+#define ADSL_ENTRY 	"Adsl_Entry"
 #define ADSL_NAME_INDEX 0
 #define ADSL_CMD_INDEX 1
 

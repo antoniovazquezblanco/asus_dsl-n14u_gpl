@@ -14,6 +14,9 @@ fi
 #fi
 GATEWAY_FILE="/etc/"$interface"_gateway.conf"
 WAN_NUM=`expr substr $interface 4 2`
+if [ "`expr index $WAN_NUM _`" != "0" ]; then
+WAN_NUM=`expr substr $WAN_NUM 1 1`
+fi
 LEASE_FILE="/tmp/udhcpc"$WAN_NUM".lease"
 
 [ -n "$broadcast" ] && BROADCAST="broadcast $broadcast"
@@ -23,13 +26,15 @@ case "$1" in
 	deconfig)
 		#/sbin/ifconfig $interface down
 		/sbin/ifconfig $interface 0.0.0.0
-		rm $GATEWAY_FILE
-		rm /tmp/udhcpc*
+		rm -f $GATEWAY_FILE
+		rm -f /tmp/udhcpc*
 		;;
 
 	renew|bound)
 		/sbin/ifconfig $interface $ip $BROADCAST $NETMASK
 		/userfs/bin/tcapi set System_Entry CurrentWANIP $ip &
+		/userfs/bin/tcapi set "Wanduck_Common" "wan"$WAN_NUM"_ipaddr" "$ip" &
+		/userfs/bin/tcapi set "Wanduck_Common" "wan"$WAN_NUM"_netmask" "$NETMASK" &
 
 		if [ -n "$router" ] ; then
 			echo "writing routers to file"
@@ -49,7 +54,7 @@ case "$1" in
 
 		# Save the lease time, expires time
 		echo -n $lease > $LEASE_FILE
-		/sbin/udhcpc_expires $WAN_NUM $lease
+		/sbin/udhcpc_expires $interface $lease
 
 		# bound, check network whether the same with lan
 		/sbin/udhcpc_bound $ip $subnet $WAN_NUM
@@ -57,16 +62,28 @@ case "$1" in
 			exit 1
 		fi
 
+		# Set gateway info
+		[ -n "$router" ] && /userfs/bin/tcapi set "Wan_PVC"$WAN_NUM "gateway_x" "$router" &
+		[ -n "$router" ] && /userfs/bin/tcapi set "Wanduck_Common" "wan"$WAN_NUM"_gateway" "$router" &
+
+		# Set dns info
+		if [ "$DNS_type" != "1" ] ; then
+			[ -n "$dns" ] && /userfs/bin/tcapi set "Wan_PVC"$WAN_NUM "dns_x" "$dns" &
+			[ -n "$dns" ] && /userfs/bin/tcapi set "Wanduck_Common" "wan"$WAN_NUM"_dns" "$dns" &
+		fi
+
+		/sbin/wan_up $interface
+
 		# WAN_STATE_CONNECTED
-		/userfs/bin/tcapi set "Wanduck_Common" "wan"$WAN_NUM"_state_t" "2" &
-		/userfs/bin/tcapi set "Wanduck_Common" "wan"$WAN_NUM"_sbstate_t" "0" &
-		/userfs/bin/tcapi set "Wanduck_Common" "wan"$WAN_NUM"_auxstate_t" "0" &
+		#/userfs/bin/tcapi set "Wanduck_Common" "wan"$WAN_NUM"_state_t" "2" &
+		#/userfs/bin/tcapi set "Wanduck_Common" "wan"$WAN_NUM"_sbstate_t" "0" &
+		#/userfs/bin/tcapi set "Wanduck_Common" "wan"$WAN_NUM"_auxstate_t" "0" &
 
 		# restart firewall
-		/userfs/bin/tcapi commit "Firewall" &
+		#/userfs/bin/tcapi commit "Firewall" &
 
 		# restart QoS
-		/userfs/bin/tcapi commit "QoS" &
+		#/userfs/bin/tcapi commit "QoS" &
 		;;
 esac
 

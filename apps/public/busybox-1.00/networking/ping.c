@@ -79,6 +79,8 @@ int cwmpflag = 0;
 #define	CLR(bit)	(A(bit) &= (~B(bit)))
 #define	TST(bit)	(A(bit) & B(bit))
 
+int output_flag = 0;
+char output_path[512];
 static void ping(const char *host);
 
 /* common routines */
@@ -220,10 +222,39 @@ static void pingstats(int junk)
 			   tmin / 10, tmin % 10,
 			   (tsum / (nreceived + nrepeats)) / 10,
 			   (tsum / (nreceived + nrepeats)) % 10, tmax / 10, tmax % 10);
+	// >>>Andy Chiu, 2015/03/04.
+	if(output_flag)
+	{
+		FILE *fp = fopen(output_path, "a");
+		if(fp)
+		{
+#ifdef CWMP
+			if(cwmpflag != 0)
+				fprintf(fp, "%ld,%ld,%lu,%lu,%lu\n",ntransmitted,nreceived, tmin / 10,(tsum / (nreceived + nrepeats)) / 10, tmax / 10);
+#endif
+			fprintf(fp, "\n--- %s ping statistics ---\n", hostent->h_name);
+			fprintf(fp, "%ld packets transmitted, ", ntransmitted);
+			fprintf(fp, "%ld packets received, ", nreceived);
+			if (nrepeats)
+				fprintf(fp, "%ld duplicates, ", nrepeats);
+			if (ntransmitted)
+				fprintf(fp, "%ld%% packet loss\n",
+					   (ntransmitted - nreceived) * 100 / ntransmitted);
+			if (nreceived)
+				fprintf(fp, "round-trip min/avg/max = %lu.%lu/%lu.%lu/%lu.%lu ms\n",
+					   tmin / 10, tmin % 10,
+					   (tsum / (nreceived + nrepeats)) / 10,
+					   (tsum / (nreceived + nrepeats)) % 10, tmax / 10, tmax % 10);
+			fclose(fp);
+		}
+	}
+	// <<<Andy Chiu, 2015/03/04.
 	if (nreceived != 0)
 		status = EXIT_SUCCESS;
 	else
 		status = EXIT_FAILURE;
+
+		
 	exit(status);
 }
 
@@ -352,6 +383,25 @@ static void unpack(char *buf, int sz, struct sockaddr_in *from)
 		if (dupflag)
 			printf(" (DUP!)");
 		printf("\n");
+
+		// >>>Andy Chiu, 2015/03/04.
+		if(output_flag)
+		{
+			FILE *fp = fopen(output_path, "a");
+			if(fp)
+			{
+				fprintf(fp, "%d bytes from %s: icmp_seq=%u", sz,
+					   inet_ntoa(*(struct in_addr *) &from->sin_addr.s_addr),
+					   icmppkt->icmp_seq);
+				fprintf(fp, " ttl=%d", iphdr->ttl);
+				fprintf(fp, " time=%lu.%lu ms", triptime / 10, triptime % 10);
+				if (dupflag)
+					fprintf(fp, " (DUP!)");
+				fprintf(fp, "\n");
+				fclose(fp);
+			}
+		}
+		// <<<Andy Chiu, 2015/03/04.
 	} else
 		if (icmppkt->icmp_type != ICMP_ECHO)
 			bb_error_msg("Warning: Got ICMP %d (%s)",
@@ -394,6 +444,21 @@ if(cwmpflag == 0)
 	           hostent->h_name,
 		   inet_ntoa(*(struct in_addr *) &pingaddr.sin_addr.s_addr),
 		   datalen);
+
+	// >>>Andy Chiu, 2015/03/04.
+	if(output_flag)
+	{
+		FILE *fp = fopen(output_path, "a");
+		if(fp)
+		{
+			fprintf(fp, "PING %s (%s): %d data bytes\n",
+			           hostent->h_name,
+				   inet_ntoa(*(struct in_addr *) &pingaddr.sin_addr.s_addr),
+				   datalen);
+			fclose(fp);
+		}
+	}
+	// <<<Andy Chiu, 2015/03/04.
 
 #ifdef CWMP
 }
@@ -472,6 +537,19 @@ extern int ping_main(int argc, char **argv)
 			}
 			break;
 #endif
+		//Andy Chiu, 2015/03/04. add for displaying ping result real-time.
+		case 'o':
+			{
+				argv++;
+				output_flag = 1;
+				memset(output_path, 0, sizeof(output_path));
+				strcpy(output_path, *argv);				
+				//create an empty file first.
+				FILE *fp = fopen(output_path, "w");
+				if(fp)
+					fclose(fp);
+			}
+			break;
 		default:
 			bb_show_usage();
 		}

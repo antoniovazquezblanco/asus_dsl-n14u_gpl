@@ -95,14 +95,14 @@ function updateLAN()
 {
 var ie = window.ActiveXObject;
 if (ie)
-makeRequest_ie_lan('/WPS_info.asp');
+makeRequest_ie_lan('/httpd_check.asp');
 else
-makeRequest_lan('/WPS_info.asp');
+makeRequest_lan('/httpd_check.asp');
 }
 function refresh_laninfo(xmldoc)
 {
-var wpss=xmldoc.getElementsByTagName("wps");
-if (wpss!=null && wpss[0]!=null)
+var httpds=xmldoc.getElementsByTagName("httpd");
+if (httpds!=null && httpds[0]!=null)
 {
 if($("drword")){
 			$("drword").innerHTML = "<%tcWebApi_get("String_Entry","DrSurf_sweet_advise2","s")%><br/><br/>";

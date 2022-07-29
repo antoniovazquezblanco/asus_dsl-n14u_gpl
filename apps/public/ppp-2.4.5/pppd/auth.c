@@ -242,6 +242,8 @@ char remote_name[MAXNAMELEN];	/* Peer's name for authentication */
 
 static char *uafname;		/* name of most recent +ua file */
 
+static char *path_authfail = _PATH_AUTHFAIL;	/* pathname of auth-fail script */
+
 extern char *crypt __P((const char *, const char *));
 
 /* Prototypes for procedures local to this file. */
@@ -406,6 +408,9 @@ option_t auth_options[] = {
     { "allow-number", o_special, (void *)set_permitted_number,
       "Set telephone number(s) which are allowed to connect",
       OPT_PRIV | OPT_A2LIST },
+
+    { "auth-fail-script", o_string, &path_authfail,
+      "Set pathname of auth-fail script", OPT_PRIV },
 
     { NULL }
 };
@@ -930,7 +935,7 @@ auth_peer_fail(unit, protocol)
      * Authentication failure: take the link down
      */
     status = EXIT_PEER_AUTH_FAILED;
-    auth_script(_PATH_AUTHFAIL, 1);
+    auth_script(path_authfail, 1);
     lcp_close(unit, "Authentication failed");
 }
 
@@ -1009,7 +1014,7 @@ auth_withpeer_fail(unit, protocol)
      * authentication secrets.
      */
     status = EXIT_AUTH_TOPEER_FAILED;
-    auth_script(_PATH_AUTHFAIL, 1);
+    auth_script(path_authfail, 1);
     lcp_close(unit, "Failed to authenticate ourselves to peer");
 }
 

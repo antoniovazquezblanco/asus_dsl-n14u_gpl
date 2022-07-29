@@ -25,6 +25,7 @@ If Request_Form("editFlag") = "1" then
 	tcWebApi_Set("WLan_Entry","key4","wl_key4")
 	tcWebApi_Set("WLan_Entry","phrase_x","wl_phrase_x")
 	tcWebApi_Set("WLan_Entry","RekeyInterval","wl_wpa_gtk_rekey")
+	tcWebApi_Set("WLan_Entry","WPSConfStatus","WPSConfigured")
 
 	tcWebApi_commit("WLan_Entry")
 end if
@@ -42,7 +43,7 @@ load_parameters_to_generic()
 
 <!--Advanced_Wireless_Content.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -140,22 +141,33 @@ function initial(){
 		$("wl_unit_field").style.display = "none";
 		
 	limit_auth_method();	
+
+	if('<% tcWebApi_get("WLan_Common","wl_unit","s"); %>' == '1') {
+		insertExtChannelOption_5g();
+	}
+	else {
+		insertExtChannelOption_2g();
+	}
+
+	genBWTable();
 }
-function mbss_display_ctrl(){
-if(wl_vifnames != ""){
-for(var i=1; i<multissid_support+1; i++)
-add_options_value(document.form.wl_subunit, i, '-1');
+function genBWTable() {
+	var bws = new Array();
+	var bwsDesc = new Array();
+	var cur = "<%tcWebApi_get("WLan_Common","HT_BW","s")%>";
+	if('<%tcWebApi_get("WLan_Common","WirelessMode","s")%>' == '0') { //legacy
+		bws = [0];
+		bwsDesc = ["20 MHz"];
+		add_options_x2(document.form.wl_bw, bwsDesc, bws, cur);
+	}
+	else {
+		bws = [1, 0, 2];
+		bwsDesc = ["20/40 MHz", "20 MHz", "40 MHz"];
+		add_options_x2(document.form.wl_bw, bwsDesc, bws, cur);
+		handle_11ac_80MHz();
+	}
 }
-else
-$("wl_subunit_field").style.display = "none";
-if(document.form.wl_subunit.value != 0){
-$("wl_bw_field").style.display = "none";
-$("wl_channel_field").style.display = "none";
-$("wl_nctrlsb_field").style.display = "none";
-}
-else
-$("wl_bss_enabled_field").style.display = "none";
-}
+
 function add_options_value(o, arr, orig){
 if(orig == arr)
 add_option(o, "mbss_"+arr, arr, 1);
@@ -413,6 +425,8 @@ function check_NOnly_to_GN(){
 <input type="hidden" name="MBSSID_changeFlag" value="0">
 <input type="hidden" name="MBSSID_able_Flag" value="0">
 <input type="hidden" name="w_Setting" value="1">
+<input type="hidden" name="WPSConfigured" value="2">
+
 <table class="content" align="center" cellpadding="0" cellspacing="0">
 <tr>
 <td width="17">&nbsp;</td>
@@ -482,18 +496,15 @@ function check_NOnly_to_GN(){
 				<!-- <option value="7" <% if tcWebApi_get("WLan_Common","WirelessMode","h") = "7" then asp_Write("selected") end if %>>802.11g+n</option> -->
 			</select>
 			<!-- need to make sure the meanings of WirelessMode and verify the checkbox behavior //javi-->
-			<span id="wl_gmode_checkbox" style="display:none;"><input type="checkbox" name="wl_gmode_check" id="wl_gmode_check" value="" onClick="return change_common(this, 'WLANConfig11b', 'wl_gmode_check', '1')"> b/g Protection</input></span>
+			<span id="wl_gmode_checkbox" style="display:none;"><input type="checkbox" name="wl_gmode_check" id="wl_gmode_check" value="" onClick="return change_common(this, 'WLANConfig11b', 'wl_gmode_check', '1')"> <%tcWebApi_get("String_Entry","WC11b_x_Mode11g_protectbg","s")%></input></span>
 			<span id="wl_nmode_x_hint" style="display:none;"><br><%tcWebApi_get("String_Entry","WC11n_automode_limition_hint","s")%></span>
-			<span id="wl_NOnly_note" style="display:none;"><br>* [N only] is not compatible with current guest network authentication method(TKIP or WEP),  Please go to <a id="gn_link" href="/cgi-bin/Guest_network.asp" style="color:#FFCC00;font-family:Lucida Console;text-decoration:underline;">guest network</a> and change the authentication method.</span>
+			<span id="wl_NOnly_note" style="display:none;"><br>* <%tcWebApi_get("String_Entry","WC11n_NOnly_note","s")%></span>
 		</td>
 	</tr>
 	<tr id="wl_bw_field">
 		<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(0, 14);"><% tcWebApi_Get("String_Entry", "WC11b_ChannelBW_in", "s") %></a></th>
 		<td>
 			<select name="wl_bw" class="input_option" onChange="return change_common(this, 'WLANConfig11b', 'wl_bw')">
-				<option class="content_input_fd" value="0" <% if tcWebApi_get("WLan_Common","HT_BW","h") = "0" then asp_Write("selected") end if %>>20 MHz</option>
-				<option class="content_input_fd" value="1" <% if tcWebApi_get("WLan_Common","HT_BW","h") = "1" then asp_Write("selected") end if %>>20/40 MHz</option>
-				<option class="content_input_fd" value="2" <% if tcWebApi_get("WLan_Common","HT_BW","h") = "2" then asp_Write("selected") end if %>>40 MHz</option>
 			</select>
 		</td>
 	</tr>
@@ -501,18 +512,6 @@ function check_NOnly_to_GN(){
 		<th><a id="wl_channel_select" class="hintstyle" href="javascript:void(0);" onClick="openHint(0, 3);"><% tcWebApi_Get("String_Entry", "WC11b_Channel_in", "s") %></a></th>
 		<td>
 			<select name="wl_channel" class="input_option" onChange="return change_common(this, 'WLANConfig11b', 'wl_channel')">
-				<option value="0" <% if tcWebApi_get("WLan_Common","Channel","h") = "0" then asp_Write("selected") end if %>>Auto</option>
-				<option value="1" <% if tcWebApi_get("WLan_Common","Channel","h") = "1" then asp_Write("selected") end if %>>1</option>
-				<option value="2" <% if tcWebApi_get("WLan_Common","Channel","h") = "2" then asp_Write("selected") end if %>>2</option>
-				<option value="3" <% if tcWebApi_get("WLan_Common","Channel","h") = "3" then asp_Write("selected") end if %>>3</option>
-				<option value="4" <% if tcWebApi_get("WLan_Common","Channel","h") = "4" then asp_Write("selected") end if %>>4</option>
-				<option value="5" <% if tcWebApi_get("WLan_Common","Channel","h") = "5" then asp_Write("selected") end if %>>5</option>
-				<option value="6" <% if tcWebApi_get("WLan_Common","Channel","h") = "6" then asp_Write("selected") end if %>>6</option>
-				<option value="7" <% if tcWebApi_get("WLan_Common","Channel","h") = "7" then asp_Write("selected") end if %>>7</option>
-				<option value="8" <% if tcWebApi_get("WLan_Common","Channel","h") = "8" then asp_Write("selected") end if %>>8</option>
-				<option value="9" <% if tcWebApi_get("WLan_Common","Channel","h") = "9" then asp_Write("selected") end if %>>9</option>
-				<option value="10" <% if tcWebApi_get("WLan_Common","Channel","h") = "10" then asp_Write("selected") end if %>>10</option>
-				<option value="11" <% if tcWebApi_get("WLan_Common","Channel","h") = "11" then asp_Write("selected") end if %>>11</option>
 			</select>
 		</td>
 	</tr>
@@ -520,8 +519,8 @@ function check_NOnly_to_GN(){
 		<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(0, 15);"><% tcWebApi_Get("String_Entry", "WC11b_EChannel_in", "s") %></a></th>
 		<td>
 			<select name="wl_nctrlsb" class="input_option">
-				<option value="0" <% if tcWebApi_get("WLan_Common","HT_EXTCHA","h") = "0" then asp_Write("selected") end if %>>lower</option>
-				<option value="1" <% if tcWebApi_get("WLan_Common","HT_EXTCHA","h") = "1" then asp_Write("selected") end if %>>upper</option>
+				<option value="0" <% if tcWebApi_get("WLan_Common","HT_EXTCHA","h") = "0" then asp_Write("selected") end if %>>Lower</option>
+				<option value="1" <% if tcWebApi_get("WLan_Common","HT_EXTCHA","h") = "1" then asp_Write("selected") end if %>>Upper</option>
 			</select>
 		</td>
 	</tr>

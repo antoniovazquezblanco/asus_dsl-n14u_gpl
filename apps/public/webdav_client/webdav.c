@@ -10,15 +10,6 @@
 #define MYPORT 3569
 #define BACKLOG 100 /* max listen num*/
 
-#define OTRHRS 0
-#define HREF 1
-#define CREATIONDATE 2
-#define GETCONTENTLANGUAGE 3
-#define GETCONTENTLENGTH 4
-#define GETCONTENTTYPE 5
-#define GETLASTMODIFIED 6
-#define STATUS 7
-
 #ifndef NVRAM_
 #define NOTIFY_PATH "/tmp/notify/usb"
 #else
@@ -26,10 +17,8 @@
 #endif
 #define SHELL_FILE  "/tmp/smartsync/script/write_nvram"
 
-int infoType;
 int stop_up = 0;
 int stop_down = 0 ;
-//int exit_proc = 0;
 int no_config = 0;
 
 int disk_change;
@@ -37,6 +26,7 @@ int sync_disk_removed;
 int sighandler_finished;
 int mountflag;
 
+/*如果Server路径中缺失port,就加入默认的port,http的默认port是8082,https的默认port是443*/
 int add_port_for_host(int index,struct asus_config *config){
 
     char *temp;
@@ -85,8 +75,6 @@ void parse_server_url(char *pstr,int i,struct asus_config *config){
 
     add_port_for_host(i,config);
 
-    DEBUG("config->prule[%d]->host = %s\n",i,config->prule[i]->host);
-
     temp = temp + 1;
 
     DEBUG("temp1 = %s\n",temp);
@@ -111,6 +99,8 @@ void parse_server_url(char *pstr,int i,struct asus_config *config){
     config->prule[i]->rootfolder_length = strlen(config->prule[i]->rootfolder);
 
     free(to_serverpath);
+
+    //sprintf(config->prule[i]->rooturl_no_port,"%s%s",config->prule[i]->host,config->prule[i]->rootfolder);
 
     DEBUG("config->prule[%d]->rooturl = %s\nconfig->prule[%d]->rootfolder = %s\nconfig->prule[%d]->host = %s\n",
            i,config->prule[i]->rooturl,i,config->prule[i]->rootfolder,i,config->prule[i]->host);
@@ -255,7 +245,7 @@ int parse_config_mutidir(char *path,struct asus_config *config)
     return 0;
 }
 
-
+/*初始化变量*/
 void clear_global_var(){
 
     prog_total = -1;
@@ -266,16 +256,12 @@ void clear_global_var(){
     download_only = 0;
     upload_only = 0;
 
-    //local_sync = 0;
-    //server_sync = 1;
-
     first_sync = 1;
 
     finished_initial = 0;
 
     stop_progress = 0;
     exit_loop = 0;
-    //receve_socket = 0;
 
     DiskAvailable = 0;
     DiskAvailableShow = 0;
@@ -288,14 +274,11 @@ void clear_global_var(){
 
     mountflag = 1;
 
-    //dounfinish = 0;
-
     pthread_mutex_init(&mutex, NULL);
     pthread_mutex_init(&mutex_socket, NULL);
     pthread_mutex_init(&mutex_checkdisk, NULL);
     pthread_mutex_init(&mutex_receve_socket, NULL);
     pthread_mutex_init(&mutex_log, NULL);
-    //pthread_mutex_init(&mutex_copyfilelist, NULL);
     pthread_cond_init(&cond, NULL);
     pthread_cond_init(&cond_socket, NULL);
     pthread_cond_init(&cond_log, NULL);
@@ -303,8 +286,6 @@ void clear_global_var(){
     memset(log_path,0,sizeof(log_path));
     memset(general_log,0,sizeof(general_log));
     memset(base64_auth,'\0',sizeof(base64_auth));
-    //memset(up_item_file, 0, sizeof(up_item_file));
-//    memset(down_item_file, 0, sizeof(down_item_file));
     memset(&asus_cfg,0,sizeof(struct asus_config));
     memset(&asus_cfg_stop,0,sizeof(struct asus_config));
     if(initial_tokenfile_info_data(&tokenfile_info_start) == NULL)
@@ -315,6 +296,7 @@ void clear_global_var(){
 
 }
 
+/*替换字符串中指定的字符*/
 void replace_char_in_str(char *str,char newchar,char oldchar){
 
     int i;
@@ -324,147 +306,25 @@ void replace_char_in_str(char *str,char newchar,char oldchar){
     {
         if(str[i] == oldchar)
         {
-            //printf("str[i] = %c\n",str[i]);
             str[i] = newchar;
         }
     }
 
 }
 
-struct disk_info *initial_disk_data(struct disk_info **disk)
-{
-    struct disk_info *follow_disk;
-
-    if(disk == NULL)
-        return NULL;
-
-    *disk = (struct disk_info *)malloc(sizeof(struct disk_info));
-    if(*disk == NULL)
-        return NULL;
-
-    follow_disk = *disk;
-
-    follow_disk->diskname = NULL;
-    follow_disk->diskpartition = NULL;
-    follow_disk->mountpath = NULL;
-    follow_disk->serialnum = NULL;
-    follow_disk->product = NULL;
-    follow_disk->vendor = NULL;
-    follow_disk->next = NULL;
-    follow_disk->port = (unsigned int)0;
-    follow_disk->partitionport = (unsigned int )0;
-
-    return follow_disk;
-}
-
-int init_diskinfo_struct()
-{
-    int len = 0;
-    FILE *fp;
-    if(access(USBINFO_PATH,0)==0)
-    {
-        fp =fopen(USBINFO_PATH,"r");
-        if(fp)
-        {
-            fseek(fp,0,SEEK_END);
-            len = ftell(fp);
-            fseek(fp,0,SEEK_SET);
-        }
-    }
-    else
-        return -1;
-
-    char buf[len+1];
-    memset(buf,'\0',sizeof(buf));
-    fread(buf,1,len,fp);
-    fclose(fp);
-
-    if(initial_disk_data(&follow_disk_info_start) == NULL){
-        return -1;
-    }
-
-    follow_disk_info = follow_disk_info_start;
-    //get diskname and mountpath
-    char a[1024];
-    char *p,*q;
-    fp = fopen("/proc/mounts","r");
-    if(fp)
-    {
-        while(!feof(fp))
-        {
-            memset(a,'\0',sizeof(a));
-            fscanf(fp,"%[^\n]%*c",a);
-            if((strlen(a) != 0)&&((p=strstr(a,"/dev/sd")) != NULL))
-            {
-                if(initial_disk_data(&follow_disk_tmp) == NULL)
-                {
-                    return -1;
-                }
-                p = p + 5;
-                follow_disk_tmp->diskname=(char *)malloc(5);
-                memset(follow_disk_tmp->diskname,'\0',5);
-                strncpy(follow_disk_tmp->diskname,p,4);
-
-                p = p + 3;
-                follow_disk_tmp->partitionport=atoi(p);
-                if((q=strstr(p,"/tmp")) != NULL)
-                {
-                    if((p=strstr(q," ")) != NULL)
-                    {
-                        follow_disk_tmp->mountpath=(char *)malloc(strlen(q)-strlen(p)+1);
-                        memset(follow_disk_tmp->mountpath,'\0',strlen(q)-strlen(p)+1);
-                        strncpy(follow_disk_tmp->mountpath,q,strlen(q)-strlen(p));
-                    }
-                }
-                char diskname_tmp[4];
-                memset(diskname_tmp,'\0',sizeof(diskname_tmp));
-                strncpy(diskname_tmp,follow_disk_tmp->diskname,3);
-                if((p=strstr(buf,diskname_tmp)) != NULL)
-                {
-                    p = p - 6;
-                    follow_disk_tmp->port=atoi(p);
-                    follow_disk_tmp->diskpartition=(char *)malloc(4);
-                    memset(follow_disk_tmp->diskpartition,'\0',4);
-                    strncpy(follow_disk_tmp->diskpartition,diskname_tmp,3);
-                    q=strstr(p,"_serial");
-                    q = q + 8;
-                    p=strstr(q,"_pid");
-                    follow_disk_tmp->serialnum=(char *)malloc(strlen(q)-strlen(p)-4);
-                    memset(follow_disk_tmp->serialnum,'\0',strlen(q)-strlen(p)-4);
-                    strncpy(follow_disk_tmp->serialnum,q,strlen(q)-strlen(p)-5);
-                    p = p + 5;
-                    q=strstr(p,"_vid");
-                    follow_disk_tmp->product=(char *)malloc(strlen(p)-strlen(q)-4);
-                    memset(follow_disk_tmp->product,'\0',5);
-                    strncpy(follow_disk_tmp->product,p,strlen(p)-strlen(q)-5);
-                    q = q + 5;
-                    follow_disk_tmp->vendor=(char *)malloc(5);
-                    memset(follow_disk_tmp->vendor,'\0',5);
-                    strncpy(follow_disk_tmp->vendor,q,4);
-                }
-
-                follow_disk_info->next = follow_disk_tmp;
-                follow_disk_info = follow_disk_tmp;
-            }
-        }
-    }
-    fclose(fp);
-}
-
+/*获取挂载硬碟的信息*/
 int get_mounts_info(struct mounts_info_tag *info)
 {
     int len = 0;
     FILE *fp;
     int i = 0;
     int num = 0;
-    //char *mount_path;
     char **tmp_mount_list=NULL;
     char **tmp_mount=NULL;
 
     char buf[len+1];
     memset(buf,'\0',sizeof(buf));
     char a[1024];
-    //char *temp;
     char *p,*q;
     fp = fopen("/proc/mounts","r");
     if(fp)
@@ -524,6 +384,7 @@ int get_mounts_info(struct mounts_info_tag *info)
     return 0;
 }
 
+/*获取tokenfile信息*/
 int get_tokenfile_info()
 {
     int i;
@@ -613,35 +474,7 @@ int get_tokenfile_info()
     return 0;
 }
 
-void free_disk_struc(struct disk_info **disk)
-{
-    struct disk_info *follow_disk, *old_disk;
-
-    if(disk == NULL)
-        return;
-
-    follow_disk = *disk;
-    while(follow_disk != NULL)
-    {
-        if(follow_disk->diskname != NULL)
-            free(follow_disk->diskname);
-        if(follow_disk->diskpartition != NULL)
-            free(follow_disk->diskpartition);
-        if(follow_disk->mountpath != NULL)
-            free(follow_disk->mountpath);
-        if(follow_disk->serialnum != NULL)
-            free(follow_disk->serialnum);
-        if(follow_disk->product != NULL)
-            free(follow_disk->product);
-        if(follow_disk->vendor != NULL)
-            free(follow_disk->vendor);
-
-        old_disk = follow_disk;
-        follow_disk = follow_disk->next;
-        free(old_disk);
-    }
-}
-
+/*检查同步目录所在的硬碟还是否存在*/
 int check_sync_disk_removed()
 {
     DEBUG("check_sync_disk_removed start! \n");
@@ -661,6 +494,7 @@ int check_sync_disk_removed()
 
 }
 
+/*检查同步目录所在的硬碟有没有修改名字*/
 int check_disk_change()
 {
     int status = -1;
@@ -685,12 +519,8 @@ void init_global_var()
 {
     DEBUG("go into init_global_var \n");
 #if 1
-    int ret;
     int i;
     int num = asus_cfg.dir_number;
-
-    char *temp = NULL;
-    const char chr = '/';
 
     local_sync = 0;
     server_sync = 1;
@@ -740,8 +570,6 @@ void init_global_var()
 
         snprintf(g_pSyncList[i]->up_item_file,255,"%s/%s_up_item",
                  g_pSyncList[i]->temp_path,base_path_tmp);
-//        snprintf(g_pSyncList[i]->down_item_file,255,"%s/%s_down_item",
-//                 g_pSyncList[i]->temp_path,base_path_tmp);
         snprintf(g_pSyncList[i]->conflict_file,255,"%s/conflict_%s",
                  g_pSyncList[i]->temp_path,base_folder_tmp);
 
@@ -764,7 +592,6 @@ void init_global_var()
         g_pSyncList[i]->SocketActionList = queue_create();
         g_pSyncList[i]->SocketActionList_Priority = queue_create();
 
-//        DEBUG("g_pSyncList[%d]->down_item_file = %s\n",i,g_pSyncList[i]->down_item_file);
         DEBUG("g_pSyncList[%d]->up_item_file = %s\n",i,g_pSyncList[i]->up_item_file);
 
         tokenfile_info_tmp = tokenfile_info_start->next;
@@ -789,42 +616,6 @@ void init_global_var()
 #endif
 }
 
-/*
-int get_path_to_index(char *path)
-{
-    int i;
-    char *root_path = NULL;
-    char *temp = NULL;
-    root_path = my_str_malloc(512);
-
-    if(strncmp(path,"/tmp",4))
-    {
-        temp = my_nstrchr('/',path,4);
-    }
-    else
-    {
-        temp = my_nstrchr('/',path,5);
-    }
-    if(temp == NULL)
-    {
-        sprintf(root_path,"%s",path);
-    }
-    else
-    {
-        snprintf(root_path,strlen(path)-strlen(temp)+1,"%s",path);
-    }
-
-    for(i=0;i<asus_cfg.dir_number;i++)
-    {
-        if(!strcmp(root_path,asus_cfg.prule[i]->base_path))
-            break;
-    }
-
-    DEBUG("get_path_to_index root_path = %s\n",root_path);
-    free(root_path);
-
-    return i;
-}*/
 int get_path_to_index(char *path)
 {
     DEBUG("get_path_to_index path = %s\n",path);
@@ -868,7 +659,7 @@ int get_path_to_index(char *path)
     return i;
 }
 
-
+/*处理inotify发过来的本地动作*/
 int cmd_parser(char *cmd,int index)
 {
     DEBUG("socket command is %s \n",cmd);
@@ -1523,7 +1314,8 @@ int cmd_parser(char *cmd,int index)
                         modtime = Getmodtime(serverpath,index);
                         if(modtime != -1)
                         {
-                            filetmp->modtime = modtime;
+                            if(filetmp != NULL)
+                                filetmp->modtime = modtime;
                             //filetmp->ismodify = 0;
                             ChangeFile_modtime(fullname,modtime,index);
                         }
@@ -1570,7 +1362,8 @@ int cmd_parser(char *cmd,int index)
                         modtime = Getmodtime(serverpath,index);
                         if(modtime != -1)
                         {
-                            filetmp->modtime = modtime;
+                            if(filetmp != NULL)
+                                filetmp->modtime = modtime;
                             //filetmp->ismodify = 0;
                             ChangeFile_modtime(fullname,modtime,index);
                         }
@@ -2124,6 +1917,7 @@ int download_only_add_socket_item(char *cmd,int index){
     return 0;
 }
 
+#if 0
 static int startelm(void *userdata, int state,
                     const char *nspace, const char *name,
                     const char **atts)
@@ -2140,7 +1934,6 @@ static int startelm(void *userdata, int state,
         return NE_XML_DECLINE;
 
     if (strcmp(name, EVAL_DEFAULT) == 0) {
-        //printf("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n");
         const char *val = ne_xml_resolve_nspace(ctx->parser, NULL, 0);
         //printf("val = %s\n",val);
 
@@ -2148,7 +1941,6 @@ static int startelm(void *userdata, int state,
         return NE_XML_DECLINE;
     }
     else if (strncmp(name, EVAL_SPECIFIC, strlen(EVAL_SPECIFIC)) == 0) {
-        //printf("bbbbbbbbbbbbbbbbbbbbbbbbbbbb\n");
         const char *which = name + strlen(EVAL_SPECIFIC);
         const char *r = ne_xml_resolve_nspace(ctx->parser, which, strlen(which));
 
@@ -2183,9 +1975,11 @@ static int endelm(void *userdata, int state,
     ne_buffer_concat(ctx->buf, "</", name, ">", NULL);
     return 0;
 }
+#endif
 
+#if 0
 /*parse CloudeInfo to tree_ServerList*/
-void parseCloudInfo_tree(xmlDocPtr doc, xmlNodePtr cur)
+void parseCloudInfo_tree(xmlDocPtr doc, xmlNodePtr cur,int index)
 {
     xmlChar *key;
     cur = cur->xmlChildrenNode;
@@ -2195,61 +1989,58 @@ void parseCloudInfo_tree(xmlDocPtr doc, xmlNodePtr cur)
 
         if(!(xmlStrcmp(cur->name, (const xmlChar *)"response")))
         {
-            parseCloudInfo_tree(doc,cur);
+            parseCloudInfo_tree(doc,cur,index);
             if(FolderTmp->isFolder == 3)
             {
                 free_CloudFile_item(FolderTmp);
             }
-            /*else
-            {
-                printf("get the info right!\n");
-            }*/
         }
         else if(!(xmlStrcmp(cur->name, (const xmlChar *)"propstat")))
-            parseCloudInfo_tree(doc,cur);
+            parseCloudInfo_tree(doc,cur,index);
         else if(!(xmlStrcmp(cur->name, (const xmlChar *)"prop")))
-            parseCloudInfo_tree(doc,cur);
+            parseCloudInfo_tree(doc,cur,index);
         else if(!(xmlStrcmp(cur->name, (const xmlChar *)"href")))
         {
             FolderTmp = (CloudFile *)malloc(sizeof(CloudFile));
             memset(FolderTmp,0,sizeof(CloudFile));
             FolderTmp->next = NULL;
-            FolderTmp->href = my_str_malloc(strlen(key)+1);
+            FolderTmp->href = my_str_malloc(strlen(key)-strlen(asus_cfg.prule[index]->rooturl)+1);
             //memset(FolderTmp->href,'\0',sizeof(FolderTmp->href));
-            strcpy(FolderTmp->href,key);
+            sprintf(FolderTmp->href,"%s",key+strlen(asus_cfg.prule[index]->rooturl));
             FolderTmp->isFolder = 3;
             FolderTmp->ismodify = 0;
-            //printf("href = %s\n",FolderTmp->href);
+            //printf("key = %s\nhref = %s\n",key,FolderTmp->href);
         }
-        else if(!(xmlStrcmp(cur->name, (const xmlChar *)"creationdate")))
+        /*else if(!(xmlStrcmp(cur->name, (const xmlChar *)"creationdate")))
         {
             strcpy(FolderTmp->creationdate,key);
         }
         else if(!(xmlStrcmp(cur->name, (const xmlChar *)"getcontentlanguage")))
         {
             strcpy(FolderTmp->getcontentlanguage,key);
-        }
+        }*/
         else if(!(xmlStrcmp(cur->name, (const xmlChar *)"getcontentlength")))
         {
-            strcpy(FolderTmp->getcontentlength,key);
+            FolderTmp->getcontentlength = my_str_malloc(strlen(key)+1);
+            sprintf(FolderTmp->getcontentlength,"%s",key);
         }
         else if(!(xmlStrcmp(cur->name, (const xmlChar *)"getcontenttype")))
         {
-            strcpy(FolderTmp->getcontenttype,key);
-            if(!(strcmp(FolderTmp->getcontenttype,"httpd/unix-directory")))
+            //strcpy(FolderTmp->getcontenttype,key);
+            if(!(strcmp(key,"httpd/unix-directory")))
                 FolderTmp->isFolder = 1;
             else
                 FolderTmp->isFolder = 0;
         }
         else if(!(xmlStrcmp(cur->name, (const xmlChar *)"getlastmodified")))
         {
-            strcpy(FolderTmp->getlastmodified,key);
-            //DEBUG("(FolderTmp->getlastmodified = %s\n",FolderTmp->getlastmodified);
-            FolderTmp->modtime = ne_httpdate_parse(FolderTmp->getlastmodified);
+            //strcpy(FolderTmp->getlastmodified,key);
+            FolderTmp->modtime = ne_httpdate_parse(key);
+            DEBUG("(FolderTmp->modtime = %lu\n",FolderTmp->modtime);
         }
         else if(!(xmlStrcmp(cur->name, (const xmlChar *)"status")))
         {
-            strcpy(FolderTmp->status,key);
+            //strcpy(FolderTmp->status,key);
             if(FolderTmp->isFolder == 1)
             {
                 TreeFolderTail->next = FolderTmp;
@@ -2265,8 +2056,6 @@ void parseCloudInfo_tree(xmlDocPtr doc, xmlNodePtr cur)
                 //printf("status = %s\n",FileTail->status);
             }
         }
-        //else if(!(xmlStrcmp(cur->name, (const xmlChar *)"/response")))
-        //printf("RRRRRRRRRRRRRRRRRRRRRRRRresponse over!\n");
 
         //printf("cur->name = %s\n",cur->name);
         //printf("key = %s\n",key);
@@ -2277,7 +2066,7 @@ void parseCloudInfo_tree(xmlDocPtr doc, xmlNodePtr cur)
 }
 
 /*parse CloudeInfo to one_ServerList*/
-void parseCloudInfo_one(xmlDocPtr doc, xmlNodePtr cur)
+void parseCloudInfo_one(xmlDocPtr doc, xmlNodePtr cur,int index)
 {
     xmlChar *key;
     cur = cur->xmlChildrenNode;
@@ -2288,60 +2077,50 @@ void parseCloudInfo_one(xmlDocPtr doc, xmlNodePtr cur)
 
         if(!(xmlStrcmp(cur->name, (const xmlChar *)"response")))
         {
-            parseCloudInfo_one(doc,cur);
+            parseCloudInfo_one(doc,cur,index);
             if(FileTmp_one->isFolder == 3)
             {
                 free_CloudFile_item(FileTmp_one);
             }
-            /*else
-            {
-                printf("get the info right!\n");
-            }*/
         }
         else if(!(xmlStrcmp(cur->name, (const xmlChar *)"propstat")))
-            parseCloudInfo_one(doc,cur);
+            parseCloudInfo_one(doc,cur,index);
         else if(!(xmlStrcmp(cur->name, (const xmlChar *)"prop")))
-            parseCloudInfo_one(doc,cur);
+            parseCloudInfo_one(doc,cur,index);
         else if(!(xmlStrcmp(cur->name, (const xmlChar *)"href")))
         {
             FileTmp_one = (CloudFile *)malloc(sizeof(CloudFile));
             memset(FileTmp_one,0,sizeof(CloudFile));
             FileTmp_one->next = NULL;
-            FileTmp_one->href = my_str_malloc(strlen(key)+1);
-            //memset(FileTmp_one->href,'\0',sizeof(FileTmp_one->href));
-            strcpy(FileTmp_one->href,key);
+
+            FileTmp_one->href = my_str_malloc(strlen(key)-strlen(asus_cfg.prule[index]->rooturl)+1);
+            //memset(FolderTmp->href,'\0',sizeof(FolderTmp->href));
+            sprintf(FileTmp_one->href,"%s",key+strlen(asus_cfg.prule[index]->rooturl));
+
             FileTmp_one->isFolder = 3;
             FileTmp_one->ismodify = 0;
-            //printf("href = %s\n",FileTmp_one->href);
-        }
-        else if(!(xmlStrcmp(cur->name, (const xmlChar *)"creationdate")))
-        {
-            strcpy(FileTmp_one->creationdate,key);
-        }
-        else if(!(xmlStrcmp(cur->name, (const xmlChar *)"getcontentlanguage")))
-        {
-            strcpy(FileTmp_one->getcontentlanguage,key);
         }
         else if(!(xmlStrcmp(cur->name, (const xmlChar *)"getcontentlength")))
         {
-            strcpy(FileTmp_one->getcontentlength,key);
+            FileTmp_one->getcontentlength = my_str_malloc(strlen(key)+1);
+            sprintf(FileTmp_one->getcontentlength,"%s",key);
         }
         else if(!(xmlStrcmp(cur->name, (const xmlChar *)"getcontenttype")))
         {
-            strcpy(FileTmp_one->getcontenttype,key);
-            if(!(strcmp(FileTmp_one->getcontenttype,"httpd/unix-directory")))
+            //strcpy(FileTmp_one->getcontenttype,key);
+            if(!(strcmp(key,"httpd/unix-directory")))
                 FileTmp_one->isFolder = 1;
             else
                 FileTmp_one->isFolder = 0;
         }
         else if(!(xmlStrcmp(cur->name, (const xmlChar *)"getlastmodified")))
         {
-            strcpy(FileTmp_one->getlastmodified,key);
-            FileTmp_one->modtime = ne_httpdate_parse(FileTmp_one->getlastmodified);
+            //strcpy(FileTmp_one->getlastmodified,key);
+            FileTmp_one->modtime = ne_httpdate_parse(key);
         }
         else if(!(xmlStrcmp(cur->name, (const xmlChar *)"status")))
         {
-            strcpy(FileTmp_one->status,key);
+            //strcpy(FileTmp_one->status,key);
             FileTail_one->next = FileTmp_one;
             FileTail_one = FileTmp_one;
             FileTail_one->next = NULL;
@@ -2355,7 +2134,7 @@ void parseCloudInfo_one(xmlDocPtr doc, xmlNodePtr cur)
     }
 }
 
-void parseRouterInfo(xmlDocPtr doc, xmlNodePtr cur)
+void parseRouterInfo(xmlDocPtr doc, xmlNodePtr cur,int index)
 {
     xmlChar *key;
     cur = cur->xmlChildrenNode;
@@ -2366,29 +2145,24 @@ void parseRouterInfo(xmlDocPtr doc, xmlNodePtr cur)
 
         if(!(xmlStrcmp(cur->name, (const xmlChar *)"result")))
         {
-            parseRouterInfo(doc,cur);
+            parseRouterInfo(doc,cur,index);
         }
         else if(!(xmlStrcmp(cur->name, (const xmlChar *)"disk_space")))
         {
-            parseRouterInfo(doc,cur);
+            parseRouterInfo(doc,cur,index);
         }
         else if(!(xmlStrcmp(cur->name, (const xmlChar *)"item")))
         {
-            parseRouterInfo(doc,cur);
+            parseRouterInfo(doc,cur,index);
         }
         else if(!(xmlStrcmp(cur->name, (const xmlChar *)"DiskAvailable")))
         {
-            //printf("key = %s\n",key);
             DiskAvailable = 1024*(atoll(key));
-            //printf("DiskAvailable = %lld\n",DiskAvailable);
             DiskAvailableShow = (atoll(key))/1024;
-            //printf("DiskAvailableShow = %lld\n",DiskAvailableShow);
         }
         else if(!(xmlStrcmp(cur->name, (const xmlChar *)"DiskUsed")))
         {
-            //printf("key = %s\n",key);
             DiskUsedShow = (atoll(key))/1024;
-            //printf("DiskUsedShow = %lld\n",DiskUsedShow);
         }
 
         xmlFree(key);
@@ -2397,7 +2171,7 @@ void parseRouterInfo(xmlDocPtr doc, xmlNodePtr cur)
 }
 
 /*used for get XML root node*/
-int my_parseMemory(char *parseBuf,int parseBufLength,void (*cmd_data)(xmlDocPtr, xmlNodePtr)){
+int my_parseMemory(char *parseBuf,int parseBufLength,void (*cmd_data)(xmlDocPtr, xmlNodePtr,int),int index){
     xmlDocPtr doc;
     xmlNodePtr cur;
 
@@ -2419,7 +2193,7 @@ int my_parseMemory(char *parseBuf,int parseBufLength,void (*cmd_data)(xmlDocPtr,
     while(cur != NULL)
     {
         //DEBUG("cur->name = %s\n",cur->name);
-        cmd_data(doc, cur);
+        cmd_data(doc, cur,index);
         cur = cur->next;
     }
 
@@ -2428,10 +2202,25 @@ int my_parseMemory(char *parseBuf,int parseBufLength,void (*cmd_data)(xmlDocPtr,
 
     return 0;
 }
+#endif
 
-int ne_getrouterinfo(void (*cmd_data)(xmlDocPtr, xmlNodePtr),int index)
+static int media_type_is_xml(const ne_content_type *ctype)
 {
-    struct context ctx;
+    size_t stlen;
+
+    return
+        (ne_strcasecmp(ctype->type, "text") == 0
+         && ne_strcasecmp(ctype->subtype, "xml") == 0)
+        || (ne_strcasecmp(ctype->type, "application") == 0
+            && ne_strcasecmp(ctype->subtype, "xml") == 0)
+        || ((stlen = strlen(ctype->subtype)) > 4
+            && ne_strcasecmp(ctype->subtype + stlen - 4, "+xml") == 0);
+}
+
+int ne_getrouterinfo(int (*cmd_data)(char *, int, int),int index)
+{
+    //printf("\n*****ne_getrouterinfo\n");
+    //struct context ctx;
     ne_uri uri = {0};
     DEBUG("asus_cfg.prule[index]->rooturl = %s\n",asus_cfg.prule[index]->rooturl);
     if (ne_uri_parse(asus_cfg.prule[index]->rooturl, &uri) || uri.host==NULL || uri.path==NULL)
@@ -2440,21 +2229,81 @@ int ne_getrouterinfo(void (*cmd_data)(xmlDocPtr, xmlNodePtr),int index)
         return -1;
     }
 
-    ne_xml_parser *p;
-    ne_buffer *buf1 = ne_buffer_create();
-    p = ne_xml_create();
+    //ne_xml_parser *p;
+    //ne_buffer *buf1 = ne_buffer_create();
+    //p = ne_xml_create();
 
-    ctx.buf = buf1;
-    ctx.parser = p;
+    //ctx.buf = buf1;
+    //ctx.parser = p;
     //printf("uri.path = %s\n",uri.path);
+
+    char buf_content[8000];
+    char *buf_all;
+    //size_t content_len;
+    size_t buf_all_len;
+
+    buf_all = malloc(1);
+    memset(buf_all,'\0',1);
+    memset(buf_content,'\0',8000);
+
     ne_request *req = ne_request_create(asus_cfg.prule[index]->sess,"GETROUTERINFO",uri.path);
 
     int ret;
 
-    ne_xml_push_handler(p, startelm, chardata, endelm, &ctx);
+    //ne_xml_push_handler(p, startelm, chardata, endelm, &ctx);
     //printf("uri.path = %s\n",uri.path);
-    ret = ne_xml_dispatch_request(req, p);
+    //ret = ne_xml_dispatch_request(req, p);
     //printf("ne_getrouterinfo ret = %d\n",ret);
+
+    do {
+            int parseit = 0;
+
+            ret = ne_begin_request(req);
+            if (ret) break;
+
+            if (ne_get_status(req)->klass == 2) {
+                ne_content_type ctype;
+
+                if (ne_get_content_type(req, &ctype) == 0) {
+                    parseit = media_type_is_xml(&ctype);
+                    ne_free(ctype.value);
+                }
+            }
+
+            if (parseit)
+            {
+                ssize_t bytes;
+                while ((bytes = ne_read_response_block(req, buf_content, sizeof buf_content)) > 0) {
+                    //DEBUG("bytes = %d\n",bytes);
+                    if (bytes == 0) {
+                        ret = NE_OK;
+                        char *buf_content_s = buf_content;
+                        buf_content_s = "";
+                    }
+                    else{
+                        //DEBUG("buf_content_len = %d\n",strlen(buf_content));
+                        //buf_all_len = (size_t)(strlen(buf_all)+strlen(buf_content)+1);
+                        buf_all_len = (size_t)(strlen(buf_all)+bytes+1);
+                        buf_all = realloc(buf_all,buf_all_len);
+                        //sprintf(buf_all,"%s%s",buf_all,buf_content);
+                        snprintf(buf_all,buf_all_len,"%s%s",buf_all,buf_content);
+                        }
+                        memset(buf_content,'\0',8000);
+                    }
+
+                    /*if (bytes == 0) {
+                        DEBUG("bytes == 0\n\n");
+                        ret = NE_OK;
+                    } else {
+                        ret=NE_ERROR;
+                    }*/
+            }
+            else
+                ret = ne_discard_response(req);
+
+            if (ret == NE_OK)
+                ret = ne_end_request(req);
+        } while (ret == NE_RETRY);
 
     if(ret == NE_OK && ne_get_status(req)->klass != 2)
     {
@@ -2463,8 +2312,9 @@ int ne_getrouterinfo(void (*cmd_data)(xmlDocPtr, xmlNodePtr),int index)
 
     if(ret != NE_OK)
     {
-        ne_xml_destroy(p);
-        ne_buffer_destroy(buf1);
+        //ne_xml_destroy(p);
+        //ne_buffer_destroy(buf1);
+        free(buf_all);
         ne_request_destroy(req);
         ne_uri_free(&uri);
         char error_info[200];
@@ -2487,15 +2337,17 @@ int ne_getrouterinfo(void (*cmd_data)(xmlDocPtr, xmlNodePtr),int index)
     }
     //printf("ret = %d\n",ret);
 
-    //printf("ctx->buf->data1 = %s\n",ctx.buf->data);
-    ret = my_parseMemory(ctx.buf->data,(int)ctx.buf->length,cmd_data);
+    //DEBUG("ctx->buf->data1 = %s\n",ctx.buf->data);
+    //ret = my_parseMemory(ctx.buf->data,(int)ctx.buf->length,cmd_data,index);
+    ret = cmd_data(buf_all,strlen(buf_all),index);
     if(ret != 0)
     {
         DiskAvailable = -1;
         DiskAvailableShow = -1;
         DiskUsedShow = -1;
-        ne_xml_destroy(p);
-        ne_buffer_destroy(buf1);
+        //ne_xml_destroy(p);
+        //ne_buffer_destroy(buf1);
+        free(buf_all);
         ne_uri_free(&uri);
         ne_request_destroy(req);
         return PARSE_XML_FAILED;
@@ -2506,18 +2358,19 @@ int ne_getrouterinfo(void (*cmd_data)(xmlDocPtr, xmlNodePtr),int index)
         PreDiskUsedShow = DiskUsedShow;
     }
 
-    ne_xml_destroy(p);
-    ne_buffer_destroy(buf1);
+    //ne_xml_destroy(p);
+    //ne_buffer_destroy(buf1);
+    free(buf_all);
     ne_uri_free(&uri);
     ne_request_destroy(req);
     //printf("getCloudInfo finished!\n");
     return ret;
 }
 
-int getCloudInfo(char *URL,void (*cmd_data)(xmlDocPtr, xmlNodePtr),int index){
-    //printf("****************getCloudInfo****************\n");
-    //printf("URL = %s\n",URL);
-    struct context ctx;
+int getCloudInfo(char *URL,int (*cmd_data)(char *, int, int),int index){
+    DEBUG("****************getCloudInfo****************\n");
+    //DEBUG("URL = %s\n",URL);
+    //struct context ctx;
     //printf("%s\n",URL);
     ne_uri uri = {0};
     //printf("URL = %s\n",URL);
@@ -2528,13 +2381,22 @@ int getCloudInfo(char *URL,void (*cmd_data)(xmlDocPtr, xmlNodePtr),int index){
     }
 
     //printf("uri.scheme = %s\n",uri.scheme);
-    ne_xml_parser *p;
-    ne_buffer *buf1 = ne_buffer_create();
-    p = ne_xml_create();
+    //ne_xml_parser *p;
+    //ne_buffer *buf1 = ne_buffer_create();
+    //p = ne_xml_create();
     //struct context ctx;
 
-    ctx.buf = buf1;
-    ctx.parser = p;
+    char buf_content[8000];
+    char *buf_all;
+    //size_t content_len;
+    size_t buf_all_len;
+
+    buf_all = malloc(1);
+    memset(buf_all,'\0',1);
+    memset(buf_content,'\0',8000);
+
+    //ctx.buf = buf1;
+    //ctx.parser = p;
 
     ne_request *req = ne_request_create(asus_cfg.prule[index]->sess,"PROPFIND",uri.path);
 
@@ -2543,14 +2405,70 @@ int getCloudInfo(char *URL,void (*cmd_data)(xmlDocPtr, xmlNodePtr),int index){
     char buf[128];
     memset(buf,'\0',sizeof(buf));
     sprintf(buf,"<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<propfind xmlns=\"DAV:\"><allprop/></propfind>\n");
-
+    //sprintf(buf,"<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<D:propfind xmlns:D=\"DAV:\">\n<D:prop><D:getcontentlength/></D:prop>\n</D:propfind>\n");
+    //printf("buf = \n%s\n",buf);
     ne_add_request_header(req,"Depth","1");
     ne_add_request_header(req,"Content-Type","application/xml");
+    //ne_add_request_header(req,"Content-Type","text/xml;charset=UTF-8");
+    //ne_add_request_header(req,"Accept-Language","zh-cn,zh;q=0.8,en-us;q=0.5,en;q=0.3");
     //ne_add_request_header(req,"User-Agent","webdav_client1.0.0");
     ne_set_request_body_buffer(req,buf,84);
 
-    ne_xml_push_handler(p, startelm, chardata, endelm, &ctx);
-    ret = ne_xml_dispatch_request(req, p);
+    //ne_xml_push_handler(p, startelm, chardata, endelm, &ctx);
+    //ret = ne_xml_dispatch_request(req, p);
+
+
+    do {
+            int parseit = 0;
+
+            ret = ne_begin_request(req);
+            if (ret) break;
+
+            if (ne_get_status(req)->klass == 2) {
+                ne_content_type ctype;
+
+                if (ne_get_content_type(req, &ctype) == 0) {
+                    parseit = media_type_is_xml(&ctype);
+                    ne_free(ctype.value);
+                }
+            }
+
+            if (parseit)
+            {
+                ssize_t bytes;
+                while ((bytes = ne_read_response_block(req, buf_content, sizeof buf_content)) > 0) {
+                    //DEBUG("bytes = %d\n",bytes);
+                    if (bytes == 0) {
+                        ret = NE_OK;
+                        char *buf_content_s = buf_content;
+                        buf_content_s = "";
+                    }
+                    else{
+                        //DEBUG("buf_content_len = %d\n",strlen(buf_content));
+                        //buf_all_len = (size_t)(strlen(buf_all)+strlen(buf_content)+1);
+                        buf_all_len = (size_t)(strlen(buf_all)+bytes+1);
+                        buf_all = realloc(buf_all,buf_all_len);
+                        //sprintf(buf_all,"%s%s",buf_all,buf_content);
+                        snprintf(buf_all,buf_all_len,"%s%s",buf_all,buf_content);
+                        }
+                        memset(buf_content,'\0',8000);
+                    }
+
+                    /*if (bytes == 0) {
+                        DEBUG("bytes == 0\n\n");
+                        ret = NE_OK;
+                    } else {
+                        ret=NE_ERROR;
+                    }*/
+            }
+            else
+                ret = ne_discard_response(req);
+
+            if (ret == NE_OK)
+                ret = ne_end_request(req);
+        } while (ret == NE_RETRY);
+
+
 
     if(ret == NE_OK && ne_get_status(req)->klass != 2)
     {
@@ -2561,8 +2479,9 @@ int getCloudInfo(char *URL,void (*cmd_data)(xmlDocPtr, xmlNodePtr),int index){
     //printf("ERROR info :%s\n",ne_get_error(sess));
     //printf("ret = %d\n",ret);
     if(ret != NE_OK){
-        ne_xml_destroy(p);
-        ne_buffer_destroy(buf1);
+        //ne_xml_destroy(p);
+        //ne_buffer_destroy(buf1);
+        free(buf_all);
         ne_request_destroy(req);
         ne_uri_free(&uri);
         //printf("getCloudInfo finished!\n");
@@ -2591,18 +2510,24 @@ int getCloudInfo(char *URL,void (*cmd_data)(xmlDocPtr, xmlNodePtr),int index){
         return ret;
     }
 
-    ret = my_parseMemory(ctx.buf->data,(int)ctx.buf->length,cmd_data);
+    //DEBUG("%s\n",ctx.buf);
+    //DEBUG("buf_all = %s\n",buf_all);
+    //ret = my_parseMemory(ctx.buf->data,(int)ctx.buf->length,cmd_data,index);
+    //ret = cmd_data(ctx.buf->data,(int)ctx.buf->length,index);
+    ret = cmd_data(buf_all,strlen(buf_all),index);
 
-    ne_xml_destroy(p);
-    ne_buffer_destroy(buf1);
+    //ne_xml_destroy(p);
+    //ne_buffer_destroy(buf1);
+    free(buf_all);
     ne_uri_free(&uri);
     ne_request_destroy(req);
     //printf("getCloudInfo finished!\n");
+
     return ret;
 }
 
 Browse *browseFolder(char *URL,int index){
-    //printf("browseFolder URL = %s\n",URL);
+    //DEBUG("browseFolder URL = %s\n",URL);
     int status;
     int i=0;
 
@@ -2627,7 +2552,7 @@ Browse *browseFolder(char *URL,int index){
     TreeFolderTail->next = NULL;
     TreeFileTail->next = NULL;
 
-    status = getCloudInfo(URL,parseCloudInfo_tree,index);
+    status = getCloudInfo(URL,wd_parsexml,index);
 
     if(status != 0)
     {
@@ -2636,7 +2561,7 @@ Browse *browseFolder(char *URL,int index){
         TreeFolderList = NULL;
         TreeFileList = NULL;
         free(browse);
-        //printf("get Cloud Info ERROR! \n");
+        DEBUG("get Cloud Info ERROR! \n");
         return NULL;
     }
 
@@ -2721,55 +2646,6 @@ int send_action(int type, char *content)
 }
 #endif
 
-/*char *get_socket_base_path(char *cmd){
-
-    //printf("get_socket_base_path cmd : %s\n",cmd);
-
-    char *temp = NULL;
-    char *temp1 = NULL;
-    char path[1024];
-    char *root_path = NULL;
-    const char split = '\n';
-
-    if(!strncmp(cmd,"rmroot",6))
-    {
-        temp = strchr(cmd,'/');
-        root_path = my_str_malloc(512);
-        sprintf(root_path,"%s",temp);
-    }
-    else
-    {
-        temp = strchr(cmd,'/');
-        temp1 = strchr(temp,split);
-        memset(path,0,sizeof(path));
-        strncpy(path,temp,strlen(temp)-strlen(temp1));
-
-        //printf("get_socket_base_path path = %s\n",path);
-
-        root_path = my_str_malloc(512);
-
-        if(strncmp(path,"/tmp",4))
-        {
-            temp = my_nstrchr('/',path,4);
-        }
-        else
-        {
-            temp = my_nstrchr('/',path,5);
-        }
-
-        if(temp == NULL)
-        {
-            sprintf(root_path,"%s",path);
-        }
-        else
-        {
-            snprintf(root_path,strlen(path)-strlen(temp)+1,"%s",path);
-        }
-    }
-    //printf("get_socket_base_path root_path = %s\n",root_path);
-    return root_path;
-}*/
-
 int get_socket_base_path(char *cmd){
 
     DEBUG("get_socket_base_path cmd : %s\n",cmd);
@@ -2782,6 +2658,20 @@ int get_socket_base_path(char *cmd){
     int ret;
 
     memset(path,0,1024);
+#ifdef PC
+    if(!strncmp(cmd,"exit",4))
+    {
+        sync_up = 0;
+        sync_down = 0;
+        stop_progress = 1;
+        exit_loop = 1;
+        sighandler_finished = 1;
+        pthread_cond_signal(&cond);
+        pthread_cond_signal(&cond_socket);
+        pthread_cond_signal(&cond_log);
+        return 0;
+    }
+#endif
 
     if(!strncmp(cmd,"rmroot",6))
     {
@@ -2837,6 +2727,7 @@ int add_socket_item(char *buf,int pri,int i){
 
     SocketActionTmp = malloc (sizeof (struct queue_entry));
     memset(SocketActionTmp,0,sizeof(struct queue_entry));
+    SocketActionTmp->cmd_name = my_str_malloc(strlen(buf)+1);
     sprintf(SocketActionTmp->cmd_name,"%s",buf);
     if(pri)
     {
@@ -2846,7 +2737,6 @@ int add_socket_item(char *buf,int pri,int i){
     {
         queue_enqueue(SocketActionTmp,g_pSyncList[i]->SocketActionList);
     }
-    //queue_enqueue(SocketActionTmp,g_pSyncList[i]->SocketActionList);
 
     DEBUG("SocketActionTmp->cmd_name = %s\n",SocketActionTmp->cmd_name);
 
@@ -2883,7 +2773,6 @@ int reset_socket(char *newpath_full,char *newpath_part,char *oldpath_full,char *
             //tmp_cmd_name = my_str_malloc(strlen(socket_execute->cmd_name)+1);
             //sprintf(tmp_cmd_name,"%s",socket_execute->cmd_name);
             strcpy(tmp_cmd_name,socket_execute->cmd_name);
-            //printf("!!!!!!!!!!!!!!!!!!!!reset_socket tmp_cmd_name\n%s\n",tmp_cmd_name);
             p = strtok(tmp_cmd_name,split);
 
             while(p!=NULL)
@@ -2916,14 +2805,12 @@ int reset_socket(char *newpath_full,char *newpath_part,char *oldpath_full,char *
 
                 p=strtok(NULL,split);
             }
-            //free(tmp_cmd_name);
-//            change_stop = change_start + strlen(oldpath_full);
-//            snprintf(new_cmd_name,strlen(socket_execute->cmd_name)-strlen(change_start)+1,"%s",socket_execute->cmd_name);
-//            strcat(new_cmd_name,newpath_full);
-//            strcat(new_cmd_name,change_stop);
-            memset(socket_execute->cmd_name,0,1024);
+
+            //memset(socket_execute->cmd_name,0,1024);
+            free(socket_execute->cmd_name);
+            socket_execute->cmd_name = my_str_malloc(strlen(new_cmd_name)+1);
             sprintf(socket_execute->cmd_name,"%s",new_cmd_name);
-            printf("!!!!!!!!!!!!!!!!!!!!!!!new socket_execute->cmd_name = %s\n",socket_execute->cmd_name);
+            DEBUG("!!!!!!!!!!!!!!!!!!!!!!!new socket_execute->cmd_name = %s\n",socket_execute->cmd_name);
         }
 
         else if((change_start = strstr(socket_execute->cmd_name,oldpath_part)) != NULL)
@@ -2967,15 +2854,12 @@ int reset_socket(char *newpath_full,char *newpath_part,char *oldpath_full,char *
                 p=strtok(NULL,split);
             }
             //free(tmp_cmd_name);
-            memset(socket_execute->cmd_name,0,1024);
+            //memset(socket_execute->cmd_name,0,1024);
+            free(socket_execute->cmd_name);
+            socket_execute->cmd_name = my_str_malloc(strlen(new_cmd_name)+1);
             sprintf(socket_execute->cmd_name,"%s",new_cmd_name);
-//            change_stop = change_start + strlen(oldpath_part);
-//            snprintf(new_cmd_name,strlen(socket_execute->cmd_name)-strlen(change_start)+1,"%s",socket_execute->cmd_name);
-//            strcat(new_cmd_name,newpath_part);
-//            strcat(new_cmd_name,change_stop);
-//            memset(socket_execute->cmd_name,0,1024);
-//            sprintf(socket_execute->cmd_name,"%s",new_cmd_name);
-            printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!new cme name\n%s",socket_execute->cmd_name);
+
+            DEBUG("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!new cme name\n%s",socket_execute->cmd_name);
         }
         socket_execute = socket_execute->next_ptr;
     }
@@ -2985,8 +2869,8 @@ int reset_socket(char *newpath_full,char *newpath_part,char *oldpath_full,char *
     item = g_pSyncList[index]->copy_file_list->next;
     while(item != NULL)
     {
-        printf("\nitem->path = %s\n",item->path);
-        printf("\noldpath_part = %s\n",oldpath_part);
+        //printf("\nitem->path = %s\n",item->path);
+        //printf("\noldpath_part = %s\n",oldpath_part);
         //if((change_start = strstr(item->path,oldpath_part)) != NULL)
         if(strncmp(item->path,oldpath_part,strlen(oldpath_part)) == 0)
         {
@@ -2999,15 +2883,7 @@ int reset_socket(char *newpath_full,char *newpath_part,char *oldpath_full,char *
             item->path = my_str_malloc(strlen(new_cmd_name)+1);
             sprintf(item->path,"%s",new_cmd_name);
 
-//            change_stop = change_start + strlen(oldpath_part);
-//            snprintf(new_cmd_name,strlen(item->path)-strlen(change_start)+1,"%s",item->path);
-//            strcat(new_cmd_name,newpath_part);
-//            strcat(new_cmd_name,change_stop);
-//            free(item->path);
-//            item->path = NULL;
-//            item->path = my_str_malloc(strlen(new_cmd_name)+1);
-//            sprintf(item->path,"%s",new_cmd_name);
-            printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!new item path = %s",item->path);
+            //printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!new item path = %s",item->path);
         }
         item = item->next;
     }
@@ -3105,12 +2981,12 @@ int handle_pri_socket(char *s_buf,int pri ,int index)
         sprintf(oldpath_normal,"%s/%s",path0,path1);
     }
 
-    printf("newpath_full = %s\n",newpath_full);
-    printf("newpath_part = %s\n",newpath_part);
-    printf("oldpath_full = %s\n",oldpath_full);
-    printf("oldpath_part = %s\n",oldpath_part);
-    printf("newpath_normal = %s\n",newpath_normal);
-    printf("oldpath_normal = %s\n",oldpath_normal);
+    //printf("newpath_full = %s\n",newpath_full);
+    //printf("newpath_part = %s\n",newpath_part);
+    //printf("oldpath_full = %s\n",oldpath_full);
+    //printf("oldpath_part = %s\n",oldpath_part);
+    //printf("newpath_normal = %s\n",newpath_normal);
+    //printf("oldpath_normal = %s\n",oldpath_normal);
 
     pthread_mutex_lock(&mutex_socket);
     reset_socket(newpath_full,newpath_part,oldpath_full,oldpath_part,index,newpath_normal,oldpath_normal);
@@ -3272,179 +3148,6 @@ void *SyncLocal()
 }
 #endif
 
-/*
-int is_rename_folder(char *cmd)
-{
-    DEBUG("socket command is %s \n",cmd);
-
-    if( !strncmp(cmd,"exit",4))
-    {
-        DEBUG("exit socket\n");
-        return 0;
-    }
-
-    if(!strncmp(cmd,"rmroot",6))
-    {
-        g_pSyncList[index]->no_local_root = 1;
-        return 0;
-    }
-
-    const char split = '\n';
-    char cmd_name[64];
-    //char cmd_param[512];
-    char *path;
-    char *temp;
-    char filename[256];
-    char *fullname;
-    char oldname[256],newname[256];
-    char *oldpath;
-    char action[64];
-    char *cmp_name;
-    char *mv_newpath;
-    char *mv_oldpath;
-    char *ch;
-    int status;
-    //Asusconfig asusconfig;
-
-    memset(cmd_name, 0, sizeof(cmd_name));
-    memset(oldname,'\0',sizeof(oldname));
-    memset(newname,'\0',sizeof(newname));
-    memset(action,0,sizeof(action));
-
-    ch = cmd;
-    int i = 0;
-    while(*ch != split)
-    {
-        i++;
-        ch++;
-    }
-
-    memcpy(cmd_name, cmd, i);
-
-    char *p = NULL;
-    ch++;
-    i++;
-
-    temp = my_str_malloc((size_t)(strlen(ch)+1));
-
-    strcpy(temp,ch);
-    p = strchr(temp,split);
-
-    path = my_str_malloc((size_t)(strlen(temp)- strlen(p)+1));
-
-
-    if(p!=NULL)
-        snprintf(path,strlen(temp)- strlen(p)+1,"%s",temp);
-
-    p++;
-    if(strcmp(cmd_name, "rename") == 0)
-    {
-        char *p1 = NULL;
-
-        p1 = strchr(p,split);
-
-        if(p1 != NULL)
-            strncpy(oldname,p,strlen(p)- strlen(p1));
-
-        p1++;
-
-        strcpy(newname,p1);
-
-        DEBUG("cmd_name: [%s],path: [%s],oldname: [%s],newname: [%s]\n",cmd_name,path,oldname,newname);
-
-        if(newname[0] == '.' || (strstr(path,"/.")) != NULL)
-        {
-            free(temp);
-            free(path);
-            return 0;
-        }
-    }
-    else if(strcmp(cmd_name, "move") == 0)
-    {
-        char *p1 = NULL;
-
-        p1 = strchr(p,split);
-
-        oldpath = my_str_malloc((size_t)(strlen(p)- strlen(p1)+1));
-
-        if(p1 != NULL)
-            snprintf(oldpath,strlen(p)- strlen(p1)+1,"%s",p);
-
-        p1++;
-
-        strcpy(oldname,p1);
-
-        DEBUG("cmd_name: [%s],path: [%s],oldpath: [%s],oldname: [%s]\n",cmd_name,path,oldpath,oldname);
-
-        if(oldname[0] == '.' || (strstr(path,"/.")) != NULL)
-        {
-            free(temp);
-            free(path);
-            free(oldpath);
-            return 0;
-        }
-    }
-    else
-    {
-        return 0;
-    }
-
-    free(temp);
-
-
-    if( !strcmp(cmd_name,"rename") )
-    {
-        cmp_name = my_str_malloc((size_t)(strlen(path)+strlen(newname)+2));
-        sprintf(cmp_name,"%s/%s",path,newname);
-    }
-    else
-    {
-        cmp_name = my_str_malloc((size_t)(strlen(path)+strlen(filename)+2));
-        sprintf(cmp_name,"%s/%s",path,filename);
-    }
-
-    if( strcmp(cmd_name, "createfile") == 0 )
-    {
-        strcpy(action,"createfile");
-        action_item *item;
-
-        item = get_action_item("copyfile",cmp_name,g_pSyncList[index]->copy_file_list,index);
-
-        if(item != NULL)
-        {
-            DEBUG("##### delete copyfile %s ######\n",cmp_name);
-            //pthread_mutex_lock(&mutex);
-            del_action_item("copyfile",cmp_name,g_pSyncList[index]->copy_file_list);
-        }
-    }
-
-    if(strcmp(cmd_name, "move") == 0 || strcmp(cmd_name, "rename") == 0)
-    {
-        if(strcmp(cmd_name, "move") == 0)
-        {
-            mv_newpath = my_str_malloc((size_t)(strlen(path)+strlen(oldname)+2));
-            mv_oldpath = my_str_malloc((size_t)(strlen(oldpath)+strlen(oldname)+2));
-            sprintf(mv_newpath,"%s/%s",path,oldname);
-            sprintf(mv_oldpath,"%s/%s",oldpath,oldname);
-            free(oldpath);
-        }
-        else
-        {
-            mv_newpath = my_str_malloc((size_t)(strlen(path)+strlen(newname)+2));
-            mv_oldpath = my_str_malloc((size_t)(strlen(path)+strlen(oldname)+2));
-            sprintf(mv_newpath,"%s/%s",path,newname);
-            sprintf(mv_oldpath,"%s/%s",path,oldname);
-        }
-    }
-
-
-
-
-    free(cmp_name);
-    return 0;
-}
-*/
-
 void *Socket_Parser(){
 
     DEBUG("*******Socket_Parser start********\n");
@@ -3457,7 +3160,7 @@ void *Socket_Parser(){
     struct timeval now;
     struct timespec outtime;
     int fail_flag;
-    char *cmd = NULL;
+    char cmd[1024];
 
     while(!exit_loop)
     {
@@ -3489,7 +3192,6 @@ void *Socket_Parser(){
 
             /*if(g_pSyncList[i]->no_local_root)               //move from syncserver
             {
-                printf("@@@@@@@@@@@@@@@make root dir \n");
                 my_mkdir_r(asus_cfg.prule[i]->base_path,i);   //have mountpath
                 send_action(1,asus_cfg.prule[i]->base_path);
                 usleep(1000*10);
@@ -3511,11 +3213,12 @@ void *Socket_Parser(){
                         {
                             has_socket = 1;
                             socket_execute = g_pSyncList[i]->SocketActionList_Priority->head;
-                            cmd = my_str_malloc(strlen(socket_execute->cmd_name)+1);
+                            //cmd = my_str_malloc(strlen(socket_execute->cmd_name)+1);
+                            memset(cmd,0,1024);
                             sprintf(cmd,"%s",socket_execute->cmd_name);
                             status = download_only_add_socket_item(cmd,i);
-                            free(cmd);
-                            cmd = NULL;
+                            //free(cmd);
+                            //cmd = NULL;
                             if(status == 0 || status == SERVER_SPACE_NOT_ENOUGH
                                || status == LOCAL_FILE_LOST || status == SERVER_FILE_DELETED
                                || status == SERVER_ROOT_DELETED)
@@ -3523,6 +3226,7 @@ void *Socket_Parser(){
                                 //printf("########will del socket item##########\n");
                                 pthread_mutex_lock(&mutex_socket);
                                 socket_execute = queue_dequeue(g_pSyncList[i]->SocketActionList_Priority);
+                                free(socket_execute->cmd_name);
                                 free(socket_execute);
                                 //printf("del socket item ok\n");
                                 pthread_mutex_unlock(&mutex_socket);
@@ -3542,11 +3246,12 @@ void *Socket_Parser(){
                         {
                             has_socket = 1;
                             socket_execute = g_pSyncList[i]->SocketActionList->head;
-                            cmd = my_str_malloc(strlen(socket_execute->cmd_name)+1);
+                            //cmd = my_str_malloc(strlen(socket_execute->cmd_name)+1);
+                            memset(cmd,0,1024);
                             sprintf(cmd,"%s",socket_execute->cmd_name);
                             status = download_only_add_socket_item(cmd,i);
-                            free(cmd);
-                            cmd = NULL;
+                            //free(cmd);
+                            //cmd = NULL;
                             if(status == 0 || status == SERVER_SPACE_NOT_ENOUGH
                                || status == LOCAL_FILE_LOST || status == SERVER_FILE_DELETED
                                || status == SERVER_ROOT_DELETED)
@@ -3554,6 +3259,7 @@ void *Socket_Parser(){
                                 //printf("########will del socket item##########\n");
                                 pthread_mutex_lock(&mutex_socket);
                                 socket_execute = queue_dequeue(g_pSyncList[i]->SocketActionList);
+                                free(socket_execute->cmd_name);
                                 free(socket_execute);
                                 //printf("del socket item ok\n");
                                 pthread_mutex_unlock(&mutex_socket);
@@ -3667,11 +3373,12 @@ void *Socket_Parser(){
                         {
                             has_socket = 1;
                             socket_execute = g_pSyncList[i]->SocketActionList_Priority->head;
-                            cmd = my_str_malloc(strlen(socket_execute->cmd_name)+1);
+                            //cmd = my_str_malloc(strlen(socket_execute->cmd_name)+1);
+                            memset(cmd,0,1024);
                             sprintf(cmd,"%s",socket_execute->cmd_name);
                             status = cmd_parser(cmd,i);
-                            free(cmd);
-                            cmd = NULL;
+                            //free(cmd);
+                            //cmd = NULL;
                             if(status == 0 || status == SERVER_SPACE_NOT_ENOUGH
                                || status == LOCAL_FILE_LOST || status == SERVER_FILE_DELETED
                                || status == SERVER_ROOT_DELETED)
@@ -3679,6 +3386,7 @@ void *Socket_Parser(){
                                 //printf("########will del socket item##########\n");
                                 pthread_mutex_lock(&mutex_socket);
                                 socket_execute = queue_dequeue(g_pSyncList[i]->SocketActionList_Priority);
+                                free(socket_execute->cmd_name);
                                 free(socket_execute);
                                 //DEBUG("del socket item ok\n");
                                 pthread_mutex_unlock(&mutex_socket);
@@ -3698,11 +3406,12 @@ void *Socket_Parser(){
                         {
                             has_socket = 1;
                             socket_execute = g_pSyncList[i]->SocketActionList->head;
-                            cmd = my_str_malloc(strlen(socket_execute->cmd_name)+1);
+                            //cmd = my_str_malloc(strlen(socket_execute->cmd_name)+1);
+                            memset(cmd,0,1024);
                             sprintf(cmd,"%s",socket_execute->cmd_name);
                             status = cmd_parser(cmd,i);
-                            free(cmd);
-                            cmd = NULL;
+                            //free(cmd);
+                            //cmd = NULL;
                             if(status == 0 || status == SERVER_SPACE_NOT_ENOUGH
                                || status == LOCAL_FILE_LOST || status == SERVER_FILE_DELETED
                                || status == SERVER_ROOT_DELETED)
@@ -3712,6 +3421,7 @@ void *Socket_Parser(){
                                 //printf("########will del socket item##########\n");
                                 pthread_mutex_lock(&mutex_socket);
                                 socket_execute = queue_dequeue(g_pSyncList[i]->SocketActionList);
+                                free(socket_execute->cmd_name);
                                 free(socket_execute);
                                 //DEBUG("del socket item ok\n");
                                 pthread_mutex_unlock(&mutex_socket);
@@ -3793,9 +3503,6 @@ void *Socket_Parser(){
                         }
                         DEBUG("server list is no modify \n");
                     }
-                    //check_serverlist_modify(i,g_pSyncList[i]->ServerRootNode->Child);
-                    //free_server_tree(g_pSyncList[i]->OldServerRootNode);
-                    //g_pSyncList[i]->OldServerRootNode = g_pSyncList[i]->ServerRootNode;
                 }
             }
             DEBUG("#### SocketActionList is NULL\n");
@@ -4007,14 +3714,14 @@ int is_server_modify(Server_TreeNode *newNode,Server_TreeNode *oldNode)
     else
     {
         int cmp;
-        CloudFile *newfoldertmp = NULL;
-        CloudFile *oldfoldertmp = NULL;
+        //CloudFile *newfoldertmp = NULL;
+        //CloudFile *oldfoldertmp = NULL;
         CloudFile *newfiletmp = NULL;
         CloudFile *oldfiletmp = NULL;
         if(newNode->browse != NULL)
         {
-            if(newNode->browse->foldernumber > 0)
-                newfoldertmp = newNode->browse->folderlist->next;
+            //if(newNode->browse->foldernumber > 0)
+                //newfoldertmp = newNode->browse->folderlist->next;
             if(newNode->browse->filenumber > 0)
             {
                 newfiletmp = newNode->browse->filelist->next;
@@ -4027,8 +3734,8 @@ int is_server_modify(Server_TreeNode *newNode,Server_TreeNode *oldNode)
         }
         if(oldNode->browse != NULL)
         {
-            if(oldNode->browse->foldernumber > 0)
-                oldfoldertmp = oldNode->browse->folderlist->next;
+            //if(oldNode->browse->foldernumber > 0)
+                //oldfoldertmp = oldNode->browse->folderlist->next;
             if(oldNode->browse->filenumber <= 0)
             {
                 DEBUG("########Server is no modify5\n");
@@ -4101,6 +3808,10 @@ Server_TreeNode * getoldnode(Server_TreeNode *tempoldnode,char *href)
 int check_serverlist_modify(int index,Server_TreeNode *newnode)
 {
     int ret;
+    if(newnode == NULL)
+    {
+        return 0;
+    }
     //DEBUG("############check_serverlist_modify %s\n",newnode->parenthref);
     Server_TreeNode *oldnode;
     oldnode = getoldnode(g_pSyncList[index]->OldServerRootNode->Child,newnode->parenthref);
@@ -4115,15 +3826,10 @@ int check_serverlist_modify(int index,Server_TreeNode *newnode)
         DEBUG("oldnode is NULL\n");
     }*/
 
-    if(newnode != NULL && oldnode != NULL)
+    if(oldnode != NULL)
     {
-
         ret = is_server_modify(newnode,oldnode);
         //return ret;
-    }
-    else if(newnode == NULL)
-    {
-        return 0;
     }
 
     if(newnode->Child != NULL)
@@ -4149,125 +3855,21 @@ int the_same_name_compare(LocalFile *localfiletmp,CloudFile *filetmp,int index){
 
     if(g_pSyncList[index]->init_completed)      //sync phase
     {
-        CloudFile *oldfiletmp = NULL;
-        oldfiletmp = get_CloudFile_node(g_pSyncList[index]->RealOldServerRootNode,filetmp->href,0x2);
+        //CloudFile *oldfiletmp = NULL;
+        //oldfiletmp = get_CloudFile_node(g_pSyncList[index]->RealOldServerRootNode,filetmp->href,0x2);
 
-        time_ret = sync_newer_file(localfiletmp->path,index,oldfiletmp);
+        //time_ret = sync_newer_file(localfiletmp->path,index,oldfiletmp);
 
         //DEBUG("time_ret = %d\n",time_ret);
 
-        if(time_ret == -1)
+        if(filetmp->ismodify)
         {
-            return time_ret;
-        }
-        else if(time_ret == 0)
-        {
-            return ret;
-        }
-        else if(time_ret == 1)
-        {
-            if(asus_cfg.prule[index]->rule ==0)
+            time_ret = sync_newer_file(localfiletmp->path,index);
+            if(!time_ret)
             {
-                if(wait_handle_socket(index))
-                {
-                    return HAVE_LOCAL_SOCKET;
-                }
-                add_action_item("createfile",localfiletmp->path,g_pSyncList[index]->server_action_list);  //??
-                ret = Upload(localfiletmp->path,index);
-                if(ret == NE_OK || ret == SERVER_SPACE_NOT_ENOUGH || ret == LOCAL_FILE_LOST)
-                {
-                    if(ret == NE_OK)
-                    {
-                        //char *serverpath;
-                        //serverpath = localpath_to_serverpath(localfiletmp->path,index);
-                        //printf("serverpath = %s\n",serverpath);
-                        time_t modtime;
-                        modtime = Getmodtime(filetmp->href,index);
-                        if(modtime != -1)
-                        {
-                            ChangeFile_modtime(localfiletmp->path,modtime,index);
-                            oldfiletmp->modtime = modtime;
-                            oldfiletmp->ismodify = 0;
-                        }
-                        else
-                        {
-                            DEBUG("ChangeFile_modtime failed!\n");
-                        }
-                        //free(serverpath);
-                    }
-                }
-                else
-                {
-                    return ret;
-                }
+                filetmp->ismodify = 0;
+                return ret;
             }
-            else
-            {
-                char *newname;
-                newname = change_local_same_name(localfiletmp->path);
-                rename(localfiletmp->path,newname);
-                //add_action_item("rename",newname,server_action_list);
-
-                DEBUG("newname = %s\n",newname);
-                write_conflict_log(localfiletmp->path,newname,index);
-                free(newname);
-
-                //char *localpath;
-                //localpath = serverpath_to_localpath(filetmp->href,index);
-
-                action_item *item;
-                item = get_action_item("download",filetmp->href,g_pSyncList[index]->unfinished_list,index);
-
-                if(is_local_space_enough(filetmp,index))
-                {
-                    if(wait_handle_socket(index))
-                    {
-                        return HAVE_LOCAL_SOCKET;
-                    }
-                    add_action_item("createfile",localfiletmp->path,g_pSyncList[index]->server_action_list);
-                    ret = Download(filetmp->href,index);
-                    if (ret == NE_OK)
-                    {
-                        time_t modtime;
-                        modtime = Getmodtime(filetmp->href,index);
-                        if(modtime != -1)
-                        {
-                            ChangeFile_modtime(localfiletmp->path,modtime,index);
-                            oldfiletmp->modtime = modtime;
-                            oldfiletmp->ismodify = 0;
-                        }
-                        else
-                        {
-                            DEBUG("ChangeFile_modtime failed!\n");
-                        }
-                        if(item != NULL)
-                        {
-                            del_action_item("download",filetmp->href,g_pSyncList[index]->unfinished_list);
-                        }
-                    }
-                    else
-                    {
-                        //free(localpath);
-                        //free(serverpathtmp);
-                        return ret;
-                    }
-                }
-                else
-                {
-                    write_log(S_ERROR,"local space is not enough!","",index);
-                    if(item == NULL)
-                    {
-                        add_action_item("download",filetmp->href,g_pSyncList[index]->unfinished_list);
-                    }
-                    return ret;
-                }
-            }
-        }
-        else if(time_ret == 2)
-        {
-            //char *localpath;
-            //localpath = serverpath_to_localpath(filetmp->href,index);
-
             action_item *item;
             item = get_action_item("download",filetmp->href,g_pSyncList[index]->unfinished_list,index);
 
@@ -4284,7 +3886,12 @@ int the_same_name_compare(LocalFile *localfiletmp,CloudFile *filetmp,int index){
                     time_t modtime;
                     modtime = Getmodtime(filetmp->href,index);
                     if(modtime != -1)
+                    {
                         ChangeFile_modtime(localfiletmp->path,modtime,index);
+                        filetmp->ismodify = 0;
+                        filetmp->modtime = modtime;
+                    }
+
                     else
                     {
                         DEBUG("ChangeFile_modtime failed!\n");
@@ -4296,8 +3903,6 @@ int the_same_name_compare(LocalFile *localfiletmp,CloudFile *filetmp,int index){
                 }
                 else
                 {
-                    //free(localpath);
-                    //free(serverpathtmp);
                     return ret;
                 }
             }
@@ -4310,68 +3915,10 @@ int the_same_name_compare(LocalFile *localfiletmp,CloudFile *filetmp,int index){
                 }
                 return ret;
             }
-            //free(localpath);
         }
         else
         {
-            char *newname;
-            newname = change_local_same_name(localfiletmp->path);
-            rename(localfiletmp->path,newname);
-            //add_action_item("rename",newname,server_action_list);
-
-            DEBUG("newname = %s\n",newname);
-            write_conflict_log(localfiletmp->path,newname,index);
-            free(newname);
-
-            //char *localpath;
-            //localpath = serverpath_to_localpath(filetmp->href,index);
-
-            action_item *item;
-            item = get_action_item("download",filetmp->href,g_pSyncList[index]->unfinished_list,index);
-
-            if(is_local_space_enough(filetmp,index))
-            {
-                if(wait_handle_socket(index))
-                {
-                    return HAVE_LOCAL_SOCKET;
-                }
-                add_action_item("createfile",localfiletmp->path,g_pSyncList[index]->server_action_list);
-                ret = Download(filetmp->href,index);
-                if (ret == NE_OK)
-                {
-                    time_t modtime;
-                    modtime = Getmodtime(filetmp->href,index);
-                    if(modtime != -1)
-                    {
-                        ChangeFile_modtime(localfiletmp->path,modtime,index);
-                        oldfiletmp->modtime = modtime;
-                        oldfiletmp->ismodify = 0;
-                    }
-                    else
-                    {
-                        DEBUG("ChangeFile_modtime failed!\n");
-                    }
-                    if(item != NULL)
-                    {
-                        del_action_item("download",filetmp->href,g_pSyncList[index]->unfinished_list);
-                    }
-                }
-                else
-                {
-                    //free(localpath);
-                    //free(serverpathtmp);
-                    return ret;
-                }
-            }
-            else
-            {
-                write_log(S_ERROR,"local space is not enough!","",index);
-                if(item == NULL)
-                {
-                    add_action_item("download",filetmp->href,g_pSyncList[index]->unfinished_list);
-                }
-                return ret;
-            }
+            return ret;
         }
 
     }
@@ -4496,6 +4043,8 @@ int sync_server_to_local_init(Browse *perform_br,Local *perform_lo,int index){
     {
         return 0;
     }
+
+    //DEBUG("sync_server_to_local_init start\n");
 
     CloudFile *foldertmp = NULL;
     CloudFile *filetmp = NULL;
@@ -4624,8 +4173,9 @@ int sync_server_to_local_init(Browse *perform_br,Local *perform_lo,int index){
             while(filetmp != NULL)
             {
                 char *serverpathtmp;
-                serverpathtmp = strstr(filetmp->href,asus_cfg.prule[index]->rootfolder) + asus_cfg.prule[index]->rootfolder_length;
-                serverpathtmp = oauth_url_unescape(serverpathtmp,NULL);
+                //serverpathtmp = strstr(filetmp->href,asus_cfg.prule[index]->rootfolder) + asus_cfg.prule[index]->rootfolder_length;
+                //serverpathtmp = oauth_url_unescape(serverpathtmp,NULL);
+                serverpathtmp = oauth_url_unescape(filetmp->href,NULL);
                 if ((cmp = strcmp(localpathtmp,serverpathtmp)) == 0)
                 {
                     //filetmp = OldFileList->next;
@@ -4704,8 +4254,9 @@ int sync_server_to_local_init(Browse *perform_br,Local *perform_lo,int index){
         {
             int cmp = 1;
             char *serverpathtmp;
-            serverpathtmp = strstr(filetmp->href,asus_cfg.prule[index]->rootfolder) + asus_cfg.prule[index]->rootfolder_length;
-            serverpathtmp = oauth_url_unescape(serverpathtmp,NULL);
+            //serverpathtmp = strstr(filetmp->href,asus_cfg.prule[index]->rootfolder) + asus_cfg.prule[index]->rootfolder_length;
+            //serverpathtmp = oauth_url_unescape(serverpathtmp,NULL);
+            serverpathtmp = oauth_url_unescape(filetmp->href,NULL);
             while(localfiletmp != NULL)
             {
                 char *localpathtmp;
@@ -4736,7 +4287,6 @@ int sync_server_to_local_init(Browse *perform_br,Local *perform_lo,int index){
 
                         add_action_item("createfile",localpath,g_pSyncList[index]->server_action_list);
                         ret = Download(filetmp->href,index);
-                        //printf("XXXXXXXXXXXXXret3 = %d\n",ret);
                         if (ret == NE_OK)
                         {
                             //ChangeFile_modtime(localpath,filetmp->modtime);
@@ -4825,6 +4375,7 @@ int sync_server_to_local_init(Browse *perform_br,Local *perform_lo,int index){
     }
     else if(perform_br->foldernumber != 0 && perform_lo->foldernumber != 0)
     {
+        //DEBUG("sync_server_to_local_init handle foler,all != 0\n");
         while(localfoldertmp != NULL && !exit_loop)
         {
             int cmp = 1;
@@ -4833,8 +4384,9 @@ int sync_server_to_local_init(Browse *perform_br,Local *perform_lo,int index){
             while(foldertmp != NULL)
             {
                 char *serverpathtmp;
-                serverpathtmp = strstr(foldertmp->href,asus_cfg.prule[index]->rootfolder) + asus_cfg.prule[index]->rootfolder_length;
-                serverpathtmp = oauth_url_unescape(serverpathtmp,NULL);
+                //serverpathtmp = strstr(foldertmp->href,asus_cfg.prule[index]->rootfolder) + asus_cfg.prule[index]->rootfolder_length;
+                //serverpathtmp = oauth_url_unescape(serverpathtmp,NULL);
+                serverpathtmp = oauth_url_unescape(foldertmp->href,NULL);
                 if ((cmp = strcmp(localpathtmp,serverpathtmp)) == 0)
                 {
                     //filetmp = OldFileList->next;
@@ -4881,8 +4433,9 @@ int sync_server_to_local_init(Browse *perform_br,Local *perform_lo,int index){
         {
             int cmp = 1;
             char *serverpathtmp;
-            serverpathtmp = strstr(foldertmp->href,asus_cfg.prule[index]->rootfolder) + asus_cfg.prule[index]->rootfolder_length;
-            serverpathtmp = oauth_url_unescape(serverpathtmp,NULL);
+            //serverpathtmp = strstr(foldertmp->href,asus_cfg.prule[index]->rootfolder) + asus_cfg.prule[index]->rootfolder_length;
+            //serverpathtmp = oauth_url_unescape(serverpathtmp,NULL);
+            serverpathtmp = oauth_url_unescape(foldertmp->href,NULL);
             while(localfoldertmp != NULL)
             {
                 char *localpathtmp;
@@ -4928,6 +4481,7 @@ int sync_server_to_local_init(Browse *perform_br,Local *perform_lo,int index){
 }
 
 int sync_server_to_local_perform(Browse *perform_br,Local *perform_lo,int index){
+    printf("sync_server_to_local_perform start\n");
 
     if(perform_br == NULL || perform_lo == NULL)
     {
@@ -5047,9 +4601,10 @@ int sync_server_to_local_perform(Browse *perform_br,Local *perform_lo,int index)
             while(filetmp != NULL)
             {
                 char *serverpathtmp;
-                serverpathtmp = strstr(filetmp->href,
-                                       asus_cfg.prule[index]->rootfolder) + asus_cfg.prule[index]->rootfolder_length;
-                serverpathtmp = oauth_url_unescape(serverpathtmp,NULL);
+                //serverpathtmp = strstr(filetmp->href,
+                //                       asus_cfg.prule[index]->rootfolder) + asus_cfg.prule[index]->rootfolder_length;
+                //serverpathtmp = oauth_url_unescape(serverpathtmp,NULL);
+                serverpathtmp = oauth_url_unescape(filetmp->href,NULL);
                 //printf("serverpathtmp = %s\n",serverpathtmp);
                 if ((cmp = strcmp(localpathtmp,serverpathtmp)) == 0)
                 {
@@ -5113,9 +4668,10 @@ int sync_server_to_local_perform(Browse *perform_br,Local *perform_lo,int index)
         {
             int cmp = 1;
             char *serverpathtmp;
-            serverpathtmp = strstr(filetmp->href,
-                                   asus_cfg.prule[index]->rootfolder) + asus_cfg.prule[index]->rootfolder_length;
-            serverpathtmp = oauth_url_unescape(serverpathtmp,NULL);
+            //serverpathtmp = strstr(filetmp->href,
+            //                       asus_cfg.prule[index]->rootfolder) + asus_cfg.prule[index]->rootfolder_length;
+            //serverpathtmp = oauth_url_unescape(serverpathtmp,NULL);
+            serverpathtmp = oauth_url_unescape(filetmp->href,NULL);
             while(localfiletmp != NULL)
             {
                 char *localpathtmp;
@@ -5260,9 +4816,10 @@ int sync_server_to_local_perform(Browse *perform_br,Local *perform_lo,int index)
             while(foldertmp != NULL)
             {
                 char *serverpathtmp;
-                serverpathtmp = strstr(foldertmp->href,
-                                       asus_cfg.prule[index]->rootfolder) + asus_cfg.prule[index]->rootfolder_length;
-                serverpathtmp = oauth_url_unescape(serverpathtmp,NULL);
+                //serverpathtmp = strstr(foldertmp->href,
+                //                       asus_cfg.prule[index]->rootfolder) + asus_cfg.prule[index]->rootfolder_length;
+                //serverpathtmp = oauth_url_unescape(serverpathtmp,NULL);
+                serverpathtmp = oauth_url_unescape(foldertmp->href,NULL);
                 if ((cmp = strcmp(localpathtmp,serverpathtmp)) == 0)
                 {
                     //filetmp = OldFileList->next;
@@ -5305,9 +4862,10 @@ int sync_server_to_local_perform(Browse *perform_br,Local *perform_lo,int index)
         {
             int cmp = 1;
             char *serverpathtmp;
-            serverpathtmp = strstr(foldertmp->href,
-                                   asus_cfg.prule[index]->rootfolder) + asus_cfg.prule[index]->rootfolder_length;
-            serverpathtmp = oauth_url_unescape(serverpathtmp,NULL);
+            //serverpathtmp = strstr(foldertmp->href,
+            //                       asus_cfg.prule[index]->rootfolder) + asus_cfg.prule[index]->rootfolder_length;
+            //serverpathtmp = oauth_url_unescape(serverpathtmp,NULL);
+            serverpathtmp = oauth_url_unescape(foldertmp->href,NULL);
             while(localfoldertmp != NULL)
             {
                 char *localpathtmp;
@@ -5377,11 +4935,12 @@ int sync_server_to_local(Server_TreeNode *treenode,int (*sync_fuc)(Browse*,Local
     char *localpath;
     int ret = 0;
 
-
+    //DEBUG("treenode->parenthref = %s\n",treenode->parenthref);
     hreftmp = strstr(treenode->parenthref,asus_cfg.prule[index]->rootfolder)+asus_cfg.prule[index]->rootfolder_length;
     //DEBUG("hreftmp = %s,hreftmplen = %d\n",hreftmp,strlen(hreftmp));
     if(strlen(hreftmp) != 0)
     {
+        //DEBUG("strlen(hreftmp) != 0\n");
         hreftmp = oauth_url_unescape(hreftmp,NULL);
         localpath = my_str_malloc(asus_cfg.prule[index]->base_path_len+strlen(hreftmp)+1);
         //memset(localpath,'\0',sizeof(localpath));
@@ -5390,6 +4949,7 @@ int sync_server_to_local(Server_TreeNode *treenode,int (*sync_fuc)(Browse*,Local
     }
     else
     {
+        //DEBUG("strlen(hreftmp) == 0\n");
         localpath = my_str_malloc(asus_cfg.prule[index]->base_path_len+1);
         //memset(localpath,'\0',sizeof(localpath));
         sprintf(localpath,"%s",asus_cfg.prule[index]->base_path);
@@ -5404,6 +4964,7 @@ int sync_server_to_local(Server_TreeNode *treenode,int (*sync_fuc)(Browse*,Local
 
     if(NULL != localnode)
     {
+        //DEBUG("**********before ret2\n",ret);
         ret = sync_fuc(treenode->browse,localnode,index);
         //DEBUG("**********ret2 = %d\n",ret);
         if(ret == COULD_NOT_CONNECNT_TO_SERVER || ret == CONNECNTION_TIMED_OUT
@@ -5423,7 +4984,9 @@ int sync_server_to_local(Server_TreeNode *treenode,int (*sync_fuc)(Browse*,Local
 
     if(treenode->Child != NULL && !exit_loop)
     {
+        //DEBUG("**********before ret3\n",ret);
         ret = sync_server_to_local(treenode->Child,sync_fuc,index);
+        //DEBUG("**********ret3 = %d\n",ret);
         if(ret != 0 && ret != SERVER_SPACE_NOT_ENOUGH
            && ret != LOCAL_FILE_LOST && ret != SERVER_FILE_DELETED)
         {
@@ -5432,7 +4995,9 @@ int sync_server_to_local(Server_TreeNode *treenode,int (*sync_fuc)(Browse*,Local
     }
     if(treenode->NextBrother != NULL && !exit_loop)
     {
+        //DEBUG("**********before ret4\n",ret);
         ret = sync_server_to_local(treenode->NextBrother,sync_fuc,index);
+        //DEBUG("**********ret4 = %d\n",ret);
         if(ret != 0 && ret != SERVER_SPACE_NOT_ENOUGH
            && ret != LOCAL_FILE_LOST && ret != SERVER_FILE_DELETED)
         {
@@ -5711,7 +5276,10 @@ int wd_initial(){
             //do{
             g_pSyncList[i]->ServerRootNode = create_server_treeroot();
             status = browse_to_tree(asus_cfg.prule[i]->rooturl,g_pSyncList[i]->ServerRootNode,i);
-            //SearchServerTree(ServerRootNode);
+
+            //memory_used = 0;
+            //SearchServerTree(g_pSyncList[i]->ServerRootNode);
+            //printf("memory_used = %lld\n",memory_used);
 
             DEBUG("wd_initial browse_to_tree status = %d\n",status);
             //sleep(2);
@@ -5880,9 +5448,10 @@ void *SyncServer(){
                 {
                     DEBUG("get ServerList ERROR! \n");
                     //server_sync = 0;      //server sync finished
-
+#ifndef PC
                     if(exit_loop == 0)
                         check_link_internet(i);
+#endif
 
                     g_pSyncList[i]->first_sync = 1;
                     //sleep(2);
@@ -5902,15 +5471,19 @@ void *SyncServer(){
                 if(asus_cfg.prule[i]->rule == 0)
                 {
                     status = compareServerList(i);
+                    if(status == 0)
+                    {
+                        check_serverlist_modify(i,g_pSyncList[i]->ServerRootNode->Child);
+                    }
                 }
 
                 if(g_pSyncList[i]->first_sync)
                 {
                     DEBUG("first sync!\n");
 #if LIST_TEST
-                    free_server_tree(g_pSyncList[i]->RealOldServerRootNode);
-                    g_pSyncList[i]->RealOldServerRootNode = g_pSyncList[i]->OldServerRootNode;
-                    //free_server_tree(g_pSyncList[i]->OldServerRootNode);
+                    //free_server_tree(g_pSyncList[i]->RealOldServerRootNode);
+                    //g_pSyncList[i]->RealOldServerRootNode = g_pSyncList[i]->OldServerRootNode;
+                    free_server_tree(g_pSyncList[i]->OldServerRootNode);
                     g_pSyncList[i]->OldServerRootNode = g_pSyncList[i]->ServerRootNode;
 #endif
                     //getLocalList();
@@ -5931,9 +5504,9 @@ void *SyncServer(){
                     if (status == 0 || asus_cfg.prule[i]->rule == 1)
                     {
 #if LIST_TEST
-                        free_server_tree(g_pSyncList[i]->RealOldServerRootNode);
-                        g_pSyncList[i]->RealOldServerRootNode = g_pSyncList[i]->OldServerRootNode;
-                        //free_server_tree(g_pSyncList[i]->OldServerRootNode);
+                        //free_server_tree(g_pSyncList[i]->RealOldServerRootNode);
+                        //g_pSyncList[i]->RealOldServerRootNode = g_pSyncList[i]->OldServerRootNode;
+                        free_server_tree(g_pSyncList[i]->OldServerRootNode);
                         g_pSyncList[i]->OldServerRootNode = g_pSyncList[i]->ServerRootNode;
 #endif
                         //getLocalList();
@@ -6099,8 +5672,6 @@ void sig_handler (int signum)
                     if(asus_cfg_stop.dir_number != asus_cfg.dir_number)
                     {
                         parse_config_mutidir(CONFIG_PATH,&asus_cfg_stop);
-                        //reget_usbinfo_config();
-                        //write_usbinfo_config();
                         rewrite_tokenfile_and_nv();
                     }
                 }
@@ -6130,33 +5701,7 @@ void sig_handler (int signum)
         //restart_run = 1;
         //run();
         break;
-#if 0
-    case SIGUSR2:  // Plug the hard disk
-        DEBUG("signal is SIGUSR2\n");
-        //signal(SIGINT, SIG_DFL);
-        //no_config = 0;
-        //exit_loop = 1;
-        //sync_up = 0;
-        //sync_down = 0;
-        disk_change = 1;
-        sighandler_finished = 1;
-        break;
-#endif
-#if 0
-    case SIGPIPE:  // delete user
-        printf("signal is SIGPIPE\n");
 
-        signal(SIGPIPE, SIG_IGN);
-        //no_config = 0;
-        //stop_progress = 1;
-        //exit_loop = 1;
-        //sync_up = 0;
-        //sync_down = 0;
-        //restart_run = 1;
-        //run();
-
-        break;
-#endif
     default:
         break;
     }
@@ -6260,14 +5805,6 @@ void clean_up()
     free(g_pSyncList);
 
 
-#if 0
-    if(LocalRootNode != NULL)
-        free_tree_node(LocalRootNode);
-    else
-        printf("LocalRootNode is NULL!\n");
-#endif
-
-
     DEBUG("clean up end !!!\n");
 }
 
@@ -6284,6 +5821,38 @@ void stop_process_clean_up(){
     //remove(NOTIFY_PATH);
 
 }
+
+#if 0
+int convert_nvram_to_file(char *file)
+{
+    FILE *fp;
+    char *nv, *nvp, *b;
+    char *type, *url ,*user,*pwd,*s_path,*rule, *enable;
+    int len;
+
+    fp=fopen(file, "w");
+
+    if (fp==NULL) return -1;
+
+    nv = nvp = strdup(nvram_safe_get("Wclient_sync"));
+
+    if(nv) {
+        while ((b = strsep(&nvp, "<")) != NULL) {
+            if((vstrsep(b, ">", &type, &user,&pwd,&url,&rule,&s_path,&enable)!=7)) continue;
+            if(strlen(user)==0||strlen(pwd)==0) continue;
+
+            DEBUG("%s,%s,%s,%s,%s,%s,%s\n",type,enable,user,pwd,url,rule,s_path);
+
+            len = strlen(s_path);
+            if(s_path[len-1] == '/')
+                s_path[len-1] = '\0';
+            fprintf(fp, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n",type,enable,user,pwd,url,rule,s_path);
+        }
+        free(nv);
+    }
+    fclose(fp);
+}
+#endif
 
 #ifdef NVRAM_
 /*Type>Desc>URL>Rule>capacha>LocalFolder*/
@@ -6305,7 +5874,6 @@ int convert_nvram_to_file_mutidir(char *file,struct asus_config *config)
 
     if (fp==NULL) return -1;
 
-    //nv = nvp = strdup(nvram_safe_get("cloud_sync"));
 #ifndef USE_TCAPI
     nv = nvp = strdup(nvram_safe_get("cloud_sync"));
 #else
@@ -6314,7 +5882,6 @@ int convert_nvram_to_file_mutidir(char *file,struct asus_config *config)
     nvp = nv = my_str_malloc(strlen(tmp)+1);
     sprintf(nv,"%s",tmp);
 #endif
-
     //printf("otain nvram end\n");
 
     if(nv)
@@ -6523,162 +6090,6 @@ int get_dir_number(char *file,struct asus_config *config)
 }
 #endif
 
-
-#if 0
-int get_usbinfo_config(struct asus_config *config){
-
-    DEBUG("get_usbinfo_config");
-
-    int i;
-    if(initial_disk_data(&config_disk_info_start) == NULL){
-        return -1;
-    }
-
-    config_disk_info = config_disk_info_start;
-    
-    for(i=0;i<config->dir_number;i++)
-    {
-        DEBUG("for i = %d\n",i);
-
-        if(initial_disk_data(&config_disk_tmp) == NULL)
-        {
-            return -1;
-        }
-        follow_disk_tmp = follow_disk_info_start->next;
-        while(follow_disk_tmp != NULL)
-        {
-            DEBUG("while follow_disk_tmp->mountpath : %s\n",follow_disk_tmp->mountpath);
-
-            char *disk_mount_path_tmp;
-            disk_mount_path_tmp = follow_disk_tmp->mountpath+4;
-
-            DEBUG("disk_mount_path_tmp = %s\n",disk_mount_path_tmp);
-
-            //printf("asus_cfg.prule[i]->mount_path = %s\n",asus_cfg.prule[i]->mount_path);
-            if( !strcmp(disk_mount_path_tmp,config->prule[i]->mount_path) )
-            {
-                config->prule[i]->partitionport = follow_disk_tmp->partitionport;
-                sprintf(config->prule[i]->product,"%s",follow_disk_tmp->product);
-                sprintf(config->prule[i]->vendor,"%s",follow_disk_tmp->vendor);
-                sprintf(config->prule[i]->serialnum,"%s",follow_disk_tmp->serialnum);
-
-                config_disk_tmp->partitionport = follow_disk_tmp->partitionport;
-
-                config_disk_tmp->vendor = my_str_malloc(strlen(follow_disk_tmp->vendor)+1);
-                sprintf(config_disk_tmp->vendor,"%s",follow_disk_tmp->vendor);
-
-                config_disk_tmp->product = my_str_malloc(strlen(follow_disk_tmp->product)+1);
-                sprintf(config_disk_tmp->product,"%s",follow_disk_tmp->product);
-
-                config_disk_tmp->serialnum = my_str_malloc(strlen(follow_disk_tmp->serialnum)+1);
-                sprintf(config_disk_tmp->serialnum,"%s",follow_disk_tmp->serialnum);
-
-                config_disk_tmp->url = my_str_malloc(strlen(config->prule[i]->rooturl)+1);
-                sprintf(config_disk_tmp->url,"%s",config->prule[i]->rooturl);
-
-                config_disk_info->next = config_disk_tmp;
-                config_disk_info = config_disk_tmp;
-
-                DEBUG("config->prule[i]->product:%s\n",config->prule[i]->product);
-                DEBUG("config->prule[i]->serialnum:%s\n",config->prule[i]->serialnum);
-                DEBUG("config->prule[i]->vendor:%s\n",config->prule[i]->vendor);
-                DEBUG("config->prule[i]->partitionport:%d\n",config->prule[i]->partitionport);
-
-                break;
-            }
-            follow_disk_tmp = follow_disk_tmp->next;
-        }
-    }
-
-    return 0;
-}
-#endif
-
-int renew_config_path()
-{
-    int i;
-    int removed = 0;
-    char cmp_mount_path[256];
-
-    int has_tmp = 0;
-    char new_mount_path[256];
-    char tmp[256];
-
-
-    for(i=0;i<asus_cfg.dir_number;i++)
-    {
-        config_disk_tmp = config_disk_info_start->next;
-        while(config_disk_tmp != NULL)
-        {
-            if(!strcmp(config_disk_tmp->url,asus_cfg.prule[i]->rooturl))
-            {
-                asus_cfg.prule[i]->partitionport = config_disk_tmp->partitionport;
-                sprintf(asus_cfg.prule[i]->product,"%s",config_disk_tmp->product);
-                sprintf(asus_cfg.prule[i]->vendor,"%s",config_disk_tmp->vendor);
-                sprintf(asus_cfg.prule[i]->serialnum,"%s",config_disk_tmp->serialnum);
-                break;
-            }
-            config_disk_tmp=config_disk_tmp->next;
-        }
-    }
-
-    for(i=0;i<asus_cfg.dir_number;i++)
-    {
-        follow_disk_tmp = follow_disk_info_start->next;
-        while(follow_disk_tmp != NULL)
-        {
-            if( !strcmp(asus_cfg.prule[i]->product,follow_disk_tmp->product) &&
-                !strcmp(asus_cfg.prule[i]->serialnum,follow_disk_tmp->serialnum) &&
-                !strcmp(asus_cfg.prule[i]->vendor,follow_disk_tmp->vendor) &&
-                asus_cfg.prule[i]->partitionport == follow_disk_tmp->partitionport)
-            {
-                memset(new_mount_path,0,sizeof(new_mount_path));
-                memset(cmp_mount_path,0,sizeof(cmp_mount_path));
-                if(!strncmp(asus_cfg.prule[i]->mount_path,"/tmp",4))
-                {
-                    strcpy(cmp_mount_path,asus_cfg.prule[i]->mount_path);
-                    strcpy(new_mount_path,follow_disk_tmp->mountpath);
-                    has_tmp = 1;
-                }
-                else
-                {
-                    sprintf(cmp_mount_path,"/tmp%s",asus_cfg.prule[i]->mount_path);
-                    strncpy(new_mount_path,follow_disk_tmp->mountpath+4,strlen(follow_disk_tmp->mountpath)-4);
-                }
-
-                DEBUG("cmp_mount_path=%s,new_mount_path=%s\n",cmp_mount_path,new_mount_path);
-
-                if(strcmp(follow_disk_tmp->mountpath,cmp_mount_path)) // mount_path change;
-                {
-                    //需要修改Config档中的SyncPath
-                    removed = 2;
-                    memset(tmp,0,sizeof(tmp));
-                    sprintf(tmp,"%s",asus_cfg.prule[i]->base_path+(strlen(asus_cfg.prule[i]->mount_path)));
-
-                    memset(asus_cfg.prule[i]->mount_path,0,sizeof(asus_cfg.prule[i]->mount_path));
-                    strcpy(asus_cfg.prule[i]->mount_path,new_mount_path);
-
-                    memset(asus_cfg.prule[i]->base_path,0,sizeof(asus_cfg.prule[i]->base_path));
-                    sprintf(asus_cfg.prule[i]->base_path,"%s%s",asus_cfg.prule[i]->mount_path,tmp);
-
-                    asus_cfg.prule[i]->base_path_len = strlen(asus_cfg.prule[i]->base_path);
-
-                    DEBUG("asus_cfg.prule[%d]->base_path = %s\n",i,asus_cfg.prule[i]->base_path);
-                }
-                break;
-            }
-            follow_disk_tmp=follow_disk_tmp->next;
-        }
-    }
-
-    /*if(removed == 2)
-    {
-        rewrite_config();
-    }*/
-
-    return 0;
-}
-
 #ifdef NVRAM_
 int write_to_nvram(char *contents,char *nv_name)
 {
@@ -6816,8 +6227,8 @@ int check_config_path(int is_read_config)
     nv_len = strlen(nv);
 
     //write_debug_log("check_config_path");
-    printf("nv_len = %d\n",nv_len);
-    printf("nv = %s\n",nv);
+    DEBUG("nv_len = %d\n",nv_len);
+    DEBUG("nv = %s\n",nv);
 
     for(i=0;i<asus_cfg.dir_number;i++)
     {
@@ -6854,7 +6265,7 @@ int check_config_path(int is_read_config)
 
             //write_debug_log(nv);
             //write_debug_log(nvp);
-            printf("nvp = %s\n",nvp);
+            DEBUG("nvp = %s\n",nvp);
 
             if(!is_read_config)
             {
@@ -6897,7 +6308,7 @@ int check_config_path(int is_read_config)
                     new_nv = my_str_malloc(strlen(nvp)+1);
                     sprintf(new_nv,"%s",nvp);
                 }
-                printf("new_nv = %s\n",new_nv);
+                DEBUG("new_nv = %s\n",new_nv);
 #ifdef NVRAM_
                 write_to_nvram(new_nv,"wd_tokenfile");
 #else
@@ -7023,16 +6434,7 @@ void run(){
 
     if(exit_loop == 0)
     {
-#if 0
-        LocalRootNode = create_tree_rootnode(base_path);
-        FindDir(LocalRootNode,base_path);
-        SearchTree(LocalRootNode);
 
-        if(status != 0)
-        {
-            printf("get Local List ERROR! \n");
-        }
-#endif
         send_to_inotify();
 
         if(exit_loop == 0)
@@ -7062,16 +6464,9 @@ void run(){
         }
 
         status = wd_initial();          //used for init
-#if 0
-        free_tree_node(LocalRootNode);
-        LocalRootNode = NULL;
-#endif
+
         //getLocalList();
-#if 0
-        LocalRootNode = create_tree_rootnode(base_path);
-        FindDir(LocalRootNode,base_path);
-        SearchTree(LocalRootNode);
-#endif
+
         finished_initial = 1;
 
 
@@ -7120,7 +6515,7 @@ void run(){
 
     if(stop_progress != 1)
     {
-        printf("run again!\n");
+        DEBUG("run again!\n");
 
         //#ifndef NVRAM_
         while(disk_change)
@@ -7173,97 +6568,12 @@ int write_notify_file(char *path,int signal_num)
     return 0;
 }
 
-int reget_usbinfo_config(){
-    int i,j;
-    int exist;
-    char *disk_mount_path_tmp;
-
-    if(asus_cfg.dir_number > asus_cfg_stop.dir_number)
-    {
-        for(i=0;i<asus_cfg.dir_number;i++)
-        {
-            exist = 0;
-            for(j=0;j<asus_cfg_stop.dir_number;j++)
-            {
-                if(!strcmp(asus_cfg_stop.prule[j]->rooturl,asus_cfg.prule[i]->rooturl))
-                {
-                    exist = 1;
-                    break;
-                }
-            }
-            if(!exist)
-            {
-                config_disk_tmp = config_disk_info_start->next;
-                while(config_disk_tmp != NULL)
-                {
-                    if(!strcmp(config_disk_tmp->url,asus_cfg.prule[i]->rooturl))
-                    {
-                        free(config_disk_tmp->url);
-                        config_disk_tmp->url = NULL;
-                        break;
-                    }
-                    config_disk_tmp = config_disk_tmp->next;
-                }
-            }
-        }
-    }
-    else
-    {
-        for(i=0;i<asus_cfg_stop.dir_number;i++)
-        {
-            exist = 0;
-            for(j=0;j<asus_cfg.dir_number;j++)
-            {
-                if(!strcmp(asus_cfg_stop.prule[i]->rooturl,asus_cfg.prule[j]->rooturl))
-                {
-                    exist = 1;
-                    break;
-                }
-            }
-            if(!exist)
-            {
-                follow_disk_tmp = follow_disk_info_start->next;
-                while(follow_disk_tmp != NULL)
-                {
-                    disk_mount_path_tmp = follow_disk_tmp->mountpath+4;
-                    if( !strcmp(disk_mount_path_tmp,asus_cfg_stop.prule[i]->mount_path) )
-                    {
-                        if(initial_disk_data(&config_disk_tmp) == NULL)
-                        {
-                            return -1;
-                        }
-                        config_disk_tmp->partitionport = follow_disk_tmp->partitionport;
-
-                        config_disk_tmp->vendor = my_str_malloc(strlen(follow_disk_tmp->vendor)+1);
-                        sprintf(config_disk_tmp->vendor,"%s",follow_disk_tmp->vendor);
-
-                        config_disk_tmp->product = my_str_malloc(strlen(follow_disk_tmp->product)+1);
-                        sprintf(config_disk_tmp->product,"%s",follow_disk_tmp->product);
-
-                        config_disk_tmp->serialnum = my_str_malloc(strlen(follow_disk_tmp->serialnum)+1);
-                        sprintf(config_disk_tmp->serialnum,"%s",follow_disk_tmp->serialnum);
-
-                        config_disk_tmp->url = my_str_malloc(strlen(asus_cfg_stop.prule[i]->rooturl)+1);
-                        sprintf(config_disk_tmp->url,"%s",asus_cfg_stop.prule[i]->rooturl);
-
-                        config_disk_info->next = config_disk_tmp;
-                        config_disk_info = config_disk_tmp;
-                        break;
-                    }
-                    follow_disk_tmp = follow_disk_tmp->next;
-                }
-            }
-        }
-    }
-    return 0;
-}
-
 int rewrite_tokenfile_and_nv(){
 
     int i,j;
     int exist;
     //write_debug_log("rewrite_tokenfile_and_nv start");
-    printf("rewrite_tokenfile_and_nv start\n");
+    DEBUG("rewrite_tokenfile_and_nv start\n");
     if(asus_cfg.dir_number > asus_cfg_stop.dir_number)
     {
         for(i=0;i<asus_cfg.dir_number;i++)
@@ -7280,12 +6590,12 @@ int rewrite_tokenfile_and_nv(){
             if(!exist)
             {
                 //write_debug_log("del form nv");
-                printf("del form nv\n");
+                DEBUG("del form nv\n");
                 del_rule_num = i;
                 char *new_nv;
                 delete_tokenfile_info(asus_cfg.prule[i]->rooturl,asus_cfg.prule[i]->base_folder);
                 new_nv = delete_nvram_contents(asus_cfg.prule[i]->rooturl,asus_cfg.prule[i]->base_folder);                
-                printf("new_nv = %s\n",new_nv);
+                DEBUG("new_nv = %s\n",new_nv);
                 remove(g_pSyncList[i]->conflict_file);
                 write_to_tokenfile(asus_cfg.prule[i]->mount_path);
 #ifdef NVRAM_
@@ -7331,44 +6641,7 @@ int rewrite_tokenfile_and_nv(){
     return 0;
 }
 
-/*int create_shell_file(){
-
-    FILE *fp;
-    char contents[256];
-    memset(contents,0,256);
-    strcpy(contents,"#! /bin/sh\nnvram set $2=\"$1\"\nnvram commit");
-
-    if(( fp = fopen(SHELL_FILE,"w"))==NULL)
-    {
-        fprintf(stderr,"create shell file error");
-        return -1;
-    }
-
-    fprintf(fp,"%s",contents);
-    fclose(fp);
-    return 0;
-
-}*/
-
 #ifndef NVRAM_
-/*int write_get_nvram_script(){
-
-    FILE *fp;
-    char contents[512];
-    memset(contents,0,512);
-    strcpy(contents,"#! /bin/sh\nNV=`nvram get cloud_sync`\nif [ ! -f \"/tmp/smartsync/webdav/config/webdav_tmpconfig\" ]; then\n   touch /tmp/smartsync/webdav/config/webdav_tmpconfig\nfi\necho \"$NV\" >/tmp/smartsync/webdav/config/webdav_tmpconfig");
-
-    if(( fp = fopen(GET_NVRAM_SCRIPT_1,"w"))==NULL)
-    {
-        fprintf(stderr,"create webdav_get_nvram file error\n");
-        return -1;
-    }
-
-    fprintf(fp,"%s",contents);
-    fclose(fp);
-
-    return 0;
-}*/
 int write_get_nvram_script(char *nvram_name,char *nvram_path,char *script_path)
 {
     FILE *fp;
@@ -7463,11 +6736,8 @@ int main(int argc, char *argv[]){
 #endif
 #endif
 
-    //printf("mount_path = %s\n",mount_path);
-
     sleep(1);
     read_config();
-    //printf("HOST = %s\n",HOST);
 
     if(no_config == 0)
         run();
@@ -7476,30 +6746,6 @@ int main(int argc, char *argv[]){
 
     stop_process_clean_up();
 
-    //remove("/tmp/notify/usb/webdav_client");
-    //unlink("/tmp/smartsync_app/webdav_client_start");    //unlink in stop_process_clean_up()
-//    if(detect_process_file())
-//    {
-//        DEBUG("webdav did not kill inotify\n");
-//    }
-//    else
-//    {
-//        system("killall  -9 inotify &");
-//        DEBUG("webdav kill inotify\n");
-//    }
-
-/*
-    if(!detect_process("asuswebstorage") && !detect_process("ftpclient") && !detect_process("dropbox_client"))
-    {
-        system("killall  -9 inotify &");
-        DEBUG("webdav kill inotify\n");
-    }
-
-    else
-    {
-        DEBUG("webdav did not kill inotify\n");
-    }
-*/
     DEBUG("stop WebDAV end\n");
     return 1;
 }

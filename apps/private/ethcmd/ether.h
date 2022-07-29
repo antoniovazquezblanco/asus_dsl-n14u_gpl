@@ -27,26 +27,50 @@ etherChannVlanCap_t* getEtherVlanCap(void);
 
 int macTC2206VlanActive(u8 type);
 int macTC2206VlanSetPvid(u8 port, u16 pvid);
+#if defined(EXTEND_SETVID_PARAM)
+int macTC2206VlanSetVid(u8 index, u8 active, u16 vid, u8 portMap, u8 tagPortMap, u8 ivl_en, u8 fid, u16 stag);
+#else
 int macTC2206VlanSetVid(u8 index, u8 active, u16 vid, u8 portMap, u8 tagPortMap);
+#endif
 int macTC2206VlanCap(void);
 int macTC2206VlanGetPvid(u8 port);
-int macTC2206VlanGetVtbl(u8 index);
+int macTC2206VlanGetVtbl(u16 index);	// MT7530 need 16bit index (4K)
 int macTC2206VlanDisp(void);
 int macTC2206Igmpsnoop(u8 type);
 int macTC2206IgmpFastLeave(u8 type);
 
 int macRT63365VlanActive(u8 type);
 int macRT63365VlanSetPvid(u8 port, u16 pvid);
+#if defined(EXTEND_SETVID_PARAM) || defined(SQA_VERIFY)
+int macRT63365VlanSetVid(u8 index, u8 active, u16 vid, u8 portMap, u8 tagPortMap, u8 ivl_en, u8 fid, u16 stag);
+#else
 int macRT63365VlanSetVid(u8 index, u8 active, u16 vid, u8 portMap, u8 tagPortMap);
+#endif
 int macRT63365VlanCap(void);
 int macRT63365VlanGetPvid(u8 port);
-int macRT63365VlanGetVtbl(u8 index);
+int macRT63365VlanGetVtbl(u16 index);	// MT7530 need 16bit index (4K)
 int macRT63365VlanDisp(void);
 int macRT63365Igmpsnoop(u8 type);
 int macRT63365IgmpFastLeave(u8 type);
 
+
+int macRT7530VlanActive(u8 type);
+
+#if defined(EXTEND_SETVID_PARAM) || defined(SQA_VERIFY)
+int macMT7530VlanSetVid(u8 index, u8 active, u16 vid, u8 portMap, u8 tagPortMap, u8 ivl_en, u8 fid, u16 stag);
+#else
+int macMT7530VlanSetVid(u8 index, u8 active, u16 vid, u8 portMap, u8 tagPortMap);
+#endif
+int macMT7530VlanGetVtbl(u16 index);
+int macMT7530VlanDisp(void);
+int macMT7530VlanCap(void);
+
 int macIP175CVlanActive(u8 type);
 int macIP175CVlanSetPvid(u8 port, u16 pvid);
+#if defined(EXTEND_SETVID_PARAM)
+int macIP175CVlanSetVid(u8 index, u8 active, u16 vid, u8 portMap, u8 tagPortMap, u8 ivl_en, u8 fid, u16 stag);
+#else
 int macIP175CVlanSetVid(u8 index, u8 active, u16 vid, u8 portMap, u8 tagPortMap);
+#endif
 int macIP175CVlanCap(void);
 #endif

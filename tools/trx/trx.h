@@ -25,7 +25,12 @@ struct trx_header {
 	unsigned int reserved[42];  /* Reserved field of header */
 	#else
 	unsigned char Model[32];
+#if defined (TCSUPPORT_2_6_36_KERNEL)
+	unsigned int decompAddr;//kernel decompress address
+	unsigned int reserved[32];  /* Reserved field of header */
+#else
 	unsigned int reserved[33];  /* Reserved field of header */
+#endif
 	#endif
 #endif	
 };

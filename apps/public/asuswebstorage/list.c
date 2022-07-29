@@ -6,6 +6,7 @@
 #include "list.h"
 #include "function.h"
 #include "api.h"
+#include <unistd.h>
 
 extern s_tree *s_link;
 extern Hb_TreeNode *DirRootNode;
@@ -164,7 +165,7 @@ int del_new_node(const char *filename, const char *path,int isfolder,Hb_TreeNode
             printf("del node is %s child\n",path);
             if(p1 != NULL)                 //del node have nextbrother node
             {
-                printf("del node have nextbrother node\n",path);
+                printf("del node have nextbrother node\n");
                 treeRoot->Child = p1;
 
             }
@@ -295,8 +296,8 @@ void free_tree_node(Hb_TreeNode *node)
 void FindDir(Hb_TreeNode *TreeNode,const char *path)
 {
     char fullname[NORMALSIZE];
-    Hb_TreeNode *p1,*p2;
-    Hb_TreeNode *temp;
+    //Hb_TreeNode *p1,*p2;
+    //Hb_TreeNode *temp;
     struct dirent* ent = NULL;
     DIR *pDir;
     int isfolder = 0;
@@ -415,7 +416,7 @@ void FindDir(Hb_TreeNode *TreeNode,const char *path)
 
 void update_node_child(Hb_TreeNode *node)
 {
-    Hb_TreeNode *prenode = NULL;
+    //Hb_TreeNode *prenode = NULL;
     char newpath[NORMALSIZE];
     memset(newpath,0,sizeof(newpath));
 
@@ -458,7 +459,7 @@ void rename_update_tree(const char *oldname,const char *newname)
 
 void SearchTree1(Hb_TreeNode* treeRoot)
 {
-    Hb_TreeNode *p1,*p2;
+    Hb_TreeNode *p1;
     p1 = treeRoot->Child;
     //p2 = p1;
 
@@ -788,7 +789,7 @@ int browse_to_tree(char *username,int parentid, char *xmlfilename,Server_TreeNod
     memset(tempnode,0,sizeof(Server_TreeNode));
     tempnode->level = node->level + 1;
 
-    br = browseFolder(username,parentid,0);
+    br = browseFolder(username,parentid,0,200);
 
     if(NULL == br)
     {

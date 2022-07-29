@@ -2,6 +2,7 @@
 	tcWebApi_set("QoS_Entry0","qos_enable","qos_enable")
 	tcWebApi_set("QoS_Entry0","qos_obw", "qos_obw")
 	tcWebApi_set("QoS_Entry0","qos_ibw", "qos_ibw")
+	tcWebApi_CommitWithoutSave("Firewall")
 	tcWebApi_commit("QoS")
 End If
 %>
@@ -99,18 +100,17 @@ function switchPage(page){
 }
 
 function submitQoS(){
-	var warning_msg_Blank = "Fields cannot be blank";
 
 	if(document.form.qos_enable.value == 1){
 		// Jieming To Do: please add a hint here when error occurred, and qos_ibw & qos_obw should allow number only.
 		if(document.form.qos_obw.value.length == 0 || document.form.qos_obw.value == 0){
-				alert(warning_msg_Blank);
+				alert("<%tcWebApi_get("String_Entry","JS_fieldblank","s")%>");
 				document.form.qos_obw.focus();
 				document.form.qos_obw.select();
 				return;
 		}
 		if(document.form.qos_ibw.value.length == 0 || document.form.qos_ibw.value == 0){
-				alert(warning_msg_Blank);
+				alert("<%tcWebApi_get("String_Entry","JS_fieldblank","s")%>");
 				document.form.qos_ibw.focus();
 				document.form.qos_ibw.select();
 				return;
@@ -281,7 +281,7 @@ function showqos_rulelist(){
 								<td>
 									<table style="margin-left:3px; margin-top:15px;" width="95%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
 										<tr>
-										<th><%tcWebApi_get("String_Entry","Enable_defaule_rule","s")%></th>
+										<th><%tcWebApi_get("String_Entry","EzQoS_smart_enable","s")%></th>
 											<td>
 												<div class="left" style="width:94px; float:left; cursor:pointer;" id="radio_qos_enable"></div>
 												<div class="iphone_switch_container" style="height:32px; width:74px; position: relative; overflow: hidden">
@@ -344,15 +344,15 @@ function showqos_rulelist(){
 											<table style="margin-left:3px; margin-top:15px;" width="95%" border="1" align="center" cellpadding="4" cellspacing="0" class="FormTable_table">
 											<thead>
 											<tr>
-													<td colspan="6" id="TriggerList" style="border-right:none;height:22px;"><% tcWebApi_Get("String_Entry", "BM_UserList_title", "s") %></td>
+													<td colspan="6" id="TriggerList" style="border-right:none;height:22px;"><% tcWebApi_Get("String_Entry", "BM_UserList_title", "s") %> (<% tcWebApi_Get("String_Entry", "List_limit", "s") %> 32)</td>
 											</tr>
 											</thead>			
 											<tr>
 													<th width="22%" style="height:30px;"><% tcWebApi_Get("String_Entry", "BM_UserList1", "s") %></th>
-													<th width="21%"><a href="javascript:void(0);" onClick="openHint(18,6);"><div class="table_text">Source IP or MAC</div></a></th>
+													<th width="21%"><a href="javascript:void(0);" onClick="openHint(18,6);"><div class="table_text"><% tcWebApi_Get("String_Entry", "BM_UserList2", "s") %></div></a></th>
 													<th width="17%"><a href="javascript:void(0);" onClick="openHint(18,4);"><div class="table_text"><% tcWebApi_Get("String_Entry", "BM_UserList3", "s") %></div></a></th>
 													<th width="14%"><div class="table_text"><% tcWebApi_Get("String_Entry", "IPC_VServerProto_in", "s") %></div></th>
-													<th width="16%"><a href="javascript:void(0);" onClick="openHint(18,5);"><div class="table_text"><div class="table_text">Transferred</div></a></th>
+													<th width="16%"><a href="javascript:void(0);" onClick="openHint(18,5);"><div class="table_text"><div class="table_text"><% tcWebApi_Get("String_Entry", "UserQoS_transferred", "s") %></div></a></th>
 													<th width="12%"><% tcWebApi_Get("String_Entry", "BM_UserList4", "s") %></th>
 											</tr>											
 										</table>          					

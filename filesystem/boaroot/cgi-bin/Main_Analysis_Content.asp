@@ -6,7 +6,7 @@ End If
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7">
+<meta http-equiv="X-UA-Compatible" content="IE=Edge">
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -67,6 +67,15 @@ function initial(){
 	showLANIPList();
 }
 
+function validForm(){
+        if(document.form.cmdMethod.value == "ping"){
+                if(!validate_range(document.form.pingCNT, 1, 99))
+                        return false;
+        }
+
+        return true;
+}
+
 function onSubmitCtrl(o, s) {
 	document.form.action_mode.value = s;
 	updateOptions();
@@ -76,16 +85,19 @@ function updateOptions(){
 	if(document.form.destIP.value == ""){
 		document.form.destIP.value = client_list_array[0][1];
 	}
-
-	if(document.form.pingCNT.value == "" || document.form.pingCNT.value == "0"){
-		document.form.pingCNT.value = 5;
-	}
+	if(document.form.cmdMethod.value == "ping"){
+		if(document.form.pingCNT.value == "" || document.form.pingCNT.value == "0"){
+			document.form.pingCNT.value = 5;
+		}
+	}	
 	document.form.applyFlag.value="1";
-	document.form.submit();
-	document.getElementById("cmdBtn").disabled = true;
-	document.getElementById("cmdBtn").style.color = "#666";
-	document.getElementById("loadingIcon").style.display = "";
-	setTimeout("checkCmdRet();", 500);
+	if(validForm()){
+		document.form.submit();
+		document.getElementById("cmdBtn").disabled = true;
+		document.getElementById("cmdBtn").style.color = "#666";
+		document.getElementById("loadingIcon").style.display = "";
+		setTimeout("checkCmdRet();", 500);
+	}
 }
 
 function hideCNT(_val){
@@ -251,7 +263,7 @@ function pullLANIPList(obj){
 										<tr id="pingCNT_tr">
 											<th width="20%"><%tcWebApi_get("String_Entry","NetworkTools_Count","s")%></th>
 											<td>
-		              			<input type="text" name="pingCNT" class="input_3_table" maxlength="1" value="" onblur="" onKeyPress="return is_number(this, event);" placeholder="5">
+		              			<input type="text" name="pingCNT" class="input_3_table" maxlength="2" value="" onKeyPress="return is_number(this, event);" placeholder="5">
 											</td>
 										</tr>
 									</table>
@@ -263,7 +275,7 @@ function pullLANIPList(obj){
 
 									<div style="margin-top:8px" id="logArea">
 										<textarea cols="63" rows="27" wrap="off" readonly="readonly" id="textarea" style="width:99%;font-family:Courier New, Courier, mono; font-size:11px;background:#475A5F;color:#FFFFFF;">
-											<% nvram_dump("syscmd.log","syscmd.sh"); %>
+											<% nvram_dump("nettool.log","syscmd.sh"); %>
 										</textarea>
 									</div>
 								</td>

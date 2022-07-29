@@ -30,8 +30,6 @@ function QKinternettype_load_body(){
 	parent.document.title = "ASUS <%tcWebApi_get("String_Entry","Web_Title2","s")%> <% tcWebApi_staticGet("SysInfo_Entry","ProductTitle","s") %> -  Welcome!";
 	//parent.set_step("t0");
 	document.form.uiViewPassword.focus();	
-	var http_password = decodeURIComponent("<% tcWebApi_char_to_ascii("Account_Entry0","web_passwd","s") %>");
-	chkPass(http_password, 'http_passwd');
 
 	if (dsl_support != -1) {
 		var detect_status = '<% tcWebApi_get("AutoPVC_Common","dsltmp_autodet_state","s") %>';
@@ -67,7 +65,7 @@ function submitForm(){
 
        if(document.form.uiViewUsername.value.length == 0){
                 showtext($("alert_msg1"), "<% tcWebApi_get("String_Entry","JS_Shareblanktest","s") %>");
-								$("alert_msg1").style.display = "";
+		$("alert_msg1").style.display = "";
                 document.form.uiViewUsername.focus();
                 document.form.uiViewUsername.select();
                 return false;
@@ -134,6 +132,10 @@ function pass_checked(obj){
 	switchType(obj, document.form.show_pass_1.checked, true);
 }
 
+function clean_scorebar(obj){
+	if(obj.value == "")
+		document.getElementById("scorebarBorder").style.display = "none";
+}
 </script>
 </head>
 <body onLoad="QKinternettype_load_body();" onunload="">
@@ -161,16 +163,16 @@ function pass_checked(obj){
 		<tr>
 		  <th width="200"><%tcWebApi_get("String_Entry","Router_Login_Name","s")%></th>
 		  <td class="QISformtd">
-		  		<input type="text" name="uiViewUsername" maxlength="20" value="<% tcWebApi_Get("Account_Entry0","username","s") %>" onKeyPress="return is_string(this, event);"" class="input_15_table">
+		  		<input type="text" name="uiViewUsername" maxlength="20"  tabindex="1" value="<% tcWebApi_Get("Account_Entry0","username","s") %>" onKeyPress="return is_string(this, event);"" class="input_15_table" autocapitalization="off" autocomplete="off">
 				<br/><span id="alert_msg1" style="color:#FFCC00;"></span>
 		  </td>
 		</tr>
 		<tr>
 		  <th width="200"><a class="hintstyle" href="javascript:void(0);" onClick="openHint(11,4)"><%tcWebApi_get("String_Entry","PASS_new","s")%></a></th>
 		  <td class="QISformtd">
-			<input id="uiViewPassword" type="password" autocapitalization="off" autocomplete="off" value="" name="uiViewPassword" tabindex="1" style="height:25px;" class="input_15_table" maxlength="16" onpaste="return false;" onkeyup="chkPass(this.value, 'http_passwd');"/>
+			<input id="uiViewPassword" type="password"  tabindex="2" autocapitalization="off" autocomplete="off" value="" name="uiViewPassword" style="height:25px;" class="input_15_table" maxlength="16" onpaste="return false;" onkeyup="chkPass(this.value, 'http_passwd');" onBlur="clean_scorebar(this);"/>
 				&nbsp;&nbsp;
-        <div id="scorebarBorder" name="scorebarBorder" style="margin-left:140px; margin-top:-26px; display:none;" title="<%tcWebApi_get("String_Entry","LHC_x_Password_itemSecur","s")%>">
+        <div id="scorebarBorder" style="margin-left:140px; margin-top:-26px; display:none;" title="<%tcWebApi_get("String_Entry","LHC_x_Password_itemSecur","s")%>">
         	<div id="score" name="score" style="margin-top:3px;"></div>
         	<div id="scorebar" name="scorebar">&nbsp;</div>        	
         </div>
@@ -179,8 +181,8 @@ function pass_checked(obj){
 		<tr>
 		  <th width="200"><span class="hintstyle"><%tcWebApi_get("String_Entry","PASS_retype","s")%></span></th>
 		  <td class="QISformtd">
-			<input id="uiViewPasswordConfirm" type="password" autocapitalization="off" autocomplete="off" value="" name="uiViewPasswordConfirm" tabindex="2" style="height:25px;" class="input_15_table" maxlength="16" onpaste="return false;"/>
-		  	<div style="margin-top:1px;"><input type="checkbox" name="show_pass_1" onclick="pass_checked(document.form.uiViewPassword);pass_checked(document.form.uiViewPasswordConfirm);"><%tcWebApi_get("String_Entry","QIS_show_pass","s")%></div>
+			<input id="uiViewPasswordConfirm" type="password"  tabindex="3" autocapitalization="off" autocomplete="off" value="" name="uiViewPasswordConfirm" style="height:25px;" class="input_15_table" maxlength="16" onpaste="return false;"/>
+		  	<div style="margin-top:1px;"><input type="checkbox" name="show_pass_1"  tabindex="4" onclick="pass_checked(document.form.uiViewPassword);pass_checked(document.form.uiViewPasswordConfirm);"><%tcWebApi_get("String_Entry","QIS_show_pass","s")%></div>
 		  </td>
 		</tr>
 	</table>
@@ -191,7 +193,7 @@ function pass_checked(obj){
 	<br/>
 <div class="apply_gen">
 	<!--<input type="button" value="<% tcWebApi_get("String_Entry","btn_pre","s") %>" onclick="gotoPrev();" class="button_gen">-->
-	<input type="button" value="<% tcWebApi_get("String_Entry","btn_next","s") %>" tabindex="3" onClick="submitForm();" class="button_gen">
+	<input type="button" value="<% tcWebApi_get("String_Entry","btn_next","s") %>" tabindex="5" onClick="submitForm();" class="button_gen">
 </div>
 </div>
 </form>

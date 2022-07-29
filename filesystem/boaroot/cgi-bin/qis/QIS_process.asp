@@ -3,6 +3,10 @@ If Request_Form("current_page") = "/cgi-bin/qis/QIS_admin_pass.asp" Then
 	tcWebApi_set("GUITemp_Entry0","username","uiViewUsername")
 	tcWebApi_set("GUITemp_Entry0","web_passwd","uiViewPassword")
 
+elseif Request_Form("current_page") = "/cgi-bin/qis/QIS_detect.asp" Then
+	tcWebApi_set("Adsl_Entry","ANNEXTYPEA","AnnexTypeA")
+        tcWebApi_commit("Adsl_Entry")
+
 elseif Request_Form("current_page") = "/cgi-bin/qis/QIS_wireless.asp" Then
 	tcWebApi_Set("GUITemp_Entry0","dsltmp_cfg_wl0_ssid","wl0_ssid")
 	tcWebApi_Set("GUITemp_Entry0","dsltmp_cfg_wl0_wpa_psk","wl0_wpa_psk")
@@ -10,6 +14,9 @@ elseif Request_Form("current_page") = "/cgi-bin/qis/QIS_wireless.asp" Then
 	tcWebApi_Set("GUITemp_Entry0","dsltmp_cfg_wl1_ssid","wl1_ssid")
 	tcWebApi_Set("GUITemp_Entry0","dsltmp_cfg_wl1_wpa_psk","wl1_wpa_psk")
 	tcWebApi_Set("GUITemp_Entry0","dsltmp_cfg_wl1_auth_mode_x","wl1_auth_mode_x")
+	tcWebApi_Set("SysInfo_Entry","w_Setting","w_Setting")
+	tcWebApi_Set("WLan_Entry","WPSConfStatus","WPSConfigured")
+	tcWebApi_commit("SysInfo_Entry")
 
 elseif Request_Form("current_page") = "/cgi-bin/qis/QIS_annex_setting.asp" Then
 	tcWebApi_set("Adsl_Entry","ANNEXTYPEA","AnnexTypeA")
@@ -60,6 +67,7 @@ elseif Request_Form("current_page") = "/cgi-bin/qis/QIS_mer_cfg.asp" Then
 	tcWebApi_set("GUITemp_Entry0","dsltmp_cfg_DHCPClient","dsltmp_cfg_DHCPClient")
 	tcWebApi_set("GUITemp_Entry0","dsltmp_cfg_dnsenable","dsltmp_cfg_dnsenable")
 	tcWebApi_set("GUITemp_Entry0","dsltmp_cfg_vlanid","dsltmp_cfg_vlanid")
+	tcWebApi_set("GUITemp_Entry0","dsltmp_dhcp_clientid","dsltmp_dhcp_clientid")
 	tcWebApi_set("GUITemp_Entry0","dsltmp_wanTypeOption","dsltmp_wanTypeOption")
 	tcWebApi_set("GUITemp_Entry0","with_wan_setting","with_wan_setting")
 
@@ -310,9 +318,7 @@ elseif Request_Form("current_page") = "/cgi-bin/qis/QIS_finish.asp" Then
 
 		end if
 
-		TCWebApi_set("Upnpd_Entry","Active","value_no")
-		TCWebApi_set("Upnpd_Entry","autoconf","value_zero")
-
+		TCWebApi_set("Upnpd_Entry","Active","Yes")
 		tcWebApi_commit("Wan_PVC")
 		tcWebApi_commit("Upnpd_Entry")
 	end if

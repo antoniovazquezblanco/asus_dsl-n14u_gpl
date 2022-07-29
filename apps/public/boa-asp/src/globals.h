@@ -26,7 +26,7 @@
 #define _GLOBALS_H
 
 #if  defined(TCSUPPORT_WEBSERVER_SSL)
-#include "sslSocket.h"
+#include <mssl.h>
 #endif 
 struct mmap_entry {
     dev_t dev;
@@ -109,7 +109,7 @@ struct request {                /* pending requests */
     struct request *prev;       /* previous */
 
 #if  defined(TCSUPPORT_WEBSERVER_SSL)
-	sslConn_t* ssl;
+	mssl_conn_t *ssl;
 #endif 
     /* everything below this line is kept regardless */
     char buffer[BUFFER_SIZE + 1]; /* generic I/O buffer */

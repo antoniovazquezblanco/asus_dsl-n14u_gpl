@@ -216,8 +216,10 @@ mxml_node_t *get_node_top();
 
 
 /* function used for get ipv4 and ipv6 address by iface name */
+#ifndef IFNAMSIZ
 #define IFNAMSIZ  16
-#define PROC_IFINET6_PATH   "/proc/net/if_inet6" 
+#endif
+#define PROC_IFINET6_PATH   "/proc/net/if_inet6"
 #define INET6_ADDRSTRLEN	64
 int getifaddr_ipv4(char *ifname, struct in_addr *ifaddr);
 int getifaddr_ipv6(char *ifname, struct in6_addr *ifaddr, int type);
@@ -251,7 +253,8 @@ struct pc{
 enum TransferMode{
 	TM_ADSL = 0,
 	TM_VDSL,
-	TM_Ether
+	TM_Ether,
+	TM_USB
 };
 
 void config_daytime_string(FILE *fp);
@@ -303,6 +306,7 @@ void route_setting(void);
 
 extern int decryptRomfile( char *path, unsigned int *length, unsigned int offset ); //Ren
 extern int timerTrigger(unsigned int seconds, void (*func)(int signo)); //Ren
+extern int timerTrigger_re(unsigned int first_seconds, unsigned int interval, void (*func)(int signo)); //Ren
 extern int getTransferMode(void); //Ren
 extern int modifyXDSLscript(void); //Ren
 extern char * getWanIfName(char *buffer); //Ren
@@ -315,4 +319,6 @@ extern int host_addrtypes(const char *name, int af); //Ren
 extern int ipt_addr_compact(const char *s, int af, int strict); //Ren
 extern int run_app_script2(const char *pkg_name, const char *pkg_action); //Ren
 int wan_primary_ifunit(void);
+int copy_node_all_attribute(mxml_node_t* top, char* from, char* to);
+void stop_all_wan(void);
 #endif

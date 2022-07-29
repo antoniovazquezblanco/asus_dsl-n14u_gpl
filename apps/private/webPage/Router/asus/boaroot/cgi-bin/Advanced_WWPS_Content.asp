@@ -1,4 +1,5 @@
 <%
+If Request_Form("editFlag") = "1" then
 	tcWebApi_set("WLan_Common","editFlag","editFlag")
 	tcWebApi_set("WLan_Common","MBSSID_changeFlag","MBSSID_changeFlag")
 	tcWebApi_set("WLan_Common","MBSSID_able_Flag","MBSSID_able_Flag")
@@ -6,11 +7,13 @@
 	tcWebApi_Set("WLan_Common","wl_unit","wps_band")
 	tcWebApi_Set("WLan_Common","wps_enable","wps_enable")
 
+	If Request_Form("WpsSwitch")="1" Then
+		TCWebApi_set("Info_WLan","WPSSwitchStatus","WpsSwitch")
+		tcWebApi_commit("WLan_Entry")
+	end if
+end if
 
 If Request_Form("WpsStart")="1" Then
-	tcWebApi_Set("SysInfo_Entry","w_Setting","w_Setting")
-	tcWebApi_commit("SysInfo_Entry")
-	
 	if Request_Form("wps_enable") = "1" then
 		TCWebApi_set("Info_WLan","WPSActiveStatus","WpsStart")
 		TCWebApi_set("WLan_Entry","WPSConfMode","WpsConfModeAll")
@@ -21,14 +24,11 @@ If Request_Form("WpsStart")="1" Then
 	else
 		TCWebApi_set("WLan_Entry","WPSConfMode","WpsConfModeNone")
 	end if
-
-	TCWebApi_set("WLan_Entry","WPSConfStatus","WPSConfigured")
 	tcWebApi_commit("WLan_Entry")
 End If
 
 If Request_Form("WpsOOB")="1" Then
 	TCWebApi_set("Info_WLan","WPSOOBActive","WpsOOB")
-	tcWebApi_Set("WLan_Common","wps_enable","wps_enable")
 	TCWebApi_set("WLan_Entry","WPSConfStatus","WPSunConfigured")
 	tcWebApi_commit("WLan_Entry")
 end if
@@ -49,7 +49,7 @@ load_parameters_to_generic()
 <html xmlns:v>
 <!--Advanced_WWPS_Content.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -195,10 +195,6 @@ function doStartWPS(){
 		<%end if%>
 	}
 
-	if(document.form.isInWPSing.value==0){//xyyou???
-		//alert("Please Start WPS peer within 2 minutes.");
-	}
-
 	document.form.WpsStart.value = 1;
 	document.form.WpsOOB.value = 0;
 	document.form.submit();
@@ -207,32 +203,15 @@ function doStartWPS(){
 function doResetWPS(){
 	document.form.WpsOOB.value = 1;
 	document.form.WpsStart.value = 0;
-	document.form.wps_enable.value = 0;
-	if(model_name == "DSL-N66U")
-	{
-		showLoading(28);
-		setTimeout("redirect();", 28000);
-	}
-	else
-	{
-		showLoading(23);
-		setTimeout("redirect();", 23000);
-	}
+	showLoading(28);
+	setTimeout("redirect();", 28000);
 	document.form.submit();
 }
 
 function doGenerate(){
 	document.form.WpsGenerate.value = "1";
-	if(model_name == "DSL-N66U")
-	{
-		showLoading(28);
-		setTimeout("redirect();", 28000);
-	}
-	else
-	{
-		showLoading(23);
-		setTimeout("redirect();", 23000);
-	}
+	showLoading(28);
+	setTimeout("redirect();", 28000);
 	document.form.submit();
 }
 function doWPSUseChange(flag){
@@ -251,6 +230,8 @@ function doWPSUseChange(flag){
 		$("wpsmethod_tr").style.display = "";
 		document.form.wps_enable.value = "1";
 	}
+
+	document.form.WpsSwitch.value = "1";
 	showLoading(2);
 	setTimeout("redirect();", 2000);
 	document.form.editFlag.value = "1";
@@ -304,9 +285,9 @@ function updateWPS(){
 	var ie = window.ActiveXObject;
 
 	if (ie)
-		makeRequest_ie('/cgi-bin/WPS_info.asp');
+		makeRequest_ie('/cgi-bin/WPS_info.xml');
 	else
-		makeRequest('/cgi-bin/WPS_info.asp');
+		makeRequest('/cgi-bin/WPS_info.xml');
 }
 
 function loadXML(){
@@ -466,6 +447,7 @@ function show_wsc_status(wps_infos){
 <INPUT TYPE="HIDDEN" NAME="WPSunConfigured" value="1">
 <INPUT TYPE="HIDDEN" NAME="WpsConfModeAll" value="7">
 <INPUT TYPE="HIDDEN" NAME="WpsConfModeNone" value="0">
+<INPUT TYPE="HIDDEN" name="WpsSwitch" value="0">
 <INPUT TYPE="HIDDEN" NAME="WpsStart" value="0">
 <INPUT TYPE="HIDDEN" NAME="WpsOOB" value="0">
 <INPUT TYPE="HIDDEN" NAME="isInWPSing" value="<%tcWebApi_get("Info_WLan","wlanWPStimerRunning","s")%>">

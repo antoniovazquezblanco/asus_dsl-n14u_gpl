@@ -115,9 +115,9 @@ document.redirectForm.submit();
 <td align="left">
 <span class="description_down"><% tcWebApi_Get("String_Entry", "QKS_detect_desc2", "s") %></span>
 </td>
-<td align="right">
+<!--td align="right">
 <img onclick="parent.gotoIndex();" style="cursor:pointer;" align="right" title="Go to Home" src="../images/backtohome.png" onMouseOver="this.src='/images/backtohomeclick.png'" onMouseOut="this.src='/images/backtohome.png'">
-</td>
+</td-->
 </tr>
 </table>
 </div>

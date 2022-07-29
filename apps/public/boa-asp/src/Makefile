@@ -53,8 +53,10 @@ ifneq ($(TCSUPPORT_IPV6), )
 endif
 
 ifneq ($(TCSUPPORT_WEBSERVER_SSL), )
-LIBS +=  -L ../../lib/ -lmatrixssl
-CFLAGS += -I../../matrixssl-1-8
+#LIBS +=  -L ../../lib/ -lmatrixssl
+#CFLAGS += -I../../matrixssl-1-8
+LIBS +=  -L $(FILESYSTEM_DIR)/lib/ -L$(APP_OPENSSL_DIR) -lmssl -lssl -lcrypto
+CFLAGS += -I../../mssl -I$(APP_OPENSSL_DIR)/include
 endif
 
 #CROSS=mips-linux-gnu-

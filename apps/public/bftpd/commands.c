@@ -77,8 +77,8 @@
 
 
 // frank added 20110428
-#ifndef TC3262
-#define MAX_RECV_FILE_SIZE	0x400000 					//4.5MB
+#if defined(TCSUPPORT_CPU_MT7510) || defined(TCSUPPORT_CPU_MT7520)
+#define MAX_RECV_FILE_SIZE	0xc00000 					//12MB
 #else
 #define MAX_RECV_FILE_SIZE	0x800000 					//5.5MB
 #endif

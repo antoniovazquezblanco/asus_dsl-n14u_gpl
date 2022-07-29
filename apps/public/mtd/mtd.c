@@ -790,6 +790,7 @@ int
 main(int argc, char **argv)
 {
 	int ch, i, boot, imagefd = -1, force, quiet, unlocked;
+	int clean_cache;
 	char *erase[MAX_ARGS], *device;
 	const char *imagefile = NULL;
 	enum {
@@ -815,8 +816,9 @@ main(int argc, char **argv)
 	force = 0;
 	buflen = 0;
 	quiet = 0;
+	clean_cache = 1;
 
-	while ((ch = getopt(argc, argv, "Ffrqe:")) != -1)
+	while ((ch = getopt(argc, argv, "c:Ffrqe:")) != -1)
 		switch (ch) {
 			case 'F':
 				quiet = 1;
@@ -838,6 +840,9 @@ main(int argc, char **argv)
 
 				erase[i++] = optarg;
 				erase[i] = NULL;
+				break;
+			case 'c':
+				clean_cache = atoi(optarg);
 				break;
 
 			case '?':
@@ -988,7 +993,11 @@ main(int argc, char **argv)
 	}
 
 	sync();
-
+#if defined(TCSUPPORT_2_6_36_KERNEL)
+	if (clean_cache == 1)
+		system("echo 1 > /proc/sys/vm/drop_caches");
+#endif
+	
 	i = 0;
 	unlocked = 0;
 	while (erase[i] != NULL 

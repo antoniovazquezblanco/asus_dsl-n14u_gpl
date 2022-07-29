@@ -19,7 +19,7 @@ end if
 
 <!--Advanced_Firewall_Content.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -106,7 +106,7 @@ function validForm(){
 	!document.form.filter_lw_date_x_Tue.checked && !document.form.filter_lw_date_x_Wed.checked &&
 	!document.form.filter_lw_date_x_Thu.checked && !document.form.filter_lw_date_x_Fri.checked &&
 	!document.form.filter_lw_date_x_Sat.checked && !document.form.fw_lw_enable_x[1].checked){
-		alert("Please select at least one day or disable this feature.");
+		alert(Untranslated.filter_lw_date_valid);
 		document.form.filter_lw_date_x_Sun.focus();
 		return false;
 	}
@@ -420,7 +420,7 @@ function valid_icmp_portlist(){
 <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" class="FormTable_table">
 <thead>
 <tr>
-	   						<td colspan="6" id="filter_lwlist"><%tcWebApi_get("String_Entry","FC_LWFilterList_groupitemdesc","s")%>(list limit:8)</td>
+	   						<td colspan="6" id="filter_lwlist"><%tcWebApi_get("String_Entry","FC_LWFilterList_groupitemdesc","s")%> (<%tcWebApi_get("String_Entry","List_limit","s")%> 8)</td>
 </tr>
 </thead>
 <tr>

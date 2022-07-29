@@ -11,7 +11,7 @@
 
 <!--Advanced_SettingBackup_Content.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -56,6 +56,8 @@ function uiDoUpdate()
 		string3 = form.tools_FW_UploadFile.value.search(/Settings_DSL-N66U/);
 	else if(model_name == "DSL-N55U-C1")
 		string3 = form.tools_FW_UploadFile.value.search(/Settings_DSL-N55U-C1/);
+	else if(model_name == "DSL-N55U-D1")
+		string3 = form.tools_FW_UploadFile.value.search(/Settings_DSL-N55U-D1/);
 	else if(model_name == "DSL-N16U")
 		string3 = form.tools_FW_UploadFile.value.search(/Settings_DSL-N16U/);
 	else if(model_name == "DSL-N12E-C1")
@@ -66,9 +68,18 @@ function uiDoUpdate()
 		string3 = form.tools_FW_UploadFile.value.search(/Settings_DSL-N10-C1/);
 	else if(model_name == "DSL-N14U")
 		string3 = form.tools_FW_UploadFile.value.search(/Settings_DSL-N14U/);
+	else if(model_name == "DSL-AC56U")
+		string3 = form.tools_FW_UploadFile.value.search(/Settings_DSL-AC56U/);
+	else if(model_name == "DSL-N17U")
+		string3 = form.tools_FW_UploadFile.value.search(/Settings_DSL-N17U/);
+	else if(model_name == "DSL-AC52U")
+		string3 = form.tools_FW_UploadFile.value.search(/Settings_DSL-AC52U/);
+	else if(model_name == "DSL-N16")
+		string3 = form.tools_FW_UploadFile.value.search(/Settings_DSL-N16/);
 
 	if (form.tools_FW_UploadFile.value=="") {
-		alert("You must select a setting file to upload.");
+		alert("<%tcWebApi_get("String_Entry","JS_fieldblank","s")%>");
+		form.tools_FW_UploadFile.focus();
 	}
 	else {
 		if (string3 >= 0) {
@@ -77,7 +88,7 @@ function uiDoUpdate()
 			form.submit();
 		}
 		else
-			alert("Invalid setting file.");
+			alert("<%tcWebApi_get("String_Entry","Setting_upload_hint","s")%>");
 	}
 }
 

@@ -1,53 +1,57 @@
-# include ../common.mak
-
-TOP = $(APP_PUBLIC_DIR)
+#include ../common.mak
+#include $(SRCBASE)/.config
+TOP = ..
 
 OBJS = usb_info.o disk_io_tools.o disk_initial.o disk_share.o
-PROGS = libdisk.so write_smb_conf
-# PROGS += test_of_var_files
-# PROGS += test_disk1 test_disk2
+PROGS = libdisk.so write_smb_conf# test_of_var_files
+ifneq ($(BUILD_NAME),RT-N10U)
+PROGS += test_disk1 test_disk2
+endif
 PROGS += test_share
-ifeq ($(RTCONFIG_WEBDAV),1)
+ifeq ($(RTCONFIG_WEBDAV),y)
 PROGS += write_webdav_conf
 endif
 
-CFLAGS = -fPIC -Os -Wall
-CFLAGS += $(TC_CFLAGS) -I../shared
-CFLAGS += -I$(APP_TCAPILIB_DIR)
-CFLAGS += -lcrypt
-# CFLAGS += -DASUS_NVRAM
-# CFLAGS += -I. -I$(TOP)/shared -I$(SRCBASE)/include -I$(LINUXDIR)/include -Wall
-# LDFLAGS = -L. -ldisk -L$(TOP)/nvram -lnvram -L$(TOP)/shared -lshared
-LDFLAGS = -L. -ldisk -L$(APP_TCAPILIB_DIR) -ltcapi -L$(APP_SHARED_DIR) -lshared
+CFLAGS += -fPIC $(TC_CFLAGS) -Os
+CFLAGS += -I. -I$(TOP)/shared -I$(APP_TCAPILIB_DIR) -Wall
+LDFLAGS_SO += -L$(APP_TCAPILIB_DIR) -ltcapi -L$(TOP)/shared -lshared
+LDFLAGS += $(LDFLAGS_SO) -L. -ldisk
+ifeq ($(RTCONFIG_BCMARM),y)
+CFLAGS += -I$(SRCBASE)/common/include
+LDFLAGS += -lgcc_s
+endif
 
-# CFLAGS += -I$(TOP)/busybox/include -I$(TOP)/busybox/util-linux/volume_id
-# OBJS += $(TOP)/busybox/util-linux/volume_id/util2.o
-# OBJS += $(TOP)/busybox/util-linux/volume_id/linux_swap.o
-# OBJS += $(TOP)/busybox/util-linux/volume_id/ext.o
-# OBJS += $(TOP)/busybox/util-linux/volume_id/fat.o
-# OBJS += $(TOP)/busybox/util-linux/volume_id/ntfs.o
+ifeq ($(RTCONFIG_QTN),y)
+LDFLAGS += -L$(TOP)/libqcsapi_client -lqcsapi_client
+endif
+
+#CFLAGS += -I$(TOP)/busybox/include
+#FLAGS += -I$(TOP)/busybox/util-linux/volume_id
+
+#ID_OBJS = $(TOP)/busybox/util-linux/volume_id/util2.o
+#ID_OBJS += $(TOP)/busybox/util-linux/volume_id/linux_swap.o
+#ID_OBJS += $(TOP)/busybox/util-linux/volume_id/ext.o
+#ID_OBJS += $(TOP)/busybox/util-linux/volume_id/fat.o
+#ID_OBJS += $(TOP)/busybox/util-linux/volume_id/ntfs.o
+#ID_OBJS += $(TOP)/busybox/util-linux/volume_id/hfs.o
+#ID_OBJS += $(if $(EXFAT),$(TOP)/busybox/util-linux/volume_id/exfat.o)
+#ID_OBJS += libbb_stub.o
 
 #SHARE_STATIC=y
 
 all: $(PROGS)
 
 #libdisk.so: $(OBJS) $(TOP)/shared/shutils.o
-libdisk.so: $(OBJS)
+libdisk.so: $(OBJS) $(ID_OBJS)
+	#$(LD) $(LDFLAGS_SO) -shared -o $@ $^
 	$(CC) -shared $(CFLAGS) -o $@ $^
-	$(STRIP) $@
 
 write_smb_conf: write_smb_conf.o libdisk.so
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
-	$(STRIP) $@
-
-write_ftpd_conf: write_ftpd_conf.o libdisk.so
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
-	$(STRIP) $@
 
 ifeq ($(RTCONFIG_WEBDAV),y)
 write_webdav_conf: write_webdav_conf.o libdisk.so
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
-	$(STRIP) $@
 endif
 
 test_of_var_files: libdisk.so test_share
@@ -55,22 +59,19 @@ test_of_var_files: libdisk.so test_share
 
 test_disk1: test_disk1.o libdisk.so
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
-	$(STRIP) $@
 
-test_disk2: test_disk2.o
-	$(CC) $(CFLAGS) -L$(TOP)/nvram -lnvram -L$(TOP)/shared -lshared -o $@ $^
-	$(STRIP) $@
+test_disk2: test_disk2.o $(ID_OBJS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
 
 ifeq ($(SHARE_STATIC),y)
 test_share: test_share.o disk_share.o
 	@echo Got Static.
-	$(CC) $(CFLAGS) $(LDFLAGS) -s -o $@ $^
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
 else
 test_share: test_share.o libdisk.so
 	@echo Got lib.
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
 endif
-	$(STRIP) $@
 
 # install: all
 	# install -D test_disk1 $(INSTALLDIR)/sbin/test_disk1
@@ -113,5 +114,4 @@ endif
 	# cd $(INSTALLDIR)/sbin && ln -sf test_share how_many_layer
 
 clean:
-	rm -f *.o $(PROGS)
-
+	rm -f *.o $(PROGS) write_webdav_conf

@@ -1,5 +1,10 @@
 CC=gcc
 CFLAGS += -DTRENDCHIP
+
+ifneq ($(TC_CFLAGS), )
+	CFLAGS+=$(TC_CFLAGS)
+endif
+
 ifneq ($(US_PROFILE),)
 CFLAGS += -D$(US_PROFILE)
 endif
@@ -10,6 +15,11 @@ endif
 
 OBJS=trx.o
 EXECS=trx
+
+ifeq ($(BOOTROM_LARGE_SIZE), 1)
+CFLAGS += -DBOOTROM_LARGE_SIZE
+endif
+
 all: trx
 
 .c.o:

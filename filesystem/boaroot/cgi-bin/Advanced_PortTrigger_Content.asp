@@ -12,7 +12,7 @@ end if
 
 <!--Advanced_PortTrigger_Content.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -268,16 +268,16 @@ return true;
 <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" class="FormTable_table">
 <thead>
 <tr>
-            		<td colspan="6" id="autofw_rulelist"><%tcWebApi_get("String_Entry","IPC_TriggerList_groupitemdesc","s")%>(list limit:14)</td>
+            		<td colspan="6" id="autofw_rulelist"><%tcWebApi_get("String_Entry","IPC_TriggerList_groupitemdesc","s")%> (<%tcWebApi_get("String_Entry","List_limit","s")%> 14)</td>
 </tr>
 </thead>
 <tr>
-				<th><%tcWebApi_get("String_Entry","IPC_autofwDesc_in","s")%></th>
+		<th><%tcWebApi_get("String_Entry","IPC_autofwDesc_in","s")%></th>
             	<th><%tcWebApi_get("String_Entry","IPC_autofwOutPort_in","s")%></th>
             	<th><%tcWebApi_get("String_Entry","IPC_VServerProto_in","s")%></th>
             	<th><%tcWebApi_get("String_Entry","IPC_autofwInPort_in","s")%></th>
             	<th><%tcWebApi_get("String_Entry","IPC_VServerProto_in","s")%></th>            
-				<th><% tcWebApi_Get("String_Entry", "list_add_delete", "s") %></th>
+		<th><% tcWebApi_Get("String_Entry", "list_add_delete", "s") %></th>
 </tr>
 <tr>
 <td width="22%">

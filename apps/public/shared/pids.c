@@ -4,7 +4,6 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/wait.h>
 #include <fcntl.h>
 #include <dirent.h>
 #include <stdlib.h>
@@ -457,9 +456,4 @@ int pids(char *appname)
 		return 1;
 	else
 		return 0;
-}
-
-void chld_reap(int sig)
-{
-	while (waitpid(-1, NULL, WNOHANG) > 0) {}
 }

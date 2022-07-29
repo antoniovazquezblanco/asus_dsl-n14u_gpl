@@ -26,6 +26,8 @@
 
 #include "libbridge.h"
 #include "libbridge_private.h"
+#include <linux/version.h>
+
 
 #ifdef HAVE_LIBSYSFS
 /* Given two two character "0a" convert it to a byte */
@@ -201,7 +203,9 @@ static int old_get_bridge_info(const char *bridge, struct bridge_info *info)
 	/* IGMP snooping information */
 	info->igmpsnoop_enabled = i.igmpsnoop_enabled;
 	info->igmpsnoop_quickleave = i.igmpsnoop_quickleave;
+#ifndef TCSUPPORT_IGMPSNOOPING_ENHANCE
 	info->igmpsnoop_routeportflag = i.igmpsnoop_routeportflag;
+#endif
 	info->igmpsnoop_dbg = i.igmpsnoop_dbg;
 	__jiffies_to_tv(&info->igmpsnoop_ageing_time, 
 			i.igmpsnoop_ageing_time);
@@ -539,23 +543,37 @@ int br_set_igmpsnoop_quickleave(const char *br, int igmpsnoop_quickleave)
 	return br_set(br, "igmpsnoop_quickleave", igmpsnoop_quickleave, BRCTL_SET_IGMPSNOOPING_QUICKLEAVE);
 }
 
+#ifndef TCSUPPORT_IGMPSNOOPING_ENHANCE
 int br_set_igmpsnoop_routeportflag(const char *br, int igmpsnoop_routeportflag)
 {
 	return br_set(br, "igmpsnoop_routeportflag", igmpsnoop_routeportflag, BRCTL_SET_IGMPSNOOPING_ROUTEPORTFLAG);
 }
-	
+#endif	
 int br_set_igmpsnoop_dbg(const char *br, int igmpsnoop_dbg)
 {
 	return br_set(br, "igmpsnoop_dbg", igmpsnoop_dbg, BRCTL_SET_IGMPSNOOPING_DBG);
 }
 
+
 static inline void __copy_mc_fdb(struct mc_fdb_entry *ent, 
 			      const struct __mc_fdb_entry *f)
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+	memcpy(ent->group_addr, f->group_addr, 40);
+#else
 	memcpy(ent->group_addr, f->group_addr, 16);
+#endif
 	memcpy(ent->host_addr, f->host_addr, 6);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)	
+	memcpy(ent->group_mac, f->group_mac, 6);
+	ent->version = f->version;
+#endif	
 	#ifdef TCSUPPORT_IGMP_SNOOPING_V3
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)	
+	memcpy(ent->src_addr,f->src_addr,40);
+#else
 	memcpy(ent->src_addr,f->src_addr,16);
+#endif
 	ent->filter_mode = f->filter_mode;
 	#endif
 	ent->port_no = f->port_no;

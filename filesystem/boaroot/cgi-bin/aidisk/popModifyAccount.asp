@@ -69,11 +69,11 @@ function validForm(){
 	}
 
         // password
-        if($("password").value.length <= 0 || $("confirm_password").value.length <= 0){
+        if($("new_password").value.length <= 0 || $("confirm_password").value.length <= 0){
                 showtext($("alert_msg2"),"*<%tcWebApi_get("String_Entry","File_Pop_content_alert_desc6","s")%>");
-                if($("password").value.length <= 0){
-                                $("password").focus();
-                                $("password").select();
+                if($("new_password").value.length <= 0){
+                                $("new_password").focus();
+                                $("new_password").select();
                 }else{
                                 $("confirm_password").focus();
                                 $("confirm_password").select();
@@ -81,29 +81,29 @@ function validForm(){
                 return false;
         }
 
-        if($("password").value != $("confirm_password").value){
+        if($("new_password").value != $("confirm_password").value){
                 showtext($("alert_msg2"),"*<%tcWebApi_get("String_Entry","File_Pop_content_alert_desc7","s")%>");
                 $("confirm_password").focus();
                 return false;
         }
 
-        if(!validate_string(document.createAccountForm.password)){
-                $("password").focus();
-                $("password").select();
+        if(!validate_string(document.modifyAccountForm.new_password)){
+                $("new_password").focus();
+                $("new_password").select();
                 return false;
         }
 
-        if($("password").value.length > 16){
+        if($("new_password").value.length > 16){
                 showtext($("alert_msg2"),"*<%tcWebApi_get("String_Entry","LHC_x_Password_id","s")%>");
-                $("password").focus();
-                $("password").select();
+                $("new_password").focus();
+                $("new_password").select();
                 return false;
         }
 
         var re = new RegExp("[^a-zA-Z0-9]+","gi");
-        if(re.test($("password").value)){
+        if(re.test($("new_password").value)){
                 showtext($("alert_msg2"),"<%tcWebApi_get("String_Entry","File_Pop_content_alert_desc9","s")%>");
-                $("password").focus();
+                $("new_password").focus();
                 return false;
         }
 

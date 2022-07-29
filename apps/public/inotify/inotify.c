@@ -13,6 +13,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
+#include <errno.h>
 #include "event_queue.h"
 #include "inotify_utils.h"
 
@@ -58,8 +59,8 @@ void initConfig(char *path);
 void initConfig2(char *path);
 void my_mkdir_r(char *path);
 char  *get_mount_path(char *path , int n);
-long pre_event;
-long pre_pre_event;
+//long pre_event;
+//long pre_pre_event;
 
 #define SHELL_FILE  "/tmp/smartsync/script/write_nvram"
 
@@ -109,8 +110,7 @@ int create_shell_file(){
     FILE *fp;
     char contents[256];
     memset(contents,0,256);
-    //strcpy(contents,"#! /bin/sh\nnvram set $2=\"$1\"\nnvram commit");
-	strcpy(contents,"#! /bin/sh\ntcapi set AiCloud_Entry $2 \"$1\"\ntcapi commit AiCloud\ntcapi save");
+    strcpy(contents,"#! /bin/sh\nnvram set $2=\"$1\"\nnvram commit");
 
     if(( fp = fopen(SHELL_FILE,"w"))==NULL)
     {
@@ -157,8 +157,8 @@ int main(int argc, char *argv[])
     my_mkdir("/tmp/smartsync/script");
     create_shell_file();
 
-    pre_event = -1;
-    pre_pre_event = -1;
+    //pre_event = -1;
+    //pre_pre_event = -1;
 
     create_file_list = create_list_head();
 
@@ -463,19 +463,14 @@ void watch_folder()
 {
     while(!exit_loop)
     {
-
-        //printf("########## add_new_watch_item is %d ##########\n",add_new_watch_item);
-
-        //if( pathlist.number > 0 && add_new_watch_item == 1)
-        //if( pathlist.number > 0)
         if(allfolderlist->next != NULL)
         {
 #ifdef MYDEBUG
             printf("#########inotifystart watch_folder###########\n");
 #endif
-            //keep_running = 0;
             inotifyStart();
         }
+		sleep(1);
     }
 }
 

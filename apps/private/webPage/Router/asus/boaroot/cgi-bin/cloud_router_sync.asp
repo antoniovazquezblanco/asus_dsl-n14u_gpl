@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <html xmlns:v>
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -1098,16 +1098,16 @@ hint_string += "<b>Client to server:</b> Client to server refers to the invitee 
 							<a href="cloud_main.asp"><div class="tab"><span>AiCloud</span></div></a>
 						</td>
 						<td>
-							<a href="cloud_sync.asp"><div class="tab"><span>Smart Sync</span></div></a>
+							<a href="cloud_sync.asp"><div class="tab"><span><% tcWebApi_Get("String_Entry","smart_sync","s") %></span></div></a>
 						</td>
 						<td>
-							<div class="tabclick"><span>Sync Server</span></div>							
+							<div class="tabclick"><span><% tcWebApi_Get("String_Entry","Server_Sync","s") %></span></div>							
 						</td>
 						<td>
-							<a href="cloud_settings.asp"><div class="tab"><span>Settings</span></div></a>
+							<a href="cloud_settings.asp"><div class="tab"><span><% tcWebApi_Get("String_Entry","Settings","s") %></span></div></a>
 						</td>
 						<td>
-							<a href="cloud_syslog.asp"><div class="tab"><span>Log</span></div></a>
+							<a href="cloud_syslog.asp"><div class="tab"><span><% tcWebApi_Get("String_Entry","Log","s") %></span></div></a>
 						</td>
 					</tr>
 					</tbody>
@@ -1124,7 +1124,7 @@ hint_string += "<b>Client to server:</b> Client to server refers to the invitee 
 						  <td bgcolor="#4D595D" valign="top">
 
 						<div>&nbsp;</div>
-						<div class="formfonttitle">AiCloud - Sync Server</div>
+						<div class="formfonttitle">AiCloud - <% tcWebApi_Get("String_Entry","Server_Sync","s") %></div>
 						<div style="margin-left:5px;margin-top:10px;margin-bottom:10px;"><img src="/images/New_ui/export/line_export.png"></div>
 						<div id="title_desc_block" style="display:none;">
 							<table width="700px" style="margin-left:25px;">

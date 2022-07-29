@@ -13,15 +13,13 @@
 <link href="/form_style.css" rel="stylesheet" type="text/css" />
 <script type="text/javascript" src="/state.js"></script>
 <script>
-var usb_path1_product = '<% tcWebApi_get("USB_Entry","usb_path1_product","s") %>';
-var usb_path2_product = '<% tcWebApi_get("USB_Entry","usb_path2_product","s") %>';
-var model_name;
+var dongle_name;
 if(parent.get_clicked_device_order())
-	odel_name = usb_path2_product;
+	dongle_name = parent.usb_path1_product;
 else
-	model_name = usb_path1_product;
+	dongle_name = parent.usb_path0_product;
 function initial(){
-	showtext($("disk_model_name"), model_name);
+	showtext($("disk_model_name"), dongle_name);
 }
 function goHspdaWizard(){
 	parent.location.href = "/cgi-bin/Advanced_Modem_Content.asp";
@@ -47,8 +45,8 @@ function remove_d3g(){
 	</tr>
 	<tr>
 		<td height="50" style="padding:10px 15px 0px 15px;">
-    	<!--p class="formfonttitle_nwm" style="float:left;width:138px;"><%tcWebApi_get("String_Entry","GO_HSDPA_SETTING","s")%></p-->
-    	<!--input type="button" class="button_gen" onclick="goHspdaWizard();" value="<%tcWebApi_get("String_Entry","btn_go","s")%>" -->
+    	<p class="formfonttitle_nwm" style="float:left;width:138px;"><%tcWebApi_get("String_Entry","GO_HSDPA_SETTING","s")%></p>
+    	<input type="button" class="button_gen" onclick="goHspdaWizard();" value="<%tcWebApi_get("String_Entry","btn_go","s")%>">
 			<img style="margin-top:5px;" src="/images/New_ui/networkmap/linetwo2.png">
 		</td>
 	</tr>

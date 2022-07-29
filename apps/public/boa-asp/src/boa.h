@@ -52,7 +52,7 @@
 #include "globals.h"
 
 #if  defined(TCSUPPORT_WEBSERVER_SSL)
-#include "sslSocket.h"
+#include <mssl.h>
 #endif 
 #include <arpa/inet.h>
 
@@ -256,9 +256,9 @@ extern int ssl_server_port;
 extern int http_mode;
 int boa_sslInit();
 void boa_sslUninit();
-int boa_sslAccept(sslConn_t **cpp, SOCKET fd, sslKeys_t *keys,int (*certValidator)(sslCertInfo_t *t, void *arg), int flags);
-int boa_sslWrite(sslConn_t *cp, char *buf, int len, int *status);
-int boa_sslRead(sslConn_t *cp, char *buf, int len, int *status);
+int boa_sslAccept(mssl_conn_t **conn, const int fd, SSL_CTX *ctx);
+int boa_sslWrite(mssl_conn_t *conn, char *buf, const int buflen);
+int boa_sslRead(mssl_conn_t *conn, char *buf, const int len);
 enum { HTTP_ONLY = 1, HTTPS_ONLY, BOTH_HTTP_HTTPS };
 #endif 
 

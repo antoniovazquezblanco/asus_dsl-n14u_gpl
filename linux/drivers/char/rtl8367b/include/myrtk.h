@@ -1,6 +1,0 @@
-
-#define MDC_MDIO_OPERATION
-#define CHIP_RTL8367RB
-
-
-

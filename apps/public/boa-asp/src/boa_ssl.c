@@ -1,11 +1,13 @@
 #if defined(TCSUPPORT_WEBSERVER_SSL)
 #include "boa.h"
-#define SSL_KEYF "/usr/etc/key.pem"
-#define SSL_CERTF "/usr/etc/cert.pem"
-#define SSL_FILETYPE_PEM 1
+#include <shutils.h>
+#define SSL_KEYF "/etc/key.pem"
+#define SSL_CERTF "/etc/cert.pem"
+#define SSL_CERT_GEN	"/usr/script/gencert.sh"
+//#define SSL_FILETYPE_PEM 1
 
 int server_ssl;				/*ssl socket */
-sslKeys_t *ssl_key = NULL;
+SSL_CTX *ssl_ctx = NULL;	//Andy Chiu, 2015/02/09. for store key information.
 int ssl_server_port = 8443;		/*The port that the server should listen on*/
 int ssl_pending_requests = 0; 
 #ifdef INET6
@@ -17,21 +19,47 @@ static int sock_opt = 1;
 
 int  boa_sslInit(void)
 {
-	tcdbg_printf( "\nEnabling SSL security system");
+	tcdbg_printf( "[%s, %d]Generate new key.\n", __FUNCTION__, __LINE__);
+	unsigned long long sn;
+	char t[32];
+	
+	//TODO: create key	
+	
+	unlink(SSL_KEYF);
+	unlink(SSL_CERTF);
+	f_read("/dev/urandom", &sn, sizeof(sn));
+	sprintf(t, "%llu", sn & 0x7FFFFFFFFFFFFFFFULL);
+	eval(SSL_CERT_GEN, t);
+	if(access(SSL_KEYF, F_OK) || access(SSL_CERTF, F_OK))
+	{
+		tcdbg_printf("[%s, %d]Couldn't create key for ssl\n", __FUNCTION__, __LINE__);
+		DIE("Couldn't create key for ssl");
+	}
+
+	if(access(SSL_KEYF, F_OK) || access(SSL_CERTF, F_OK))
+	{
+		tcdbg_printf("[%s, %d]Couldn't create key for ssl\n", __FUNCTION__, __LINE__);
+		DIE("Couldn't create key for ssl");
+	}
+
+
+	tcdbg_printf( "[%s, %d]Enabling SSL security system\n", __FUNCTION__, __LINE__);
 	if ((server_ssl = socket(SERVER_AF, SOCK_STREAM, IPPROTO_TCP)) == -1)
 	{
-		tcdbg_printf("\nCouldn't create socket for ssl");
+		tcdbg_printf("[%s, %d]Couldn't create socket for ssl\n", __FUNCTION__, __LINE__);
 		DIE("Couldn't create socket for ssl");
 	}
 	/* server socket is nonblocking */
+	
 	if (fcntl(server_ssl, F_SETFL, NOBLOCK) == -1)
 	{
-		tcdbg_printf("\nCouldn't fcnt");
+		tcdbg_printf("[%s, %d]Couldn't fcnt\n", __FUNCTION__, __LINE__);
 		DIE("Couldn't fcntl");
 	}
+
 	if ((setsockopt(server_ssl, SOL_SOCKET, SO_REUSEADDR, (void *) &sock_opt,sizeof(sock_opt))) == -1)
 	{
-		tcdbg_printf("\nCouldn't sockopt"); 
+		tcdbg_printf("[%s, %d]Couldn't sockopt\n", __FUNCTION__, __LINE__); 
 		DIE("Couldn't sockopt");
 	}
 	/* internet socket */
@@ -46,36 +74,32 @@ int  boa_sslInit(void)
 #endif
 	if (bind(server_ssl, (struct sockaddr *) &ssl_server_sockaddr,sizeof(ssl_server_sockaddr)) == -1)
 	{
-		tcdbg_printf("\nCouldn't bind ssl to port"); 
+		tcdbg_printf("[%s, %d]Couldn't bind ssl to port\n", __FUNCTION__, __LINE__); 
 		DIE("Couldn't bind ssl to port");
 	}
 
 	/* listen: large number just in case your kernel is nicely tweaked */
 	if (listen(server_ssl, backlog) == -1)
 	{
-		tcdbg_printf("\nCouldn't listen"); 	
+		tcdbg_printf("[%s, %d]Couldn't listen\n", __FUNCTION__, __LINE__); 	
 		DIE("Couldn't listen");
 	}
 
-	if(matrixSslOpen()!=0)
+	if(mssl_init(SSL_CERTF, SSL_KEYF, &ssl_ctx) == -1)
 	{
-		tcdbg_printf("\nCouldn't Init SSL Library!");
+		tcdbg_printf("[%s, %d]Couldn't Init SSL Library!\n", __FUNCTION__, __LINE__);
 		DIE("\nCouldn't Init SSL Library!");
 	}
-	if(matrixSslReadKeys(&ssl_key,SSL_CERTF,SSL_KEYF,NULL,NULL)!=0)
-	{
-		tcdbg_printf("\nCouldn't read SSL keys!");
-		DIE("\nCouldn't read SSL key!");
-	}	
+
 	/*load and check that the key files are appropriate.*/
-	tcdbg_printf("\nSSL security system enabled");
+	tcdbg_printf("[%s, %d]SSL security system enabled\n", __FUNCTION__, __LINE__);
 	return 1;
 }
 
 void  boa_sslUninit()
 {
-	matrixSslFreeKeys(ssl_key);
-	matrixSslClose();
+	tcdbg_printf("[%s, %d]\n", __FUNCTION__, __LINE__);
+	mssl_deinit(ssl_ctx);
 }
 
 void boa_sslWait (int fd,int mode)
@@ -120,267 +144,48 @@ void boa_sslWait (int fd,int mode)
 	}
 }
 
-int boa_sslRead(sslConn_t *cp, char *buf, int len, int *status)
+
+int boa_sslRead(mssl_conn_t *conn, char *buf, const int len)
 {
-	int bytes, rc, remaining;
-	unsigned char	error, alertLevel, alertDescription, performRead;
-	*status = 0;
+	//tcdbg_printf("[%s, %d]len(%d)\n", __FUNCTION__, __LINE__, len);	
+	int ret = 0;
 
-	if (cp->ssl == NULL || len <= 0) {
-		return -1;
-	}
-	if (cp->inbuf.buf) {
-		if (cp->inbuf.start < cp->inbuf.end) {
-			remaining = (int)(cp->inbuf.end - cp->inbuf.start);
-			bytes = (int)min(len, remaining);
-			memcpy(buf, cp->inbuf.start, bytes);
-			cp->inbuf.start += bytes;
-			return bytes;
-		}
-	}
-
-	if (cp->insock.buf < cp->insock.start) {
-		if (cp->insock.start == cp->insock.end) {
-			cp->insock.start = cp->insock.end = cp->insock.buf;
-		} else {
-			memmove(cp->insock.buf, cp->insock.start, cp->insock.end - cp->insock.start);
-			cp->insock.end -= (cp->insock.start - cp->insock.buf);
-			cp->insock.start = cp->insock.buf;
-		}
-	}
-	performRead = 0;
-readMore:
-	if (cp->insock.end == cp->insock.start || performRead) 
-	{
-		performRead = 1;
-		boa_sslWait (cp->fd,0);
-		bytes = read(cp->fd, (char *)cp->insock.end, (int)((cp->insock.buf + cp->insock.size) - cp->insock.end));
-		if (bytes <0)
-		 {
-			*status = getSocketError();
-			return -1;
-		}
-		if (bytes == 0)
-		 {
-			*status = SSLSOCKET_EOF;
-			return 0;
-		}
-		cp->insock.end += bytes;
-	}
-	cp->inbuf.start = cp->inbuf.end = cp->inbuf.buf;
-
-
-decodeMore:
-	error = 0;
-	alertLevel = 0;
-	alertDescription = 0;
-	rc = matrixSslDecode(cp->ssl, &cp->insock, &cp->inbuf, &error, &alertLevel, &alertDescription);
-	switch (rc) {
-
-	case SSL_SUCCESS:
-		return 0;
-
-	case SSL_PROCESS_DATA:
-		rc = (int)(cp->inbuf.end - cp->inbuf.start);
-		rc = min(rc, len);
-		memcpy(buf, cp->inbuf.start, rc);
-		cp->inbuf.start += rc;
-		return rc;
-
-	case SSL_SEND_RESPONSE:
-		do
-		{
-			boa_sslWait(cp->fd,1);
-			bytes = write(cp->fd, (char *)cp->inbuf.start, (int)(cp->inbuf.end - cp->inbuf.start));
-			if(bytes <=0 )
-			{
-				*status = getSocketError();
-				goto readError;	
-			}
-			cp->inbuf.start += bytes;
-
-		}while(cp->inbuf.start < cp->inbuf.end);
-
-		cp->inbuf.start = cp->inbuf.end = cp->inbuf.buf;
-		return 0;
-
-	case SSL_ERROR:
-		if (cp->inbuf.start < cp->inbuf.end) 
-		{
-			bytes = send(cp->fd, (char *)cp->inbuf.start, (int)(cp->inbuf.end - cp->inbuf.start), 0);
-		}
-		goto readError;
-
-	case SSL_ALERT:
-		if (alertDescription == SSL_ALERT_CLOSE_NOTIFY) {
-			*status = SSLSOCKET_CLOSE_NOTIFY;
-			goto readZero;
-		}
-		goto readError;
-
-	case SSL_PARTIAL:
-		if (cp->insock.start == cp->insock.buf && cp->insock.end == (cp->insock.buf + cp->insock.size))
-		 {
-			if (cp->insock.size > SSL_MAX_BUF_SIZE)
-			{
-				goto readError;
-			}
-			cp->insock.size *= 2;
-			cp->insock.start = cp->insock.buf = (unsigned char *)realloc(cp->insock.buf, cp->insock.size);
-			if(cp->insock.buf==NULL)
-			{
-				goto readError;
-			}	
-			cp->insock.end = cp->insock.buf + (cp->insock.size / 2);
-		}
-		performRead = 1;
-		goto readMore;
-
-	case SSL_FULL:
-		cp->inbuf.size *= 2;
-		if (cp->inbuf.buf != (unsigned char*)buf) 
-		{
-			free(cp->inbuf.buf);
-			cp->inbuf.buf = NULL;
-		}
-		cp->inbuf.start = cp->inbuf.end = cp->inbuf.buf = (unsigned char *)malloc(cp->inbuf.size);
-		if(cp->inbuf.buf==NULL)
-		{
-			goto readError;
-		}
-		goto decodeMore;
-	default:
-		goto readError;
-	}
-
-readZero:
-	if (cp->inbuf.buf == (unsigned char*)buf) {
-		cp->inbuf.buf = NULL;
-	}
-	return 0;
-readError:
-	if (cp->inbuf.buf == (unsigned char*)buf) {
-		cp->inbuf.buf = NULL;
-	}
-	return -1;
+	do{
+		boa_sslWait(conn->sd, 0);
+		ret = mssl_read(conn, buf, len);
+	}while(ret == -2);
+	//tcdbg_printf("[%s, %d]ret(%d)\n", __FUNCTION__, __LINE__, ret);
+	return ret;
 }
 
 //#define BOA_SSL_MAXBUF 8192
-int boa_sslAccept(sslConn_t **cpp, SOCKET fd, sslKeys_t *keys,int (*certValidator)(sslCertInfo_t *t, void *arg), int flags)
+int boa_sslAccept(mssl_conn_t **conn, const int fd, SSL_CTX *ctx)
 {
-	sslConn_t		*conn;
-	unsigned char	buf[1024];
-	int		status, rc;
-
-	conn = calloc(sizeof(sslConn_t), 1);
-	conn->fd = fd;
-	if (matrixSslNewSession(&conn->ssl, keys, NULL,SSL_FLAGS_SERVER | flags) < 0) 
-	{
-		sslFreeConnection(&conn);
-		return -1;
-	}
-	memset(&conn->inbuf, 0x0, sizeof(sslBuf_t));
-	conn->insock.size = 1024;
-	conn->insock.start = conn->insock.end = conn->insock.buf = (unsigned char *)malloc(conn->insock.size);
-	conn->outsock.size = 1024;
-	conn->outsock.start = conn->outsock.end = conn->outsock.buf = (unsigned char *)malloc(conn->outsock.size);
-	conn->inbuf.size = 1024;
-	conn->inbuf.start = conn->inbuf.end = conn->inbuf.buf = (unsigned char *)malloc(conn->inbuf.size);
-	if(conn->insock.buf==NULL ||conn->outsock.buf==NULL || conn->inbuf.buf ==NULL)
-	{
-		sslFreeConnection(&conn);
-		return -1;	
-	}
-	*cpp = conn;
-
-readMore:
-	rc = boa_sslRead(conn, buf, sizeof(buf), &status);
-	if (rc == 0)
-	 {
-		if (status == SSLSOCKET_EOF || status == SSLSOCKET_CLOSE_NOTIFY)
-		 {
-			sslFreeConnection(&conn);
-			return -1;
-		}
-		if (matrixSslHandshakeIsComplete(conn->ssl) == 0)
-		 {
-			goto readMore;
-		}
-	}
-	 else if (rc > 0)
-	 {
-		return -1;
-	} 
-	else 
-	{
-		sslFreeConnection(&conn);
-		return -1;
-	}
-	*cpp = conn;
-	return 0;
+	//tcdbg_printf("[%s, %d]\n", __FUNCTION__, __LINE__);
+	int ret = mssl_server_fopen(fd, conn, ctx);
+	//tcdbg_printf("[%s, %d]ret(%d)\n", __FUNCTION__, __LINE__, ret);
+	return ret;
 }
 
-int boa_sslWrite(sslConn_t *cp, char *buf, int buflen, int *status)
+int boa_sslWrite(mssl_conn_t *conn, char *buf, const int buflen)
 {
+	int ret = 0;
+	
+	//tcdbg_printf("[%s, %d]\n", __FUNCTION__, __LINE__);
+	do{
+		boa_sslWait(conn->sd, 1);
+		ret = mssl_write(conn, buf,  buflen);		
+	}while(ret == -2);
+	
+	//tcdbg_printf("[%s, %d]sd(%d), ret(%d)\n", __FUNCTION__, __LINE__, conn->sd,  ret);
+	return ret;
+}
 
-	int len = buflen > 980 ? 980:buflen;
-	int	rc;
-	*status = 0;
-
-	if (cp->outsock.buf < cp->outsock.start) 
-	{
-		if (cp->outsock.start == cp->outsock.end)
-		{
-			cp->outsock.start = cp->outsock.end = cp->outsock.buf;
-		} 
-		else
-		{
-			memmove(cp->outsock.buf, cp->outsock.start, cp->outsock.end - cp->outsock.start);
-			cp->outsock.end -= (cp->outsock.start - cp->outsock.buf);
-			cp->outsock.start = cp->outsock.buf;
-		}
-	}
-
-	if (cp->outBufferCount > 0 && len != cp->outBufferCount)
-	{
-		return -1;
-	}
-
-	if (cp->outBufferCount == 0) {
-retryEncode:
-		rc = matrixSslEncode(cp->ssl, (unsigned char *)buf, len, &cp->outsock);
-		switch (rc) {
-		case SSL_ERROR:
-			return -1;
-		case SSL_FULL:	
-			if (cp->outsock.size > SSL_MAX_BUF_SIZE)
-			{
-				return -1;
-			}
-			cp->outsock.size *= 2;
-			cp->outsock.buf = (unsigned char *)realloc(cp->outsock.buf, cp->outsock.size);
-			if(cp->outsock.buf == NULL)
-				return -1;
-			cp->outsock.end = cp->outsock.buf + (cp->outsock.end - cp->outsock.start);
-			cp->outsock.start = cp->outsock.buf;
-			goto retryEncode;
-		default:
-			break;
-		}
-	}
-
-	rc = write(cp->fd, (char *)cp->outsock.start, (int)(cp->outsock.end - cp->outsock.start));
-	if (rc <= 0) {
-		*status = getSocketError();
-		return -1;
-	}
-	cp->outsock.start += rc;
-
-	if (cp->outsock.start == cp->outsock.end) {
-		cp->outBufferCount = 0;
-		return len;
-	}
-	cp->outBufferCount = len;
-	return 0;
+int boa_sslClose(mssl_conn_t *conn)
+{
+	//tcdbg_printf("[%s, %d]\n", __FUNCTION__, __LINE__);
+	int ret = mssl_close(conn);
+	//tcdbg_printf("[%s, %d]ret(%d)\n", __FUNCTION__, __LINE__, ret);
+	return ret;
 }
 #endif

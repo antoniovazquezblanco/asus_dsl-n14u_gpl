@@ -40,9 +40,11 @@ endif
 endif
 
 #PROFILE_SET are the set of release profile supported in this release version 
-
+ifneq ($(strip $(KERNEL_2_6_36)),)
+PROFILE_SET=rt65168_release rt63365_release rt63368_release mt7510_release mt7520_release
+else
 PROFILE_SET=tc3162u_release rt65168_release rt63260_release tc3182_release rt63365_release rt63368_release
-
+endif
 
 #CUSTOM is the target custom that will be released, and the default custom will be RT.
 ifeq ($(strip $(CUSTOM)),)
@@ -53,6 +55,7 @@ include Project/dir.mak
 
 #UNOPEN_FILE_DELETE means unopen files needed to be deleted
 UNOPEN_FILE_DELETE=$(MODULES_PRIV_SRC_DIR)/auto_bench \
+$(MODULES_PRIV_SRC_DIR)/sif \
 $(MODULES_PRIV_SRC_DIR)/hwnat \
 $(MODULES_PRIV_SRC_DIR)/HWNAT_Emulation  \
 $(MODULES_PRIV_SRC_DIR)/HWNAT_Emulation_Accelerated  \
@@ -141,6 +144,7 @@ $(APP_CWMP_DIR)/clmp \
 $(APP_CWMP_DIR)/cwmp/Sources \
 $(APP_CWMP_DIR)/main/main.c \
 $(APP_CWMP_DIR)/rompager \
+$(APP_CWMP_DIR)/utily.c \
 $(APP_CMDCI_DIR)/algcmd.* \
 $(APP_CMDCI_DIR)/firewallcmd.* \
 $(APP_CMDCI_DIR)/portbindcmd.* \
@@ -150,6 +154,28 @@ $(APP_CMDCI_DIR)/accesslimitcmd.* \
 $(APP_CMDCI_DIR)/atmcmdd \
 $(APP_CMDCI_DIR)/atmcmdd.* \
 $(APP_CMDCI_DIR)/atmcmdc.* \
+$(FILESYSTEM_DIR)/boaroot/cgi-bin/WizardOi \
+$(FILESYSTEM_DIR)/boaroot/html/include	\
+$(BOOTROM_DIR)/ddr_cal/*.c \
+$(MODULES_RA_HWNAT_7510_DIR) \
+$(APP_RA_HWNAT_7510_DIR)
+
+
+#delete adsl or vdsl code for mt7520
+UNOPEN_FILE_DELETE += $(MODULES_PRIV_SRC_DIR)/epon
+ifneq ($(strip $(TCSUPPORT_CPU_MT7520)),)
+UNOPEN_FILE_DELETE += $(MODULES_PRIV_SRC_DIR)/dmt \
+$(MODULES_PRIV_SRC_DIR)/mt7510_ptm \
+$(MODULES_PRIV_SRC_DIR)/mtk_sar \
+$(MODULES_PRIV_SRC_DIR)/tc3262
+endif
+
+#delete linux kernel dir for this release don't support the other kernel to compile
+ifneq ($(strip $(KERNEL_2_6_36)),)
+UNOPEN_FILE_DELETE += $(TRUNK_DIR)/linux
+else
+UNOPEN_FILE_DELETE += $(TRUNK_DIR)/linux-2.6.36
+endif
 
 #delete extra code of CT if customer is not CT and do the other when CT defined 
 ifneq ($(strip $(CUSTOM)),CT)
@@ -186,11 +212,18 @@ $(APP_PRIVATE_DIR)/TR69_64 \
 
 
 INFOR0="Attention!!!!"
-INFOR1="This command will release Multi-chip SDK, which will remove the un-open files and can't be recovered!!!!!"
-INFOR2="Please select the release profile desired. Example: 1 2 3"
-INFOR3="Please input your selection:"
-INFOR4="Profile you selected is as following:"
-INFOR5="if you agree, please input "y",else if you wanna break please input "N". [y/N] ?"
+ifneq ($(strip $(KERNEL_2_6_36)),)
+INFOR1="This command can only release SDK with 2.6.36.0 kernel"
+INFOR2="If you want to release 2.6.22.15 kernel, please use cmd: make RELEASEBSP=y"
+else
+INFOR1="This command can only release SDK with 2.6.22.15 kernel"
+INFOR2="If you want to release 2.6.36 kernel, please use cmd: make RELEASEBSP=y KERNEL_2_6_36=y"
+endif
+INFOR3="This command will release Multi-chip SDK, which will remove the un-open files and can't be recovered!!!!!"
+INFOR4="Please select the release profile desired. Example: 1 2 3"
+INFOR5="Please input your selection:"
+INFOR6="Profile you selected is as following:"
+INFOR7="if you agree, please input "y",else if you wanna break please input "N". [y/N] ?"
 EXIT_INFOR="Your input is not y! The make process will be breaked!"
 CONTINUE_INFOR="Entering make process......"
 INFOR_CUSTOM="If you wanan release a customer version from SDK, please make sure your command is: "make -f MultiChip.make CUSTOM_RELASE=y""
@@ -208,8 +241,12 @@ else
 confirm_infor:
 	@echo "****************************************************************************************************"
 	@echo $(INFOR0)
+	@echo "....................................................................................................."
 	@echo $(INFOR1)
 	@echo $(INFOR2)
+	@echo "....................................................................................................."
+	@echo $(INFOR3)
+	@echo $(INFOR4)
 	@id=0;\
 	for profile in $(PROFILE_SET);\
 	do \
@@ -217,7 +254,7 @@ confirm_infor:
 		id=`expr $$id + 1`; \
 	done;
 	@echo "****************************************************************************************************"
-	@echo $(INFOR3);
+	@echo $(INFOR5);
 	@rm -rf "./.profile_select.tmp";
 	@profile_set=(${PROFILE_SET}); \
 	PROFILE_SET_NUM=$${profile_set[@]}; \
@@ -225,7 +262,7 @@ confirm_infor:
 	echo $(SEPARATOR);\
 	while [ "$$select"x == ""x ] ;\
 	do \
-		echo $(INFOR3);read select;\
+		echo $(INFOR5);read select;\
 	done; \
 	while [ "$$select"x == ""x ] ;\
 	do \
@@ -236,10 +273,10 @@ confirm_infor:
 			then\
 				echo "******Wrong input! Please check again!*****"; \
 				fail=1; \
-				echo $(INFOR3);read select;\
+				echo $(INFOR5);read select;\
 				while [ "$$select"x == ""x ]];\
 				do \
-					echo $(INFOR3);read select;\
+					echo $(INFOR5);read select;\
 				done; \
 				break; \
 			fi; \
@@ -251,13 +288,13 @@ confirm_infor:
 			break; \
 		fi; \
 	done;\
-	echo $(INFOR4);\
+	echo $(INFOR6);\
 	for index in $$select; \
 	do \
 		echo "******$${profile_set[$$index]}*****"; \
 		echo $${profile_set[$$index]}>>"./.profile_select.tmp"; \
 	done
-	@echo $(INFOR5);
+	@echo $(INFOR7);
 	@read var ;\
 	if [[ $$var == y ]]; \
 	then \
@@ -275,10 +312,18 @@ endif
 
 release_all_check:release_checktools
 	rm -rf ./.profile_summary
+ifneq ($(strip $(KERNEL_2_6_36)),)
+	for release in ${PROFILE_SELECT} ; \
+	do \
+			cat Project/profile/$(CUSTOM)/$${release}/$${release}_2_6_36.profile >>./.profile_summary ;\
+	done
+else
 	for release in ${PROFILE_SELECT} ; \
 	do \
 		cat Project/profile/$(CUSTOM)/$${release}/$${release}.profile >>./.profile_summary ;\
 	done
+endif
+
 
 	if test -e $(TOOLS_DIR)/cplopts_checktool/tmp/restore.sh; \
 	then echo "Please restore the files first before any modification!"; exit 1; \
@@ -322,6 +367,26 @@ release_checktools_clean:
 
 #this target will do "make" process for SDK release, with loop of clean>>>make profile[i]>>>backup *.ko , *.o>>> clean....
 release_backup:
+	cp -rf $(TRUNK_DIR)/filesystem $(TRUNK_DIR)/filesystem_clean;
+ifneq ($(strip $(KERNEL_2_6_36)),)
+	for release in ${PROFILE_SELECT} ; \
+	do \
+		echo "*************************************************"; \
+		echo "*************************************************"; \
+		echo "*****$$release making and backup in progress********"; \
+		echo "*************************************************"; \
+		sleep 3;\
+		echo "*************************************************"; \
+		${MAKE} -f "$(PROJECT_DIR)/MakeFile_Main" PROFILE=$${release} KERNEL_2_6_36=1 CUSTOM=${CUSTOM} clean ; if [ $$? != 0 ];then exit 1;fi; \
+		echo "*************************************************"; \
+		${MAKE} -f "$(PROJECT_DIR)/MakeFile_Main"  PROFILE=$${release} KERNEL_2_6_36=1 CUSTOM=${CUSTOM} RELEASEBSP=y bootbase kernel modules apps; if [ $$? != 0 ];then exit 1;fi; \
+		echo "*************************************************"; \
+		${MAKE} -f "$(PROJECT_DIR)/MakeFile_Main" PROFILE=$${release} KERNEL_2_6_36=1 CUSTOM=${CUSTOM} RELEASEBSP=y release_end;if [ $$? != 0 ];then exit 1;fi; \
+		echo "**************************************************"; \
+		${MAKE} -f "$(PROJECT_DIR)/MakeFile_Main" PROFILE=$${release} KERNEL_2_6_36=1 CUSTOM=${CUSTOM} clean ; if [ $$? != 0 ];then exit 1;fi; \
+		echo "**************************************************"; \
+	done
+else
 	for release in ${PROFILE_SELECT} ; \
 	do \
 		echo "*************************************************"; \
@@ -339,6 +404,10 @@ release_backup:
 		${MAKE} -f "$(PROJECT_DIR)/MakeFile_Main" PROFILE=$${release} CUSTOM=${CUSTOM} clean ; if [ $$? != 0 ];then exit 1;fi; \
 		echo "**************************************************"; \
 	done
+endif
+
+	rm -rf $(TRUNK_DIR)/filesystem;
+	mv -f  $(TRUNK_DIR)/filesystem_clean $(TRUNK_DIR)/filesystem
 
 #Make sure: (1)Profile locates in CUSTOM has been removed and (2) Profile that not named with *_demo in CUSTOM foder have been removed
 release_profile:
@@ -362,6 +431,7 @@ endif
 	cp $(APP_CMDCI_DIR)/Makefile.release $(APP_CMDCI_DIR)/Makefile
 	cp $(APP_TC_VOIP_API_DIR)/Makefile.release $(APP_TC_VOIP_API_DIR)/Makefile
 	cp $(APP_CWMP_DIR)/Makefile.release $(APP_CWMP_DIR)/Makefile
+	cp $(BOOTROM_DIR)/ddr_cal/Makefile.release $(BOOTROM_DIR)/ddr_cal/Makefile
 
 #clear up the documents in SDK
 release_doc:
@@ -380,6 +450,15 @@ release_config:
 	echo "    help"  >> Project/config/menuconfig/Config.in
 	echo "         The flag of code release" >> Project/config/menuconfig/Config.in
 	echo "endchoice" >> Project/config/menuconfig/Config.in
+ifneq ($(strip $(KERNEL_2_6_36)),)
+	echo "config TC_RELEASE_2_6_36_KERNEL" >> Project/config/menuconfig/Config.in
+	echo "    bool \"TC_RELEASE_2_6_36_KERNEL\"" >> Project/config/menuconfig/Config.in
+	echo "		default y" >> Project/config/menuconfig/Config.in
+else
+	echo "config TC_RELEASE_2_6_22_15_KERNEL" >> Project/config/menuconfig/Config.in
+	echo "    bool \"TC_RELEASE_2_6_22_15_KERNEL\"" >> Project/config/menuconfig/Config.in
+	echo "		default y" >> Project/config/menuconfig/Config.in
+endif
 #swept unopen source codes,customerized scripts,webpages,configure profile and other extra files
 release_swept:
 	for FILE in $(UNOPEN_FILE_DELETE) $(OTHER_FILE_DELETE); \
@@ -389,6 +468,12 @@ release_swept:
 		echo "******************************************************";\
 	done \
 	
+	if [ $$(ls -A $(BOOTROM_DIR)/ddr_cal/reserved|wc -w) -gt 0 ]; then\
+		cp -Rf $(BOOTROM_DIR)/ddr_cal/reserved/* $(BOOTROM_DIR)/ddr_cal/output/.;\
+		cp -Rf $(BOOTROM_DIR)/ddr_cal/reserved/spram.c $(BOOTROM_DIR)/ddr_cal/.;\
+		rm -rf $(BOOTROM_DIR)/ddr_cal/output/*.c;\
+		rm -rf $(BOOTROM_DIR)/ddr_cal/reserved;\
+	fi
 	find $(APP_PRIVATE_DIR)/etc_script/* -type d  | xargs rm -rf
 	if [ $$(ls -A $(APP_PRIVATE_DIR)/etc_script.reserved|wc -w) -gt 0 ]; then\
 		cp -rf $(APP_PRIVATE_DIR)/etc_script.reserved/* $(APP_PRIVATE_DIR)/etc_script/ ;\
@@ -424,6 +509,25 @@ endif
 
 #release make for custom, similarly to release_make
 customer_release_backup:
+ifneq ($(strip $(KERNEL_2_6_36)),)
+	for release in ${PROFILE_SELECT} ; \
+	do \
+		echo "*************************************************"; \
+		echo "*************************************************"; \
+		echo "*****$$release making and backup in progress********"; \
+		echo "*************************************************"; \
+		sleep 1;\
+		echo "*************************************************"; \
+		${MAKE} -f "$(PROJECT_DIR)/MakeFile_Main" PROFILE=$${release} KERNEL_2_6_36=1 CUSTOM=${CUSTOM} clean ; if [ $$? != 0 ];then exit 1;fi;\
+		echo "*************************************************"; \
+		${MAKE} -f "$(PROJECT_DIR)/MakeFile_Main" PROFILE=$${release} KERNEL_2_6_36=1 CUSTOM=${CUSTOM} CUSTOMERRELEASE=y bootbase kernel modules apps;if [ $$? != 0 ];then exit 1;fi; \
+		echo "*************************************************"; \
+		${MAKE} -f "$(PROJECT_DIR)/MakeFile_Main" PROFILE=$${release} KERNEL_2_6_36=1 CUSTOM=${CUSTOM} CUSTOMERRELEASE=y customer_release_end; if [ $$? != 0 ];then exit 1;fi;\
+		echo "**************************************************"; \
+		${MAKE} -f "$(PROJECT_DIR)/MakeFile_Main" PROFILE=$${release} KERNEL_2_6_36=1 CUSTOM=${CUSTOM} clean ;if [ $$? != 0 ];then exit 1;fi; \
+		echo "**************************************************"; \
+	done
+else
 	for release in ${PROFILE_SELECT} ; \
 	do \
 		echo "*************************************************"; \
@@ -441,6 +545,7 @@ customer_release_backup:
 		${MAKE} -f "$(PROJECT_DIR)/MakeFile_Main" PROFILE=$${release} CUSTOM=${CUSTOM} clean ;if [ $$? != 0 ];then exit 1;fi; \
 		echo "**************************************************"; \
 	done
+endif
 
 
 customer_release_swept:
@@ -451,6 +556,7 @@ customer_release_swept:
 	rm -rf $(APP_PRIVATE_DIR)/sendicmp/
 	rm -rf $(FILESYSTEM_DIR)/dev/*
 	rm -rf $(TRUNK_DIR)/$(MODULES_PRIV_SRC_DIR)/modules/2.6.22.15
+	rm -rf $(TRUNK_DIR)/$(MODULES_PRIV_SRC_DIR)/modules/2.6.36
 	
 	find $(APP_CFG_MANAGER_DIR) -name "*.c"|grep -v 'init.c' |xargs rm -rf
 	

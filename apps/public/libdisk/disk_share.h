@@ -17,6 +17,7 @@
 #ifndef _DISK_SHARE_
 #define _DISK_SHARE_
 
+#define ADMIN_ORDER 0
 #define MAX_ACCOUNT_NUM 6
 
 #define SHARE_LAYER MOUNT_LAYER+1

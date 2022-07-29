@@ -41,8 +41,8 @@
 
 // #define DEFAULT_LOGIN_PATH      "/bin:/usr/bin"
 // #define DEFAULT_ROOT_LOGIN_PATH "/userfs/bin:/usr/sbin:/bin:/usr/bin:/sbin"
-#define DEFAULT_LOGIN_PATH	"/opt/usr/bin:/opt/bin:/opt/usr/sbin:/opt/sbin:/userfs/bin:/usr/sbin:/bin:/usr/bin:/sbin:/usr/script"
-#define DEFAULT_ROOT_LOGIN_PATH	"/opt/usr/bin:/opt/bin:/opt/usr/sbin:/opt/sbin:/userfs/bin:/usr/sbin:/bin:/usr/bin:/sbin:/usr/script"
+#define DEFAULT_LOGIN_PATH	"/opt/usr/sbin:/opt/sbin:/opt/usr/bin:/opt/bin:/userfs/bin:/usr/sbin:/sbin:/usr/bin:/bin:/usr/script"
+#define DEFAULT_ROOT_LOGIN_PATH	"/opt/usr/sbin:/opt/sbin:/opt/usr/bin:/opt/bin:/userfs/bin:/usr/sbin:/sbin:/usr/bin:/bin:/usr/script"
 
 static void xsetenv ( const char *key, const char *value )
 {

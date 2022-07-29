@@ -21,6 +21,8 @@
 
 #include <net/if.h>
 #include <linux/if_bridge.h>
+#include <linux/version.h>
+
 
 #ifdef TCSUPPORT_IGMP_SNOOPING_V3
 #include <linux/in.h>
@@ -71,12 +73,14 @@ struct fdb_entry
 #ifdef TCSUPPORT_IGMP_SNOOPING
 struct mc_fdb_entry
 {
-	u_int8_t group_addr[16];
+	u_int8_t group_addr[40];
 	u_int8_t host_addr[6];
+	u_int8_t group_mac[6];
 	unsigned char is_router;
+	u_int8_t version;
 	u_int16_t port_no;
 	#ifdef TCSUPPORT_IGMP_SNOOPING_V3
-	u_int8_t src_addr[16];
+	u_int8_t src_addr[40];
 	u_int8_t filter_mode;
 	#endif
 	struct timeval ageing_timer_value;
@@ -144,9 +148,11 @@ extern int br_set_igmpsnoop_dbg(const char *br, int igmpsnoop_dbg);
 extern int br_read_mc_fdb(const char *br, struct mc_fdb_entry *fdbs, 
 		       unsigned long skip, int num);
 #endif
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,36)
 #ifdef TCSUPPORT_MLD_SNOOPING		       
 extern int br_mldsnooping_set_age(const char *bridge, struct timeval *tv);
 extern int br_mldsnooping_set_state(const char *bridge, int state);
 extern int br_mldsnooping_show(const char *bridge);
+#endif
 #endif
 #endif

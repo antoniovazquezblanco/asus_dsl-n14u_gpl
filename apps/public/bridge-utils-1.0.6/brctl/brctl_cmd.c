@@ -24,6 +24,8 @@
 #include <asm/param.h>
 #include "libbridge.h"
 #include "brctl.h"
+#include <linux/version.h>
+
 
 static int strtotimeval(struct timeval *tv, const char *time)
 {
@@ -527,16 +529,25 @@ static int br_cmd_showigmp(int argc, char *const* argv)
 	struct mc_fdb_entry *fdb = NULL;
 	int offset = 0;
 	struct bridge_info info;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+		u_int8_t group_addr_t[64] = {0};
+#endif
 
 	if (br_get_bridge_info(argv[1], &info)) {
 		fprintf(stderr, "%s: can't get info %s\n", argv[1],
 			strerror(errno));
 		return 1;
 	}
-
+	
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,36)
 	printf("IGMP snooping enabled: %s\n", info.igmpsnoop_enabled?"yes":"no");
+#else
+	printf("Snooping enabled: %s\n", info.igmpsnoop_enabled?"yes":"no");
+#endif
 	printf("quickleave: %s\n", info.igmpsnoop_quickleave?"yes":"no");
+#if !defined(TCSUPPORT_IGMPSNOOPING_ENHANCE)
 	printf("routeportflag: %s\n", info.igmpsnoop_routeportflag?"on":"off");
+#endif
 	printf("debug: %s\n", info.igmpsnoop_dbg?"yes":"no");
 	printf("ageing time=");
 	br_show_timer(&info.igmpsnoop_ageing_time);
@@ -563,40 +574,67 @@ static int br_cmd_showigmp(int argc, char *const* argv)
 		}
 
 		offset += n;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+		if(n < CHUNK)
+			break;
+#endif
 	}
 
 	qsort(fdb, offset, sizeof(struct mc_fdb_entry), compare_fdbs);
 
 #ifdef TCSUPPORT_IGMP_SNOOPING_V3
-	printf("port no  group addr   host addr           src addr    filter mode  ageing timer\n");
+	printf("port no  group addr   host addr     src addr    filter mode  ageing timer\n");
 #else
 	printf("port no\tgroup addr\t\treporter\t\tageing timer\n");
 #endif
 	for (i = 0; i < offset; i++) {
 		const struct mc_fdb_entry *f = fdb + i;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+		memset(group_addr_t, 0, 64);
+#endif
 
 	#ifdef TCSUPPORT_IGMP_SNOOPING_V3
 		printf("%3i", f->port_no);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+		if(f->version == 6)
+		{
+			printf(" [%s]  ", f->group_addr);
+			printf(" [%s]   ", f->src_addr);
+			printf("%2s  ",(f->filter_mode == MCAST_EXCLUDE)?"EX":"IN");
+			printf("\thostMac:%.2x:%.2x:%.2x:%.2x:%.2x:%.2x ",
+			       f->host_addr[0], f->host_addr[1], f->host_addr[2],
+			       f->host_addr[3], f->host_addr[4], f->host_addr[5]);
+			printf("\tgroupMac:%.2x:%.2x:%.2x:%.2x:%.2x:%.2x ",
+			       f->group_mac[0], f->group_mac[1], f->group_mac[2],
+			       f->group_mac[3], f->group_mac[4], f->group_mac[5]);
+		}
+		else{
+#endif
 		printf("%16s  ", f->group_addr);
 		printf("%.2x:%.2x:%.2x:%.2x:%.2x:%.2x ",
 		       f->host_addr[0], f->host_addr[1], f->host_addr[2],
 		       f->host_addr[3], f->host_addr[4], f->host_addr[5]);
 		printf("%16s ", f->src_addr);
 		printf("%2s     ",(f->filter_mode == MCAST_EXCLUDE)?"EX":"IN");
-		#else
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
+		}
+#endif
+	#else
 		printf("%3i\t", f->port_no);
 		printf("%16s\t", f->group_addr);
 		printf("%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\t",
 		       f->host_addr[0], f->host_addr[1], f->host_addr[2],
 		       f->host_addr[3], f->host_addr[4], f->host_addr[5]);
-		#endif
+	#endif
 		br_show_timer(&f->ageing_timer_value);
 		printf("\n");
 	}
 	return 0;
 }
+
 #endif
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,36)
 #ifdef TCSUPPORT_MLD_SNOOPING
 static int br_cmd_mldsnooping(int argc, char *const* argv)
 {
@@ -643,6 +681,7 @@ static int br_cmd_mldsnooping_set_age(int argc, char *const* argv)
 	return err != 0;
 }
 #endif
+#endif
 static const struct command commands[] = {
 	{ 1, "addbr", br_cmd_addbr, "<bridge>\t\tadd bridge" },
 	{ 1, "delbr", br_cmd_delbr, "<bridge>\t\tdelete bridge" },
@@ -672,24 +711,46 @@ static const struct command commands[] = {
 	{ 2, "stp", br_cmd_stp,
 	  "<bridge> {on|off}\tturn stp on/off" },
 #ifdef TCSUPPORT_IGMP_SNOOPING
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,36)
 	{ 2, "igmpsnoop", br_cmd_igmpsnoop,
 	  "<bridge> {on|off}\tturn igmpsnoop on/off" },
 	{ 2, "igmpsnoopageing", br_cmd_set_igmpsnoop_ageing,
 	  "<bridge> <time>\t\tset igmpsnoop ageing time" },
 	{ 2, "quickleave", br_cmd_quickleave,
 	  "<bridge> {on|off}\tturn igmpsnoop quickleave on/off" },
+	#if !defined(TCSUPPORT_IGMPSNOOPING_ENHANCE)
 	{ 2, "routeportflag", br_cmd_routeportflag,
 	  "<bridge> {on|off}\tturn igmpsnoop routeportflag on/off" },
+	#endif
 	{ 2, "igmpdbg", br_cmd_igmpdbg,
 	  "<bridge> {on|off}\tturn igmpsnoop dbg on/off" },
 	{ 1, "showigmp", br_cmd_showigmp, 
 	  "<bridge>\t\tshow a list of multicast addrs"},
+#else
+{ 2, "snoop", br_cmd_igmpsnoop,
+  "<bridge> {on|off}\tturn snoop on/off" },
+{ 2, "snoopageing", br_cmd_set_igmpsnoop_ageing,
+  "<bridge> <time>\t\tset snoop ageing time" },
+{ 2, "quickleave", br_cmd_quickleave,
+  "<bridge> {on|off}\tturn snoop quickleave on/off" },
+#if !defined(TCSUPPORT_IGMPSNOOPING_ENHANCE)
+{ 2, "routeportflag", br_cmd_routeportflag,
+  "<bridge> {on|off}\tturn igmpsnoop routeportflag on/off" },
 #endif
+{ 2, "snoopdbg", br_cmd_igmpdbg,
+  "<bridge> {on|off}\tturn snoop dbg on/off" },
+{ 1, "showsnoop", br_cmd_showigmp, 
+  "<bridge>\t\tshow a list of multicast addrs"},
+
+#endif
+#endif
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,36)
 #ifdef TCSUPPORT_MLD_SNOOPING
 	{ 2, "mldsnooping", br_cmd_mldsnooping,
 	  "<bridge> {on|off}\tturn mldsnooping on/off" },
 	{ 2, "mldsnoopingage", br_cmd_mldsnooping_set_age,
 	  "<bridge> <time>\tset mldsnooping age time" },
+#endif
 #endif
 };
 

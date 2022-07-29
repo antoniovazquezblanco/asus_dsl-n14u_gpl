@@ -290,11 +290,10 @@ function checkDDNSReturnCode(){
 		<div style="margin-left:20px;">
 			<p><input type="radio" name="check_asus_ddns" id="c1" onClick="switch_ddns();" checked>
 						<label for="c1"><%tcWebApi_get("String_Entry","DDNSterm_agreeword","s")%></label>
-						<a href="#" onclick="parent.show_help_iframe(5);"><%tcWebApi_get("String_Entry","DDNS_termofservice_Title","s")%></a>
 			</p>
 			<br/>
 			<div id="ddnsname_input" class="aidiskdesc" style="display:none;">
-				<input type="text" name="DDNSName" id="DDNSName" class="input_25_table">.asuscomm.com
+				<input type="text" name="DDNSName" id="DDNSName" class="input_25_table" maxlength="32">.asuscomm.com
 				<div id="alert_block" style="color:#FFCC00; margin-left:5px; font-size:11px;display:none;">
 					<span id="alert_str"></span>
 				</div>

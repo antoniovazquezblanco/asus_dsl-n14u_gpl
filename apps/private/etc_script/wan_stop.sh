@@ -183,7 +183,7 @@ if [ -f /var/run/dslite_on_ppp$k ] ; then
 fi
 
 /sbin/ifconfig nas$i down
-brctl delif br0 nas$i
+brctl delif br1 nas$i
 
 if [ -f /var/run/nas$i.pid ] ; then
 	kill -9 `cat /var/run/nas$i.pid`

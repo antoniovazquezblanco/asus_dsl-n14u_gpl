@@ -3,7 +3,6 @@ If Request_Form("editFlag") = "1" then
 	TCWebApi_set("Route_Entry","sr_enable","sr_enable_x")
 	TCWebApi_set("Route_Entry","sr_rulelist","sr_rulelist")
 
-	tcWebApi_save()
 	tcWebApi_commit("Route")
 End If
 %>
@@ -14,7 +13,7 @@ End If
 
 <!--Advanced_GWStaticRoute_Content.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -26,8 +25,9 @@ End If
 <script language="JavaScript" type="text/javascript" src="/state.js"></script>
 <script language="JavaScript" type="text/javascript" src="/general.js"></script>
 <script language="JavaScript" type="text/javascript" src="/popup.js"></script>
-<script type="text/javascript" language="JavaScript" src="/help.js"></script>
-<script type="text/javascript" language="JavaScript" src="/detect.js"></script>
+<script language="JavaScript" type="text/javascript" src="/help.js"></script>
+<script language="JavaScript" type="text/javascript" src="/detect.js"></script>
+<script language="JavaScript" type="text/javascript" src="/client_function.js"></script>
 <style>
 #ClientList_Block_PC{
 border:1px outset #999;
@@ -36,7 +36,7 @@ position:absolute;
 *margin-top:27px;
 margin-left:2px;
 *margin-left:-223px;
-width:255px;
+width:340px;
 text-align:left;	
 height:auto;
 overflow-y:auto;
@@ -265,29 +265,7 @@ function showsr_rulelist(){
 	code +='</table>';
 	$("sr_rulelist_Block").innerHTML = code;
 }
-//javi.B
-/*
-function showLANIPList(){
-	var code = "";
-	var show_name = "";
-	var client_list_array = [<% tcWebApi_get_arp_list() %>['','']];;
-	var client_list_row = client_list_array.split('<');
-		
-	for(var i = 1; i < client_list_row.length; i++){
-		var client_list_col = client_list_row[i].split('>');
-		if(client_list_col[1] && client_list_col[1].length > 20)
-		show_name = client_list_col[1].substring(0, 16) + "..";
-		else
-		show_name = client_list_col[1];
-		code += '<a href="#"><div onmouseover="over_var=1;" onmouseout="over_var=0;" onclick="setClientIP(\''+client_list_col[2]+'\');"><strong>'+client_list_col[2]+'</strong> ';
-		if(show_name && show_name.length > 0)
-		code += '( '+show_name+')';
-		code += ' </div></a>';
-	}
-	code +='<!--[if lte IE 6.5]><iframe class="hackiframe2"></iframe><![endif]-->';
-	$("ClientList_Block_PC").innerHTML = code;
-}
-*/
+
 var tableData = [
 		//["1", "BVA-NB","192.168.177.168","00:22:15:A5:03:68"],
 		["1", "<%tcWebApi_staticGet("DhcpLease_Entry0", "HostName","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry0", "IP","s")%>","<%tcWebApi_staticGet("DhcpLease_Entry0", "MAC","s")%>"],
@@ -393,67 +371,32 @@ var tableData = [
 	];
 
 function showLANIPList(){
-	var code = "";
-	var show_name = "";
+	if(clientList.length == 0){
+		setTimeout(function() {
+			genClientList();
+			showLANIPList();
+		}, 500);
+		return false;
+	}
+	
+	var htmlCode = "";
+	for(var i=0; i<clientList.length;i++){
+		var clientObj = clientList[clientList[i]];
 
-	//var arp_list = [['192.168.1.8','00:60:6E:92:EC:53'],['192.168.1.2','84:38:35:C0:C4:33'],['','']];
-	var arp_list = [<% tcWebApi_get_arp_list() %>['','']];
-	for(var i =0; i<tableData.length; i++){
-		if(tableData[i][2] != ""){
-			if(tableData[i][3] == "00:00:00:00:00:00")	//Viz add special case, remove it after tableData fixed
-				continue;
-			else{
-				if(tableData[i][1] && tableData[i][1].length > 12)
-					show_name = tableData[i][1].substring(0, 10) + "..";
-				else
-				{
-					if(tableData[i][1] == "N/A")
-						show_name = tableData[i][3];
-					else
-						show_name = tableData[i][1];
-				}
+		if(clientObj.ip == "offline") clientObj.ip = "";
+		if(clientObj.Name.length > 30) clientObj.name = clientObj.name.substring(0, 27) + "...";
 
-				//tableData = [["1", "BVA-NB","192.168.177.168","00:22:15:A5:03:68"], [xx], ..]
-				if(tableData[i][2])
-					code += '<a href="#"><div onmouseover="over_var=1;" onmouseout="over_var=0;" onclick="setClientIP(\''+tableData[i][2]+'\');"><strong>'+tableData[i][2]+'</strong> ';
-
-				if(show_name && show_name.length > 0)
-					code += '( '+show_name+')';
-				code += ' </div></a>';
-			}
-		}
+		htmlCode += '<a><div onmouseover="over_var=1;" onmouseout="over_var=0;" onclick="setClientIP(\'';
+		htmlCode += clientObj.IP;
+		htmlCode += '\');"><strong>';
+		htmlCode += clientObj.Name;
+		htmlCode += '</strong> ( ';
+		htmlCode += clientObj.IP;
+		htmlCode += ' )</div></a><!--[if lte IE 6.5]><iframe class="hackiframe2"></iframe><![endif]-->';	
 	}
 
-	for(var i =0; i<arp_list.length; i++){
-		var found = "0";
-		
-		if(arp_list[i][0] != ""){
-			for(var j =0; j<tableData.length; j++){
-				if(arp_list[i][0] == tableData[j][2]){
-					found = "1";
-					
-					//Viz add special case, remove it after tableData fixed
-						if(tableData[j][3] == "00:00:00:00:00:00")
-								found = "0";					
-					
-					break;
-				}
-			}
-		}	
-		
-		if(found == "0"){
-			if(arp_list[i][0] != ""){
-				code += '<a href="#"><div onmouseover="over_var=1;" onmouseout="over_var=0;" onclick="setClientIP(\''+arp_list[i][0]+'\');"><strong>'+arp_list[i][0]+'</strong> ';
-				code += '('+arp_list[i][1]+')';
-				code += ' </div></a>';
-			}
-		}
-	}
-
-	code +='<!--[if lte IE 6.5]><iframe class="hackiframe2"></iframe><![endif]-->';
-	$("ClientList_Block_PC").innerHTML = code;
+	$("ClientList_Block_PC").innerHTML = htmlCode;
 }
-//javi.E
 
 function setClientIP(ipaddr){
 document.form.sr_ipaddr_x_0.value = ipaddr;
@@ -542,7 +485,7 @@ function Ctrl_LANIPList(obj){
 <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" class="FormTable_table">
 <thead>
 <tr>
-					<td colspan="6" id="GWStatic"><%tcWebApi_get("String_Entry","RC_GWStatic_groupitemdesc","s")%>(list limit:10)</td>
+					<td colspan="6" id="GWStatic"><%tcWebApi_get("String_Entry","RC_GWStatic_groupitemdesc","s")%> (<%tcWebApi_get("String_Entry","List_limit","s")%> 10)</td>
 </tr>
 </thead>
 <tr>

@@ -1,6 +1,7 @@
 
 DESTDIR=
-KERNEL_HEADERS=-I../../linux/include
+KERNEL_HEADERS=-I$(KERNEL_DIR)/include
+#KERNEL_HEADERS=-I../../linux/include
 
 INSTALL=/usr/bin/install -c
 

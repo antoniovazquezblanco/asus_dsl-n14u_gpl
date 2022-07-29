@@ -34,70 +34,101 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <unistd.h>
-#include <typedefs.h>
-#include<stdarg.h>
+//#include <typedefs.h>
 #include <bcmnvram.h>
 #include "shutils.h"
 #include "shared.h"
 #include "notify_rc.h"
 
-static void notify_rc_internal(const char *event_name, bool do_wait, int wait);
+static int notify_rc_internal(const char *event_name, bool do_wait, int wait);
 
-extern void notify_rc(const char *event_name)
+int notify_rc(const char *event_name)
 {
-	notify_rc_internal(event_name, FALSE, 15);
+	return notify_rc_internal(event_name, FALSE, 15);
 }
 
-extern void notify_rc_after_wait(const char *event_name)
+int notify_rc_after_wait(const char *event_name)
 {
-	notify_rc_internal(event_name, FALSE, 30);
+	return notify_rc_internal(event_name, FALSE, 30);
 }
 
-extern void notify_rc_and_wait(const char *event_name)
+int notify_rc_after_period_wait(const char *event_name, int wait)
 {
-	notify_rc_internal(event_name, TRUE, 10);
+	return notify_rc_internal(event_name, FALSE, wait);
 }
 
-static void logmessage(char *logheader, char *fmt, ...)
+int notify_rc_and_wait(const char *event_name)
 {
-  va_list args;
-  char buf[512];
-
-  va_start(args, fmt);
-
-  vsnprintf(buf, sizeof(buf), fmt, args);
-  openlog(logheader, 0, 0);
-  syslog(0, buf);
-  closelog();
-  va_end(args);
+	return notify_rc_internal(event_name, TRUE, 10);
 }
 
-static void notify_rc_internal(const char *event_name, bool do_wait, int wait)
+int notify_rc_and_wait_1min(const char *event_name)
 {
-	int i;
+	return notify_rc_internal(event_name, TRUE, 60);
+}
 
-	_dprintf("notify_rc: %s\n", event_name);
-	logmessage("notify_rc ", event_name);
+int notify_rc_and_wait_2min(const char *event_name)
+{
+	return notify_rc_internal(event_name, TRUE, 120);
+}
 
-	i=wait;
-	int first_try = 1, got_right = 1;
-	while ((!nvram_match("rc_service", "")) && (i-- > 0)) {
+int notify_rc_and_period_wait(const char *event_name, int wait)
+{
+	return notify_rc_internal(event_name, TRUE, wait);
+}
+
+/*
+ * int wait_rc_service(int wait)
+ * wait: seconds to wait and check
+ *
+ * @return:
+ * 0: no  right
+ * 1: get right
+ */
+int wait_rc_service(int wait)
+{
+	int i=wait;
+	int first_try = 1;
+	char p1[16];
+
+	psname(nvram_get_int("rc_service_pid"), p1, sizeof(p1));
+	while (!nvram_match("rc_service", "")) {
+		if(--i < 0)
+			return 0;
 		if(first_try){
-			logmessage("rc_service", "%s is waitting %s...", event_name, nvram_safe_get("rc_service"));
+			logmessage_normal("rc_service", "waitting \"%s\" via %s ...", nvram_safe_get("rc_service"), p1);
 			first_try = 0;
 		}
 
-		_dprintf("wait for previous script(%d/%d): %s %d.\n", i, wait, nvram_safe_get("rc_service"), nvram_get_int("rc_service_pid"));
+		_dprintf("%d: wait for previous script(%d/%d): %s %d %s.\n", getpid(), i, wait, nvram_safe_get("rc_service"), nvram_get_int("rc_service_pid"), p1);
 		sleep(1);
 
-		if(i <= 0)
-			got_right = 0;
 	}
+	return 1;
+}
 
-	if(!got_right){
-		logmessage("rc_service", "skip the event: %s.", event_name);
+
+/* @return:
+ * 	0:	success
+ *     -1:	invalid parameter
+ *      1:	wait pending rc_service timeout
+ */
+static int notify_rc_internal(const char *event_name, bool do_wait, int wait)
+{
+	int i;
+	char p2[16];
+
+	if (!event_name || wait < 0)
+		return -1;
+
+	psname(getpid(), p2, sizeof(p2));
+	_dprintf("%s %d:notify_rc: %s\n", p2, getpid(), event_name);
+	logmessage_normal("rc_service", "%s %d:notify_rc %s", p2, getpid(), event_name);
+
+	if (!wait_rc_service(wait)) {
+		logmessage_normal("rc_service", "skip the event: %s.", event_name);
 		_dprintf("rc_service: skip the event: %s.\n", event_name);
-		return;
+		return 1;
 	}
 
 	nvram_set("rc_service", event_name);
@@ -108,10 +139,12 @@ static void notify_rc_internal(const char *event_name, bool do_wait, int wait)
 	{
 		i = wait;
 		while((nvram_match("rc_service", (char *)event_name))&&(i-- > 0)) {
-			dprintf("%s %d: waiting after %d/%d.\n", event_name, getpid(), i, wait);
+			_dprintf("%s %d: waiting after %d/%d.\n", event_name, getpid(), i, wait);
 			sleep(1);
 		}
 	}
+
+	return 0;
 }
 
 

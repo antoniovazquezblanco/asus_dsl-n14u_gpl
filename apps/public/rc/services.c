@@ -6,7 +6,6 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <time.h>
-// #include <bcmnvram.h>
 #include <shutils.h>
 #include <dirent.h>
 #include <sys/mount.h>
@@ -150,6 +149,24 @@ void start_hotplug2()
 
 #endif	//LINUX26
 
+void
+stop_infosvr()
+{
+	if (pids("infosvr"))
+		killall_tk("infosvr");
+}
+
+int
+start_infosvr()
+{
+	char *infosvr_argv[] = {"/userfs/bin/infosvr", "br0", NULL};
+	pid_t pid;
+
+	tcapi_set("SysInfo_Entry", "asus_mfg", "0");
+
+	return _eval(infosvr_argv, NULL, 0, &pid);
+}
+
 int
 ddns_updated_main(int argc, char *argv[])
 {
@@ -187,20 +204,56 @@ ddns_updated_main(int argc, char *argv[])
 	return 0;
 }
 
+void
+stop_rstats(void)
+{
+	if (pids("rstats"))
+		killall_tk("rstats");
+}
+
+void
+start_rstats()
+{
+	stop_rstats();
+	xstart("rstats");
+}
+
+#ifdef RTCONFIG_SPECTRUM
+void stop_spectrum(void)
+{
+	if (pids("spectrum"))
+		killall_tk("spectrum");
+}
+
+void start_spectrum(void)
+{
+	stop_spectrum();
+	xstart("spectrum");
+}
+#endif
+
 int
 start_services(void)
 {
+	start_infosvr();
+	start_rstats();
+#ifdef RTCONFIG_SPECTRUM
+	start_spectrum();
+#endif
 #if defined(RTCONFIG_PPTPD) || defined(RTCONFIG_ACCEL_PPTPD)
 	start_pptpd();
 #endif
 	return 0;
 }
-/*
+
 void
 stop_services(void)
 {
+	stop_rstats();
+	stop_spectrum();
+	stop_infosvr();
 }
-
+/*
 // 2008.10 magic 
 int start_wanduck(void)
 {	
@@ -350,6 +403,10 @@ void start_nat_rules(void)
 void stop_nat_rules(void)
 {
 	char tmp[4] = {0};
+
+	if(tcapi_match("SysInfo_Entry", "nat_redirect_enable", "0"))
+		return;
+
 	tcapi_get("Wanduck_Common", "nat_state", tmp);
 	if (atoi(tmp) == NAT_STATE_REDIRECT) return;
 	// if (nvram_get_int("nat_state")==NAT_STATE_REDIRECT) return ;

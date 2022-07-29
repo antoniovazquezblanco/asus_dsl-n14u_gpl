@@ -4,7 +4,7 @@
 
 <!--Advanced_IPTV_Content.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -20,12 +20,11 @@
 <script type="text/javascript" src="/help.js"></script>
 <script type="text/javascript" src="/detect.js"></script>
 <script>
-<% login_state_hook() %>
 
-var wireless = []; // [[MAC, associated, authorized], ...]
 var original_switch_stb_x = '<% tcWebApi_get("IPTV_Entry", "switch_stb_x", "s") %>';
 var original_switch_wantag = 'none';
-var wans_lanport = '-1';
+var wans_lanport = '<% tcWebApi_get("Dualwan_Entry", "wans_lanport", "s") %>';
+var wans_dualwan_orig = '<% tcWebApi_get("Dualwan_Entry", "wans_dualwan", "s") %>';
 
 function initial(){
 	show_menu();
@@ -198,6 +197,7 @@ function validForm(){
 }
 
 function applyRule(){
+<%if tcWebApi_get("WebCustom_Entry","haveLanWan","h") = "Yes" then%>
 	if (dualWAN_support != -1) {
 		var port_conflict = false;
 		var iptv_port = document.form.switch_stb_x.value;
@@ -222,10 +222,11 @@ function applyRule(){
 			}
 		}
 		if (port_conflict) {
-			alert("IPTV port number is same as dual wan LAN port number");
+			alert("<%tcWebApi_get("String_Entry","RC_IPTV_conflict","s")%>");
 			return;
 		}
 	}
+<%end if%>
 	if(dsl_support == -1) {
 		if( (original_switch_stb_x != document.form.switch_stb_x.value)
 		|| (original_switch_wantag != document.form.switch_wantag.value)){

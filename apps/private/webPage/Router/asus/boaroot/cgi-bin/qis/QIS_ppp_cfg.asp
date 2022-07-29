@@ -104,14 +104,6 @@ function submitForm(){
 	}
 }
 
-function gotoIndex(){
-	if (w_Setting == "0") {
-		alert("<% tcWebApi_Get("String_Entry", "QIS_recommand_encryption", "s") %>");
-		location.href = '/cgi-bin/qis/QIS_wireless.asp';
-	}
-	else
-		parent.location.href = '../index2.asp';
-}
 </script>
 </head>
 <body onLoad="QKfinish_load_body();" >
@@ -136,9 +128,9 @@ function gotoIndex(){
 		<td align="left">
 			<span class="description_down"><script>document.write(prctl_str);</script></span>
 		</td>
-		<td align="right">
+		<!--td align="right">
 			<img onclick="gotoIndex();" style="cursor:pointer;" align="right" title="Go to Home" src="/images/backtohome.png" onMouseOver="this.src='/images/backtohomeclick.png'" onMouseOut="this.src='/images/backtohome.png'">
-		</td>
+		</td-->
 	</tr>
 </table>
 </div>
@@ -163,13 +155,13 @@ function gotoIndex(){
 <tr>
 <th width="120"><% tcWebApi_Get("String_Entry", "PPPC_UserName_in", "s") %></th>
 <td>
-<input type="text" name="dsltmp_cfg_pppoe_username" value="" maxlength="64" class="input_32_table">
+<input type="text" name="dsltmp_cfg_pppoe_username" value="" maxlength="64" class="input_32_table" autocapitalization="off" autocomplete="off">
 </td>
 </tr>
 <tr>
 <th width="120"><% tcWebApi_Get("String_Entry", "PPPC_Password_in", "s") %></th>
 <td>
-<input type="password" name="dsltmp_cfg_pppoe_passwd" value="" maxlength="64" class="input_32_table">
+<input type="password" name="dsltmp_cfg_pppoe_passwd" value="" maxlength="64" class="input_32_table" autocapitalization="off" autocomplete="off">
 </td>
 </tr>
 <%if tcWebApi_get("AutoPVC_Common","Detect_XDSL","h") = "PTM" then %>

@@ -71,6 +71,11 @@ ifeq ($(DHCP_PROFILE),1)
 	CFLAGS += -DDHCP_PROFILE
 endif
 
+ifeq ($(strip $(RTCONFIG_TR069)),y)
+	CFLAGS += -DCWMP
+	CFLAGS += -DTR111
+endif
+
 ifneq ($(TC_CFLAGS), )
         CFLAGS+=$(TC_CFLAGS)
 endif

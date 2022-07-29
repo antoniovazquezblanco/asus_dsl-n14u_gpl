@@ -28,7 +28,7 @@ end if
 
 <!--Advanced_DSL_Feedback.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -55,7 +55,7 @@ function redirect(){
 function applyRule(){
 		var wait_time = 60;
 		document.adv_adsl.browserInfo.value = navigator.userAgent;
-		if(link_status == "2" && link_auxstatus == "0"){
+		if((link_status == "2" && (link_auxstatus == "0" || link_auxstatus == "2")) || (secondary_link_status == "2" && (secondary_link_auxstatus == "0" || secondary_link_auxstatus == "2"))){
 
 			/*if(document.adv_adsl.fb_response.value == "3"){
 				alert("Feedback report daily maximum(10) send limit reached.");
@@ -85,7 +85,7 @@ function applyRule(){
 			else{   //validate email
                         
                                 if(!isEmail(document.adv_adsl.fb_email.value)){
-                                                alert("The format of E-mail address is not valid.");                                            
+                                                alert(Untranslated.Email_validation);
                                                 document.adv_adsl.fb_email.focus();
                                                 return false;
                                 }
@@ -115,6 +115,13 @@ function split_fb_comment(){
 	document.adv_adsl.fb_comment2.value = document.adv_adsl.fb_comment.value.substring(1000,1500);
 	document.adv_adsl.fb_comment3.value = document.adv_adsl.fb_comment.value.substring(1500,2000);
 	document.adv_adsl.fb_comment4.value = document.adv_adsl.fb_comment.value.substring(2000,2500);
+}
+
+function textCounter(field, cnt, upper) {
+	if (field.value.length > upper)
+		field.value = field.value.substring(0, upper);
+	else
+		cnt.value = upper - field.value.length;
 }
 </script>
 </head>
@@ -227,14 +234,17 @@ function split_fb_comment(){
 	<th>
 		<%tcWebApi_get("String_Entry","feedback_comments","s")%> *
 	</th>
-	<td>
-		<textarea name="fb_comment" maxlength="2000" cols="55" rows="8" style="font-family:'Courier New', Courier, mono; font-size:13px;background:#475A5F;color:#FFFFFF;"></textarea>
-		<br> <%tcWebApi_get("String_Entry","feedback_optional","s")%>
+	<td>		
+		<textarea name="fb_comment" maxlength="2000" cols="55" rows="8" style="font-family:'Courier New', Courier, mono; font-size:13px;background:#475A5F;color:#FFFFFF;" onKeyDown="textCounter(this,document.adv_adsl.msglength,2000);" onKeyUp="textCounter(this,document.adv_adsl.msglength,2000)"></textarea>
+		<i>Maximum of 2000 characters - characters left : <input type="text" class="input_6_table" name="msglength" id="msglength" maxlength="4" value="2000" readonly></i>
 	</td>
 </tr>
 
 <tr align="center">
 	<td colspan="2">	
+		<div style="margin-left:-680px;">
+		<%tcWebApi_get("String_Entry","feedback_optional","s")%>	
+		</div>
 		<input class="button_gen" onclick="applyRule()" type="button" value="Send"/>
 	</td>	
 </tr>

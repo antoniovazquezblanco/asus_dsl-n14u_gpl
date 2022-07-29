@@ -1,5 +1,5 @@
 <%
-If Request_Form("adminFlag") = "1" Then
+If Request_Form("accountFlag") = "1" Then
 	TCWebApi_set("Account_Entry0","username","uiViewTools_username")
 	If Request_Form("passwdFlag") = "1" Then
 		TCWebApi_set("Account_Entry0","web_passwd","uiViewTools_Password")
@@ -14,18 +14,18 @@ If Request_Form("RadioButtonFlag") = "1" Then
 	tcWebApi_CommitWithoutSave("SysInfo_Entry")
 End If
 
-if request_Form("logFlag") = "1" then
+If request_Form("logFlag") = "1" then
 	TCWebApi_set("Syslog_Entry","LogEnable","syslogEnable")
 	TCWebApi_set("Syslog_Entry","WriteLevel","logLevelSelect")
 	TCWebApi_set("Syslog_Entry","DisplayLevel","DisplayLevelSelect")
-	if request_Form("remoteSyslog") = "Yes" then
+	If request_Form("remoteSyslog") = "Yes" then
 		TCWebApi_set("Syslog_Entry","remoteSyslogEnable","RemotelogEnable")
 		TCWebApi_set("Syslog_Entry","remoteHost","syslogServerAddr")
 		TCWebApi_set("Syslog_Entry","remotePort","serverPort")
-	end if
+	End if
 
 	tcWebApi_CommitWithoutSave("Syslog_Entry")
-end if
+End if
 
 If Request_Form("SaveTime") = "1" Then
 	TCWebApi_set("Timezone_Entry","TZ","uiViewdateToolsTZ")
@@ -54,17 +54,20 @@ If Request_Form("SaveFirewall") = "1" Then
 	TCWebApi_set("Firewall_Entry","misc_http_x","misc_http_x")
 	TCWebApi_set("Firewall_Entry","misc_httpport_x","misc_httpport_x")
 	TCWebApi_set("Firewall_Entry","misc_httpsport_x","misc_httpsport_x")
+	TCWebApi_set("SysInfo_Entry","nat_redirect_enable","nat_redirect_enable")
 	tcWebApi_CommitWithoutSave("Firewall_Entry")
 End if
 
-if tcWebApi_Get("WebCustom_Entry", "isSwapFileSupport", "h") = "Yes" then
-	if Request_Form("SaveSwap") = "1" Then
+If tcWebApi_Get("WebCustom_Entry", "isSwapFileSupport", "h") = "Yes" then
+	If Request_Form("SaveSwap") = "1" Then
 		TCWebApi_set("SysInfo_Entry","swap_enable","swap_enable")
 		do_swap()
-	end if
-end if
+	End if
+End if
 
+If Request_Form("tcWebApi_Save_Flag") = "1" Then
 	tcWebApi_Save()
+End if
 
 If Request_Form("SaveHttps") = "1" Then
 	TCWebApi_set("Https_Entry","http_enable","http_enable")
@@ -80,7 +83,7 @@ End if
 
 <!--Advanced_System_Content.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -157,7 +160,7 @@ var timezones = [
 	["GMT+07:00",	"(GMT-07:00) <% tcWebApi_get("String_Entry","TZ06","s")%>, <% tcWebApi_get("String_Entry","TZ07","s")%>, <% tcWebApi_get("String_Entry","TZ08","s")%>"],
 	["GMT+06:00",	"(GMT-06:00) <% tcWebApi_get("String_Entry","TZ09","s")%>, <% tcWebApi_get("String_Entry","TZ10","s")%>, <% tcWebApi_get("String_Entry","TZ11","s")%>, <% tcWebApi_get("String_Entry","TZ12","s")%>, <% tcWebApi_get("String_Entry","TZ13","s")%>"],
 	["GMT+05:00",	"(GMT-05:00) <% tcWebApi_get("String_Entry","TZ14","s")%>, <% tcWebApi_get("String_Entry","TZ15","s")%>, <% tcWebApi_get("String_Entry","TZ16","s")%>"],
-	["GMT+04:00",	"(GMT-04:00) <% tcWebApi_get("String_Entry","TZ17","s")%>, <% tcWebApi_get("String_Entry","TZ18","s")%>, <% tcWebApi_get("String_Entry","TZ19","s")%>"],	
+	["GMT+04:00",	"(GMT-04:00) <% tcWebApi_get("String_Entry","TZ17","s")%>, <% tcWebApi_get("String_Entry","TZ18","s")%>, <% tcWebApi_get("String_Entry","TZ19","s")%>"],
 	["GMT+03:30",	"(GMT-03:30) <% tcWebApi_get("String_Entry","TZ20","s")%>"],
 	["GMT+03:00",	"(GMT-03:00) <% tcWebApi_get("String_Entry","TZ21","s")%>, <% tcWebApi_get("String_Entry","TZ22","s")%>, <% tcWebApi_get("String_Entry","TZ23","s")%>"],
 	["GMT+02:00",	"(GMT-02:00) <% tcWebApi_get("String_Entry","TZ24","s")%>"],
@@ -174,7 +177,7 @@ var timezones = [
 	["GMT-05:00",	"(GMT+05:00) <% tcWebApi_get("String_Entry","TZ54","s")%>"],
 	["GMT-05:30",	"(GMT+05:30) <% tcWebApi_get("String_Entry","TZ55","s")%>, <% tcWebApi_get("String_Entry","TZ56","s")%>, <% tcWebApi_get("String_Entry","TZ59","s")%>"],
 	["GMT-05:45",   "(GMT+05:45) <% tcWebApi_get("String_Entry","TZ57","s")%>"],
-	["GMT-06:00",	"(GMT+06:00) <% tcWebApi_get("String_Entry","TZ60","s")%>, <% tcWebApi_get("String_Entry","TZ58","s")%>, <% tcWebApi_get("String_Entry","TZ53","s")%>"],	
+	["GMT-06:00",	"(GMT+06:00) <% tcWebApi_get("String_Entry","TZ60","s")%>, <% tcWebApi_get("String_Entry","TZ58","s")%>, <% tcWebApi_get("String_Entry","TZ53","s")%>"],
 	["GMT-06:30",	"(GMT+06:30) <% tcWebApi_get("String_Entry","TZ61","s")%>"],
 	["GMT-07:00",	"(GMT+07:00) <% tcWebApi_get("String_Entry","TZ62","s")%>"],
 	["GMT-08:00",	"(GMT+08:00) <% tcWebApi_get("String_Entry","TZ64","s")%>, <% tcWebApi_get("String_Entry","TZ67","s")%>, <% tcWebApi_get("String_Entry","TZ66","s")%>, <% tcWebApi_get("String_Entry","TZ68","s")%>, <% tcWebApi_get("String_Entry","TZ63","s")%>, <% tcWebApi_get("String_Entry","TZ65","s")%>, <% tcWebApi_get("String_Entry","TZ69","s")%>"],
@@ -191,13 +194,13 @@ function load_timezones(){
 	for(var i = 0; i < timezones.length; i++){
 		if( (i==15 || i==17) && document.tool_admin.uiTimezoneSecond.value != 1){
 			add_option(document.tool_admin.uiViewdateToolsTZ,
-							timezones[i][1], 
+							timezones[i][1],
 							timezones[i][0],
 							false
 						  );
 		}else{
 			add_option(document.tool_admin.uiViewdateToolsTZ,
-							timezones[i][1], 
+							timezones[i][1],
 							timezones[i][0],
 							("<% tcWebApi_get("Timezone_Entry","TZ","s")%>" == timezones[i][0])
 						  );
@@ -206,15 +209,13 @@ function load_timezones(){
 }
 
 function remove_btn_ez_radiotoggle(){
-	var modelName = "<% tcWebApi_get("SysInfo_Entry","ProductName","s") %>";
-
-	if((modelName == "DSL-N10-C1")||(modelName == "DSL-N12E-C1")||(modelName == "DSL-N12U-C1")||(modelName == "DSL-N14U"))
+	if((model_name == "DSL-N10-C1")||(model_name == "DSL-N12E-C1")||(model_name == "DSL-N12U-C1")||(model_name == "DSL-N14U"))
 	{
 		document.getElementById('radio2').style.display = "none";
 		document.getElementById('radio_text2').style.display = "none";
 	}
-	
-	if(modelName == "DSL-N66U")
+
+	if((model_name == "DSL-N66U")||(model_name == "DSL-AC56U")||(model_name == "DSL-N17U"))
 	{
 		//DSL-N66U has an individual WiFi on/off button
 		document.getElementById('radio1').style.display = "none";
@@ -228,9 +229,9 @@ function initial(){
 	corrected_timezone();
 	load_timezones();
 	hideport("<% tcWebApi_get("Firewall_Entry","misc_http_x", "s") %>");
-	if(HTTPS_support == -1){
+	if(HTTPS_support == -1 || model_name == "DSL-N10-C1" || model_name == "DSL-N12E-C1"){       //MODELDEP: DSL-N10-C1, DSL-N12E-C1
 		$("https_tr").style.display = "none";
-		$("https_lanport").style.display = "none";		
+		$("https_lanport").style.display = "none";
 	}
 	else{
 		//showLANIPList();
@@ -238,17 +239,17 @@ function initial(){
 		hide_https_wanport(document.tool_admin.http_enable.value);
 	}
 	$("accessfromwan_port").style.display = (document.tool_admin.misc_http_x[0].checked == 1) ? "" : "none";
-	
-	if(HTTPS_support  == -1|| '<% tcWebApi_get("Https_Entry","http_enable","s") %>' == 1)
+
+	if(HTTPS_support  == -1 || '<% tcWebApi_get("Https_Entry","http_enable","s") %>' == 1)
 		$("https_port").style.display = "none";
+	else if(model_name == "DSL-N10-C1" || model_name == "DSL-N12E-C1"){       //MODELDEP: DSL-N10-C1, DSL-N12E-C1
+		$("https_port").style.display = "none";
+	}	
 	else if('<% tcWebApi_get("Https_Entry","http_enable","s") %>' == 2)
-		$("http_port").style.display = "none";	
-	
-	var http_password = decodeURIComponent("<% tcWebApi_char_to_ascii("Account_Entry0","web_passwd","s") %>");
-	chkPass(http_password, 'http_passwd');
+		$("http_port").style.display = "none";
 
 	//Set default http_autologout if value null
-	if("<% tcWebApi_Get("Misc_Entry", "http_autologout", "s") %>" != ""){		
+	if("<% tcWebApi_Get("Misc_Entry", "http_autologout", "s") %>" != ""){
         	set_http_autologout = "<% tcWebApi_Get("Misc_Entry", "http_autologout", "s") %>";
 	}
 	else{
@@ -261,32 +262,32 @@ function hideport(flag){
 $("accessfromwan_port").style.display = (flag == 1) ? "" : "none";
 }
 
-function redirect(){	
+function redirect(){
 	if(document.tool_admin.http_enable.value == "1"){
 		if(isFromWAN)
 			document.location.href = "http://" + location.hostname + ":" + document.tool_admin.misc_httpport_x.value + "/cgi-bin/Advanced_System_Content.asp";
 		else
 			document.location.href = "http://" + location.hostname + "/cgi-bin/Advanced_System_Content.asp";
-	
+
 	}else if(document.tool_admin.http_enable.value == "2"){
 		if(isFromWAN)
 			document.location.href = "https://" + location.hostname + ":" + document.tool_admin.misc_httpsport_x.value + "/cgi-bin/Advanced_System_Content.asp";
 		else
 			document.location.href = "https://" + location.hostname + ":" + document.tool_admin.https_lanport.value + "/cgi-bin/Advanced_System_Content.asp";
-	
+
 	}else{
 		if(isFromHTTPS){
 			if(isFromWAN)
 					document.location.href = "https://" + location.hostname + ":" + document.tool_admin.misc_httpsport_x.value + "/cgi-bin/Advanced_System_Content.asp";
 			else
-					document.location.href = "https://" + location.hostname + ":" + document.tool_admin.https_lanport.value + "/cgi-bin/Advanced_System_Content.asp";			
+					document.location.href = "https://" + location.hostname + ":" + document.tool_admin.https_lanport.value + "/cgi-bin/Advanced_System_Content.asp";
 		}else{
 			if(isFromWAN)
 					document.location.href = "http://" + location.hostname + ":" + document.tool_admin.misc_httpport_x.value + "/cgi-bin/Advanced_System_Content.asp";
 			else
 					document.location.href = "http://" + location.hostname + "/cgi-bin/Advanced_System_Content.asp";
-		}		
-	}	
+		}
+	}
 	//document.location.href = "/cgi-bin/Advanced_System_Content.asp";
 }
 
@@ -298,9 +299,19 @@ function uiSave() {
 				document.tool_admin.misc_http_x.value = "1";
 		else
 				document.tool_admin.misc_http_x.value = "0";
-		if(HTTPS_support != -1){
-			document.tool_admin.SaveHttps.value = 1;
-		}	
+
+		if(HTTPS_support != -1 && model_name != "DSL-N10-C1" && model_name != "DSL-N12E-C1"){	//MODELDEP : exclude DSL-N10-C1, DSL-N12E-C1
+			if((document.tool_admin.http_enable.value != document.tool_admin.prev_http_enable.value) || (document.tool_admin.https_lanport.value != document.tool_admin.prev_https_lanport.value)
+				|| (document.tool_admin.adminFlag.value == 1) || (document.tool_admin.passwdFlag.value == 1)
+			)
+			{
+				document.tool_admin.SaveHttps.value = 1;
+			}
+			else
+			{
+				document.tool_admin.SaveHttps.value = 0;
+			}
+		}
 	}
 	else
 	{
@@ -335,14 +346,14 @@ function uiSave() {
         {
                 document.tool_admin.uiViewSNTPServer.value = "0.0.0.0";
         }
-	
+
 	if(document.tool_admin.uiViewdateToolsTZ[15].selected == true || document.tool_admin.uiViewdateToolsTZ[17].selected == true)
 		document.tool_admin.uiTimezoneSecond.value = "1";
-	else	
+	else
 		document.tool_admin.uiTimezoneSecond.value = "";
 
-	showLoading(8);
-	setTimeout("redirect();", 5000);
+	showLoading(20);	//Extend from 10 to 20 to restore_webtype 
+	setTimeout("redirect();", 20000);
 	document.tool_admin.submit();
 	return;
 }
@@ -386,7 +397,7 @@ function validForm(){
                                 return false;
                 }
                 else if(accounts.getIndexByValue(document.tool_admin.uiViewTools_username.value) > 0
-                                && document.tool_admin.uiViewTools_username.value != accounts[0]){           
+                                && document.tool_admin.uiViewTools_username.value != accounts[0]){
                                 showtext($("alert_msg1"), "<% tcWebApi_get("String_Entry","File_Pop_content_alert_desc5","s") %>");
                                 $("alert_msg1").style.display = "";
                                 document.tool_admin.uiViewTools_username.focus();
@@ -397,10 +408,13 @@ function validForm(){
                                 $("alert_msg1").style.display = "none";
                 }
 
-		document.tool_admin.adminFlag.value = 1;
+		if(document.tool_admin.uiViewTools_username.value != document.tool_admin.prev_username.value)
+		{
+			document.tool_admin.adminFlag.value = 1;
+		}
 	}
 
-	//password	
+	//password
 	if (document.tool_admin.uiViewTools_Password.value.length == 0 && document.tool_admin.uiViewTools_PasswordConfirm.value.length == 0){
                 document.tool_admin.passwdFlag.value = 0;
         }
@@ -414,7 +428,7 @@ function validForm(){
 	                }else{
                 	        document.tool_admin.uiViewTools_PasswordConfirm.focus();
         	                document.tool_admin.uiViewTools_PasswordConfirm.select();
-	                }       
+	                }
 
                 	return false;
         	}
@@ -424,19 +438,27 @@ function validForm(){
                 	document.tool_admin.uiViewTools_Password.select();
 	                return false;
         	}
-		
-		document.tool_admin.passwdFlag.value = 1;
+		if(document.tool_admin.uiViewTools_Password.value != document.tool_admin.prev_web_passwd.value)
+		{
+			document.tool_admin.passwdFlag.value = 1;
+		}
+	}
+
+	if((document.tool_admin.adminFlag.value == 1) || (document.tool_admin.passwdFlag.value == 1))
+	{
+		document.tool_admin.accountFlag.value = 1;
 	}
 
 	if (document.tool_admin.misc_http_x[0].checked) {
 		if (!validate_range(document.tool_admin.misc_httpport_x, 1024, 65535))
 			return false;
-	
-		if (HTTPS_support != -1 && !validate_range(document.tool_admin.https_lanport, 1024, 65535))
-			return false;
+		if(HTTPS_support != -1 && model_name != "DSL-N10-C1" && model_name != "DSL-N12E-C1"){	//MODELDEP: exclude DSL-N10-C1, DSL-N12E-C1
+			if (!validate_range(document.tool_admin.https_lanport, 1024, 65535))
+				return false;
 
-		if (HTTPS_support != -1 && !validate_range(document.tool_admin.misc_httpsport_x, 1024, 65535))
-			return false;
+			if (!validate_range(document.tool_admin.misc_httpsport_x, 1024, 65535))
+				return false;
+		}
 	}
 	else{
 		document.tool_admin.misc_httpport_x.value = '<% tcWebApi_get("Firewall_Entry","misc_httpport_x", "s") %>';
@@ -448,48 +470,29 @@ function validForm(){
 		document.tool_admin.misc_httpport_x.focus();
 		return false;
 	}
-	else if(isPortConflict(document.tool_admin.misc_httpsport_x.value) && HTTPS_support != -1){
-		alert(isPortConflict(document.tool_admin.misc_httpsport_x.value));
-		document.tool_admin.misc_httpsport_x.focus();
-		return false;
-	}
-	else if(isPortConflict(document.tool_admin.https_lanport.value) && HTTPS_support != -1){
-		alert(isPortConflict(document.tool_admin.https_lanport.value));
-		document.tool_admin.https_lanport.focus();
-		return false;
-	}
-	else if(document.tool_admin.misc_httpsport_x.value == document.tool_admin.misc_httpport_x.value && HTTPS_support != -1){
-		alert("Duplicate port number with HTTP and HTTPS WAN port setting.");
-		document.tool_admin.misc_httpsport_x.focus();
-		return false;
-	}
-	else if(!validate_range_sp(document.tool_admin.http_autologout, 10, 999, set_http_autologout))
-		return false;
 	
-	return true;
-}
-
-function quotationCheck(object, limit_len) {
-	var len = object.value.length;
-	var c;
-	var i, j = 0;
-    for (i = 0; i < len; i++)
-    {
-	 	var c = object.value.charAt(i);
-
-	  	if (c == '"')
-		{
-			j += 6;
+	if(HTTPS_support != -1 &&  model_name != "DSL-N10-C1" && model_name != "DSL-N12E-C1"){     //MODELDEP: exclude DSL-N10-C1, DSL-N12E-C1
+		if(isPortConflict(document.tool_admin.misc_httpsport_x.value)){
+			alert(isPortConflict(document.tool_admin.misc_httpsport_x.value));
+			document.tool_admin.misc_httpsport_x.focus();
+			return false;
 		}
-		else
-			j++;
-    }
-   	if (j > limit_len)
-	{
-   	alert('Input too many character!!');
-		return true;
+		if(isPortConflict(document.tool_admin.https_lanport.value)){
+			alert(isPortConflict(document.tool_admin.https_lanport.value));
+			document.tool_admin.https_lanport.focus();
+			return false;
+		}
+		if(document.tool_admin.misc_httpsport_x.value == document.tool_admin.misc_httpport_x.value){
+			alert("<%tcWebApi_get("String_Entry","https_port_conflict","s")%>");
+			document.tool_admin.misc_httpsport_x.focus();
+			return false;
+		}
 	}
-	return false;
+	
+	if(!validate_range_sp(document.tool_admin.http_autologout, 10, 999, set_http_autologout))
+		return false;
+
+	return true;
 }
 
 function corrected_timezone(){
@@ -532,8 +535,8 @@ function hide_https_lanport(_value){
 }
 
 function hide_https_wanport(_value){
-	$("http_port").style.display = (_value == "2") ? "none" : "";	
-	$("https_port").style.display = (_value == "1") ? "none" : "";	
+	$("http_port").style.display = (_value == "2") ? "none" : "";
+	$("https_port").style.display = (_value == "1") ? "none" : "";
 }
 
 
@@ -544,10 +547,16 @@ function change_url(num, flag){
 		$("https_access_page").innerHTML = "<%tcWebApi_get("String_Entry","https_access_url","s")%> ";
 		$("https_access_page").innerHTML += "<a href=\"https://"+theUrl+":"+https_lanport_num_new+"\" target=\"_blank\" style=\"color:#FC0;text-decoration: underline; font-family:Lucida Console;\">http<span>s</span>://"+theUrl+"<span>:"+https_lanport_num_new+"</span></a>";
 	}else{
-		
-	}		
+
+	}
 }
 //Viz add 2012.12 show url for https [end]
+
+
+function clean_scorebar(obj){
+	if(obj.value == "")
+		document.getElementById("scorebarBorder").style.display = "none";
+}
 </script>
 </head>
 <body onload="initial();" onunLoad="return unload_body();">
@@ -559,12 +568,13 @@ function change_url(num, flag){
 <input type="hidden" name="action_script" value="">
 <input type="hidden" name="action_wait" value=""></form>
 <FORM METHOD="POST" ACTION="/cgi-bin/Advanced_System_Content.asp" name="tool_admin" target="hidden_frame">
+<INPUT TYPE="HIDDEN" NAME="accountFlag" VALUE="0">
 <INPUT TYPE="HIDDEN" NAME="adminFlag" VALUE="0">
 <INPUT TYPE="HIDDEN" NAME="passwdFlag" VALUE="0">
 <INPUT TYPE="HIDDEN" NAME="uiViewTools_empty" VALUE="">
 <INPUT TYPE="HIDDEN" NAME="syslogEnable" VALUE="Yes">
 <INPUT TYPE="HIDDEN" NAME="logLevelSelect" VALUE="7">
-<INPUT TYPE="HIDDEN" NAME="DisplayLevelSelect" VALUE="7">
+<INPUT TYPE="HIDDEN" NAME="DisplayLevelSelect" VALUE="<%tcWebApi_get("Syslog_Entry","DisplayLevel","s")%>">
 <INPUT TYPE="HIDDEN" NAME="RemotelogEnable" VALUE="0">
 <INPUT TYPE="HIDDEN" NAME="serverPort" VALUE="514">
 <INPUT TYPE="HIDDEN" NAME="logFlag" VALUE="0">
@@ -580,198 +590,191 @@ function change_url(num, flag){
 <INPUT TYPE="HIDDEN" name="SaveFirewall" VALUE="0">
 <INPUT TYPE="HIDDEN" name="SaveHttps" VALUE="0">
 <INPUT TYPE="HIDDEN" name="SaveSwap" VALUE="0">
+<INPUT TYPE="HIDDEN" name="tcWebApi_Save_Flag" VALUE="1">
+<INPUT TYPE="HIDDEN" name="prev_http_enable" VALUE="<%tcWebApi_get("Https_Entry","http_enable","s")%>">
+<INPUT TYPE="HIDDEN" name="prev_https_lanport" VALUE="<%tcWebApi_get("Https_Entry","https_lanport","s")%>">
+<INPUT TYPE="HIDDEN" name="prev_username" VALUE="<%tcWebApi_get("Account_Entry0","username","s")%>">
+<INPUT TYPE="HIDDEN" name="prev_web_passwd" VALUE="<%tcWebApi_get("Account_Entry0","web_passwd","s")%>">
 <table class="content" align="center" cellpadding="0" cellspacing="0">
 <tr>
-<td width="17">&nbsp;</td>
-<td valign="top" width="202">
-<div id="mainMenu"></div>
-<div id="subMenu"></div>
-</td>
-<td valign="top">
-<div id="tabMenu" class="submenuBlock"></div>
-<table width="98%" border="0" align="left" cellpadding="0" cellspacing="0">
-<tr>
-<td valign="top">
-<table width="760px" border="0" cellpadding="4" cellspacing="0" class="FormTitle" id="FormTitle">
-<tbody>
-<tr>
-<td bgcolor="#4D595D" valign="top">
-<div>&nbsp;</div>
-		  <div class="formfonttitle"><%tcWebApi_get("String_Entry","menu5_6_adv","s")%> - <%tcWebApi_get("String_Entry","menu5_6_2","s")%></div>
-<div style="margin-left:5px;margin-top:10px;margin-bottom:10px"><img src="/images/New_ui/export/line_export.png"></div>
-		  <div class="formfontdesc"><%tcWebApi_get("String_Entry","Syste_title","s")%></div>
+	<td width="17">&nbsp;</td>
+	<td valign="top" width="202">
+		<div id="mainMenu"></div>
+		<div id="subMenu"></div>
+	</td>
+	<td valign="top">
+		<div id="tabMenu" class="submenuBlock"></div>
+		<table width="98%" border="0" align="left" cellpadding="0" cellspacing="0">
+		<tr>
+			<td valign="top">
+				<table width="760px" border="0" cellpadding="4" cellspacing="0" class="FormTitle" id="FormTitle">
+				<tbody>
+				<tr>
+					<td bgcolor="#4D595D" valign="top">
+						<div>&nbsp;</div>
+						<div class="formfonttitle"><%tcWebApi_get("String_Entry","menu5_6_adv","s")%> - <%tcWebApi_get("String_Entry","menu5_6_2","s")%></div>
+						<div style="margin-left:5px;margin-top:10px;margin-bottom:10px"><img src="/images/New_ui/export/line_export.png"></div>
+						<div class="formfontdesc"><%tcWebApi_get("String_Entry","Syste_title","s")%></div>
+						<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
+							<thead>
+								<tr>
+									<td colspan="2"><%tcWebApi_get("String_Entry","PASS_changepasswd","s")%></td>
+								</tr>
+							</thead>
+							<tr>
+								<th width="40%"><% tcWebApi_Get("String_Entry", "Router_Login_Name", "s") %></th>
+								<td>
+									<input type="text" name="uiViewTools_username" maxlength="20" value="<% tcWebApi_Get("Account_Entry0","username","s") %>" onKeyPress="return is_string(this, event);"" class="input_15_table" autocapitalization="off" autocomplete="off">
+									<br/><span id="alert_msg1" style="color:#FFCC00;"></span>
+								</td>
+							</tr>
+							<tr>
+								<th width="40%"><a class="hintstyle" href="javascript:void(0);" onClick="openHint(11,4)"><%tcWebApi_get("String_Entry","PASS_new","s")%></a></th>
+								<td>
+									<input type="password" autocapitalization="off" autocomplete="off" name="uiViewTools_Password" maxlength="16" value="" onKeyPress="return is_string(this, event);" onkeyup="chkPass(this.value, 'http_passwd');" onpaste="return false;" class="input_15_table" onBlur="clean_scorebar(this);">
+										&nbsp;&nbsp;
+									<div id="scorebarBorder" name="scorebarBorder" style="margin-left:140px; margin-top:-25px; display:none;" title="<%tcWebApi_get("String_Entry","LHC_x_Password_itemSecur","s")%>">
+										<div id="score" name="score"></div>
+										<div id="scorebar" name="scorebar">&nbsp;</div>
+									</div>
+									<div style="margin-top:1px;"><input type="checkbox" name="show_pass_1" onclick="pass_checked(document.tool_admin.uiViewTools_Password);pass_checked(document.tool_admin.uiViewTools_PasswordConfirm);"><%tcWebApi_get("String_Entry","QIS_show_pass","s")%></div>
+								</td>
+							</tr>
+							<tr>
+								<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(11,4)"><%tcWebApi_get("String_Entry","PASS_retype","s")%></a></th>
+								<td>
+									<INPUT TYPE="PASSWORD" autocapitalization="off" autocomplete="off" NAME="uiViewTools_PasswordConfirm" MAXLENGTH="16" VALUE="" onKeyPress="return is_string(this, event);" onpaste="return false;" class="input_15_table">
+									<br/><span id="alert_msg2" style="color:#FC0;margin-left:8px;"></span>
+								</td>
+							</tr>
+						</table>
+						<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable" style="margin-top:8px;">
+							<thead>
+							<tr>
+								<td colspan="2"><%tcWebApi_get("String_Entry","t2Misc","s")%></td>
+							</tr>
+							</thead>
+							<tr id="btn_ez_radiotoggle_tr">
+								<th><%tcWebApi_get("String_Entry","WPS_btn_behavior","s")%></th>
+								<td>
+									<input type="radio" id="radio2" name="btn_ez_radiotoggle" class="input" value="2" <% if tcWebApi_get("SysInfo_Entry","btn_ez_radiotoggle","h") = "2" then asp_Write("checked") end if %>><label id="radio_text2">Turn LED On/Off</label>
+									<input type="radio" id="radio1" name="btn_ez_radiotoggle" class="input" value="1" <% if tcWebApi_get("SysInfo_Entry","btn_ez_radiotoggle","h") = "1" then asp_Write("checked") end if %>><label id="radio_text1"><%tcWebApi_get("String_Entry","WPS_btn_toggle","s")%></label>
+									<input type="radio" id="radio0" name="btn_ez_radiotoggle" class="input" value="0" <% if tcWebApi_get("SysInfo_Entry","btn_ez_radiotoggle","h") = "0" then asp_Write("checked") end if %>><label id="radio_text0"><%tcWebApi_get("String_Entry","WPS_btn_actWPS","s")%></label>
+								</td>
+							</tr>
 
-<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
-<thead>
-<tr>
-          <td colspan="2"><%tcWebApi_get("String_Entry","PASS_changepasswd","s")%></td>
-</tr>
-</thead>
-<tr>
-<th width="40%"><% tcWebApi_Get("String_Entry", "Router_Login_Name", "s") %></th>
-<td>
- 	<input type="text" name="uiViewTools_username" maxlength="20" value="<% tcWebApi_Get("Account_Entry0","username","s") %>" onKeyPress="return is_string(this, event);"" class="input_15_table">
-	<br/><span id="alert_msg1" style="color:#FFCC00;"></span>
-</td>
-</tr>
-<tr>
-<th width="40%"><a class="hintstyle" href="javascript:void(0);" onClick="openHint(11,4)"><%tcWebApi_get("String_Entry","PASS_new","s")%></a></th>
-<td>
- <INPUT TYPE="PASSWORD" autocapitalization="off" autocomplete="off" NAME="uiViewTools_Password" MAXLENGTH="16" VALUE="" onKeyPress="return is_string(this, event);" onkeyup="chkPass(this.value, 'http_passwd');" onpaste="return false;" class="input_15_table">
- &nbsp;&nbsp;
- 	<div id="scorebarBorder" name="scorebarBorder" style="margin-left:140px; margin-top:-25px; display:none;" title="<%tcWebApi_get("String_Entry","LHC_x_Password_itemSecur","s")%>">
-  		<div id="score" name="score"></div>
-   		<div id="scorebar" name="scorebar">&nbsp;</div>
-	</div>
-	<div style="margin-top:1px;"><input type="checkbox" name="show_pass_1" onclick="pass_checked(document.tool_admin.uiViewTools_Password);pass_checked(document.tool_admin.uiViewTools_PasswordConfirm);"><%tcWebApi_get("String_Entry","QIS_show_pass","s")%></div>
+							<tr>
+								<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(11,1)"><%tcWebApi_get("String_Entry","LHC_x_ServerLogEnable_in","s")%></a></th>
+								<td>
+									<INPUT TYPE="TEXT" class="input_15_table" NAME="syslogServerAddr" SIZE="25" MAXLENGTH="15" VALUE="<%if tcWebApi_get("Syslog_Entry","remoteHost","h") <> "N/A" then tcWebApi_get("Syslog_Entry","remoteHost","s") else asp_Write("") end if%>" onKeyPress="return is_ipaddr(this, event)">
+								</td>
+							</tr>
+							<tr>
+								<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(11,2)"><%tcWebApi_get("String_Entry","LHC_x_TimeZone_in","s")%></a></th>
+								<td>
+									<SELECT NAME="uiViewdateToolsTZ" class="input_option" style="width:400px;">
+									</SELECT><br>
+									<span id="timezone_hint" style="display:none;"></span>
+									<div>
+									</div>
+								</td>
+							</tr>
+							<tr>
+								<th><%tcWebApi_get("String_Entry","WC11b_WirelessCtrl_button1name","s")%> Daylight Saving</th>
+								<td>
+									<INPUT TYPE="RADIO" NAME="uiViewdateDS" VALUE="Enable"  <% If TCWebApi_get("Timezone_Entry","DAYLIGHT","h") = "Enable" then asp_Write("checked") end if%> ><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
+									<INPUT TYPE="RADIO" NAME="uiViewdateDS" VALUE="Disable" <% If TCWebApi_get("Timezone_Entry","DAYLIGHT","h") = "Disable" then asp_Write("checked") end if%> ><%tcWebApi_get("String_Entry","checkbox_No","s")%>
+								</td>
+							</tr>
+							<tr>
+								<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(11,3)"><%tcWebApi_get("String_Entry","LHC_x_NTPServer_in","s")%></a></th>
+								<td>
+									<INPUT TYPE="TEXT" NAME="uiViewSNTPServer" SIZE="24" MAXLENGTH="48" VALUE="<%if tcWebApi_get("Timezone_Entry","SERVER","h") <> "0.0.0.0" then tcWebApi_get("Timezone_Entry","SERVER","s") else asp_Write("") end if%>" class="input_32_table" onKeyPress="return is_string(this, event);">
+									<a href="javascript:openLink('x_NTPServer1')" name="x_NTPServer1_link" style=" margin-left:5px; text-decoration: underline;"><%tcWebApi_get("String_Entry","LHC_x_NTPServer1_linkname","s")%></a>
+								</td>
+							</tr>
+							<tr>
+								<th><%tcWebApi_get("String_Entry","WC11b_WirelessCtrl_button1name","s")%> Telnet</th>
+								<td>
+									<input type="radio" name="telnetd_enable" class="input" value="1" <% If TCWebApi_get("Misc_Entry","telnetd_enable","h") = "1" then asp_Write("checked") end if%> ><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
+									<input type="radio" name="telnetd_enable" class="input" value="0" <% If TCWebApi_get("Misc_Entry","telnetd_enable","h") = "0" then asp_Write("checked") end if%> ><%tcWebApi_get("String_Entry","checkbox_No","s")%>
+								</td>
+							</tr>
 
-</td>
-</tr>
-<tr>
-<th valign="top"><a class="hintstyle" href="javascript:void(0);" onClick="openHint(11,4)"><%tcWebApi_get("String_Entry","PASS_retype","s")%></a></th>
-<td>
-	<INPUT TYPE="PASSWORD" autocapitalization="off" autocomplete="off" NAME="uiViewTools_PasswordConfirm" MAXLENGTH="16" VALUE="" onKeyPress="return is_string(this, event);" onpaste="return false;" class="input_15_table">
-	<br/><span id="alert_msg2" style="color:#FC0;margin-left:8px;"></span>
-</td>
+							<tr id="https_tr">
+								<th><% tcWebApi_Get("String_Entry", "WC11b_AuthenticationMethod_in", "s") %></th>
+								<td>
+									<select name="http_enable" class="input_option" onchange="hide_https_lanport(this.value);hide_https_wanport(this.value);">
+											<option value="1" <% if tcWebApi_get("Https_Entry","http_enable","h") = "1" then asp_Write("selected") end if %>>HTTP</option>
+											<option value="2" <% if tcWebApi_get("Https_Entry","http_enable","h") = "2" then asp_Write("selected") end if %>>HTTPS</option>
+											<option value="3" <% if tcWebApi_get("Https_Entry","http_enable","h") = "3" then asp_Write("selected") end if %>>BOTH</option>
+									</select>
+								</td>
+							</tr>
+
+							<tr id="https_lanport">
+								<th>HTTPS Lan port</th>
+								<td>
+									<input type="text" maxlength="5" class="input_6_table" name="https_lanport" value="<%TCWebApi_get("Https_Entry","https_lanport","s")%>" onKeyPress="return is_number(this,event);" onBlur="change_url(this.value, 'https_lan');">
+									<span id="https_access_page"></span>
+								</td>
+							</tr>
+
+							<tr id="misc_http_x_tr">
+								<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(8,2);"><% tcWebApi_Get("String_Entry", "FC_x_WanWebEnable_in", "s") %></a></th>
+								<td>
+									<input type="radio" value="1" name="misc_http_x" class="input" onClick="hideport(1);return change_common_radio(this, 'FirewallConfig', 'misc_http_x', '1')" <% if tcWebApi_get("Firewall_Entry","misc_http_x","h") = "1" then asp_Write("checked") end if %>><% tcWebApi_Get("String_Entry", "checkbox_Yes", "s") %>
+									<input type="radio" value="0" name="misc_http_x" class="input" onClick="hideport(0);return change_common_radio(this, 'FirewallConfig', 'misc_http_x', '0')" <% if tcWebApi_get("Firewall_Entry","misc_http_x","h") = "0" then asp_Write("checked") end if %>><% tcWebApi_Get("String_Entry", "checkbox_No", "s") %>
+								</td>
+							</tr>
+
+							<tr id="accessfromwan_port">
+								<th align="right"><a class="hintstyle" href="javascript:void(0);" onClick="openHint(8,3);"><% tcWebApi_Get("String_Entry", "FC_x_WanWebPort_in", "s") %></a></th>
+								<td>
+									<span style="margin-left:5px;" id="http_port">HTTP: <input type="text" maxlength="5" name="misc_httpport_x" class="input_6_table" value="<% tcWebApi_get("Firewall_Entry","misc_httpport_x", "s") %>" onKeyPress="return is_number(this,event);"/>&nbsp;&nbsp;</span>
+									<span style="margin-left:5px;" id="https_port">HTTPS: <input type="text" maxlength="5" name="misc_httpsport_x" class="input_6_table" value="<% tcWebApi_get("Firewall_Entry","misc_httpsport_x", "s") %>" onKeyPress="return is_number(this,event);"/></span>
+								</td>
+							</tr>
+
+							<tr>
+								<th><% tcWebApi_Get("String_Entry", "System_AutoLogout", "s") %></th>
+								<td>
+									<input type="text" class="input_3_table" maxlength="3" name="http_autologout" value="<% tcWebApi_Get("Misc_Entry", "http_autologout", "s") %>" onKeyPress="return is_number(this,event);">
+									min<span> ( <% tcWebApi_Get("String_Entry", "zero_disable", "s") %> )</span>
+								</td>
+							</tr>
+
+							<tr>
+								<th align="right"><a class="hintstyle" href="javascript:void(0);" onClick="openHint(8,9);">Enable WAN down browser redirect notice</a></th>
+								<td>
+									<input type="radio" name="nat_redirect_enable" class="input" value="1" <% If TCWebApi_get("SysInfo_Entry","nat_redirect_enable","h") <> "0" then asp_Write("checked") end if%> ><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
+									<input type="radio" name="nat_redirect_enable" class="input" value="0" <% If TCWebApi_get("SysInfo_Entry","nat_redirect_enable","h") = "0" then asp_Write("checked") end if%> ><%tcWebApi_get("String_Entry","checkbox_No","s")%>
+								</td>
+							</tr>
+
+						<%if tcWebApi_Get("WebCustom_Entry", "isSwapFileSupport", "h") = "Yes" then%>
+							<tr>
+								<th align="right"><a class="hintstyle" href="javascript:void(0);" onClick="openHint(8,8);">Enable Virtual Memory (swap)</a></th>
+								<td>
+									<input type="radio" name="swap_enable" class="input" value="1" <% If TCWebApi_get("SysInfo_Entry","swap_enable","h") = "1" then asp_Write("checked") end if%> ><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
+									<input type="radio" name="swap_enable" class="input" value="0" <% If TCWebApi_get("SysInfo_Entry","swap_enable","h") = "0" then asp_Write("checked") end if%> ><%tcWebApi_get("String_Entry","checkbox_No","s")%>
+								</td>
+							</tr>
+						<%end if%>
+						</table><br>
+						<center><input name="button" type="button" class="button_gen" onclick="uiSave();" value="<%tcWebApi_get("String_Entry","CTL_apply","s")%>"/></center>
+					</td>
+				</tr>
+				</tbody>
+				</table>
+			</td>
+		</tr>
+		</table>
+	</td>
+	<td width="10" align="center" valign="top">&nbsp;</td>
 </tr>
 </table>
-<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable" style="margin-top:8px;">
-<thead>
-<tr>
-          <td colspan="2"><%tcWebApi_get("String_Entry","t2Misc","s")%></td>
-</tr>
-</thead>
-
-<tr id="btn_ez_radiotoggle_tr">
-	<th><%tcWebApi_get("String_Entry","WPS_btn_behavior","s")%></th>
-	<td>
-		<input type="radio" id="radio2" name="btn_ez_radiotoggle" class="input" value="2" <% if tcWebApi_get("SysInfo_Entry","btn_ez_radiotoggle","h") = "2" then asp_Write("checked") end if %>><label id="radio_text2">Turn LED On/Off</label>
-		<input type="radio" id="radio1" name="btn_ez_radiotoggle" class="input" value="1" <% if tcWebApi_get("SysInfo_Entry","btn_ez_radiotoggle","h") = "1" then asp_Write("checked") end if %>><label id="radio_text1"><%tcWebApi_get("String_Entry","WPS_btn_toggle","s")%></label>
-		<input type="radio" id="radio0" name="btn_ez_radiotoggle" class="input" value="0" <% if tcWebApi_get("SysInfo_Entry","btn_ez_radiotoggle","h") = "0" then asp_Write("checked") end if %>><label id="radio_text0"><%tcWebApi_get("String_Entry","WPS_btn_actWPS","s")%></label>
-	</td>
-</tr>
-
-
-<tr>
-<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(11,1)"><%tcWebApi_get("String_Entry","LHC_x_ServerLogEnable_in","s")%></a></th>
-<td>
-	<INPUT TYPE="TEXT" class="input_15_table" NAME="syslogServerAddr" SIZE="25" MAXLENGTH="15" VALUE="<%if tcWebApi_get("Syslog_Entry","remoteHost","h") <> "N/A" then tcWebApi_get("Syslog_Entry","remoteHost","s") else asp_Write("") end if%>" onKeyPress="return is_ipaddr(this, event)">
-</td>
-</tr>
-<tr>
-          <th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(11,2)"><%tcWebApi_get("String_Entry","LHC_x_TimeZone_in","s")%></a></th>
-<td>
-	<SELECT NAME="uiViewdateToolsTZ" class="input_option" style="width:400px;">
-	</SELECT><br>
-	<span id="timezone_hint" style="display:none;"></span>
-<div>
-</div>
-</td>
-</tr>
-<tr>
-<th><%tcWebApi_get("String_Entry","WC11b_WirelessCtrl_button1name","s")%> Daylight Saving</th>
-<td>
-	<INPUT TYPE="RADIO" NAME="uiViewdateDS" VALUE="Enable"  <% If TCWebApi_get("Timezone_Entry","DAYLIGHT","h") = "Enable" then asp_Write("checked") end if%> ><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
-	<INPUT TYPE="RADIO" NAME="uiViewdateDS" VALUE="Disable" <% If TCWebApi_get("Timezone_Entry","DAYLIGHT","h") = "Disable" then asp_Write("checked") end if%> ><%tcWebApi_get("String_Entry","checkbox_No","s")%>
-</td>
-</tr>
-<tr>
-<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(11,3)"><%tcWebApi_get("String_Entry","LHC_x_NTPServer_in","s")%></a></th>
-<td>
-<INPUT TYPE="TEXT" NAME="uiViewSNTPServer" SIZE="24" MAXLENGTH="48" VALUE="<%if tcWebApi_get("Timezone_Entry","SERVER","h") <> "0.0.0.0" then tcWebApi_get("Timezone_Entry","SERVER","s") else asp_Write("") end if%>" class="input_32_table" onKeyPress="return is_string(this, event);">
-<a href="javascript:openLink('x_NTPServer1')" name="x_NTPServer1_link" style=" margin-left:5px; text-decoration: underline;"><%tcWebApi_get("String_Entry","LHC_x_NTPServer1_linkname","s")%></a>
-</td>
-</tr>
-<tr>
-<th><%tcWebApi_get("String_Entry","WC11b_WirelessCtrl_button1name","s")%> Telnet</th>
-<td>
-<input type="radio" name="telnetd_enable" class="input" value="1" <% If TCWebApi_get("Misc_Entry","telnetd_enable","h") = "1" then asp_Write("checked") end if%> ><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
-<input type="radio" name="telnetd_enable" class="input" value="0" <% If TCWebApi_get("Misc_Entry","telnetd_enable","h") = "0" then asp_Write("checked") end if%> ><%tcWebApi_get("String_Entry","checkbox_No","s")%>
-</td>
-</tr>
-
-<!--tr>
-<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(8,2);"><% tcWebApi_Get("String_Entry", "FC_x_WanWebEnable_in", "s") %>?</a></th>
-<td>
-<input type="radio" value="1" name="misc_http_x" class="input" onClick="hideport(1);return change_common_radio(this, 'FirewallConfig', 'misc_http_x', '1')" <% if tcWebApi_get("Firewall_Entry","misc_http_x","h") = "1" then asp_Write("checked") end if %> ><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
-<input type="radio" value="0" name="misc_http_x" class="input" onClick="hideport(0);return change_common_radio(this, 'FirewallConfig', 'misc_http_x', '0')" <% if tcWebApi_get("Firewall_Entry","misc_http_x","h") = "0" then asp_Write("checked") end if %> ><%tcWebApi_get("String_Entry","checkbox_No","s")%>
-</td>
-</tr>
-<tr id="accessfromwan_port">
-<th align="right"><a class="hintstyle" href="javascript:void(0);" onClick="openHint(8,3);"><% tcWebApi_Get("String_Entry", "FC_x_WanWebPort_in", "s") %></a></th>
-<td>
-<span>HTTP: <input type="text" maxlength="5" name="misc_httpport_x" class="input_6_table" value="<%TCWebApi_get("Firewall_Entry","misc_httpport_x","s")%>" onKeyPress="return is_number(this,event);"></span>
-&nbsp;
-<span id="https_port">HTTPS: <input type="text" maxlength="5" name="misc_httpsport_x" class="input_6_table" value="" onKeyPress="return is_number(this,event);"></span>
-</td>
-</tr-->
-
-		  	<tr id="https_tr">
-					<th><% tcWebApi_Get("String_Entry", "WC11b_AuthenticationMethod_in", "s") %></th>
-					<td>
-				  	<select name="http_enable" class="input_option" onchange="hide_https_lanport(this.value);hide_https_wanport(this.value);">
-							<option value="1" <% if tcWebApi_get("Https_Entry","http_enable","h") = "1" then asp_Write("selected") end if %>>HTTP</option>
-							<option value="2" <% if tcWebApi_get("Https_Entry","http_enable","h") = "2" then asp_Write("selected") end if %>>HTTPS</option>
-							<option value="3" <% if tcWebApi_get("Https_Entry","http_enable","h") = "3" then asp_Write("selected") end if %>>BOTH</option>
-				  	</select>				  	
-					</td>
-		  	</tr>
-
-		  	<tr id="https_lanport">
-					<th>HTTPS Lan port</th>
-          <td>
-						<input type="text" maxlength="5" class="input_6_table" name="https_lanport" value="<%TCWebApi_get("Https_Entry","https_lanport","s")%>" onKeyPress="return is_number(this,event);" onBlur="change_url(this.value, 'https_lan');">
-						<span id="https_access_page"></span>
-					</td>
-		  	</tr>
-		  	
-        <tr id="misc_http_x_tr">
-          	<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(8,2);"><% tcWebApi_Get("String_Entry", "FC_x_WanWebEnable_in", "s") %></a></th>
-           	<td>
-             		<input type="radio" value="1" name="misc_http_x" class="input" onClick="hideport(1);return change_common_radio(this, 'FirewallConfig', 'misc_http_x', '1')" <% if tcWebApi_get("Firewall_Entry","misc_http_x","h") = "1" then asp_Write("checked") end if %>><% tcWebApi_Get("String_Entry", "checkbox_Yes", "s") %>
-             		<input type="radio" value="0" name="misc_http_x" class="input" onClick="hideport(0);return change_common_radio(this, 'FirewallConfig', 'misc_http_x', '0')" <% if tcWebApi_get("Firewall_Entry","misc_http_x","h") = "0" then asp_Write("checked") end if %>><% tcWebApi_Get("String_Entry", "checkbox_No", "s") %>
-           	</td>
-        </tr>   					
-
-	<tr>
-		<th>Auto Logout</th>
-		<td>
-			<input type="text" class="input_3_table" maxlength="3" name="http_autologout" value="<% tcWebApi_Get("Misc_Entry", "http_autologout", "s") %>" onKeyPress="return is_number(this,event);"> 
-			min<span>(0: Disable)</span>
-		</td>
-	</tr>
- 
-        <tr id="accessfromwan_port">
-           	<th align="right"><a class="hintstyle" href="javascript:void(0);" onClick="openHint(8,3);"><% tcWebApi_Get("String_Entry", "FC_x_WanWebPort_in", "s") %></a></th>
-           	<td>
-								<span style="margin-left:5px;" id="http_port">HTTP: <input type="text" maxlength="5" name="misc_httpport_x" class="input_6_table" value="<% tcWebApi_get("Firewall_Entry","misc_httpport_x", "s") %>" onKeyPress="return is_number(this,event);"/>&nbsp;&nbsp;</span>
-								<span style="margin-left:5px;" id="https_port">HTTPS: <input type="text" maxlength="5" name="misc_httpsport_x" class="input_6_table" value="<% tcWebApi_get("Firewall_Entry","misc_httpsport_x", "s") %>" onKeyPress="return is_number(this,event);"/></span>
-						</td>
-        </tr>
-
-
-<%if tcWebApi_Get("WebCustom_Entry", "isSwapFileSupport", "h") = "Yes" then%>
-<tr>
-	<th align="right"><a class="hintstyle" href="javascript:void(0);" onClick="openHint(8,8);">Enable virtual memory (swap)?</a></th>
-	<td>
-		<input type="radio" name="swap_enable" class="input" value="1" <% If TCWebApi_get("SysInfo_Entry","swap_enable","h") = "1" then asp_Write("checked") end if%> ><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
-		<input type="radio" name="swap_enable" class="input" value="0" <% If TCWebApi_get("SysInfo_Entry","swap_enable","h") = "0" then asp_Write("checked") end if%> ><%tcWebApi_get("String_Entry","checkbox_No","s")%>
-	</td>
-</tr>
-<%end if%>
-</table><br>
-<center><input name="button" type="button" class="button_gen" onclick="uiSave();" value="<%tcWebApi_get("String_Entry","CTL_apply","s")%>"/></center>
-</div>
-</td></tr>
-</tbody>
-</table></td>
 </form>
-</tr>
-</table>
-</td>
-<td width="10" align="center" valign="top">&nbsp;</td>
-</tr>
-</table>
 <div id="footer"></div>
 </body>
 

@@ -3,8 +3,8 @@
 		<friendlyName>ASUS DSL-N55U-C1</friendlyName>
 		<manufacturer>ASUSTeK Computer Inc.</manufacturer>
 		<manufacturerURL>http://www.asus.com/</manufacturerURL>
-		<modelDescription>ASUS DSL-N55U-C1 Dual-Band Wireless-N600 Gigabit ADSL2/2+ Modem VPN Router</modelDescription>
-		<modelName>Dual-Band Wireless-N600 Gigabit ADSL2/2+ Modem VPN Router</modelName>
+		<modelDescription>ASUS DSL-N55U-C1 Dual-Band Wireless-N600 Gigabit ADSL2/2+ Modem Router</modelDescription>
+		<modelName>Dual-Band Wireless-N600 Gigabit ADSL2/2+ Modem Router</modelName>
 		<modelNumber>DSL-N55U-C1</modelNumber>
 		<serialNumber>00000001</serialNumber>
 		<UDN>uuid:11111111-0000-c0a8-0102-00aabb071106</UDN>
@@ -32,8 +32,8 @@
 				<friendlyName>ASUS DSL-N55U-C1</friendlyName>
 				<manufacturer>ASUSTeK Computer Inc.</manufacturer>
 				<manufacturerURL>http://www.asus.com/</manufacturerURL>
-				<modelDescription>ASUS DSL-N55U-C1 Dual-Band Wireless-N600 Gigabit ADSL2/2+ Modem VPN Router</modelDescription>
-				<modelName>Dual-Band Wireless-N600 Gigabit ADSL2/2+ Modem VPN Router</modelName>
+				<modelDescription>ASUS DSL-N55U-C1 Dual-Band Wireless-N600 Gigabit ADSL2/2+ Modem Router</modelDescription>
+				<modelName>Dual-Band Wireless-N600 Gigabit ADSL2/2+ Modem Router</modelName>
 				<modelNumber>DSL-N55U-C1</modelNumber>
 				<modelURL>http://www.asus.com/</modelURL>
 				<serialNumber>00000001</serialNumber>
@@ -54,8 +54,8 @@
 						<friendlyName>ASUS DSL-N55U-C1</friendlyName>
 						<manufacturer>ASUSTeK Computer Inc.</manufacturer>
 						<manufacturerURL>http://www.asus.com/</manufacturerURL>
-						<modelDescription>Dual-Band Wireless-N600 Gigabit ADSL2/2+ Modem VPN Router</modelDescription>
-						<modelName>Dual-Band Wireless-N600 Gigabit ADSL2/2+ Modem VPN Router</modelName>
+						<modelDescription>Dual-Band Wireless-N600 Gigabit ADSL2/2+ Modem Router</modelDescription>
+						<modelName>Dual-Band Wireless-N600 Gigabit ADSL2/2+ Modem Router</modelName>
 						<modelNumber>DSL-N55U-C1</modelNumber>
 						<modelURL>http://www.asus.com/</modelURL>
 						<serialNumber>00000001</serialNumber>

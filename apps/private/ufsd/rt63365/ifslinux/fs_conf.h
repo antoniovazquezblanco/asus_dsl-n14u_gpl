@@ -121,7 +121,7 @@ Revision History:
 //
 // Force to activate trace
 //
-#define UFSD_TRACE
+//#define UFSD_TRACE
 
 #if !defined UFSD_DEBUG && !defined NDEBUG
   #define UFSD_DEBUG 1
@@ -129,29 +129,6 @@ Revision History:
 
 #if defined UFSD_DEBUG && !defined UFSD_TRACE
   #define UFSD_TRACE
-#endif
-
-
-//#define UFSD_NTFS_JNL                 // Include NTFS journal
-
-#if defined UFSD_NTFS_LOGFILE
-  #warning "UFSD_NTFS_LOGFILE is obsolete"
-#endif
-
-#ifdef UFSD_DIRTY_OFF
-  #warning "UFSD_DIRTY_OFF is obsolete"
-#endif
-
-#ifdef UFSD_SMART_DIRTY
-  #warning "UFSD_SMART_DIRTY is obsolete"
-#endif
-
-#ifdef UFSD_RW_MAP_EXFAT
-  #warning "UFSD_RW_MAP_EXFAT is obsolete"
-#endif
-
-#ifdef UFSD_RW_MAP_HFS
-  #warning "UFSD_RW_MAP_HFS is obsolete"
 #endif
 
 #if defined(i386)
@@ -167,11 +144,17 @@ Revision History:
 #endif
 
 //
-// Trace message in system log
+// UFSD_NO_PRINTK - external define to off UFSD_printk from library
 //
-UFSDAPI_CALLv int UFSD_printk( const char* fmt, ... ) __attribute__ ((format (printf, 1, 2)));
-
-#define UFSDTracek(a) UFSD_printk a
+#ifndef UFSD_NO_PRINTK
+  //
+  // Trace message in system log
+  //
+  UFSDAPI_CALLv int UFSD_printk( const char* fmt, ... ) __attribute__ ((format (printf, 1, 2)));
+  #define UFSDTracek(a) UFSD_printk a
+#else
+  #define UFSDTracek(a)
+#endif
 
 
 #ifdef UFSD_TRACE
@@ -323,6 +306,10 @@ UFSDAPI_CALLv int UFSD_printk( const char* fmt, ... ) __attribute__ ((format (pr
 
 #define UFSD_ERROR_DEFINED // UFSDError is already declared
 #define _VERSIONS_H_       // Exclude configuration part of file versions.h
+
+void  UFSDAPI_CALL UFSD_BdInvalidate( void* Sb );
+
+#define UFSD_BdInvalidate     UFSD_BdInvalidate
 
 #ifdef __cplusplus
   } // extern "C"{

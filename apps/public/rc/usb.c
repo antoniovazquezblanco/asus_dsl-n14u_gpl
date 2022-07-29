@@ -342,39 +342,49 @@ void start_usb(void)
 			start_lpd();
 		// }
 #endif
-// #ifdef RTCONFIG_USB_MODEM
-#ifdef TCSUPPORT_USB_3G_DONGLE
-		// modprobe("usbnet");
-		// modprobe("asix");
-		// modprobe("cdc_ether");
-		// modprobe("net1080");
-		// modprobe("rndis_host");
-		// modprobe("zaurus");
+#ifdef RTCONFIG_USB_MODEM
+		modprobe("usbnet");
+		modprobe("asix");
+		modprobe("cdc_ether");
+		modprobe("rndis_host");
+		modprobe("cdc_ncm");
+		modprobe("cdc_wdm");
+		if(nvram_match("modem_enable_qmi", "1"))
+			modprobe("qmi_wwan");
+		modprobe("cdc_mbim");
 #endif
 	// }
+}
+
+void remove_usb_modem_modules(void)
+{
+#ifdef RTCONFIG_USB_MODEM
+#ifdef RTCONFIG_USB_BECEEM
+	modprobe_r("drxvi314");
+#endif
+	modprobe_r("cdc_mbim");
+	if(nvram_match("modem_enable_qmi", "1"))
+		modprobe_r("qmi_wwan");
+	modprobe_r("cdc_wdm");
+	modprobe_r("cdc_ncm");
+	modprobe_r("rndis_host");
+	modprobe_r("cdc_ether");
+	modprobe_r("asix");
+	modprobe_r("usbnet");
+#endif
 }
 
 void stop_usb(void)
 {
 	int disabled = 1;//!nvram_get_int("usb_enable");
 
-//#ifdef RTCONFIG_USB_MODEM
-#ifdef TCSUPPORT_USB_3G_DONGLE
+#ifdef RTCONFIG_USB_MODEM
 #ifdef RTCONFIG_USB_BECEEM
 	system("killall wimaxd");
 	system("killall -SIGUSR1 wimaxd");
 	sleep(1);
-
-	modprobe_r("drxvi314");
 #endif
-	modprobe_r("option");
-	modprobe_r("usbserial");
-	modprobe_r("asix");
-	modprobe_r("cdc_ether");
-	modprobe_r("net1080");
-	modprobe_r("rndis_host");
-	modprobe_r("zaurus");
-	modprobe_r("usbnet");
+	remove_usb_modem_modules();
 #endif
 
 // #ifdef RTCONFIG_USB_PRINTER
@@ -402,9 +412,7 @@ void stop_usb(void)
 	stop_webdav();
 #endif
 
-	stop_nas_services();
-
-
+	stop_nas_services(0);
 
 #if defined(RTCONFIG_SAMBASRV) || defined(RTCONFIG_FTP)
 	// only stop storage services if disabled
@@ -868,6 +876,7 @@ _dprintf("cloudsync: mounted_path=%s.\n", mounted_path);
 	}
 #endif
 
+	tcapi_save();	//Andy Chiu, 2015/03/19
 	return (ret == 0);
 }
 
@@ -896,12 +905,13 @@ int mount_partition(char *dev_name, int host_num, char *dsc_name, char *pt_name,
 	// static char *swp_argv[] = { "swapon", "-a", NULL };
 	struct mntent *mnt;
 	char command[PATH_MAX];
-	char word[PATH_MAX], *next_word;
 
 	if ((type = detect_fs_type(dev_name)) == NULL)
 		return 0;
 
+#ifdef VOLUME_NAME
 	find_label_or_uuid(dev_name, the_label, uuid);
+#endif
 
 	if(!is_valid_hostname(the_label))
 		memset(the_label, 0, 128);
@@ -941,66 +951,43 @@ int mount_partition(char *dev_name, int host_num, char *dsc_name, char *pt_name,
 	/* Can't mount to /mnt/LABEL, so try mounting to /mnt/discDN_PN */
 	sprintf(mountpoint, "%s/%s", POOL_MOUNT_ROOT, pt_name);
 	ret = mount_r(dev_name, mountpoint, type);
-
+	cprintf("ret=%d, dev_name=[%s], ptr=[%s]\n", ret, dev_name, dev_name+5);
 done:
 	if (ret == MOUNT_VAL_RONLY || ret == MOUNT_VAL_RW)
 	{
 		chmod(mountpoint, 0777);
 
-// #ifdef RTCONFIG_USB_MODEM
-#ifdef TCSUPPORT_USB_3G_DONGLE
-		int i, max_ports, port_num = 0;
-		char nvram_name[32];
-		char tcapi_retval[16];
+		char usb_node[32], port_path[8];
+		char prefix[] = "usb_pathXXXXXXXXXXXXXXXXX_", tmp[100];
+	#ifdef RTCONFIG_USB_MODEM
+		unsigned int vid, pid;
+	#endif
 
 		ptr = dev_name+5;
-		
-		tcapi_get(USB_DATA, "ehci_ports", tcapi_retval);
 
-		max_ports = 0;
-		// foreach(word, nvram_safe_get("ehci_ports"), next_word)
-		foreach(word, tcapi_retval, next_word)
-			++max_ports;
-_dprintf("%s: max_ports=%d.\n", __FUNCTION__, max_ports);
+		// Get USB node.
+		if(get_usb_node_by_device(ptr, usb_node, 32) != NULL){
+			if(get_path_by_node(usb_node, port_path, 8) != NULL){
+				snprintf(prefix, sizeof(prefix), "usb_path%s", port_path);
+				// for ATE.
+				if(strlen(nvram_safe_get(strcat_r(prefix, "_fs_path0", tmp))) <= 0)
+					nvram_set(tmp, ptr);
+			#ifdef RTCONFIG_USB_MODEM
+				vid = strtoul(nvram_safe_get(strcat_r(prefix, "_vid", tmp)), NULL, 16);
+				pid = strtoul(nvram_safe_get(strcat_r(prefix, "_pid", tmp)), NULL, 16);
 
-		for(i = 1; i <= max_ports; ++i){
-			memset(nvram_name, 0, 32);
-			sprintf(nvram_name, "usb_path%d_fs_path0", i);
+				if(is_create_file_dongle(vid, pid)){
+					if(strcmp(nvram_safe_get("stop_sg_remove"), "1")){
+						memset(command, 0, PATH_MAX);
+						sprintf(command, "touch %s/wcdma.cfg", mountpoint);
+						system(command);
+					}
 
-			tcapi_get(USB_DATA, nvram_name, tcapi_retval);
-			// if(!strcmp(ptr, nvram_safe_get(nvram_name))){
-			if(!strcmp(ptr, tcapi_retval)){
-				port_num = i;
-				break;
+					return 0; // skip to restart_nasapps.
+				}
+			#endif /* RTCONFIG_USB_MODEM */
 			}
 		}
-
-		if(port_num){
-			char vid[8], pid[8];
-
-			memset(nvram_name, 0, 32);
-			sprintf(nvram_name, "usb_path%d_vid", port_num);
-			memset(vid, 0, 8);
-			tcapi_get(USB_DATA, nvram_name, tcapi_retval);
-			strcpy(vid, tcapi_retval);
-			// strcpy(vid, nvram_safe_get(nvram_name));
-
-			memset(nvram_name, 0, 32);
-			sprintf(nvram_name, "usb_path%d_pid", port_num);
-			memset(pid, 0, 8);
-			tcapi_get(USB_DATA, nvram_name, tcapi_retval);
-			strcpy(pid, tcapi_retval);
-			// strcpy(pid, nvram_safe_get(nvram_name));
-
-			if(is_create_file_dongle(vid, pid)){
-				memset(command, 0, PATH_MAX);
-				sprintf(command, "touch %s/wcdma.cfg", mountpoint);
-				system(command);
-
-				return 0; // skip to restart_nasapps.
-			}
-		}
-#endif
 
 #if defined(RTCONFIG_APP_PREINSTALLED) || defined(RTCONFIG_APP_NETINSTALLED)
 		// if(!strcmp(nvram_safe_get("apps_mounted_path"), "")){
@@ -1051,6 +1038,7 @@ _dprintf("%s: max_ports=%d.\n", __FUNCTION__, max_ports);
 				system(command);
 				unsetenv("APPS_DEV");
 				unsetenv("APPS_MOUNTED_PATH");
+				tcapi_save();	//Andy Chiu, 2015/03/18
 			}
 		}
 #endif
@@ -1384,7 +1372,13 @@ void hotplug_usb(void)
 			host == -2 ? 0 : EFH_USER);
 	}
 #ifdef LINUX26
-	else if (is_block && strcmp(getenv("MAJOR") ? : "", "8") == 0 && strcmp(getenv("PHYSDEVBUS") ? : "", "scsi") == 0) {
+	else if (is_block && strcmp(getenv("MAJOR") ? : "", "8") == 0
+#if !defined(TCSUPPORT_2_6_36_KERNEL)	//TC toolchain is used to build both kernel 2.6.22 and 2.6.36. Change the compile flag
+		&& strcmp(getenv("PHYSDEVBUS") ? : "", "scsi") == 0
+#endif
+
+		)
+	{
 		/* scsi partition */
 		char devname[64];
 		int lock;
@@ -1547,7 +1541,11 @@ start_ftpd()
 	killall("vsftpd", SIGHUP);
 	
 	if (!pids("vsftpd"))
+#if defined(TCSUPPORT_2_6_36_KERNEL)
+		system("taskset 0xa /userfs/bin/vsftpd /etc/vsftpd.conf &");
+#else
 		system("/userfs/bin/vsftpd /etc/vsftpd.conf &");
+#endif
 
 	if (pids("vsftpd"))
 		logmessage("FTP server", "daemon is started");
@@ -1728,9 +1726,12 @@ _dprintf("%s: cmd=%s.\n", __FUNCTION__, cmd);
 	}
 	// if(nv)
 		// free(nv);
-
 	xstart("nmbd", "-D", "-s", "/etc/smb.conf");
+#if defined(TCSUPPORT_2_6_36_KERNEL)
+	xstart("taskset", "0xa","smbd", "-D", "-s", "/etc/smb.conf");
+#else
 	xstart("smbd", "-D", "-s", "/etc/smb.conf");
+#endif
 
 	logmessage("Samba Server", "daemon is started");
 
@@ -2165,12 +2166,12 @@ void stop_webdav(void)
 
 		unlink("/tmp/lighttpd/lighttpd.pid");
 	}
-/*
+
 	if (pids("lighttpd-arpping")){
 		kill_pidfile_tk("/tmp/lighttpd/lighttpd-arpping.pid");
 		unlink("/tmp/lighttpd/lighttpd-arpping.pid");
 	}
-*/
+
 	logmessage("WEBDAV Server", "daemon is stoped");
 }
 #endif	// RTCONFIG_WEBDAV
@@ -2337,30 +2338,37 @@ void stop_cloudsync()
 }
 #endif
 
-// #ifdef RTCONFIG_USB
-#ifdef TCSUPPORT_USBHOST
-void start_nas_services(void)
+#ifdef RTCONFIG_USB
+void start_nas_services(int force)
 {
-	// if (getpid() != 1) {
-		// notify_rc_after_wait("start_nasapps");
-		// return;
-	// }
+#if 0
+	if(!force && getpid() != 1){
+		notify_rc_after_wait("start_nasapps");
+		return;
+	}
+#endif
 
-	if(!check_if_dir_empty("/tmp/mnt")) 
+	if(check_if_dir_exist("/mnt"))
+		eval("/usr/sbin/usbtest.sh");
+
+	if(!check_if_dir_empty("/mnt"))
 	{
 #ifdef RTCONFIG_WEBDAV
 		// webdav still needed if no disk is mounted
 		start_webdav();
+#else
+		if(f_exists("/opt/etc/init.d/S50aicloud"))
+			system("sh /opt/etc/init.d/S50aicloud scan");
 #endif
 		return;
 	}
-	
+
 	create_passwd();
 #ifdef RTCONFIG_SAMBASRV
 	start_samba();
 #endif
 
-// if (nvram_match("asus_mfg", "0")) {
+if (nvram_match("asus_mfg", "0")) {
 #ifdef RTCONFIG_FTP
 	start_ftpd();
 #endif
@@ -2369,17 +2377,22 @@ void start_nas_services(void)
 	start_mt_daapd();
 #endif
 #ifdef RTCONFIG_WEBDAV
-	// start_webdav();
+	//start_webdav();
 #endif
-// }
+}
+#ifdef RTCONFIG_TIMEMACHINE
+	start_timemachine();
+#endif
 }
 
-void stop_nas_services(void)
+void stop_nas_services(int force)
 {
-	// if (getpid() != 1) {
-		// notify_rc_after_wait("stop_nasapps");
-		// return;
-	// }
+#if 0
+	if(!force && getpid() != 1){
+		notify_rc_after_wait("stop_nasapps");
+		return;
+	}
+#endif
 
 #ifdef RTCONFIG_MEDIA_SERVER
 	force_stop_dms();
@@ -2392,7 +2405,10 @@ void stop_nas_services(void)
 	stop_samba();
 #endif
 #ifdef RTCONFIG_WEBDAV
-	// stop_webdav();
+	//stop_webdav();
+#endif
+#ifdef RTCONFIG_TIMEMACHINE
+	stop_timemachine();
 #endif
 }
 
@@ -2402,10 +2418,9 @@ void restart_nas_services(int stop, int start)
 
 	/* restart all NAS applications */
 	if (stop)
-		stop_nas_services();
+		stop_nas_services(0);
 	if (start)
-		start_nas_services();
-
+		start_nas_services(0);
 	file_unlock(fd);
 }
 
@@ -2506,7 +2521,8 @@ int ejusb_main(int argc, char *argv[])
 	} else {
 		_dprintf("restart_nas_services(%d) is skipped: test 7.\n", getpid());
 	}
-
+	
+	tcapi_save();	//Andy Chiu, 2015/03/19
 	return 0;
 }
 
@@ -2527,7 +2543,7 @@ int start_app(){
 	memset(cmd, 0, PATH_MAX);
 	sprintf(cmd, "/opt/.asusrouter %s %s", apps_dev, apps_mounted_path);
 	system(cmd);
-
+	tcapi_save();	//Andy Chiu, 2015/03/18
 	return 0;
 }
 

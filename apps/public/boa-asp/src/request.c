@@ -46,6 +46,18 @@ int flag_save = 0;
 #define SUB_NODE_NAME "Entry"
 #endif
 
+typedef struct cgibin_exception_file
+{
+	char filename[60];
+} cgibin_exception_file_t;
+
+cgibin_exception_file_t cgibin_exception_file_list[] =
+{
+		{"modemlog.txt"},
+};
+
+#define CGIBIN_EXCEPT_FILE_LIST_SIZE sizeof(cgibin_exception_file_list)/sizeof(cgibin_exception_file_t)
+
 static int sockbufsize = SOCKETBUF_SIZE;
 
 /* function prototypes located in this file only */
@@ -65,7 +77,7 @@ static int dynamicPassUrl(char * url);
 extern int server_ssl;		
 static request*  newest_request = NULL;
 extern int ssl_pending_requests;
-extern sslKeys_t* ssl_key;
+extern SSL_CTX *ssl_ctx;
 #endif
 
 
@@ -314,7 +326,8 @@ static void free_request(request ** list_head_addr, request * req)
 #if   defined(TCSUPPORT_WEBSERVER_SSL)
 	if(req->ssl)
 	{
-		sslFreeConnection(&req->ssl);
+		//Andy Chiu, 2015/02/09. mssl_conn_t would be free in boa_sslClose().
+		boa_sslClose(req->ssl);
     		req->keepalive = KA_INACTIVE;
 		req->ssl = NULL;
 	}
@@ -438,7 +451,7 @@ void get_ssl_request(void)
 	newest_request = NULL;
 	if (!conn)
 		return;
-	if(boa_sslAccept(&conn->ssl,conn->fd,ssl_key,NULL,0)!=0)
+	if(boa_sslAccept(&conn->ssl,conn->fd, ssl_ctx)!=0)
 	{
     		close(conn->fd);
     		total_connections--;
@@ -1525,6 +1538,24 @@ replace_seconddash(char *string){
 	return;
 }
 
+static int is_cgibin_exception(char *request)
+{
+	int i = 0;
+	char *filename;
+	
+	if (request == NULL)
+		return 0;
+
+	filename = rindex(request, '/')+1;
+	for (i=0; i< CGIBIN_EXCEPT_FILE_LIST_SIZE; i++)
+	{
+		if (!strcmp(filename, cgibin_exception_file_list[i].filename))
+			return 1;
+	}
+
+	return 0;
+}
+
 #define APPLYAPPSTR 	"applyapp.cgi"
 #define GETAPPSTR	"getapp"
 #define GETWEBDAVINFO	"get_webdavInfo.asp"
@@ -1621,7 +1652,8 @@ int process_header_end(request * req)
 	//redirect the requests with incorrect path.
 	//process before unescape_uri, or query_string will miss. Sam 2013/7/3
 	if(strncmp(req->request_uri, "/cgi-bin", 8)) {
-		if(strstr(req->request_uri, ".cgi") || strstr(req->request_uri, ".asp")) {
+		if(strstr(req->request_uri, ".cgi") || strstr(req->request_uri, ".asp")
+			|| is_cgibin_exception(req->request_uri)) {
 			memset(tmpuri, 0, sizeof(tmpuri));
 			strcpy(tmpuri, req->request_uri);
 			sprintf(req->request_uri, "/cgi-bin%s", tmpuri);

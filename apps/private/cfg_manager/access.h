@@ -61,7 +61,12 @@
 #if 0  /*Orginal ci-command mode */
 #define UPNPD_ENTRY 	"Upnpd_Entry"
 #endif
+#ifdef TCSUPPORT_UPNP
+#define UPNPD_CMD 	"/userfs/bin/miniupnpd -P %s -f %s &"
+#else
 #define UPNPD_CMD 	"/userfs/bin/upnpd &"
+#endif
+#define UPNPD_CONF 	"/var/tmp/miniupnpd.conf"
 #define UPNPD_PATH 	"/etc/igd/igd.conf"
 #define UPNPD_PID_PATH "/var/log/upnpd.pid"
 #define DDNS		"Ddns"
@@ -99,7 +104,7 @@
 #define SPCHNUMBER 8
 /**********20081021 krammer add************/
 /**********20091221 jlliu add**************/
-#ifdef SSL
+#ifdef USE_SSL
 #define SSL_CA "SslCA"
 #define MAX_CA_NUM 4
 #define MAX_CA_SIZE 4096
@@ -113,7 +118,7 @@
 #define TMP_ROMFILE_PATH "/var/romfile.cfg"
 #define CA_NODE_NAME "Entry"
 #define CA_UPGRADE_FLAG "UpgradeFlag"
-#endif
+#endif /* USE_SSL */
 /**********20091221 jlliu add**************/
 
 #ifdef RA_PARENTALCONTROL
@@ -165,6 +170,31 @@
 #define FTPD_CONF_PATH		"/etc/vsftpd.conf"
 #endif 
 
+//Andy Chiu add for wol, 2014/10/13
+//#ifdef RTCONFIG_WOL
+#define WOL_ATTR_NUM			4
+#define WOL_NODE		"Wol"
+#define WOL_ENTRY		"Entry"
+#define WOL_CMD_PATH	"/var/tmp/wol.sh"
+#define WOL_LIST		"List_"
+//#endif
+
+//Andy Chiu, 2014/10/28, add for client list
+#define RTPRIV_IOCTL_GET_MAC_TABLE 						(SIOCIWFIRSTPRIV + 0x0F)
+#define CLIENT_LIST_NODE	"ClientList"
+#define CLIENT_LIST_SIZE	255
+#define USERDEF_CL_NODE	"UserDefCL"
+#define USERDEF_CL_SIZE		255
+#define ASUSDEV_LST_NODE	"AsusDevLst"
+#define ASUSDEV_LST_SIZE	255
+
+typedef struct _UserDefClientDev
+{
+	char name[36];
+	char type[16];
+	char mac[20];
+}UserDefClientDev;
+
 #if (defined(TCSUPPORT_WAN_ETHER) || defined(TCSUPPORT_WAN_PTM)) && defined(TCSUPPORT_MULTISERVICE_ON_WAN)
 #define 		FILTER_INTERFACE	"filter_interface"
 #endif
@@ -192,6 +222,10 @@ int
 upnpd_read(mxml_node_t *node);
 #endif
 
+//Andy Chiu, 2015/01/21.
+int start_miniupnpd(int force);
+int stop_miniupnpd();
+
 int
 upnpd_boot(mxml_node_t *top);
 int
@@ -202,6 +236,8 @@ int
 upnpd_verify(mxml_node_t *node);
 int
 upnpd_execute(mxml_node_t *top, char name[][MAX_NODE_NAME]);
+
+
 #if defined(TCSUPPORT_SAMBA)
 int 
 samba_boot(mxml_node_t *top);
@@ -325,7 +361,7 @@ int
 urlfilter_check_duplicate(mxml_node_t *top,mxml_node_t *parant);
 /**********20081021 krammer add************/
 /**********20091221 jlliu add**************/
-#ifdef SSL
+#ifdef USE_SSL
 int
 sslca_boot(mxml_node_t *top);
 int
@@ -336,7 +372,7 @@ int
 sslca_verify(mxml_node_t *node);
 int
 sslca_execute(mxml_node_t *top, char name[][MAX_NODE_NAME]);
-#endif
+#endif /* USE_SSL */
 /**********20091221 jlliu add**************/
 #ifdef CWMP
 /**********20091202 xyzhu add**************/
@@ -367,4 +403,33 @@ parental_url_check_filter(mxml_node_t *top);
 #ifdef RTCONFIG_ACCEL_PPTPD
 int pptp_init(void);
 int pptp_execute(mxml_node_t *top, char name[][MAX_NODE_NAME]);
+#endif
+
+#ifdef RTCONFIG_VPNC
+#define VPNC_CONF_PATH "/etc/vpnc.conf"
+int vpnc_init(void);
+int vpnc_execute(mxml_node_t *top, char name[][MAX_NODE_NAME]);
+int vpnc_write(mxml_node_t *top, mxml_node_t *parant);
+#endif
+
+//Andy Chiu add for wol, 2014/10/13
+//#ifdef RTCONFIG_WOL
+int wol_boot(mxml_node_t *top);
+int wol_write(mxml_node_t *top, mxml_node_t *parant);
+int wol_verify(mxml_node_t *node);
+int wol_execute(mxml_node_t *top, char name[][MAX_NODE_NAME]);
+int wol_init(void);
+//#endif
+
+//Andy Chiu, 2014/10/28. add for client list
+int client_list_boot(mxml_node_t *top);
+int client_list_verify(mxml_node_t *node);
+int client_list_read(mxml_node_t *node, char nodeName[][MAX_NODE_NAME], char *attr);
+int client_list_init(void);
+int userdef_cl_init(void);
+int asusdev_lst_init(void);
+
+#ifdef RTCONFIG_TR069
+int tr_init(void);
+int tr_execute(mxml_node_t *top, char name[][MAX_NODE_NAME]);
 #endif

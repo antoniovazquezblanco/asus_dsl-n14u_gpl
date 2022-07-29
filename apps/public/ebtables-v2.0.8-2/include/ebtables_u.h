@@ -25,6 +25,7 @@
 #define EBTABLES_U_H
 #include <netinet/in.h>
 #include <linux/netfilter_bridge/ebtables.h>
+#include <linux/netfilter/x_tables.h>
 
 #ifndef IPPROTO_SCTP
 #define IPPROTO_SCTP		132
@@ -37,7 +38,11 @@
 #define EXEC_STYLE_DAEMON	1
 
 #ifndef EBT_MIN_ALIGN
+#ifdef TCSUPPORT_2_6_36_KERNEL
+#define EBT_MIN_ALIGN (__alignof__(struct _xt_align))
+#else
 #define EBT_MIN_ALIGN (__alignof__(struct ebt_entry_target))
+#endif
 #endif
 #define EBT_ALIGN(s) (((s) + (EBT_MIN_ALIGN-1)) & ~(EBT_MIN_ALIGN-1))
 #define ERRORMSG_MAXLEN 128

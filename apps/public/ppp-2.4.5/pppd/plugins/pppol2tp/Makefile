@@ -1,6 +1,6 @@
 #CC	= gcc
 COPTS	= -O2 -g
-CFLAGS	= $(COPTS) -I. -I../.. -I../../../include -fPIC
+CFLAGS	= $(COPTS) -I. -I$(KERNEL_DIR)/include -I../.. -I../../../include -fPIC
 LDFLAGS	= -shared
 INSTALL	= install
 

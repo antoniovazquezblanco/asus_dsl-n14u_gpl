@@ -7,7 +7,7 @@
 #define LOCAL_FILE_QUEUE 1
 #define LOCAL_FOLDER_QUEUE 2
 
-int receve_socket;
+extern int receve_socket;
 
 /* download queue*/
 struct queue_entry;
@@ -15,7 +15,7 @@ struct queue_entry;
 struct queue_entry
 {
   struct queue_entry * next_ptr;   /* Pointer to next entry */
-  char cmd_name[1024];
+  char *cmd_name;
 };
 
 typedef struct queue_entry * queue_entry_t;
@@ -29,8 +29,6 @@ struct queue_struct
 typedef struct queue_struct *queue_t;
 
 /*add by alan*/
-queue_t SocketActionList;
-queue_entry_t SocketActionTmp;
 
 int queue_empty (queue_t q);
 queue_t queue_create ();
@@ -44,8 +42,8 @@ queue_entry_t queue_dequeue (queue_t q);
 
 struct sync_item
 {
-    char action[256];
-    char name[512];
+    char *action;
+    char *name;
     struct sync_item *next;
 };
 
@@ -76,7 +74,8 @@ char* MD5_string(char *string);
 
 int get_all_folder_in_mount_path(const char *const mount_path, int *sh_num, char ***folder_list);
 
-int mySync(char *username,int parentid,char *localpath, char *browse_folder_xml);
+int syncServerAllItem(char *username,int parentid,char *localpath);
+//int mySync(char *username,int parentid,char *localpath,NodeStack **head);
 
 int get_all_folders(const char *dirname,Folders *allfolderlist);
 int initMyLocalFolder(char *username,int parentid,char *localpath,char *xmlfilename);
@@ -114,7 +113,11 @@ typedef struct L_FILE
 int test_if_dir_empty(char *path);
 int test_if_file_exist(char *filename);
 int test_if_file_up_excep_fail(char *name);
+void free_local_fileslist(Local *local);
+void free_local_folderslist(Local *local);
 void free_local_list(Local *local);
+void free_server_fileslist(Browse *browse);
+void free_server_folderslist(Browse *browse);
 void free_server_list(Browse *browse);
 int is_copying_finished(char *filename);
 
@@ -167,5 +170,26 @@ int check_network_state();
 int clean_download_temp_file(struct sync_item *head);
 int check_accout_status();
 int parse_config_onexit(char *path,struct asus_config *cfg);
+char *get_confilicted_name_case(const char *fullname,const char *path,const char *pre_name, const char *raw_name);
+
+/*create statk*/
+typedef struct FolderNode_t
+{
+    char *path;
+    //char *name;
+    int id;
+}FolderNode;
+
+typedef struct NodeStack_t
+{
+    FolderNode *point;
+    struct NodeStack_t *next;
+}NodeStack;
+
+void push_node(FolderNode *node,NodeStack **head);
+FolderNode *pop_node(NodeStack **head);
+
+long long FileSize(const char* szFilename);
+int LoadFileIntoBuffer(const char* szFileName, char** pBuffer, int* pBufferLength);
 
 #endif

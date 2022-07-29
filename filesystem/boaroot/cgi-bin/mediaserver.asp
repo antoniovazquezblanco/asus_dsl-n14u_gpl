@@ -4,7 +4,7 @@
 
 <!--mediaserver.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -63,7 +63,7 @@ font:Arial, Helvetica, sans-serif;
 font-size:12px;
 padding-left:10px;
 color:#FFFFFF;
-background: url(/images/general_th.gif) repeat;
+background:	#2F3A3E;
 }
 .upnp_button_table td{
 width:436px;
@@ -75,7 +75,6 @@ padding-left:5px;
 color:#FFFFFF;
 }
 .upnp_icon{
-background: url(/images/New_ui/media_sever.jpg) no-repeat;
 width:736px;
 height:500px;
 margin-top:15px;
@@ -382,7 +381,7 @@ document.form.submit();
 <div class="upnp_button_table">
 <table cellspacing="1">
 <tr>
-<th><%tcWebApi_get("String_Entry","WC11b_WirelessCtrl_button1name","s")%> DLNA Media Server:</th>
+<th><%tcWebApi_get("String_Entry","DLNA_enable","s")%></th>
 <td>
 <div class="left" style="width:94px; position:relative; left:3%;" id="radio_dms_enable"></div>
 <div class="clear"></div>
@@ -402,7 +401,7 @@ switch_on_container_path: '/switcherplugin/iphone_switch_container_off.png'
 </td>
 </tr>
 <tr>
-<th><%tcWebApi_get("String_Entry","WC11b_WirelessCtrl_button1name","s")%> iTunes Server:</th>
+<th><%tcWebApi_get("String_Entry","BC_EnableiTunesServer_in","s")%></th>
 <td>
 <div class="left" style="width:94px; position:relative; left:3%;" id="radio_daapd_enable"></div>
 <div class="clear"></div>

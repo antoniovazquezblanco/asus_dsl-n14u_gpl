@@ -349,26 +349,21 @@ return false;
 return true;
 }
 function is_number(o,event){
-keyPressed = event.keyCode ? event.keyCode : event.which;
-if ( (keyPressed==0)||
-(keyPressed==8)|| // backspace
-(keyPressed==9)|| // Tab
-(keyPressed==35)|| // end
-(keyPressed==36)|| // home
-(keyPressed==37)|| // <-
-(keyPressed==39)|| // ->
-(keyPressed==46) ){ // delete
-return true;
-}
-if (keyPressed>47 && keyPressed<58){
-if (keyPressed==48 && o.value.length == 0){
-return false;
-}
-return true;
-}
-else{
-return false;
-}
+	keyPressed = event.keyCode ? event.keyCode : event.which;
+	
+	if (is_functionButton(event)){
+	return true;
+	}
+	
+	if (keyPressed>47 && keyPressed<58){
+		/*if (keyPressed==48 && o.value.length == 0){	//single 0
+			return false;
+		}*/
+		return true;
+	}
+	else{
+		return false;
+	}
 }
 function validate_range(o, min, max) {
 for(i=0; i<o.value.length; i++)
@@ -1434,50 +1429,8 @@ function setTimeRange(sh, sm, eh, em)
 }
 function load_body(){
 document.form.next_host.value = location.host;
-if(document.form.current_page.value == "Advanced_WirelessGuest_Content.asp"){
-final_flag = 1;
-masq_wepkey_guest();
-wl_auth_mode_reconf_guest();
-wl_auth_mode_change_guest(1);
-}
-else if(document.form.current_page.value == "Advanced_WMode_Content.asp"){
+if(document.form.current_page.value == "Advanced_WMode_Content.asp"){
 change_wireless_bridge(document.form.wl_mode_x.value);
-}
-else if (document.form.current_page.value == "Advanced_MultiPPPoE_Content.asp"){
-if (document.form.PPPConnection_x_MultiPPPoEEnable1[0].checked == true){
-flag=1;
-}
-else{
-flag=0;
-}
-inputCtrl(document.form.PPPConnection_x_UserName1, flag);
-inputCtrl(document.form.PPPConnection_x_Password1, flag);
-inputCtrl(document.form.PPPConnection_x_IdleTime1, flag);
-inputCtrl(document.form.PPPConnection_x_IdleTime1_check, flag);
-inputCtrl(document.form.PPPConnection_x_PPPoEMTU1, flag);
-inputCtrl(document.form.PPPConnection_x_PPPoEMRU1, flag);
-inputCtrl(document.form.PPPConnection_x_ServiceName1, flag);
-inputCtrl(document.form.PPPConnection_x_AccessConcentrator1, flag);
-if (document.form.PPPConnection_x_MultiPPPoEEnable2[0].checked == true){
-flag=1;
-}
-else{
-flag=0;
-}
-inputCtrl(document.form.PPPConnection_x_UserName2, flag);
-inputCtrl(document.form.PPPConnection_x_Password2, flag);
-inputCtrl(document.form.PPPConnection_x_IdleTime2, flag);
-inputCtrl(document.form.PPPConnection_x_IdleTime2_check, flag);
-inputCtrl(document.form.PPPConnection_x_PPPoEMTU2, flag);
-inputCtrl(document.form.PPPConnection_x_PPPoEMRU2, flag);
-inputCtrl(document.form.PPPConnection_x_ServiceName2, flag);
-inputCtrl(document.form.PPPConnection_x_AccessConcentrator2, flag);
-if(document.form.PPPConnection_x_IdleTxOnly1.value == "1"){
-document.form.PPPConnection_x_IdleTime1_check.checked = true;
-}
-if(document.form.PPPConnection_x_IdleTxOnly2.value == "1"){
-document.form.PPPConnection_x_IdleTime2_check.checked = true;
-}
 }
 else if(document.form.current_page.value == "Advanced_PortTrigger_Content.asp"){
 wItem = new Array(new Array("Quicktime 4 Client", "554", "TCP", "6970:32000", "UDP"),new Array("Real Audio", "7070", "TCP", "6970:7170", "UDP"));
@@ -1761,7 +1714,7 @@ function setup_script(s)
 }
 }
 function automode_hint(){ //Lock add 2009.11.05 for 54Mbps limitation in auto mode + WEP/TKIP.
-	if((document.form.wl_nmode_x.value == "9" || document.form.wl_nmode_x.value == "8") &&	//9:2.4GHz auto 8:5GHz auto
+	if((document.form.wl_nmode_x.value == "9" || document.form.wl_nmode_x.value == "8" || document.form.wl_nmode_x.value == "14") &&	//9:2.4GHz auto 8:5GHz auto
 		(document.form.wl_wep_x.value == 1 || document.form.wl_wep_x.value == 2 || document.form.wl_auth_mode_x.value == "radius" || (document.form.wl_crypto.value.indexOf("TKIP") == 0 && !document.form.wl_crypto.disabled))){
 		if(document.form.current_page.value == "Advanced_Wireless_Content.asp"
 				|| document.form.current_page.value == "device-map/router.asp"
@@ -1916,7 +1869,7 @@ function change_common(o, s, v){
 			inputCtrl(document.form.wl_wme_apsd, 0);
 		}
 		else{
-			if(document.form.wl_nmode_x.value == "9" || document.form.wl_nmode_x.value == "8" || document.form.wl_nmode_x.value == "6" || document.form.wl_nmode_x.value == "11"){ //2.4GHz & 5GHz: auto, n only
+			if(document.form.wl_nmode_x.value == "9" || document.form.wl_nmode_x.value == "8" || document.form.wl_nmode_x.value == "6" || document.form.wl_nmode_x.value == "11" || document.form.wl_nmode_x.value == "14"){ //2.4GHz & 5GHz: auto, n only
 				document.form.wl_wme_no_ack.value = "off";
 				inputCtrl(document.form.wl_wme_no_ack, 0);
 			}else
@@ -2518,26 +2471,26 @@ document.form.FirewallConfig_WanLocalActiveTime_endmin);
 }
 function openLink(s){
 if (s == 'x_DDNSServer'){
-if (document.form.ddns_server_x.value.indexOf("WWW.DYNDNS.ORG")!=-1)
-tourl = "https://account.dyn.com/services/zones/svc/add.html?_add_dns=c&trial=standarddns";
-else if (document.form.ddns_server_x.value == 'WWW.TZO.COM')
-tourl = "https://controlpanel.tzo.com/cgi-bin/tzopanel.exe";
-else if (document.form.ddns_server_x.value == 'WWW.ZONEEDIT.COM')
-tourl = "http://www.zoneedit.com/";
-else if (document.form.ddns_server_x.value == 'WWW.DNSOMATIC.COM')
-tourl = "http://dnsomatic.com/create/";
-else if (document.form.ddns_server_x.value == 'WWW.TUNNELBROKER.NET')
-tourl = "http://www.tunnelbroker.net/register.php";
-else if (document.form.ddns_server_x.value == 'WWW.ASUS.COM')
-tourl = "";
-else if (document.form.ddns_server_x.value == 'WWW.NO-IP.COM')
-tourl = "http://www.no-ip.com/newUser.php";
-else tourl = "";
-link = window.open(tourl, "DDNSLink","toolbar=yes,location=yes,directories=no,status=yes,menubar=yes,scrollbars=yes,resizable=yes,copyhistory=no,width=640,height=480");
+	if (document.form.ddns_server_x.value.indexOf("WWW.DYNDNS.ORG")!=-1)
+		tourl = "https://account.dyn.com/services/zones/svc/add.html?_add_dns=c&trial=standarddns";
+	else if (document.form.ddns_server_x.value == 'WWW.SELFHOST.DE')
+		tourl = "http://WWW.SELFHOST.DE";
+	else if (document.form.ddns_server_x.value == 'WWW.ZONEEDIT.COM')
+		tourl = "http://www.zoneedit.com/";
+	else if (document.form.ddns_server_x.value == 'WWW.DNSOMATIC.COM')
+		tourl = "http://dnsomatic.com/create/";
+	else if (document.form.ddns_server_x.value == 'WWW.TUNNELBROKER.NET')
+		tourl = "http://www.tunnelbroker.net/register.php";
+	else if (document.form.ddns_server_x.value == 'WWW.ASUS.COM')
+		tourl = "";
+	else if (document.form.ddns_server_x.value == 'WWW.NO-IP.COM')
+		tourl = "http://www.no-ip.com/newUser.php";
+	else tourl = "";
+	link = window.open(tourl, "DDNSLink","toolbar=yes,location=yes,directories=no,status=yes,menubar=yes,scrollbars=yes,resizable=yes,copyhistory=no,width=640,height=480");
 }
 else if (s=='x_NTPServer1'){
-tourl = "http://support.ntp.org/bin/view/Main/WebHome";
-link = window.open(tourl, "NTPLink","toolbar=yes,location=yes,directories=no,status=yes,menubar=yes,scrollbars=yes,resizable=yes,copyhistory=no,width=640,height=480");
+	tourl = "http://support.ntp.org/bin/view/Main/WebHome";
+	link = window.open(tourl, "NTPLink","toolbar=yes,location=yes,directories=no,status=yes,menubar=yes,scrollbars=yes,resizable=yes,copyhistory=no,width=640,height=480");
 }
 }
 
@@ -2801,382 +2754,452 @@ function insertExtChannelOption(){
 }
 
 function insertExtChannelOption_5g(){
-var country = '<% tcWebApi_get("WLan_Common","wl1_CountryCode","s"); %>';
-var orig = document.form.wl_channel.value;
-free_options(document.form.wl_channel);
-if (document.form.wl_bw.value == "0"){ // 20 MHz
+    var country = "<% tcWebApi_get("WLan_Common","wl1_CountryCode","s"); %>";
+    var orig = document.form.wl_channel.value;
+    free_options(document.form.wl_channel);
+    //Viz banned 2014.09.30
+    /*
+		if(wl_channel_list_5g != ""){	//With wireless channel 5g hook
+				wl_channel_list_5g = eval('<hook channel_list_5g(); hook>');
+				if(document.form.wl_bw.value != "0" && document.form.wl_nmode_x.value != "2")
+				{ //cut channels >= 165 when bw != 20MHz
+					var i;
+					for(i=0; i < wl_channel_list_5g.length; i++)
+						if(wl_channel_list_5g[i] == "165")
+						{
+							wl_channel_list_5g.splice(i,(wl_channel_list_5g.length - i));
+							break;
+						}
+					//remove ch56 when bw == 40MHz or remove ch56,60,64 when bw == 80MHz, on NO ch52 is provided.
+					for(i=0; i < wl_channel_list_5g.length; i++)
+					{
+						if(wl_channel_list_5g[i] == "56" && (i == 0 || wl_channel_list_5g[i-1] != "52"))
+						{
+							if(Rawifi_support && band5g_11ac_support && (document.form.wl_bw.value == "3" || document.form.wl_bw.value == "1") && (document.form.wl_nmode_x.value == "0" || document.form.wl_nmode_x.value == "8"))
+							{
+								for(var j=wl_channel_list_5g.length; j>=i ; j--)
+									if(wl_channel_list_5g[j] >= "56" && wl_channel_list_5g[j] <= "64")
+										wl_channel_list_5g.splice(j,1);
+							} else {
+								wl_channel_list_5g.splice(i,1);
+							}
+							break;
+						}
+					}
+				}
+				if(wl_channel_list_5g[0] != "<% tcWebApi_Get("String_Entry", "Auto", "s") %>")
+						wl_channel_list_5g.splice(0,0,"0");
+												
+				channels = wl_channel_list_5g;
+		}else{   	//start Without wireless channel 5g hook
+			*/		//Viz banned 2014.09.30
+			
+        if (document.form.wl_bw.value == "0"){ // 20 MHz
 						inputCtrl(document.form.wl_nctrlsb, 0);
                 	if (country == "AL" || 
                 	 country == "DZ" || 
-country == "AU" ||
-country == "BH" ||
-country == "BY" ||
-country == "CA" ||
-country == "CL" ||
-country == "CO" ||
-country == "CR" ||
-country == "DO" ||
-country == "SV" || 
-country == "GT" ||
-country == "HN" || 
-country == "HK" ||
-country == "IN" ||
-country == "IL" ||
-country == "JO" ||
-country == "KZ" ||
-country == "LB" ||
-country == "MO" || 
-country == "MK" ||
-country == "MY" ||
-country == "MX" ||
-country == "NZ" || 
-country == "NO" ||
-country == "OM" ||
-country == "PK" || 
-country == "PA" ||
-country == "PR" ||
-country == "QA" ||
-country == "RO" ||
-country == "RU" ||
-country == "SA" ||
-country == "SG" ||
-country == "SY" ||
-country == "TH" ||
-country == "UA" ||
-country == "AE" || 
-country == "US" ||
-country == "Q2" || 
-country == "VN" ||
-country == "YE" ||
-country == "ZW")
-channels = new Array(0, 36, 40, 44, 48, 149, 153, 157, 161, 165); // Region 10
+			 country == "AU" || 
+			 country == "BH" || 
+              	         country == "BY" ||
+              	         country == "CA" || 
+              	         country == "CL" || 
+              	         country == "CO" || 
+                	 country == "CR" ||
+                	 country == "DO" || 
+                	 country == "SV" || 
+                	 country == "GT" || 
+			 country == "HN" || 
+			 country == "HK" || 
+              	         country == "IN" ||
+              	         country == "IL" || 
+              	         country == "JO" || 
+              	         country == "KZ" || 
+                	 country == "LB" ||
+                	 country == "MO" || 
+                	 country == "MK" ||                	 
+                	 country == "MY" ||
+                	 country == "MX" || 
+			 country == "NZ" || 
+			 country == "NO" || 
+              	         country == "OM" ||
+              	         country == "PK" || 
+              	         country == "PA" || 
+              	         country == "PR" || 
+                	 country == "QA" ||
+                	 country == "RO" || 
+                	 country == "RU" || 
+                	 country == "SA" || 
+			 country == "SG" || 
+			 country == "SY" || 
+              	         country == "TH" ||
+              	         country == "UA" || 
+              	         country == "AE" || 
+              	         country == "US" || 
+              	         country == "Q2" || 
+                	 country == "VN" ||
+                	 country == "YE" || 
+                	 country == "ZW")
+                		channels = new Array(0, 36, 40, 44, 48, 149, 153, 157, 161, 165); // Region 0
+                		
+                	else if(country == "AT" ||
+                		country == "BE" ||
+            		    	country == "BR" ||
+            		    	country == "BG" ||
+            		    	country == "CY" || 
+            		    	country == "DK" || 
+            		    	country == "EE" ||
+            		    	country == "FI" || 
+            	  	        country == "DE" || 
+            	  	        country == "GR" || 
+                		country == "HU" ||
+             		   	country == "IS" ||
+             		   	country == "IE" || 
+            		    	country == "IT" || 
+            		    	country == "LV" ||
+            		    	country == "LI" || 
+            		    	country == "LT" || 
+            		    	country == "LU" || 
+            		    	country == "NL" ||
+            		    	country == "PL" || 
+            		    	country == "PT" || 
+            		    	country == "SK" || 
+            		    	country == "SI" ||
+            		    	country == "ZA" || 
+            		    	country == "ES" || 
+            		    	country == "SE" || 
+            		    	country == "CH" ||
+            		    	country == "GB" || 
+            		    	country == "EU" || 
+            		    	country == "UZ")
+                		channels = new Array(0, 36, 40, 44, 48);  // Region 1
+                	
+                	else if(country == "AM" ||
+            		    	country == "AZ" || 
+            		    	country == "HR" ||
+            		    	country == "CZ" || 
+            		    	country == "EG" || 
+            		    	country == "FR" || 
+            		    	country == "GE" ||
+            		    	country == "MC" ||
+            		    	country == "TT" || 
+            		    	country == "TN" ||
+            		    	country == "TR")
+                		channels = new Array(0, 36, 40, 44, 48);  // Region 2
+                	
+                	else if(country == "AR" || country == "TW")
+				channels = new Array(0, 52, 56, 60, 64, 149, 153, 157, 161, 165);  // Region 3
+                	
+                	else if(country == "BZ" ||
+                		country == "BO" || 
+            		    	country == "BN" ||
+            		    	country == "CN" || 
+            		    	country == "ID" || 
+            		    	country == "IR" || 
+            		    	country == "PE" ||
+            		    	country == "PH")
+                		channels = new Array(0, 149, 153, 157, 161, 165);  // Region 4
+                	
+                	else if(country == "KP" ||
+                		country == "KR" || 
+            		    	country == "UY" ||
+            		    	country == "VE")
+                		channels = new Array(0, 149, 153, 157, 161, 165);  // Region 5
+                   	
+									else if(country == "JP")
+                		channels = new Array(0, 36, 40, 44, 48); // Region 9
+									
+									else
+                		channels = new Array(0, 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165); // Region 7
+                }
+								else if(document.form.wl_bw.value == "1"){  // 20/40 MHz
+									inputCtrl(document.form.wl_nctrlsb, 1);
+                	if (country == "AL" || 
+                	 country == "DZ" || 
+			 country == "AU" || 
+			 country == "BH" || 
+              	         country == "BY" ||
+              	         country == "CA" || 
+              	         country == "CL" || 
+              	         country == "CO" || 
+                	 country == "CR" ||
+                	 country == "DO" || 
+                	 country == "SV" || 
+                	 country == "GT" || 
+			 country == "HN" || 
+			 country == "HK" || 
+              	         country == "IN" ||
+              	         country == "IL" || 
+              	         country == "JO" || 
+              	         country == "KZ" || 
+                	 country == "LB" ||
+                	 country == "MO" || 
+                	 country == "MK" ||                	 
+                	 country == "MY" ||
+                	 country == "MX" || 
+			 country == "NZ" || 
+			 country == "NO" || 
+              	         country == "OM" ||
+              	         country == "PK" || 
+              	         country == "PA" || 
+              	         country == "PR" || 
+                	 country == "QA" ||
+                	 country == "RO" || 
+                	 country == "RU" || 
+                	 country == "SA" || 
+			 country == "SG" || 
+			 country == "SY" || 
+              	         country == "TH" ||
+              	         country == "UA" || 
+              	         country == "AE" || 
+              	         country == "US" || 
+              	         country == "Q2" || 
+                	 country == "VN" ||
+                	 country == "YE" || 
+                	 country == "ZW")
+                		channels = new Array(0, 36, 40, 44, 48, 149, 153, 157, 161); // Region 0
+                		
+                	else if(country == "AT" ||
+                		country == "BE" ||
+            		    	country == "BR" ||
+            		    	country == "BG" ||
+            		    	country == "CY" || 
+            		    	country == "DK" || 
+            		    	country == "EE" ||
+            		    	country == "FI" || 
+            	  	        country == "DE" || 
+            	  	        country == "GR" || 
+                		country == "HU" ||
+             		   	country == "IS" ||
+             		   	country == "IE" || 
+            		    	country == "IT" || 
+            		    	country == "LV" ||
+            		    	country == "LI" || 
+            		    	country == "LT" || 
+            		    	country == "LU" || 
+            		    	country == "NL" ||
+            		    	country == "PL" || 
+            		    	country == "PT" || 
+            		    	country == "SK" || 
+            		    	country == "SI" ||
+            		    	country == "ZA" || 
+            		    	country == "ES" || 
+            		    	country == "SE" || 
+            		    	country == "CH" ||
+            		    	country == "GB" || 
+            		    	country == "EU" || 
+            		    	country == "UZ")
+                		channels = new Array(0, 36, 40, 44, 48); // Region 1
+                	
+                	else if(country == "AM" ||
+            		    	country == "AZ" || 
+            		    	country == "HR" ||
+            		    	country == "CZ" || 
+            		    	country == "EG" || 
+            		    	country == "FR" || 
+            		    	country == "GE" ||
+            		    	country == "MC" ||
+            		    	country == "TT" || 
+            		    	country == "TN" ||
+            		    	country == "TR")
+                		channels = new Array(0, 36, 40, 44, 48); // Region 2
+                	
+                	else if(country == "AR" || country == "TW")
+				channels = new Array(0, 52, 56, 60, 64, 149, 153, 157, 161);  // Region 3
+                	
+                	else if(country == "BZ" ||
+                		country == "BO" || 
+            		    	country == "BN" ||
+            		    	country == "CN" || 
+            		    	country == "ID" || 
+            		    	country == "IR" || 
+            		    	country == "PE" ||
+            		    	country == "PH")
+                		channels = new Array(0, 149, 153, 157, 161); // Region 4
+                	
+                	else if(country == "KP" ||
+                		country == "KR" || 
+            		    	country == "UY" ||
+            		    	country == "VE")
+                		channels = new Array(0, 149, 153, 157, 161); // Region 5
+                	
+									else if(country == "JP")
+                		channels = new Array(0, 36, 40, 44, 48); // Region 9
 
-else if(country == "AT" ||
-country == "BE" ||
-country == "BR" ||
-country == "BG" ||
-country == "CY" ||
-country == "DK" ||
-country == "EE" ||
-country == "FI" ||
-country == "DE" || 
-country == "GR" ||
-country == "HU" ||
-country == "IS" ||
-country == "IE" ||
-country == "IT" ||
-country == "LV" ||
-country == "LI" ||
-country == "LT" ||
-country == "LU" ||
-country == "NL" ||
-country == "PL" ||
-country == "PT" ||
-country == "SK" || 
-country == "SI" ||
-country == "ZA" || 
-country == "ES" || 
-country == "SE" ||
-country == "CH" ||
-country == "GB" || 
-country == "EU" || 
-country == "UZ")
-channels = new Array(0, 36, 40, 44, 48); // Region 6
+									else
+                		channels = new Array(0, 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161); // Region 7
+                }		
+                else{  // 40 MHz
+                	inputCtrl(document.form.wl_nctrlsb, 1);
+                	if (country == "AL" || 
+                	 country == "DZ" || 
+			 country == "AU" || 
+			 country == "BH" || 
+              	         country == "BY" ||
+              	         country == "CA" || 
+              	         country == "CL" || 
+              	         country == "CO" || 
+                	 country == "CR" ||
+                	 country == "DO" || 
+                	 country == "SV" || 
+                	 country == "GT" || 
+			 country == "HN" || 
+			 country == "HK" || 
+              	         country == "IN" ||
+              	         country == "IL" || 
+              	         country == "JO" || 
+              	         country == "KZ" || 
+                	 country == "LB" ||
+                	 country == "MO" || 
+                	 country == "MK" ||                	 
+                	 country == "MY" ||
+                	 country == "MX" || 
+			 country == "NZ" || 
+			 country == "NO" || 
+              	         country == "OM" ||
+              	         country == "PK" || 
+              	         country == "PA" || 
+              	         country == "PR" || 
+                	 country == "QA" ||
+                	 country == "RO" || 
+                	 country == "RU" || 
+                	 country == "SA" || 
+			 country == "SG" || 
+			 country == "SY" || 
+              	         country == "TH" ||
+              	         country == "UA" || 
+              	         country == "AE" || 
+              	         country == "US" || 
+              	         country == "Q2" || 
+                	 country == "VN" ||
+                	 country == "YE" || 
+                	 country == "ZW")
+                		channels = new Array(0, 36, 40, 44, 48, 149, 153, 157, 161);
+                		
+                	else if(country == "AT" ||
+                		country == "BE" ||
+            		    	country == "BR" ||
+            		    	country == "BG" ||
+            		    	country == "CY" || 
+            		    	country == "DK" || 
+            		    	country == "EE" ||
+            		    	country == "FI" || 
+            	  	        country == "DE" || 
+            	  	        country == "GR" || 
+                		country == "HU" ||
+             		   	country == "IS" ||
+             		   	country == "IE" || 
+            		    	country == "IT" || 
+            		    	country == "LV" ||
+            		    	country == "LI" || 
+            		    	country == "LT" || 
+            		    	country == "LU" || 
+            		    	country == "NL" ||
+            		    	country == "PL" || 
+            		    	country == "PT" || 
+            		    	country == "SK" || 
+            		    	country == "SI" ||
+            		    	country == "ZA" || 
+            		    	country == "ES" || 
+            		    	country == "SE" || 
+            		    	country == "CH" ||
+            		    	country == "GB" || 
+            		    	country == "EU" || 
+            		    	country == "UZ")
+                		channels = new Array(0, 36, 40, 44, 48);
+                	
+                	else if(country == "AM" ||
+            		    	country == "AZ" || 
+            		    	country == "HR" ||
+            		    	country == "CZ" || 
+            		    	country == "EG" || 
+            		    	country == "FR" || 
+            		    	country == "GE" ||
+            		    	country == "MC" ||
+            		    	country == "TT" || 
+            		    	country == "TN" ||
+            		    	country == "TR")
+                		channels = new Array(0, 36, 40, 44, 48);
+                	
+                	else if(country == "AR" || country == "TW")
+				channels = new Array(0, 52, 56, 60, 64, 149, 153, 157, 161);  // Region 3
+                	
+                	else if(country == "BZ" ||
+                		country == "BO" || 
+            		    	country == "BN" ||
+            		    	country == "CN" || 
+            		    	country == "ID" || 
+            		    	country == "IR" || 
+            		    	country == "PE" ||
+            		    	country == "PH")
+                		channels = new Array(0, 149, 153, 157, 161);
+                	
+                	else if(country == "KP" ||
+                		country == "KR" || 
+            		    	country == "UY" ||
+            		    	country == "VE")
+                		channels = new Array(0, 149, 153, 157, 161);
+                	
+									else if(country == "JP")
+                		channels = new Array(0, 36, 40, 44, 48);
 
-else if(country == "AM" ||
-country == "AZ" ||
-country == "HR" ||
-country == "CZ" ||
-country == "EG" ||
-country == "FR" ||
-country == "GE" ||
-country == "MC" ||
-country == "TT" || 
-country == "TN" ||
-country == "TR")
-channels = new Array(0, 36, 40, 44, 48); // Region 6
-
-else if(country == "AR")
-channels = new Array(0, 52, 56, 60, 64, 149, 153, 157, 161); // Region 3
-
-else if(country == "TW")
-channels = new Array(0, 149, 153, 157, 161);	// Region 5
-
-else if(country == "BZ" ||
-country == "BO" ||
-country == "BN" ||
-country == "CN" ||
-country == "ID" ||
-country == "IR" ||
-country == "PE" ||
-country == "PH")
-channels = new Array(0, 149, 153, 157, 161, 165); // Region 4
-
-else if(country == "KP" ||
-country == "KR" ||
-country == "UY" ||
-country == "VE")
-channels = new Array(0, 149, 153, 157, 161, 165); // Region 4
-
-else if(country == "JP")
-channels = new Array(0, 36, 40, 44, 48); // Region 6
-
-else
-channels = new Array(0, 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165); // Region 7
+									else
+                		channels = new Array(0, 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161);
+                }                
+                
+    //Viz banned 2014.09.30}	//end Without wireless channel 5g hook
+    
+        var ch_v = new Array();
+        for(var i=0; i<channels.length; i++){
+        	ch_v[i] = channels[i];
+        }
+        if(ch_v[0] == "0")
+        	channels[0] = "<% tcWebApi_Get("String_Entry", "Auto", "s") %>";
+        add_options_x2(document.form.wl_channel, channels, ch_v, orig);
+				var x = document.form.wl_nctrlsb;
+				//x.remove(x.selectedIndex);
+				free_options(x);
+				add_option(x, "<% tcWebApi_Get("String_Entry", "Auto", "s") %>", "lower");
+				x.selectedIndex = 0;
 }
-else if(document.form.wl_bw.value == "1"){ // 20/40 MHz
-inputCtrl(document.form.wl_nctrlsb, 1);
-if (country == "AL" || 
-country == "DZ" || 
-country == "AU" ||
-country == "BH" ||
-country == "BY" ||
-country == "CA" ||
-country == "CL" ||
-country == "CO" ||
-country == "CR" ||
-country == "DO" ||
-country == "SV" || 
-country == "GT" ||
-country == "HN" || 
-country == "HK" ||
-country == "IN" ||
-country == "IL" ||
-country == "JO" ||
-country == "KZ" ||
-country == "LB" ||
-country == "MO" || 
-country == "MK" ||
-country == "MY" ||
-country == "MX" ||
-country == "NZ" || 
-country == "NO" ||
-country == "OM" ||
-country == "PK" || 
-country == "PA" ||
-country == "PR" ||
-country == "QA" ||
-country == "RO" ||
-country == "RU" ||
-country == "SA" ||
-country == "SG" ||
-country == "SY" ||
-country == "TH" ||
-country == "UA" ||
-country == "AE" || 
-country == "US" ||
-country == "Q2" || 
-country == "VN" ||
-country == "YE" ||
-country == "ZW")
-channels = new Array(0, 36, 40, 44, 48, 149, 153, 157, 161); // Region 10
 
-else if(country == "AT" ||
-country == "BE" ||
-country == "BR" ||
-country == "BG" ||
-country == "CY" ||
-country == "DK" ||
-country == "EE" ||
-country == "FI" ||
-country == "DE" || 
-country == "GR" ||
-country == "HU" ||
-country == "IS" ||
-country == "IE" ||
-country == "IT" ||
-country == "LV" ||
-country == "LI" ||
-country == "LT" ||
-country == "LU" ||
-country == "NL" ||
-country == "PL" ||
-country == "PT" ||
-country == "SK" || 
-country == "SI" ||
-country == "ZA" || 
-country == "ES" || 
-country == "SE" ||
-country == "CH" ||
-country == "GB" || 
-country == "EU" || 
-country == "UZ")
-channels = new Array(0, 36, 40, 44, 48); // Region 6
-
-else if(country == "AM" ||
-country == "AZ" ||
-country == "HR" ||
-country == "CZ" ||
-country == "EG" ||
-country == "FR" ||
-country == "GE" ||
-country == "MC" ||
-country == "TT" || 
-country == "TN" ||
-country == "TR")
-channels = new Array(0, 36, 40, 44, 48); // Region 6
-
-else if(country == "AR")
-channels = new Array(0, 52, 56, 60, 64, 149, 153, 157, 161);  // Region 3
-
-else if(country == "BZ" ||
-country == "BO" ||
-country == "BN" ||
-country == "CN" ||
-country == "ID" ||
-country == "IR" ||
-country == "PE" ||
-country == "PH" ||
-country == "TW")
-channels = new Array(0, 149, 153, 157, 161); // Region 5
-
-else if(country == "KP" ||
-country == "KR" ||
-country == "UY" ||
-country == "VE")
-channels = new Array(0, 149, 153, 157, 161); // Region 5
-
-else if(country == "JP")
-channels = new Array(0, 36, 40, 44, 48); // Region 6
-
-else
-channels = new Array(0, 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161); // Region 7
-}
-else{ // 40 MHz
-inputCtrl(document.form.wl_nctrlsb, 1);
-if (country == "AL" || 
-country == "DZ" || 
-country == "AU" ||
-country == "BH" ||
-country == "BY" ||
-country == "CA" ||
-country == "CL" ||
-country == "CO" ||
-country == "CR" ||
-country == "DO" ||
-country == "SV" || 
-country == "GT" ||
-country == "HN" || 
-country == "HK" ||
-country == "IN" ||
-country == "IL" ||
-country == "JO" ||
-country == "KZ" ||
-country == "LB" ||
-country == "MO" || 
-country == "MK" ||
-country == "MY" ||
-country == "MX" ||
-country == "NZ" || 
-country == "NO" ||
-country == "OM" ||
-country == "PK" || 
-country == "PA" ||
-country == "PR" ||
-country == "QA" ||
-country == "RO" ||
-country == "RU" ||
-country == "SA" ||
-country == "SG" ||
-country == "SY" ||
-country == "TH" ||
-country == "UA" ||
-country == "AE" || 
-country == "US" ||
-country == "Q2" || 
-country == "VN" ||
-country == "YE" ||
-country == "ZW")
-channels = new Array(0, 36, 40, 44, 48, 149, 153, 157, 161); // Region 10
-
-else if(country == "AT" ||
-country == "BE" ||
-country == "BR" ||
-country == "BG" ||
-country == "CY" ||
-country == "DK" ||
-country == "EE" ||
-country == "FI" ||
-country == "DE" || 
-country == "GR" ||
-country == "HU" ||
-country == "IS" ||
-country == "IE" ||
-country == "IT" ||
-country == "LV" ||
-country == "LI" ||
-country == "LT" ||
-country == "LU" ||
-country == "NL" ||
-country == "PL" ||
-country == "PT" ||
-country == "SK" || 
-country == "SI" ||
-country == "ZA" || 
-country == "ES" || 
-country == "SE" ||
-country == "CH" ||
-country == "GB" || 
-country == "EU" || 
-country == "UZ")
-channels = new Array(0, 36, 40, 44, 48); // Region 6
-
-else if(country == "AM" ||
-country == "AZ" ||
-country == "HR" ||
-country == "CZ" ||
-country == "EG" ||
-country == "FR" ||
-country == "GE" ||
-country == "MC" ||
-country == "TT" || 
-country == "TN" ||
-country == "TR")
-channels = new Array(0, 36, 40, 44, 48); // Region 6
-
-else if(country == "AR")
-channels = new Array(0, 52, 56, 60, 64, 149, 153, 157, 161);  // Region 3
-
-else if(country == "BZ" ||
-country == "BO" ||
-country == "BN" ||
-country == "CN" ||
-country == "ID" ||
-country == "IR" ||
-country == "PE" ||
-country == "PH" ||
-country == "TW")
-channels = new Array(0, 149, 153, 157, 161);  // Region 5
-
-else if(country == "KP" ||
-country == "KR" ||
-country == "UY" ||
-country == "VE")
-channels = new Array(0, 149, 153, 157, 161);  // Region 5
-
-else if(country == "JP")
-channels = new Array(0, 36, 40, 44, 48);  // Region 6
-
-else
-channels = new Array(0, 36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161);
-}
-var ch_v = new Array();
-for(var i=0; i<channels.length; i++){
-ch_v[i] = channels[i];
-}
-if(ch_v[0] == "0")
-channels[0] = "Auto";
-add_options_x2(document.form.wl_channel, channels, ch_v, orig);
-var x = document.form.wl_nctrlsb;
-free_options(x);
-add_a_option(x, "0", "Auto");
-x.selectedIndex = 0;
-}
 function insertExtChannelOption_2g(){
 	var wmode = document.form.wl_nmode_x.value;
 	var CurrentCh = document.form.wl_channel.value;
 	var option_length = document.form.wl_channel.options.length;
 
+	//setting wl channel
+	free_options(document.form.wl_channel);
+	var country = '<% tcWebApi_get("WLan_Common","wl0_CountryCode","s"); %>';
+	if(country == "DB") {
+		channels = new Array(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14); // Region 5
+	}
+	else if (country == "CA" ||
+		country == "CR" ||
+		country == "DO" ||
+		country == "GT" ||
+		country == "MX" ||
+		country == "NO" ||
+		country == "PA" ||
+		country == "PR" ||
+		country == "TW" ||
+		country == "US" ||
+		country == "UZ") {
+		channels = new Array(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11); // Region 0
+	}
+	else {
+		channels = new Array(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13); // Region 1
+	}
+	
+	var ch_v = new Array();
+	for(var i = 0; i < channels.length; i++) {
+		ch_v[i] = channels[i];
+	}
+	if(ch_v[0] == "0") {
+		channels[0] = "<% tcWebApi_Get("String_Entry", "Auto", "s") %>";
+	}
+	add_options_x2(document.form.wl_channel, channels, ch_v, CurrentCh);
+
+	//setting wl_nctrlsb
 	if ((wmode == "9"||wmode == "8"||wmode == "6"||wmode == "11") && document.form.wl_bw.value != "0"){
 		inputCtrl(document.form.wl_nctrlsb, 1);
 		var x = document.form.wl_nctrlsb;
@@ -3219,41 +3242,12 @@ function insertExtChannelOption_2g(){
 			x.options[0].value = "1";
 		}
 		else{
-			x.options[0].text = "Auto";
+			x.options[0].text = "<% tcWebApi_Get("String_Entry", "Auto", "s") %>";
 			x.options[0].value = "1";
 		}
 	}
 	else
 		inputCtrl(document.form.wl_nctrlsb, 0);
-
-	var orig = document.form.wl_channel.value;
-	free_options(document.form.wl_channel);
-
-	var country = '<% tcWebApi_get("WLan_Common","wl0_CountryCode","s"); %>';
-	if(country == "DB")
-		channels = new Array(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14); // Region 5
-	else if (country == "CA" ||
-		country == "CR" ||
-		country == "DO" ||
-		country == "GT" ||
-		country == "MX" ||
-		country == "NO" ||
-		country == "PA" ||
-		country == "PR" ||
-		country == "TW" ||
-		country == "US" ||
-		country == "UZ")
-		channels = new Array(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11); // Region 0
-	else
-		channels = new Array(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13); // Region 1
-	
-	var ch_v = new Array();
-	for(var i=0; i<channels.length; i++){
-		ch_v[i] = channels[i];
-	}
-	if(ch_v[0] == "0")
-	channels[0] = "Auto";
-	add_options_x2(document.form.wl_channel, channels, ch_v, orig);
 }
 function wl_auth_mode_change(isload){
 	var mode = document.form.wl_auth_mode_x.value;
@@ -3740,12 +3734,28 @@ function wireless_mode_change(obj){
 	else
 		inputCtrl(document.form.wl_gmode_check, 0);
 		
+	/*	
 	if(obj.value == "0")	//2.4GHz: legacy
 		inputCtrl(document.form.wl_bw, 0);
 	else
 		inputCtrl(document.form.wl_bw, 1);
+	*/
+	free_options(document.form.wl_bw);
+	var bws = new Array();
+	var bwsDesc = new Array();
+	var cur = "<%tcWebApi_get("WLan_Common","HT_BW","s")%>";
+	if(obj.value == '0') { //legacy
+		bws = [0];
+		bwsDesc = ["20 MHz"];
+		add_options_x2(document.form.wl_bw, bwsDesc, bws, cur);
+	}
+	else {
+		bws = [1, 0, 2];
+		bwsDesc = ["20/40 MHz", "20 MHz", "40 MHz"];
+		add_options_x2(document.form.wl_bw, bwsDesc, bws, cur);
+		handle_11ac_80MHz();
+	}
 
-	//handle_11ac_80MHz();	//without AC support yet.
 	insertExtChannelOption();
 	//if(obj.value == "3"){document.form.wl_wme.value = "on";}	//without this option
 
@@ -3753,6 +3763,18 @@ function wireless_mode_change(obj){
 	//nmode_limitation();
 	automode_hint();
 	check_NOnly_to_GN();
+}
+
+function handle_11ac_80MHz(){
+	if(band5g_support == -1 || band5g_11ac_support == -1 || document.form.wl_unit[0].selected == true || document.form.wl_nmode_x.value== '6' || document.form.wl_nmode_x.value== '11') {
+		document.form.wl_bw[0].text = "20/40 MHz";
+		document.form.wl_bw.remove(3); //remove 80 Mhz when not when not required required
+	} 
+	else {
+		document.form.wl_bw[0].text = "20/40/80 MHz";
+		if(document.form.wl_bw.length == 3)
+			document.form.wl_bw[3] = new Option("80 MHz", "3");
+	}
 }
 
 /* To hide Shared key, WPA-Personal/Enterprise and RADIUS with 802.1X*/

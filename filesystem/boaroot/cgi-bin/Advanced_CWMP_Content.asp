@@ -21,7 +21,7 @@ End if
 
 <!--Advanced_CWMP_Content.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -152,14 +152,14 @@ function cwmpSave()
 	</tr>
 
 	<tr>
-	<th><a class="hintstyle" href="javascript:void(0);"><%tcWebApi_get("String_Entry","CWMP_UserName","s")%></a></th>
+	<th><a class="hintstyle" href="javascript:void(0);"><%tcWebApi_get("String_Entry","PPPC_UserName_in","s")%></a></th>
 	<td>
 		<input name="CWMP_ACSUserName" type="text" value="<%if tcWebApi_get("Cwmp_Entry", "acsUserName", "h") <> "N/A" then tcWebApi_get("Cwmp_Entry",  "acsUserName", "s") end if%>" size="32" maxlength="256" class="input_32_table" onKeyPress="return is_string(this, event);">
 	</td>
 	</tr>
 
 	<tr>
-	<th><a class="hintstyle" href="javascript:void(0);"><%tcWebApi_get("String_Entry","CWMP_Password","s")%></a></th>
+	<th><a class="hintstyle" href="javascript:void(0);"><%tcWebApi_get("String_Entry","PPPC_Password_in","s")%></a></th>
 	<td>
 		<input name="CWMP_ACSPassword" type="text" value="<%if tcWebApi_get("Cwmp_Entry", "acsPassword", "h") <> "N/A" then tcWebApi_get("Cwmp_Entry", "acsPassword", "s") end if%>" size="32" maxlength="256" class="input_32_table" onKeyPress="return is_string(this, event);">
 	</td>
@@ -180,14 +180,14 @@ function cwmpSave()
 	</tr>
 
 	<tr>
-	<th><a class="hintstyle" href="javascript:void(0);"><%tcWebApi_get("String_Entry","CWMP_UserName","s")%></a></th>
+	<th><a class="hintstyle" href="javascript:void(0);"><%tcWebApi_get("String_Entry","PPPC_UserName_in","s")%></a></th>
 	<td>
 		<input name="CWMP_ConnectionRequestUserName" type="text" value="<%if tcWebApi_get("Cwmp_Entry", "conReqUserName", "h") <> "N/A" then tcWebApi_get("Cwmp_Entry", "conReqUserName", "s") end if%>" size="32" maxlength="256" class="input_32_table" onKeyPress="return is_string(this, event);">
 	</td>
 	</tr>
 
 	<tr>
-	<th><a class="hintstyle" href="javascript:void(0);"><%tcWebApi_get("String_Entry","CWMP_Password","s")%></a></th>
+	<th><a class="hintstyle" href="javascript:void(0);"><%tcWebApi_get("String_Entry","PPPC_Password_in","s")%></a></th>
 	<td>
 		<input name="CWMP_ConnectionRequestPassword" type="text" value="<%if tcWebApi_get("Cwmp_Entry", "conReqPassword", "h") <> "N/A" then tcWebApi_get("Cwmp_Entry", "conReqPassword" ,"s") end if%>" size="32" maxlength="256" class="input_32_table" onKeyPress="return is_string(this, event);">
 	</td>
@@ -209,7 +209,7 @@ function cwmpSave()
 	</tr>
 
 	<tr>
-	<th><a class="hintstyle" href="javascript:void(0);"><%tcWebApi_get("String_Entry","CWMP_Periodic_interval","s")%></a></th>
+	<th><a class="hintstyle" href="javascript:void(0);"><%tcWebApi_get("String_Entry","Interval","s")%></a></th>
 	<td>
 		<input type="text" name="CWMP_PeriodInterval" value="<%if tcWebApi_get("Cwmp_Entry", "periodInterval", "h") <> "N/A" then tcWebApi_get("Cwmp_Entry", "periodInterval", "s") end if%>" size="9" maxlength="9" class="input_12_table">
 	</td>

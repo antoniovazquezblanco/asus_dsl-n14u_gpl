@@ -2,8 +2,6 @@
 
 char *my_str_malloc(size_t len){
 
-    //printf("len = %d\n",len);
-
     char *s;
     s = (char *)malloc(sizeof(char)*len);
     if(s == NULL)
@@ -170,20 +168,7 @@ static void s_progress(void *userdata, ne_off_t prog, ne_off_t total){
         DEBUG("progress1 = %.2f\n",(float)(1));
         prog_time = t;
     }
-#if 0
-    if(prog_total != -1 && prog_total != 0)
-    {
-        time_t t;
-        t = time(NULL);
-        if((t-prog_time >= 5) || total == prog_total)
-        {
-            //printf("time t = %ld,prog_time = %ld\n",t,prog_time);
-            //printf("total = %ld,prog_total=%ld\n",total,prog_total);
-            printf("progress2 = %.2f\n",(float)total/prog_total);
-            prog_time = t;
-        }
-    }
-#else
+
     if(prog_total != -1 && prog_total != 0)
     {
         time_t t;
@@ -197,11 +182,30 @@ static void s_progress(void *userdata, ne_off_t prog, ne_off_t total){
             prog_time = t;
         }
     }
-#endif
 }
 
 static int my_verify(void *userdata,int failures,const ne_ssl_certificate *cert)
 {
+    return 0;
+}
+
+
+/*大小写转换
+ *type == 0,小写转成大写
+ *type ==1,大写转成小写*/
+int Change(char *s, int type)
+{
+    char *str = s;
+    char *res = s;
+    if (type == 0)
+    {
+        while(*res) *str++ = toupper(*res++);
+    }
+    else
+    {
+        while(*res) *str++ = tolower(*res++);
+    }
+
     return 0;
 }
 
@@ -213,6 +217,10 @@ int wd_create_session(int j){
         return -1;
     }
     ne_uri uri = {0};
+
+    Change(asus_cfg.prule[j]->host,1);
+
+    DEBUG("asus_cfg.prule[j]->host= %s\n",asus_cfg.prule[j]->host);
 
     if (ne_uri_parse(asus_cfg.prule[j]->host, &uri) || uri.host==NULL || uri.path==NULL)
     {
@@ -229,8 +237,8 @@ int wd_create_session(int j){
     //ne_set_server_auth(sess,my_auth,NULL);
 
     ne_set_useragent(asus_cfg.prule[j]->sess,"");
-    ne_set_connect_timeout(asus_cfg.prule[j]->sess,30);
-    ne_set_read_timeout(asus_cfg.prule[j]->sess,30);
+    ne_set_connect_timeout(asus_cfg.prule[j]->sess,80);
+    ne_set_read_timeout(asus_cfg.prule[j]->sess,80);
     ne_set_progress(asus_cfg.prule[j]->sess, s_progress, NULL);
 
     ne_uri_free(&uri);
@@ -265,7 +273,7 @@ int is_server_space_enough(const char *localfilepath,int index){
 
     int status;
     long long int filesize;
-    status = ne_getrouterinfo(parseRouterInfo,index);
+    status = ne_getrouterinfo(wd_parsexml_RouterInfo,index);
 
     filesize = stat_file(localfilepath);
     DEBUG("DiskAvailable = %lld,filesize = %lld\n",DiskAvailable,filesize);
@@ -531,8 +539,9 @@ int Download(char *dofile_href,int index){
     char *path;
     //int len;
     //long long int freespace;
-    path = strstr(dofile_href,asus_cfg.prule[index]->rootfolder) + asus_cfg.prule[index]->rootfolder_length;
-    path = oauth_url_unescape(path,NULL);
+    //path = strstr(dofile_href,asus_cfg.prule[index]->rootfolder) + asus_cfg.prule[index]->rootfolder_length;
+    //path = oauth_url_unescape(path,NULL);
+    path = oauth_url_unescape(dofile_href,NULL);
     LocalFilePath = my_str_malloc((size_t)(strlen(path)+asus_cfg.prule[index]->base_path_len+1));
     sprintf(LocalFilePath,"%s%s",asus_cfg.prule[index]->base_path,path);
     LocalFilePath_temp = get_temp_name(LocalFilePath);
@@ -553,8 +562,10 @@ int Download(char *dofile_href,int index){
 
     //len = get_filename_length(LocalFilePath);
     char *serverPath;
+    serverPath = my_str_malloc(strlen(dofile_href)+strlen(asus_cfg.prule[index]->rootfolder)+1);
+    sprintf(serverPath,"%s%s",asus_cfg.prule[index]->rootfolder,dofile_href);
     int cp = 0;
-    serverPath = strstr(dofile_href,asus_cfg.prule[index]->rootfolder);
+    //serverPath = strstr(dofile_href,asus_cfg.prule[index]->rootfolder);
 
     DEBUG("serverPath = %s\n",serverPath);
 
@@ -565,6 +576,7 @@ int Download(char *dofile_href,int index){
 
     if(cp != 0)
     {
+        free(serverPath);
         free(LocalFilePath);
         free(LocalFilePath_temp);
         if(cp == -1)
@@ -577,6 +589,7 @@ int Download(char *dofile_href,int index){
     write_log(S_DOWNLOAD,"",LocalFilePath,index);
     ret = ne_get(asus_cfg.prule[index]->sess,serverPath,fd);
 
+    free(serverPath);
     //pthread_cleanup_pop(0);
     prog_total = -1;
 
@@ -1054,10 +1067,10 @@ int Upload(char *filepath,int index){
     del_action_item("upload",filepath,g_pSyncList[index]->up_space_not_enough_list);
     //}
     //close(fd);
-    if(finished_initial)
+    /*if(finished_initial)
         write_log(S_SYNC,"","",index);
     else
-        write_log(S_INITIAL,"","",index);
+        write_log(S_INITIAL,"","",index);*/
     //sleep(1);
     usleep(1000*100);
     return ret;
@@ -1441,7 +1454,7 @@ int Move(char *oldpath,char *newpath,int index){
             }
             else
             {
-                printf("it is file\n");
+                DEBUG("it is file\n");
 
                 ret = Upload(newpath,index);
                 if(ret != 0)
@@ -1501,7 +1514,19 @@ time_t Getmodtime(char *serverhref,int index){
     time_t modtime;
     int ret;
 
-    ret = ne_getmodtime(asus_cfg.prule[index]->sess,serverhref,&modtime);
+    if(NULL == strstr(serverhref,asus_cfg.prule[index]->rootfolder))
+    {
+        char *serverpath;
+        serverpath = my_str_malloc(asus_cfg.prule[index]->rootfolder_length+strlen(serverhref)+1);
+        sprintf(serverpath,"%s%s",asus_cfg.prule[index]->rootfolder,serverhref);
+        ret = ne_getmodtime(asus_cfg.prule[index]->sess,serverpath,&modtime);
+        free(serverpath);
+    }
+    else
+    {
+        ret = ne_getmodtime(asus_cfg.prule[index]->sess,serverhref,&modtime);
+    }
+
 
     //printf("ret = %d,modtime = %ld\n",ret,modtime);
 
@@ -1940,6 +1965,7 @@ void free_CloudFile_item(CloudFile *head)
         {
             //printf("free CloudFile %s\n",p->href);
             free(p->href);
+            free(p->getcontentlength);
         }
         free(p);
         p = head;
@@ -1958,6 +1984,7 @@ void free_LocalFolder_item(LocalFolder *head)
         {
             //printf("free LocalFolder %s\n",point->path);
             free(p->path);
+            free(p->name);
         }
         free(p);
         p = head;
@@ -1976,27 +2003,13 @@ void free_LocalFile_item(LocalFile *head)
         {
             //printf("free LocalFile %s\n",point->path);
             free(p->path);
+            free(p->name);
         }
         free(p);
         p = head;
     }
 
     //printf("free list ok\n");
-}
-
-void free_sync_item(struct sync_item *head)
-{
-    DEBUG("^^^^^^^^^^free_sync_item^^^^^^^^^^^^\n");
-
-    struct sync_item *point;
-
-    while(head->next != NULL)
-    {
-        point = head;
-        head = head->next;
-        free(point);
-    }
-    free(head);
 }
 
 int write_log(int status, char *message, char *filename,int index)
@@ -2017,7 +2030,7 @@ int write_log(int status, char *message, char *filename,int index)
 
     if(status == S_SYNC && exit_loop ==0)
     {
-        ret = ne_getrouterinfo(parseRouterInfo,index);
+        ret = ne_getrouterinfo(wd_parsexml_RouterInfo,index);
     }
 
     long long int totalspace = PreDiskAvailableShow+PreDiskUsedShow;
@@ -2117,50 +2130,6 @@ int write_error_log(char *message)
     return 0;
 }
 
-int add_sync_item(int action,char *item_href,struct sync_item *head)
-{
-    //pthread_mutex_lock(&mutex);
-    DEBUG("***************add_sync_item*****************\n");
-
-    struct sync_item *p;
-
-    p = head->next;
-
-
-
-    struct sync_item *q = (struct sync_item *)malloc(sizeof(struct sync_item));
-    memset(q, '\0', sizeof(struct sync_item));
-    if(q == NULL)
-        exit(-1);
-
-
-    q->action = action;
-
-    DEBUG("item_href = %s\n",item_href);
-
-    sprintf(q->href,"%s",item_href);
-
-
-
-    //struct sync_item *item = create_sync_item(action,name);
-
-    DEBUG("q->action = %d\n",q->action);
-
-    if(p == NULL)
-    {
-    	head->next = q;
-        q->next = NULL;
-    }
-    else
-    {
-    	q->next = p;
-    	head->next = q;
-    }
-
-    //pthread_mutex_unlock(&mutex);
-    return 0;
-}
-
 int add_FolderList_item(CloudFile *head,char *item_href){
 
     DEBUG("***************add_FolderList_item*****************\n");
@@ -2193,57 +2162,6 @@ int add_FolderList_item(CloudFile *head,char *item_href){
     //pthread_mutex_unlock(&mutex);
     return 0;
 
-}
-
-int del_sync_item(int action,char *item_href,struct sync_item *head)
-{
-    //pthread_mutex_lock(&mutex);
-    int cmp;
-    struct sync_item *p1,*p2;
-
-    p1 = head->next;
-    p2 = head;
-
-
-
-    if( NULL == p1 )
-    {
-        DEBUG("sync item list is null\n");
-
-        //pthread_mutex_unlock(&mutex);
-        return -1 ;
-    }
-
-    if(p1->next == NULL)
-    {
-    	free(p1);
-    	head->next = NULL;
-    	return 1;
-    }
-
-    while(p1 != NULL)
-    {
-    	if((cmp = strcmp(p1->href,item_href)) ==0 )
-    	{
-            p2->next = p1->next;
-            free(p1);
-            return 1;
-    	}
-    	p2 = p1;
-    	p1 = p1->next;
-    }
-
-
-    //pthread_mutex_unlock(&mutex);
-
-    return 0;
-}
-
-int item_empty(struct sync_item *phead)
-{
-    //return phead->next == NULL;
-    //return phead == NULL ;
-    return (phead == NULL) ? 1 : 0 ;
 }
 
 int do_unfinished(int index){
@@ -2464,7 +2382,8 @@ void queue_destroy (queue_t q)
             queue_entry_t next = q->head;
             q->head = next->next_ptr;
             next->next_ptr = NULL;
-            free (next);
+            free(next->cmd_name);
+            free(next);
         }
         q->head = q->tail = NULL;
         free (q);
@@ -2486,8 +2405,10 @@ char *serverpath_to_localpath(char *from_serverpath,int index){
     char *hreftmp;
     char *to_localpath;
 
-    hreftmp = strstr(from_serverpath,asus_cfg.prule[index]->rootfolder)+asus_cfg.prule[index]->rootfolder_length;
-    hreftmp = oauth_url_unescape(hreftmp,NULL);
+    //hreftmp = strstr(from_serverpath,asus_cfg.prule[index]->rootfolder)+asus_cfg.prule[index]->rootfolder_length;
+    //hreftmp = oauth_url_unescape(hreftmp,NULL);
+
+    hreftmp = oauth_url_unescape(from_serverpath,NULL);
 
     to_localpath = my_str_malloc(strlen(hreftmp)+asus_cfg.prule[index]->base_path_len+1);
     //memset(to_localpath,'\0',sizeof(to_localpath));
@@ -2720,7 +2641,6 @@ int del_action_item(const char *action,const char *path,action_item *head){
 
 void del_download_only_action_item(const char *action,const char *path,action_item *head)
 {
-    //printf("del_sync_item action=%s,path=%s\n",action,path);
     if(head == NULL)
     {
         return;
@@ -2738,8 +2658,6 @@ void del_download_only_action_item(const char *action,const char *path,action_it
     {
         p1_cmp_name = my_str_malloc((size_t)(strlen(p1->path)+2));
         sprintf(p1_cmp_name,"%s/",p1->path);      //add for delete folder and subfolder in download only socket list
-        //printf("del_download_only_sync_item  p1->name = %s\n",p1->name);
-        //printf("del_download_only_sync_item  cmp_name = %s\n",cmp_name);
         if(strstr(p1_cmp_name,cmp_name) != NULL)
         {
             p2->next = p1->next;
@@ -3190,7 +3108,7 @@ int init_newer_file(char *localpath,int index){
  *3,local and server modify
  *-1,get server modtime or local modtime failed
 **/
-int sync_newer_file(char *localpath,int index,CloudFile *reloldfiletmp)
+/*int sync_newer_file(char *localpath,int index,CloudFile *reloldfiletmp)
 {
     //DEBUG("sync_newer_file start!\n");
     char *serverpath;
@@ -3243,6 +3161,43 @@ int sync_newer_file(char *localpath,int index,CloudFile *reloldfiletmp)
         {
             return 3;
         }
+    }
+}*/
+
+
+
+int sync_newer_file(char *localpath,int index)
+{
+    //DEBUG("sync_newer_file start!\n");
+    char *serverpath;
+    serverpath = localpath_to_serverpath(localpath,index);
+    time_t modtime1,modtime2;
+
+    modtime1 = Getmodtime(serverpath,index);
+    free(serverpath);
+    if(modtime1 == -1)
+    {
+        DEBUG("newer_file Getmodtime failed!\n");
+        return -1;
+    }
+
+    struct stat buf;
+    if( stat(localpath,&buf) == -1)
+    {
+        perror("stat:");
+        return -1;
+    }
+    modtime2 = buf.st_mtime;
+
+    DEBUG("localtime = %lu,servertime = %lu\n",modtime2,modtime1);
+
+    if(modtime1 == modtime2)     //no modify
+    {
+        return 0;
+    }
+    else
+    {
+        return 1;
     }
 }
 
@@ -3434,7 +3389,7 @@ int is_server_exist(char *parentpath,char *filepath,int index){
     DEBUG("url = %s\n",url);
 
     do{
-        status = getCloudInfo(url,parseCloudInfo_one,index);
+        status = getCloudInfo(url,wd_parsexml_one,index);
         usleep(1000*500);
     }while(status == COULD_NOT_CONNECNT_TO_SERVER && exit_loop == 0);
 
@@ -3451,18 +3406,11 @@ int is_server_exist(char *parentpath,char *filepath,int index){
     }
 
     char *server_path;
-    char *m_temp;
-    const char m_chr = ':';
-    m_temp = my_nstrchr(m_chr,asus_cfg.prule[index]->host,2);
+
     server_path = localpath_to_serverpath(filepath,index);
-    file_url = my_str_malloc(strlen(asus_cfg.prule[index]->host)+strlen(server_path)+1);
+    file_url = server_path + strlen(asus_cfg.prule[index]->rootfolder);
 
-    snprintf(file_url,strlen(asus_cfg.prule[index]->host)-strlen(m_temp)+1,"%s",
-             asus_cfg.prule[index]->host);
-
-    sprintf(file_url,"%s%s",file_url,server_path);
-    free(server_path);
-
+    DEBUG("server_path = %s\n",server_path);
     DEBUG("file_url = %s\n",file_url);
 
     CloudFile *de_filecurrent;
@@ -3477,7 +3425,7 @@ int is_server_exist(char *parentpath,char *filepath,int index){
 
                 DEBUG("get it\n");
 
-                free(file_url);
+                free(server_path);
                 free_CloudFile_item(FileList_one);
                 return 1;
             }
@@ -3485,7 +3433,7 @@ int is_server_exist(char *parentpath,char *filepath,int index){
         de_filecurrent = de_filecurrent->next;
     }
 
-    free(file_url);
+    free(server_path);
     free_CloudFile_item(FileList_one);
 
     return 0;
@@ -3714,7 +3662,7 @@ char *add_nvram_contents(char *url,char *folder){
     nvp = my_str_malloc(strlen(url)+strlen(folder)+2);
     sprintf(nvp,"%s>%s",url,folder);
 
-    printf("add_nvram_contents     nvp = %s\n",nvp);
+    DEBUG("add_nvram_contents     nvp = %s\n",nvp);
 
     //nv = strdup(nvram_safe_get("wd_tokenfile"));
 #ifdef NVRAM_
@@ -3741,7 +3689,7 @@ char *add_nvram_contents(char *url,char *folder){
         int file_size;
         file_size = ftell( fp );
         fseek(fp , 0 , SEEK_SET);
-        printf("add_nvram_contents     file_size = %d\n",file_size);
+        //printf("add_nvram_contents     file_size = %d\n",file_size);
         //nv =  (char *)malloc( file_size * sizeof( char ) );
         nv = my_str_malloc(file_size+2);
         //fread(nv , file_size ,1, fp);
@@ -3750,7 +3698,7 @@ char *add_nvram_contents(char *url,char *folder){
     }
 
 #endif
-    printf("add_nvram_contents     nv = %s\n",nv);
+    //printf("add_nvram_contents     nv = %s\n",nv);
     nv_len = strlen(nv);
 
     if(nv_len)
@@ -3764,7 +3712,7 @@ char *add_nvram_contents(char *url,char *folder){
         new_nv = my_str_malloc(strlen(nvp)+1);
         sprintf(new_nv,"%s",nvp);
     }
-    printf("add_nvram_contents     new_nv = %s\n",new_nv);
+    //printf("add_nvram_contents     new_nv = %s\n",new_nv);
     free(nvp);
     free(nv);
     return new_nv;
@@ -3848,6 +3796,7 @@ int write_conflict_log(char *prename, char *conflict_name,int index)
     return 0;
 }
 
+#ifndef PC
 int check_link_internet(int index)
 {
     int link_flag = 0;
@@ -3943,8 +3892,8 @@ int check_link_internet(int index)
 #endif*/
     return 0;
 }
+#endif
 
-#if 0
 void create_start_file()
 {
     my_mkdir("/tmp/smartsync_app");
@@ -3983,4 +3932,269 @@ int detect_process_file()
 
     return 0;
 }
-#endif
+
+int wd_parsexml(char *xmlBuf,int xmlBufLength,int index)
+{
+    //printf("wd_parsexml start\n");
+    //printf("xmlBuf = %s\n",xmlBuf);
+    char *p,*p1;
+    char *node;
+
+    char *nodeStart;
+    char *nodeEnd;
+
+    char *key = NULL;
+
+    int len = 0;
+
+    if (NULL == strstr(xmlBuf,"<D:multistatus "))
+    {
+         DEBUG("Have no XML content header!\n");
+         return -1;
+    }
+
+    if (NULL == strstr(xmlBuf, "</D:multistatus>"))
+    {
+        DEBUG("Have no XML content tail!\n");
+        return -1;
+    }
+
+    nodeStart = strstr(xmlBuf,"<D:response>");
+    nodeEnd = strstr(xmlBuf,"</D:response>");
+
+    while(nodeStart && nodeEnd)
+    {
+        node = my_str_malloc(strlen(nodeStart)-strlen(nodeEnd)+1);
+        snprintf(node,strlen(nodeStart)-strlen(nodeEnd),"%s",nodeStart);
+        /*get href*/
+        p = strstr(node,"<D:href>");
+        p1 = strstr(node,"</D:href>");
+        if(NULL == p)
+        {
+            free(node);
+            node = NULL;
+            nodeStart = strstr(nodeEnd,"<D:response>");
+            nodeEnd = strstr(nodeStart,"</D:response>");
+            continue;
+        }
+        FolderTmp = (CloudFile *)malloc(sizeof(CloudFile));
+        memset(FolderTmp,0,sizeof(CloudFile));
+        FolderTmp->next = NULL;
+        p = strstr(p,asus_cfg.prule[index]->rootfolder);
+        len = strlen(p)-strlen(p1)-strlen(asus_cfg.prule[index]->rootfolder)+1;
+        FolderTmp->href = my_str_malloc(len);
+        //memset(FolderTmp->href,'\0',sizeof(FolderTmp->href));
+        snprintf(FolderTmp->href,len,"%s",p+strlen(asus_cfg.prule[index]->rootfolder));
+        FolderTmp->isFolder = 3;
+        FolderTmp->ismodify = 0;
+        //DEBUG("href = %s\n",FolderTmp->href);
+
+        /*get getcontentlength*/
+        p = strstr(node,"<D:getcontentlength>");
+        p1 = strstr(node,"</D:getcontentlength>");
+        len = strlen(p)-strlen(p1)-strlen("<D:getcontentlength>")+1;
+        FolderTmp->getcontentlength = my_str_malloc(len);
+        snprintf(FolderTmp->getcontentlength,len,"%s",p+strlen("<D:getcontentlength>"));
+        //DEBUG("getcontentlength = %s\n",FolderTmp->getcontentlength);
+
+        /*getcontenttype*/
+        p = strstr(node,"<D:getcontenttype>");
+        p1 = strstr(p,"httpd/unix-directory");
+        if(NULL == p1)
+        {
+            FolderTmp->isFolder = 0;
+        }
+        else
+        {
+            FolderTmp->isFolder = 1;
+        }
+        //DEBUG("getcontenttype = %d\n",FolderTmp->isFolder);
+
+        /*getlastmodified*/
+
+        p = strstr(node,"<D:getlastmodified>");
+        p1 = strstr(node,"</D:getlastmodified>");
+        len = strlen(p)-strlen(p1)-strlen("<D:getlastmodified>")+1;
+        key = my_str_malloc(len);
+        snprintf(key,len,"%s",p+strlen("<D:getlastmodified>"));
+        FolderTmp->modtime = ne_httpdate_parse(key);
+        free(key);
+        key = NULL;
+        //DEBUG("getlastmodified = %lu\n",FolderTmp->modtime);
+
+        if(FolderTmp->isFolder == 1)
+        {
+            TreeFolderTail->next = FolderTmp;
+            TreeFolderTail = FolderTmp;
+            TreeFolderTail->next = NULL;
+        }
+        else if(FolderTmp->isFolder == 0)
+        {
+            TreeFileTail->next = FolderTmp;
+            TreeFileTail = FolderTmp;
+            TreeFileTail->next = NULL;
+        }
+
+        free(node);
+        node = NULL;
+        nodeStart = strstr(nodeEnd,"<D:response>");
+        if(NULL == nodeStart)
+            break;
+        else
+            nodeEnd = strstr(nodeStart,"</D:response>");
+    }
+
+    DEBUG("wd_parsexml OVER!!\n");
+    return 0;
+}
+
+int wd_parsexml_one(char *xmlBuf,int xmlBufLength,int index)
+{
+    //printf("wd_parsexml_one start\n");
+    char *p,*p1;
+    char *node;
+
+    char *nodeStart;
+    char *nodeEnd;
+
+    char *key = NULL;
+
+    int len = 0;
+
+    if (NULL == strstr(xmlBuf,"<D:multistatus "))
+    {
+         DEBUG("Have no XML content header!\n");
+         return -1;
+    }
+
+    if (NULL == strstr(xmlBuf, "</D:multistatus>"))
+    {
+        DEBUG("Have no XML content tail!\n");
+        return -1;
+    }
+
+    nodeStart = strstr(xmlBuf,"<D:response>");
+    nodeEnd = strstr(xmlBuf,"</D:response>");
+
+    while(nodeStart && nodeEnd)
+    {
+        node = my_str_malloc(strlen(nodeStart)-strlen(nodeEnd)+1);
+        snprintf(node,strlen(nodeStart)-strlen(nodeEnd),"%s",nodeStart);
+
+        /*get href*/
+        p = strstr(node,"<D:href>");
+        p1 = strstr(node,"</D:href>");
+        if(NULL == p)
+        {
+            free(node);
+            node = NULL;
+            nodeStart = strstr(nodeEnd,"<D:response>");
+            nodeEnd = strstr(nodeStart,"</D:response>");
+            continue;
+        }
+        FileTmp_one = (CloudFile *)malloc(sizeof(CloudFile));
+        memset(FileTmp_one,0,sizeof(CloudFile));
+        FileTmp_one->next = NULL;
+        p = strstr(p,asus_cfg.prule[index]->rootfolder);
+        len = strlen(p)-strlen(p1)-strlen(asus_cfg.prule[index]->rootfolder)+1;
+        FileTmp_one->href = my_str_malloc(len);
+        //memset(FolderTmp->href,'\0',sizeof(FolderTmp->href));
+        snprintf(FileTmp_one->href,len,"%s",p+strlen(asus_cfg.prule[index]->rootfolder));
+        FileTmp_one->isFolder = 3;
+        FileTmp_one->ismodify = 0;
+        //DEBUG("href = %s\n",FolderTmp->href);
+
+        /*get getcontentlength*/
+        p = strstr(node,"<D:getcontentlength>");
+        p1 = strstr(node,"</D:getcontentlength>");
+        len = strlen(p)-strlen(p1)-strlen("<D:getcontentlength>")+1;
+        FileTmp_one->getcontentlength = my_str_malloc(len);
+        snprintf(FileTmp_one->getcontentlength,len,"%s",p+strlen("<D:getcontentlength>"));
+        //DEBUG("getcontentlength = %s\n",FolderTmp->getcontentlength);
+
+        /*getcontenttype*/
+        p = strstr(node,"<D:getcontenttype>");
+        p1 = strstr(p,"httpd/unix-directory");
+        if(NULL == p1)
+        {
+            FileTmp_one->isFolder = 0;
+        }
+        else
+        {
+            FileTmp_one->isFolder = 1;
+        }
+        //DEBUG("getcontenttype = %d\n",FolderTmp->isFolder);
+
+        /*getlastmodified*/
+
+        p = strstr(node,"<D:getlastmodified>");
+        p1 = strstr(node,"</D:getlastmodified>");
+        len = strlen(p)-strlen(p1)-strlen("<D:getlastmodified>")+1;
+        key = my_str_malloc(len);
+        snprintf(key,len,"%s",p+strlen("<D:getlastmodified>"));
+        FileTmp_one->modtime = ne_httpdate_parse(key);
+        free(key);
+        key = NULL;
+        //DEBUG("getlastmodified = %lu\n",FolderTmp->modtime);
+
+        FileTail_one->next = FileTmp_one;
+        FileTail_one = FileTmp_one;
+        FileTail_one->next = NULL;
+
+        free(node);
+        node = NULL;
+        nodeStart = strstr(nodeEnd,"<D:response>");
+        if(NULL == nodeStart)
+            break;
+        else
+            nodeEnd = strstr(nodeStart,"</D:response>");
+    }
+
+    DEBUG("wd_parsexml OVER!!\n");
+    return 0;
+}
+
+int wd_parsexml_RouterInfo(char *xmlBuf,int xmlBufLength,int index)
+{
+    //printf("wd_parsexml_RouterInfo start\n");
+    //printf("xmlBuf = %s\n",xmlBuf);
+    char *p,*p1;
+
+    char *key = NULL;
+
+    int len = 0;
+
+    p = strstr(xmlBuf,"<DiskAvailable>");
+    p1 = strstr(xmlBuf,"</DiskAvailable>");
+    if(NULL != p && NULL != p1)
+    {
+        len = strlen(p)-strlen(p1)-strlen("<DiskAvailable>")+1;
+        key = my_str_malloc(len);
+        snprintf(key,len,"%s",p+strlen("<DiskAvailable>"));
+        DiskAvailable = 1024*(atoll(key));
+        DiskAvailableShow = (atoll(key))/1024;
+
+        //DEBUG("DiskAvailable = %s\n",key);
+        free(key);
+    }
+    else
+        return -1;
+
+    p = strstr(xmlBuf,"<DiskUsed>");
+    p1 = strstr(xmlBuf,"</DiskUsed>");
+    if(NULL != p && NULL != p1)
+    {
+        len = strlen(p)-strlen(p1)-strlen("<DiskUsed>")+1;
+        key = my_str_malloc(len);
+        snprintf(key,len,"%s",p+strlen("<DiskUsed>"));
+        DiskUsedShow = (atoll(key))/1024;
+
+        //DEBUG("DiskUsed = %s\n",key);
+        free(key);
+    }
+    else
+        return -1;
+
+    //printf("wd_parsexml_RouterInfo end\n");
+    return 0;
+}

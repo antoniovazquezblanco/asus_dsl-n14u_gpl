@@ -649,7 +649,7 @@ int encryptRomfile(char *src, char *dst, char *productName)
 
 	memset(&rhdr, 0, sizeof(rhdr));
 	strcpy(rhdr.keyWord, KEYWORD);
-	rand = get_rand() % 30;
+	rand = (get_rand() % 15) + 15; //rand will be 15~29
 	rhdr.rand = rand;
 
 	//currently ROMFILE_PADDING is not needed. We keep it just in case in the future.
@@ -679,9 +679,9 @@ int encryptRomfile(char *src, char *dst, char *productName)
 		if (buffer[i] == 0x0)
 			buffer[i] = 0xfd + get_rand() % 3;
 		else
-			buffer[i] = 0xff - buffer[i] + rand;
+			buffer[i] = (0xff - buffer[i] + rand) & 0xff;
 	}
-	
+
 	//write data
 	fwrite(buffer, 1, count, fp);
 

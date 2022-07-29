@@ -66,14 +66,6 @@ function Sync_2ghz(band){
 		document.form.sync_with_2ghz.checked = false;
 }
 
-function gotoIndex(){
-	if (w_Setting == "0") {
-		alert("<% tcWebApi_Get("String_Entry", "QIS_recommand_encryption", "s") %>");
-		location.href = '/cgi-bin/qis/QIS_wireless.asp';
-	}
-	else
-		parent.location.href = '../index2.asp';
-}
 </script>
 </head>
 <body onLoad="QKWireless_load_body();" onunload="">
@@ -86,6 +78,8 @@ function gotoIndex(){
 <input type="hidden" name="action_script" value="">
 <input type="hidden" name="wl0_auth_mode_x" value="">
 <input type="hidden" name="wl1_auth_mode_x" value="">
+<input type="hidden" name="w_Setting" value="1">
+<input type="hidden" name="WPSConfigured" value="2">
 <div class="QISmain">
 <div class="formfonttitle" style="padding:6 0 0 10;">
 <div>
@@ -94,9 +88,9 @@ function gotoIndex(){
 <td align="left">
 <span class="description_down"><%tcWebApi_get("String_Entry","QKS_wireless_webtitle","s")%></span>
 </td>
-<td align="right">
+<!--td align="right">
 <img onclick="gotoIndex();" style="cursor:pointer;" align="right" title="Go to Home" src="/images/backtohome.png" onMouseOver="this.src='/images/backtohomeclick.png'" onMouseOut="this.src='/images/backtohome.png'">
-</td>
+</td-->
 </tr>
 </table>
 </div>
@@ -113,31 +107,31 @@ function gotoIndex(){
 <tr>
 <th width="180"><span onmouseout="return nd();" onclick="openHint(0, 22);" style="cursor:help;"><% tcWebApi_Get("String_Entry", "QIS_finish_wireless_item1", "s") %><img align="right" style="cursor:pointer;margin-top:-14px\9;" src="/images/New_ui/helpicon.png"></span></th>
 <td class="QISformtd">
-<input type="text" id="wl0_ssid" name="wl0_ssid" onkeyup="Sync_2ghz(2);" style="height:25px;" class="input_32_table" maxlength="32" value="<% tcWebApi_staticGet("WLan_Entry","wl0_ssid","s") %>"/>
+<input type="text" id="wl0_ssid" name="wl0_ssid"  tabindex="1" onkeyup="Sync_2ghz(2);" style="height:25px;" class="input_32_table" maxlength="32" value="<% tcWebApi_staticGet("WLan_Entry","wl0_ssid","s") %>" autocapitalization="off" autocomplete="off"/>
 </td>
 </tr>
 <tr id="wl_unit_field_0">
 <th width="180"><span onmouseout="return nd();" onclick="openHint(0, 23);" style="cursor:help;"><% tcWebApi_Get("String_Entry", "Network_key", "s") %><img align="right" style="cursor:pointer;margin-top:-14px\9;" src="/images/New_ui/helpicon.png"></span></th>
 <td class="QISformtd">
-<input type="password" name="wl0_wpa_psk" value="<% tcWebApi_staticGet("WLan_Entry","wl0_wpa_psk","s") %>" onkeyup="Sync_2ghz(2);" style="height:25px;" class="input_32_table" maxlength="65">
+<input type="password" name="wl0_wpa_psk" value="<% tcWebApi_staticGet("WLan_Entry","wl0_wpa_psk","s") %>"  tabindex="2" onBlur="switchType(this, false);" onFocus="switchType(this, true);" onkeyup="Sync_2ghz(2);" style="height:25px;" class="input_32_table" maxlength="64" autocapitalization="off" autocomplete="off">
 </td>
 </tr>
 <tr id="wl_unit_field_1">
 <th width="180">5GHz - <%tcWebApi_get("String_Entry","Security","s")%> </th>
 <td class="QISformtd">
-<span id="syncCheckbox"><input type="checkbox" name="sync_with_2ghz" class="input" onclick="setTimeout('Sync_2ghz(2);',0);"><% tcWebApi_Get("String_Entry", "qis_ssid_desc", "s") %></span>
+<span id="syncCheckbox"><input type="checkbox" name="sync_with_2ghz" class="input"  tabindex="3" onclick="setTimeout('Sync_2ghz(2);',0);"><% tcWebApi_Get("String_Entry", "qis_ssid_desc", "s") %></span>
 </td>
 </tr>
 <tr id="wl_unit_field_2">
 <th width="180"><span onmouseout="return nd();" onclick="openHint(0, 22);" style="cursor:help;"><% tcWebApi_Get("String_Entry", "QIS_finish_wireless_item1", "s") %><img align="right" style="cursor:pointer;margin-top:-14px\9;" src="/images/New_ui/helpicon.png"></span></th>
 <td class="QISformtd">
-<input type="text" id="wl1_ssid" name="wl1_ssid" onkeyup="Sync_2ghz(5);" style="height:25px;" class="input_32_table" maxlength="32" value="<% tcWebApi_staticGet("WLan_Entry","wl1_ssid","s") %>"/>
+<input type="text" id="wl1_ssid" name="wl1_ssid"  tabindex="4" onkeyup="Sync_2ghz(5);" style="height:25px;" class="input_32_table" maxlength="32" value="<% tcWebApi_staticGet("WLan_Entry","wl1_ssid","s") %>" autocapitalization="off" autocomplete="off"/>
 </td>
 </tr>
 <tr id="wl_unit_field_3">
 <th width="180"><span onmouseout="return nd();" onclick="openHint(0, 23);" style="cursor:help;"><% tcWebApi_Get("String_Entry", "Network_key", "s") %><img align="right" style="cursor:pointer;margin-top:-14px\9;" src="/images/New_ui/helpicon.png"></span></th>
 <td class="QISformtd">
-<input type="password" name="wl1_wpa_psk" value="<% tcWebApi_staticGet("WLan_Entry","wl1_wpa_psk","s") %>" onkeyup="Sync_2ghz(5);" style="height:25px;" class="input_32_table" maxlength="65">
+<input type="password" name="wl1_wpa_psk" value="<% tcWebApi_staticGet("WLan_Entry","wl1_wpa_psk","s") %>"  tabindex="5" onBlur="switchType(this, false);" onFocus="switchType(this, true);" onkeyup="Sync_2ghz(5);" style="height:25px;" class="input_32_table" maxlength="64" autocapitalization="off" autocomplete="off">
 </td>
 </tr>
 </table>
@@ -145,7 +139,7 @@ function gotoIndex(){
 <div class="QISGeneralFont"><% tcWebApi_Get("String_Entry", "qis_wireless_setting_skdesc", "s") %></div>
 <br/>
 <div class="apply_gen" style="margin-top:10px">
-<input type="button" value="<% tcWebApi_Get("String_Entry", "btn_next", "s") %>" onclick="submitForm();" class="button_gen">
+<input type="button" value="<% tcWebApi_Get("String_Entry", "btn_next", "s") %>"  tabindex="6" onclick="submitForm();" class="button_gen">
 </div>
 </form>
 </body>

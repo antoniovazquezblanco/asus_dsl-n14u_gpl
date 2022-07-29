@@ -76,8 +76,8 @@ function update_spectrum(){
     	setTimeout("$('signals_collect_scan').style.display=\"none\";", delay_time*1000);
     	setTimeout("$('signals_collect').style.display=\"none\";", delay_time*1000);
     	setTimeout("$('signals_update').style.display=\"\";", delay_time*1000);
-			setTimeout("update_spectrum();", 3000);			
-		}		
+	setTimeout("update_spectrum();", 15000); //Keep refresh ajax shortly to avoid 2 times delay_time to update Spectrum image (especially for vdsl)
+    }		
   });
 }
 

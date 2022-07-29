@@ -41,8 +41,8 @@ int is_windows_modify;
 int is_create_file_ex;
 int is_add_folder;
 extern int dragfolder_wd;
-extern long pre_event;
-extern long pre_pre_event;
+//extern long pre_event;
+//extern long pre_pre_event;
 
 
 
@@ -170,6 +170,9 @@ int send_action(int type,char *content)
     case 3:
         port = SKYDRIVER_PORT;
         break;
+    case 4:
+        port = SMB_PORT;
+        break;
     default:
         break;
     }
@@ -222,7 +225,7 @@ int send_action(int type,char *content)
     //strcpy(str, "add@1@./a01cb8f9f95acfad6539e30e75e196ed7715c672.torrent");
     strcpy(str,content);
     //strcpy(str, argv[3]);
-    //printf("####send_action str :%s\n",str);
+    printf("####send_action str :%s\n",str);
     if (send(sockfd, str, strlen(str), 0) == -1) {
         perror("send");
         //exit(1);
@@ -583,6 +586,9 @@ void handle_event (queue_entry_t event,int fd)
     case 3:
         type = SKYDRIVER;
         break;
+    case 4:
+        type = SMBCLIENT;
+        break;
     default:
         break;
     }
@@ -621,8 +627,8 @@ void handle_event (queue_entry_t event,int fd)
         printf ("ACCESS: %s \"%s\" on WD #%i\n",
                 cur_event_file_or_dir, cur_event_filename, cur_event_wd);
 #endif
-        pre_pre_event = pre_event;
-        pre_event = IN_ACCESS;
+        //pre_pre_event = pre_event;
+        //pre_event = IN_ACCESS;
         break;
 
         /* File was modified */
@@ -646,8 +652,8 @@ void handle_event (queue_entry_t event,int fd)
             if(is_windows_modify != 1)
                 is_windows_modify = 1;
         }
-        pre_pre_event = pre_event;
-        pre_event = IN_MODIFY;
+        //pre_pre_event = pre_event;
+        //pre_event = IN_MODIFY;
         break;
 
         /* File changed attributes */
@@ -656,8 +662,8 @@ void handle_event (queue_entry_t event,int fd)
         printf ("ATTRIB: %s \"%s\" on WD #%i\n",
                 cur_event_file_or_dir, cur_event_filename, cur_event_wd);
 #endif
-        pre_pre_event = pre_event;
-        pre_event = IN_ATTRIB;
+        //pre_pre_event = pre_event;
+        //pre_event = IN_ATTRIB;
         break;
 
         /* File open for writing was closed */
@@ -709,14 +715,14 @@ void handle_event (queue_entry_t event,int fd)
                 //printf("###### pre_event = %ld #######\n",pre_event);
                 //printf("###### pre_pre_event = %ld #######\n",pre_pre_event);
                 //printf("###### IN_OPEN = %ld #######\n",IN_OPEN);
-                if(pre_event == pre_pre_event && pre_event == (long)IN_OPEN)
+                /*if(pre_event == pre_pre_event && pre_event == (long)IN_OPEN)
                 {
 #ifdef DEBUG
                 printf("###### first create #######\n");
 #endif
                 }
                 else
-                {
+                {*/
                     if(!test_if_download_temp_file(cur_event_filename) &&
                        !test_if_aicloud_temp_file(cur_event_filename))
                     {
@@ -738,7 +744,7 @@ void handle_event (queue_entry_t event,int fd)
                     //is_create_file = 0;
                     //create_file_num--;
                     //del_list(fullname,create_file_list);
-                }
+                //}
 
             }
             else
@@ -764,8 +770,8 @@ void handle_event (queue_entry_t event,int fd)
                 }
             }
 
-            pre_pre_event = pre_event;
-            pre_event = IN_CLOSE_WRITE;
+            //pre_pre_event = pre_event;
+            //pre_event = IN_CLOSE_WRITE;
             break;
 
             /* File open read-only was closed */
@@ -783,8 +789,8 @@ void handle_event (queue_entry_t event,int fd)
         {
             list_temp->open_num--;
         }*/
-        pre_pre_event = pre_event;
-        pre_event = IN_CLOSE_NOWRITE;
+        //pre_pre_event = pre_event;
+        //pre_event = IN_CLOSE_NOWRITE;
         break;
 
         /* File was opened */
@@ -843,8 +849,8 @@ void handle_event (queue_entry_t event,int fd)
                 have_from_file = 0;
             }
         }
-        pre_pre_event = pre_event;
-        pre_event = IN_OPEN;
+        //pre_pre_event = pre_event;
+        //pre_event = IN_OPEN;
         break;
 
         /* File was moved from X */
@@ -873,8 +879,8 @@ void handle_event (queue_entry_t event,int fd)
             have_from_file = 1;
         }
 
-        pre_pre_event = pre_event;
-        pre_event = IN_MOVED_FROM;
+        //pre_pre_event = pre_event;
+        //pre_event = IN_MOVED_FROM;
         //printf("write inotify ok\n");
         break;
 
@@ -1043,8 +1049,8 @@ void handle_event (queue_entry_t event,int fd)
                 }
             }
         }
-        pre_pre_event = pre_event;
-        pre_event = IN_MOVED_TO;
+        //pre_pre_event = pre_event;
+        //pre_event = IN_MOVED_TO;
 
         break;
 
@@ -1084,8 +1090,8 @@ void handle_event (queue_entry_t event,int fd)
 
         }
 
-        pre_pre_event = pre_event;
-        pre_event = IN_DELETE;
+        //pre_pre_event = pre_event;
+        //pre_event = IN_DELETE;
         break;
 
         /* Subdir or file was created */
@@ -1167,8 +1173,8 @@ void handle_event (queue_entry_t event,int fd)
         {
             is_create_file_ex = 1;
         }
-        pre_pre_event = pre_event;
-        pre_event = IN_CREATE;
+        //pre_pre_event = pre_event;
+        //pre_event = IN_CREATE;
         break;
 
         /* Watched entry was deleted */
@@ -1197,8 +1203,8 @@ void handle_event (queue_entry_t event,int fd)
                 //pthread_mutex_unlock(&mutex_allfolderlist);
             }
 
-            pre_pre_event = pre_event;
-            pre_event = IN_DELETE_SELF;
+            //pre_pre_event = pre_event;
+            //pre_event = IN_DELETE_SELF;
             break;
 
         }
@@ -1276,8 +1282,8 @@ void handle_event (queue_entry_t event,int fd)
                 }
             }
 
-            pre_pre_event = pre_event;
-            pre_event = IN_MOVE_SELF;
+            //pre_pre_event = pre_event;
+            //pre_event = IN_MOVE_SELF;
             break;
         }
 
@@ -1288,8 +1294,8 @@ void handle_event (queue_entry_t event,int fd)
         printf ("UNMOUNT: %s \"%s\" on WD #%i\n",
                 cur_event_file_or_dir, cur_event_filename, cur_event_wd);
 #endif
-        pre_pre_event = pre_event;
-        pre_event = IN_UNMOUNT;
+        //pre_pre_event = pre_event;
+        //pre_event = IN_UNMOUNT;
         break;
 
         /* Too many FS events were received without reading them
@@ -1298,8 +1304,8 @@ void handle_event (queue_entry_t event,int fd)
 #ifdef DEBUG
         printf ("Warning: AN OVERFLOW EVENT OCCURRED: \n");
 #endif
-        pre_pre_event = pre_event;
-        pre_event = IN_Q_OVERFLOW;
+        //pre_pre_event = pre_event;
+        //pre_event = IN_Q_OVERFLOW;
         break;
 
         /* Watch was removed explicitly by inotify_rm_watch or automatically
@@ -1316,8 +1322,8 @@ void handle_event (queue_entry_t event,int fd)
         printf ("IGNORED: WD #%d\n", cur_event_wd);
         printf("Watching = %d items\n",watched_items);
 #endif
-        pre_pre_event = pre_event;
-        pre_event = IN_IGNORED;
+        //pre_pre_event = pre_event;
+        //pre_event = IN_IGNORED;
         break;
 
         /* Some unknown message received */

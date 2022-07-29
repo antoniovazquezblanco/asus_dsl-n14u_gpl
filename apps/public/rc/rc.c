@@ -6,7 +6,6 @@
 */
 
 #include "rc.h"
-// #include "interface.h"
 #include <sys/time.h>
 
 #if 1	//#ifdef DEBUG_RCTEST
@@ -18,125 +17,11 @@ static int rctest_main(int argc, char *argv[])
 	if (argc < 3) {
 		_dprintf("test what?\n");
 	}
-	// else if (strcmp(argv[1], "rc_service")==0) {
-		// notify_rc(argv[2]);
-	// }
-	// else if(strcmp(argv[1], "get_phy_status")==0) {
-		// int mask;
-		// mask = atoi(argv[2]);
-		// TRACE_PT("debug for phy_status %x\n", get_phy_status(mask));
-	// }
-	// else if(strcmp(argv[1], "get_phy_speed")==0) {
-		// int mask;
-		// mask = atoi(argv[2]);
-		// TRACE_PT("debug for phy_speed %x\n", get_phy_speed(mask));
-	// }
-	// else if(strcmp(argv[1], "set_phy_ctrl")==0) {
-		// int mask, ctrl;
-		// mask = atoi(argv[2]);
-		// ctrl = atoi(argv[3]);
-		// TRACE_PT("debug for phy_speed %x\n", set_phy_ctrl(mask, ctrl));
-	// }
-	// else if(strcmp(argv[1], "handle_notifications")==0) {
-		// handle_notifications();
-	// }
-	// else if(strcmp(argv[1], "check_action")==0) {
-		// _dprintf("check: %d\n", check_action());
-	// }
-	// else if(strcmp(argv[1], "nvramhex")==0) {
-		// int i;
-		// char *nv;
-
-		// nv = nvram_safe_get(argv[2]);
-
-		// _dprintf("nvram %s(%d): ", nv, strlen(nv));
-		// for(i=0;i<strlen(nv);i++) {
-			// _dprintf(" %x", (unsigned char)*(nv+i));
-		// }
-		// _dprintf("\n");
-	// }
 	else {
 		on = atoi(argv[2]);
 		_dprintf("%s %d\n", argv[1], on);
 
 		if(0)	;
-		// if (strcmp(argv[1], "vlan") == 0)
-		// {	
-			// if(on) start_vlan();
-			// else stop_vlan();
-		// }
-		// else if (strcmp(argv[1], "lan") == 0) {
-			// if(on) start_lan();
-			// else stop_lan();
-		// }
-		// else if (strcmp(argv[1], "wl") == 0) {
-			// if(on) 
-			// {
-				// start_wl();
-				// lanaccess_wl();
-			// }
-		// }
-		// else if (strcmp(argv[1], "wan") == 0) {
-			// if(on) start_wan();
-			// else stop_wan();
-		// }
-		// else if (strcmp(argv[1], "firewall") == 0) {
-			// if(on) start_firewall();
-			// else stop_firewall();
-		// }
-		// else if (strcmp(argv[1], "watchdog") == 0) {
-			// if(on) start_watchdog();
-			// else stop_watchdog();
-		// }
-// #ifdef RTCONFIG_FANCTRL
-		// else if (strcmp(argv[1], "phy_tempsense") == 0) {
-			// if(on) start_phy_tempsense();
-			// else stop_phy_tempsense();
-		// }
-// #endif
-// #ifdef RTCONFIG_BCMWL6
-// #ifdef RTCONFIG_PROXYSTA
-		// else if (strcmp(argv[1], "psta_monitor") == 0) {
-			// if(on) start_psta_monitor();
-			// else stop_psta_monitor();
-		// }
-// #endif
-// #endif
-		// else if (strcmp(argv[1], "qos") == 0) {//qos test
-			// if(on){
-// #ifdef RTCONFIG_RALINK
-				// if (is_module_loaded("hw_nat"))
-				// {
-					// modprobe_r("hw_nat");
-					// sleep(1);
-// #if 0
-					// system("echo 0 > /proc/sys/net/ipv4/conf/default/force_igmp_version");
-					// system("echo 0 > /proc/sys/net/ipv4/conf/all/force_igmp_version");
-// #endif
-				// }
-// #endif
-				// add_iQosRules(get_wan_ifname(0));
-				// start_iQos();
-			// }
-			// else 
-			// {
-// #ifdef RTCONFIG_RALINK
-				// if (nvram_get_int("hwnat") &&
-					// !((nvram_get_int("fw_pt_l2tp") || nvram_get_int("fw_pt_ipsec") || nvram_get_int("wl0_mrate_x") || nvram_get_int("wl1_mrate_x"))) &&
-					// !is_module_loaded("hw_nat"))
-				// {
-// #if 0
-					// system("echo 2 > /proc/sys/net/ipv4/conf/default/force_igmp_version");
-					// system("echo 2 > /proc/sys/net/ipv4/conf/all/force_igmp_version");
-// #endif
-					// modprobe("hw_nat");
-					// sleep(1);
-				// }
-// #endif
-				// del_iQosRules();
-				// stop_iQos();
-			// }
-		// }
 #ifdef RTCONFIG_USB
 		else if (strcmp(argv[1], "nasapps") == 0) {
 			if(on == 1)
@@ -302,24 +187,13 @@ static int rctest_main(int argc, char *argv[])
 			restart_lfp();
 		}
 #endif
-		else if (strcmp(argv[1], "free") == 0) {	// free memory to avoid affecting upgrade
+		else if (strcmp(argv[1], "service") == 0) {
 			stop_wanduck();
 #ifdef RTCONFIG_USB
 			stop_usb();
 #endif
+			stop_services();
 		}
-		// else if (strcmp(argv[1], "gpiow") == 0) {
-			// if(argc>=4) set_gpio(atoi(argv[2]), atoi(argv[3]));
-		// }
-		// else if (strcmp(argv[1], "gpior") == 0) {
-			// _dprintf("%d\n", get_gpio(atoi(argv[2])));
-		// }
-		// else if (strcmp(argv[1], "init_switch") == 0) {
-			// init_switch(on);
-		// }
-		// else if (strcmp(argv[1], "set_action") == 0) {
-			// set_action(on);
-		// }	
 		else {
 			printf("what?\n");
 		}
@@ -333,10 +207,9 @@ static int hotplug_main(int argc, char *argv[])
 {
 	if (argc >= 2) {
 		if (strcmp(argv[1], "net") == 0) {
-			// hotplug_net();
+			hotplug_net();
 		}
-// #ifdef RTCONFIG_USB
-#ifdef TCSUPPORT_USBHOST
+#ifdef RTCONFIG_USB
 		// !!TB - USB Support
 		else if (strcmp(argv[1], "usb") == 0) {
 			hotplug_usb();
@@ -351,17 +224,6 @@ static int hotplug_main(int argc, char *argv[])
 	return 0;
 }
 
-static int rc_main(int argc, char *argv[])
-{
-	if (argc < 2) return 0;
-	if (strcmp(argv[1], "start") == 0) return kill(1, SIGUSR2);
-	if (strcmp(argv[1], "stop") == 0) return kill(1, SIGINT);
-	if (strcmp(argv[1], "restart") == 0) return kill(1, SIGHUP);
-	return 0;
-}
-
-
-
 typedef struct {
 	const char *name;
 	int (*main)(int argc, char *argv[]);
@@ -369,69 +231,30 @@ typedef struct {
 
 static const applets_t applets[] = {
 	{ "rc_init",			init_main			},
-	// { "console",			console_main			},
-#if 1	//#ifdef DEBUG_RCTEST
 	{ "rc_call",			rctest_main			},
-#endif
 	{ "ip-up",			ipup_main			},
 	{ "ip-down",			ipdown_main			},
-// #ifdef RTCONFIG_IPV6
-	// { "ipv6-up",			ip6up_main				},
-	// { "ipv6-down",			ip6down_main				},
-// #endif
 	{ "auth-fail",			authfail_main			},
-// #ifdef RTCONFIG_EAPOL
-	// { "wpa_cli",			wpacli_main			},
-// #endif
+#ifdef RTCONFIG_VPNC
+	{ "vpnc-ip-up",			vpnc_ipup_main				},
+	{ "vpnc-ip-down",		vpnc_ipdown_main				},
+	{ "vpnc-ip-pre-up",		vpnc_ippreup_main				},
+	{ "vpnc-auth-fail",		vpnc_authfail_main				},
+#ifdef TCSUPPORT_IPV6
+	{ "vpnc-ipv6-up",		vpnc_ip6up_main				},
+	{ "vpnc-ipv6-down",		vpnc_ip6down_main				},
+#endif
+#endif
 	{ "hotplug",			hotplug_main			},
-	// { "mtd-write",			mtd_write_main			},
-	// { "mtd-erase",			mtd_unlock_erase_main		},
-	// { "mtd-unlock",			mtd_unlock_erase_main		},
-	// { "watchdog",			watchdog_main			},
-// #ifdef RTCONFIG_RALINK
-	// { "wpsfix",			wpsfix_main			},
-// #endif
-// #ifdef RTCONFIG_FANCTRL
-	// { "phy_tempsense",		phy_tempsense_main		},
-// #endif
-// #ifdef RTCONFIG_BCMWL6
-// #ifdef RTCONFIG_PROXYSTA
-	// { "psta_monitor",		psta_monitor_main		},
-// #endif
-// #endif
-// #ifdef RTCONFIG_USB
-	// { "usbled",			usbled_main			},
-// #endif
 	{ "ddns_updated", 		ddns_updated_main		},
-	// { "radio",			radio_main			},
-	// { "ots",			ots_main			},
-	// { "udhcpc",			udhcpc_wan			},
+	{ "udhcpc_wan",			udhcpc_wan			},
 	// { "udhcpc_lan",			udhcpc_lan			},
 	{ "udhcpc_expires",		udhcpc_expires			},
 	{ "udhcpc_bound",		udhcpc_bound			},
 	// { "zcip",			zcip_wan			},
-// #ifdef RTCONFIG_IPV6
-	// { "dhcp6c-state",		dhcp6c_state_main		},
-	// { "ipv6aide",			ipv6aide_main			},
-// #endif
-	// { "halt",			reboothalt_main			},
-	// { "reboot",			reboothalt_main			},
-	// { "ntp", 			ntp_main			},
-// #ifdef RTCONFIG_RALINK
-// #ifdef RTCONFIG_DSL
-	// { "8367r",			config8367r			},
-// #else
-	// { "8367m",			config8367m			},
-// #endif
-// #endif
 	{ "wanduck",                    wanduck_main                    },
 	{ "tcpcheck",                   tcpcheck_main                   },
-	// { "autodet", 			autodet_main			},
-// #ifdef RTCONFIG_CIFS
-	// { "mount-cifs",			mount_cifs_main			},
-// #endif
-// #ifdef RTCONFIG_USB
-#ifdef TCSUPPORT_USBHOST
+#ifdef RTCONFIG_USB
 	{ "ejusb",			ejusb_main			},
 #endif
 	{NULL, NULL}
@@ -457,20 +280,8 @@ int main(int argc, char **argv)
 	base = strrchr(argv[0], '/');
 	base = base ? base + 1 : argv[0];
 
-#if 0
-	if (strcmp(base, "rc") == 0) {
-		if (argc < 2) return 1;
-		if (strcmp(argv[1], "start") == 0) return kill(1, SIGUSR2);
-		if (strcmp(argv[1], "stop") == 0) return kill(1, SIGINT);
-		if (strcmp(argv[1], "restart") == 0) return kill(1, SIGHUP);
-		++argv;
-		--argc;
-		base = argv[0];
-	}
-#endif
-
 #if defined(DEBUG_NOISY)
-	// if (nvram_match("debug_logrc", "1")) {
+	if (nvram_match("debug_logrc", "1")) {
 		int i;
 
 		cprintf("[rc %d] ", getpid());
@@ -479,7 +290,7 @@ int main(int argc, char **argv)
 		}
 		cprintf("\n");
 
-	// }
+	}
 #endif
 
 #if defined(DEBUG_NOISY)
@@ -517,8 +328,16 @@ int main(int argc, char **argv)
 		// restart_wireless();
 		return 0;
 	}
-// #ifdef RTCONFIG_USB
-#ifdef TCSUPPORT_USBHOST
+	else if(!strcmp(base, "wan_up")){
+		if(argc == 2) {
+			wan_up(argv[1]);
+		}
+		else {
+			printf("Usage: wan_up <Wan Interface>\n");
+		}
+		return 0;
+	}
+#ifdef RTCONFIG_USB
 	else if(!strcmp(base, "get_apps_name")){
 		if(argc != 2){
 			printf("Usage: get_apps_name [File name]\n");
@@ -590,33 +409,12 @@ int main(int argc, char **argv)
 			return 0;
 		}
 
-
 		if(!strcmp(argv[1], "allpkg"))
 			return run_app_script(NULL, argv[2]);
 		else
 			return run_app_script(argv[1], argv[2]);
 	}
-	// else if(!strcmp(base, "ATE")) {
-		// if( argc == 2 || argc == 3 || argc == 4) {
-			// asus_ate_command(argv[1], argv[2], argv[3]);
-		// }
-		// else
-			// printf("ATE_ERROR\n");
-                // return 0;
-	// }
-// #ifdef RTCONFIG_DSL
-	// else if(!strcmp(base, "gen_ralink_config")){
-		// if(argc != 3){
-			// printf("Usage: gen_ralink_config [band] [is_iNIC]\n");
-			// return 0;
-		// }
-		// return gen_ralink_config(atoi(argv[1]), atoi(argv[2]));
-	// }
-// #endif
-	// else if(!strcmp(base, "run_telnetd")) {
-		// run_telnetd();
-		// return 0;
-	// }
+
 #if defined(RTCONFIG_PPTPD) || defined(RTCONFIG_ACCEL_PPTPD)
 	else if(!strcmp(base, "run_pptpd")) {
 		stop_pptpd();
@@ -625,107 +423,80 @@ int main(int argc, char **argv)
 		return 0;
 	}
 #endif
-// #ifdef RTCONFIG_PARENTALCTRL
-	// else if(!strcmp(base, "pc")) {
-		// pc_main(argc, argv);
-		// return 0;
-	// }
-// #endif
-// #ifdef RTCONFIG_WIRELESSREPEATER
-	// else if (!strcmp(base, "wlcscan")) {
-		// return wlcscan_main();
-	// }
-	// else if (!strcmp(base, "wlcconnect")) {
-		// return wlcconnect_main();
-	// }
-	// else if (!strcmp(base, "setup_dnsmq")) {
-		// if(argc != 2)
-			// return 0;
+#ifdef RTCONFIG_VPNC
+	else if(!strcmp(base, "run_vpnc")) {
+		stop_vpnc();
+		start_vpnc();
+		return 0;
+	}
+#endif
+#ifdef RTCONFIG_TR069
+	else if(!strcmp(base, "run_tr069")) {
+		stop_tr();
+		start_tr();
+		return 0;
+	}
+#endif
 
-		// return setup_dnsmq(atoi(argv[1]));
-	// }
-// #endif
-// #ifdef RTCONFIG_BCMWL6
-// #ifdef ACS_ONCE
-        // else if (!strcmp(base, "acsd_restart_wl")) {
-		// restart_wireless_acsd();
-		// return 0;
-        // }
-// #endif
-// #endif
-	// else if (!strcmp(base, "add_multi_routes")) {
-		// return add_multi_routes();
-	// }
-// #ifndef OVERWRITE_DNS
-	// else if (!strcmp(base, "add_ns")) {
-		// return add_ns(argv[1]);
-	// }
-	// else if (!strcmp(base, "del_ns")) {
-		// return del_ns(argv[1]);
-	// }
-// #endif
-	// else if (!strcmp(base, "led_ctrl")) {
-		// return(led_control(atoi(argv[1]), atoi(argv[2])));
-	// }
-	// else if (!strcmp(base, "free_caches")) {
-		// int c;
-		// unsigned int test_num;
-		// char *set_value = NULL;
-		// int clean_time = 1;
-		// int threshold = 0;
+#ifdef RTCONFIG_USB_MODEM
+	else if(!strcmp(base, "write_3g_ppp_conf")){
+		write_3g_ppp_conf();
+		return 0;
+	}
+	else if(!strcmp(base, "start_wan_if")){
+		if(argc == 2)
+		{
+			start_wan_if(atoi(argv[1]));
+		}
+		else
+		{
+			printf("Usage: start_wan_if <Wan_PVC number>\n");
+		}
+		return 0;
+	}
+	else if(!strcmp(base, "stop_wan_if")){
+		if(argc == 2)
+		{
+			stop_wan_if(atoi(argv[1]));
+		}
+		else
+		{
+			printf("Usage: stop_wan_if <Wan_PVC number>\n");
+		}
+		return 0;
+	}
+#endif /* RTCONFIG_USB_MODEM */
+	else if(!strcmp(base, "rcset")){
+		if( argc != 4 )
+		{
+			printf("rc set: Error, should be 4 but only %d parameters!\n", argc);
+			return -1;
+		}
+		else
+		{
+			int ret = -1;
+			//cprintf("rcset:%s, %s, %s\n", argv[1], argv[2], argv[3]);
+			ret = tcapi_set(argv[1], argv[2], argv[3]);
+			return ret; //return 0 on success!
+		}
+	}
+	else if(!strcmp(base, "rcget")){
+		if( argc != 3 )
+		{
+			printf("rc set: Error, should be 3 but only %d parameters!\n", argc);
+			return -1;
+		}
+		else
+		{
+			int ret = -1;
+			char valuebuf[600] = {0};
+			//cprintf("rcget:%s, %s\n", argv[1], argv[2]);
+			ret = tcapi_get(argv[1], argv[2], valuebuf);
+			printf("%s", valuebuf);
+			return ret; //return 0 on success!
+		}
+	}
 
-		// if(argc){
-			// while((c = getopt(argc, argv, "c:w:t:")) != -1){
-				// switch(c){
-					// case 'c': // set the clean-cache mode: 0~3.
-						// test_num = strtol(optarg, NULL, 10);
-        		// if(test_num == LONG_MIN || test_num == LONG_MAX){
-        			// _dprintf("ERROR: unknown value %s...\n", optarg);
-							// return 0;
-						// }
-
-						// if(test_num < 0 || test_num > 3){
-							// _dprintf("ERROR: the value %s was over the range...\n", optarg);
-							// return 0;
-						// }
-
-						// set_value = optarg;
-
-						// break;
-					// case 'w': // set the waited time for cleaning.
-						// test_num = strtol(optarg, NULL, 10);
-        		// if(test_num <= 0 || test_num == LONG_MIN || test_num == LONG_MAX){
-        			// _dprintf("ERROR: unknown value %s...\n", optarg);
-							// return 0;
-						// }
-
-						// clean_time = test_num;
-
-						// break;
-					// case 't': // set the waited time for cleaning.
-						// test_num = strtol(optarg, NULL, 10);
-        		// if(test_num < 0 || test_num == LONG_MIN || test_num == LONG_MAX){
-        			// _dprintf("ERROR: unknown value %s...\n", optarg);
-							// return 0;
-						// }
-
-						// threshold = test_num;
-
-						// break;
-					// default:
-						// fprintf(stderr, "Usage: free_caches [ -c clean_mode ] [ -w clean_time ] [ -t threshold ]\n");
-						// break;
-				// }
-			// }
-		// }
-
-		// if(!set_value)
-			// set_value = FREE_MEM_PAGE;
-
-		// free_caches(set_value, clean_time, threshold);
-
-		// return 0;
-	// }
 	printf("Unknown applet: %s\n", base);
 	return 0;
 }

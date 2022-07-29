@@ -4,9 +4,6 @@
 
 
 apps_ipkg_old=`tcapi get Apps_Entry apps_ipkg_old`
-is_arm_machine=`uname -m |grep arm`
-productid=`tcapi get SysInfo_Entry ProductName`
-
 APPS_PATH=/opt
 CONF_FILE=$APPS_PATH/etc/ipkg.conf
 ASUS_SERVER=`tcapi get Apps_Entry apps_ipkg_server`
@@ -17,14 +14,30 @@ wget_options="-q"	# since not support -t -T in current busybox version
 download_file=
 apps_from_internet=`tcapi get SysInfo_Entry rc_support |grep appnet`
 apps_local_space=`tcapi get Apps_Entry apps_local_space`
+f=`tcapi get Apps_Entry apps_install_folder`
+case $f in
+	"asusware.arm")
+		pkg_type=`echo $f|sed -e "s,asusware\.,,"`
+		third_lib="mbwe-bluering"
+		;;
+	"asusware.big")
+		pkg_type="mipsbig"
+		third_lib=
+		;;
+	"asusware.mipsbig")
+		pkg_type=`echo $f|sed -e "s,asusware\.,,"`
+		third_lib=
+		;;
+	"asusware")
+		pkg_type="mipsel"
+		third_lib="oleg"
+		;;
+	*)
+		echo "Unknown apps_install_folder: $f"
+		exit 1
+		;;
+esac
 
-if [ -n "$is_arm_machine" ]; then
-	third_lib="mbwe-bluering"
-elif [ -n "$productid" ] && [ "$productid" = "DSL-N66U" -o "$productid" = "DSL-N55U-C1" -o "$productid" = "DSL-N16U" ]; then
-	third_lib=
-else
-	third_lib="oleg"
-fi
 
 # $1: package name.
 # return value. 1: have package. 0: no package.
@@ -178,7 +191,7 @@ _download_package(){
 			# Geting the app's file name...
 			server_names=`grep -n '^src.*' $CONF_FILE |sort -r |awk '{print $3}'`
 			for s in $server_names; do
-				if [ -z "$is_arm_machine" ] && [ -n "$apps_ipkg_old" ] && [ "$apps_ipkg_old" = "1" ]; then
+				if [ "$pkg_type" != "arm" ] && [ -n "$apps_ipkg_old" ] && [ "$apps_ipkg_old" = "1" ]; then
 					pkg_file=`_get_pkg_file_name_old $1 $s 0`
 				else
 					pkg_file=`_get_pkg_file_name $1`
@@ -196,7 +209,7 @@ _download_package(){
 			fi
 
 			# Downloading the app's file name...
-			if [ -z "$is_arm_machine" ] && [ -n "$apps_ipkg_old" ] && [ "$apps_ipkg_old" = "1" ] && [ "$pkg_server" = "$ASUS_SERVER" ]; then
+			if [ "$pkg_type" != "arm" ] && [ -n "$apps_ipkg_old" ] && [ "$apps_ipkg_old" = "1" ] && [ "$pkg_server" = "$ASUS_SERVER" ]; then
 				ipk_file_name=`_get_pkg_file_name_old $1 $pkg_server 1`
 			else
 				ipk_file_name=$pkg_file
@@ -351,7 +364,7 @@ if [ "$link_internet" != "1" ]; then
 	fi
 elif [ "$1" = "downloadmaster" ] && [ -z "$apps_from_internet" ]; then
 	app_update.sh optware.asus
-	if [ -z "$third_lib" ]; then
+	if [ -n "$third_lib" ]; then
 		cp -f $apps_local_space/optware.$third_lib $APPS_INSTALL_PATH/lib/ipkg/lists/
 	fi
 else
@@ -361,7 +374,7 @@ fi
 need_asuslighttpd=0
 need_asusffmpeg=0
 need_smartsync=0
-if [ "$1" = "downloadmaster" ] ; then
+if [ "$1" = "downloadmaster" ]; then
 	DM_version1=`app_get_field.sh downloadmaster Version 2 |awk '{FS=".";print $1}'`
 	DM_version4=`app_get_field.sh downloadmaster Version 2 |awk '{FS=".";print $4}'`
 
@@ -400,11 +413,11 @@ target_file=
 if [ "$need_asuslighttpd" = "1" ]; then
 	echo "Downloading the dependent package: asuslighttpd..."
 	_download_package asuslighttpd $APPS_INSTALL_PATH/tmp
-if [ "$?" != "0" ]; then
+	if [ "$?" != "0" ]; then
 		echo "Fail to download the package: asuslighttpd!"
 		# apps_state_error was already set by _download_package().
-	exit 1
-fi
+		exit 1
+	fi
 	if [ -z "$target_file" ]; then
 		target_file=$download_file
 	else
@@ -515,7 +528,7 @@ done
 rm -f $APPS_INSTALL_PATH/ipkg_log.txt
 
 APPS_MOUNTED_TYPE=`mount |grep "/dev/$APPS_DEV on " |awk '{print $5}'`
-if [ "$APPS_MOUNTED_TYPE" = "vfat" ]; then
+if [ "$APPS_MOUNTED_TYPE" = "vfat" ] || [ "$APPS_MOUNTED_TYPE" = "tfat" ]; then
 	app_move_to_pool.sh $APPS_DEV
 	if [ "$?" != "0" ]; then
 		# apps_state_error was already set by app_move_to_pool.sh.

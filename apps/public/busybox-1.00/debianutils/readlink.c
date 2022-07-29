@@ -25,22 +25,36 @@
 #include <stdlib.h>
 #include "busybox.h"
 
+#define READLINK_OPTIONS "f"
+
+#define READLINK_OPT_F (1 << 0)
+
 int readlink_main(int argc, char **argv)
 {
 	char *buf = NULL;
+	unsigned long opt;
 
-	/* no options, no getopt */
+	opt = bb_getopt_ulflags(argc, argv, READLINK_OPTIONS);
 
-	if (argc != 2)
-		bb_show_usage();
+	if(opt & READLINK_OPT_F)
+	{
+		if(argc == 3)
+			buf = xrealpath(argv[2]);
+		else
+			bb_show_usage();
+	}
+	else
+	{	if(argc == 2)
+			buf = xreadlink(argv[1]);
+		else
+			bb_show_usage();
+	}
 
-	buf = xreadlink(argv[1]);
 	if (!buf)
 		return EXIT_FAILURE;
+
 	puts(buf);
-#ifdef CONFIG_FEATURE_CLEAN_UP
 	free(buf);
-#endif
 
 	return EXIT_SUCCESS;
 }

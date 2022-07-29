@@ -2,13 +2,13 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
 <html xmlns:v>
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
 <link rel="shortcut icon" href="/images/favicon.png">
 <link rel="icon" href="/images/favicon.png">
-<title>ASUS <% tcWebApi_Get("SysInfo_Entry","ProductName","s") %> <% tcWebApi_Get("SysInfo_Entry","ProductTitle","s") %> - AiCloud</title>
+<title>ASUS <% tcWebApi_Get("SysInfo_Entry","ProductName","s") %> <% tcWebApi_Get("SysInfo_Entry","ProductTitle","s") %> - <% tcWebApi_Get("String_Entry","smart_sync","s") %></title>
 <link rel="stylesheet" type="text/css" href="/index_style.css"> 
 <link rel="stylesheet" type="text/css" href="/form_style.css">
 <script type="text/javascript" src="/state.js"></script>
@@ -223,7 +223,7 @@ function showInvitation(){
 		var htmlCode = "";
 		htmlCode += "<table width='98%' style='margin-top:15px'>";
 		htmlCode += "<tr height='40px'><td width='30%'>Descript</td><td style='font-weight:bolder;'>" + decode_array[0] + "</td></tr>";
-		htmlCode += "<tr height='40px'><td width='30%'>Rule</td><td style='font-weight:bolder;'>" + parseRule(decode_array[2]) + "</td></tr>";
+		htmlCode += "<tr height='40px'><td width='30%'><% tcWebApi_Get("String_Entry", "Cloudsync_Rule", "s") %></td><td style='font-weight:bolder;'>" + parseRule(decode_array[2]) + "</td></tr>";
 		htmlCode += "<tr height='40px'><td width='30%'>Destination</td><td style='font-weight:bolder;'>" + decode_array[1] + "</td></tr>";
 		
 		htmlCode += "<tr height='40px'><td width='30%'>Local path</td><td>";
@@ -310,7 +310,7 @@ function initial_dir(){
 
 function initial_dir_status(data){
 	if(data != "" && data.length != 2){
-		eval("var default_dir=" + data);
+		var default_dir = data.replace(/\"/g, "");
 		document.form.cloud_dir.value = "/mnt/" + default_dir.substr(0, default_dir.indexOf("#")) + "/MySyncFolder";
 	}
 	else{	
@@ -1117,16 +1117,16 @@ function cal_panel_block(){
 							<a href="cloud_main.asp"><div class="tab"><span>AiCloud</span></div></a>
 						</td>
 						<td>
-							<div class="tabclick"><span>Smart Sync</span></div>
+							<div class="tabclick"><span><% tcWebApi_Get("String_Entry","smart_sync","s") %></span></div>
 						</td>
 						<td>
-							<a id="rrsLink" href="cloud_router_sync.asp"><div class="tab"><span>Sync Server</span></div></a>
+							<a id="rrsLink" href="cloud_router_sync.asp"><div class="tab"><span><% tcWebApi_Get("String_Entry","Server_Sync","s") %></span></div></a>
 						</td>
 						<td>
-							<a href="cloud_settings.asp"><div class="tab"><span>Settings</span></div></a>
+							<a href="cloud_settings.asp"><div class="tab"><span><% tcWebApi_Get("String_Entry","Settings","s") %></span></div></a>
 						</td>
 						<td>
-							<a href="cloud_syslog.asp"><div class="tab"><span>Log</span></div></a>
+							<a href="cloud_syslog.asp"><div class="tab"><span><% tcWebApi_Get("String_Entry","Log","s") %></span></div></a>
 						</td>
 					</tr>
 					</tbody>
@@ -1143,7 +1143,7 @@ function cal_panel_block(){
 						  <td bgcolor="#4D595D" valign="top">
 
 						<div>&nbsp;</div>
-						<div class="formfonttitle">AiCloud - Smart Sync</div>
+						<div class="formfonttitle">AiCloud - <% tcWebApi_Get("String_Entry","smart_sync","s") %></div>
 						<div style="margin-left:5px;margin-top:10px;margin-bottom:10px"><img src="/images/New_ui/export/line_export.png"></div>
 
 						<div>
@@ -1187,16 +1187,16 @@ function cal_panel_block(){
    					<table width="99%" border="1" align="center" cellpadding="4" cellspacing="0" class="FormTable_table" id="cloudlistTable" style="margin-top:30px;">
 	  					<thead>
 	   					<tr>
-	   						<td colspan="6" id="cloud_synclist">Cloud List</td>
+	   						<td colspan="6" id="cloud_synclist"><% tcWebApi_Get("String_Entry", "aicloud_cloud_list", "s") %></td>
 	   					</tr>
 	  					</thead>		  
 
     					<tr>
-      					<th width="10%"><!--a class="hintstyle" href="javascript:void(0);" onClick="openHint(18,2);"-->Provider<!--/a--></th>
+      					<th width="10%"><% tcWebApi_Get("String_Entry", "Provider", "s") %></th>
     						<th width="25%"><% tcWebApi_Get("String_Entry", "PPPC_UserName_in", "s") %></a></th>
-      					<th width="10%">Rule</a></th>
-      					<th width="30%">Folder</th>
-      					<th width="15%">Status</th>
+      					<th width="10%"><% tcWebApi_Get("String_Entry", "Cloudsync_Rule", "s") %></a></th>
+      					<th width="30%"><% tcWebApi_Get("String_Entry", "routerSync_folder", "s") %></th>
+      					<th width="15%"><% tcWebApi_Get("String_Entry", "PPPC_x_WANLink_in", "s") %></th>
       					<th width="10%"><% tcWebApi_Get("String_Entry", "CTL_del", "s") %></th>
     					</tr>
 
@@ -1207,14 +1207,12 @@ function cal_panel_block(){
 					  <table width="99%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable" id="cloudAddTable" style="margin-top:10px;display:none;">
 	  					<thead>
 	   					<tr>
-	   						<td colspan="6" id="cloud_synclist">Cloud List</td>
+	   						<td colspan="6" id="cloud_synclist"><% tcWebApi_Get("String_Entry", "aicloud_cloud_list", "s") %></td>
 	   					</tr>
 	  					</thead>		  
 
 							<tr>
-							<th width="30%" style="height:40px;font-family: Calibri;font-weight: bolder;">
-								Provider
-							</th>
+							<th width="30%" style="height:40px;font-family: Calibri;font-weight: bolder;"><% tcWebApi_Get("String_Entry", "Provider", "s") %></th>
 							<td>
 								<div><img style="margin-top: -2px;" src="/images/cloudsync/ASUS-WebStorage.png"></div>
 								<div style="font-size:18px;font-weight: bolder;margin-left: 45px;margin-top: -27px;font-family: Calibri;">ASUS WebStorage</div>
@@ -1241,9 +1239,7 @@ function cal_panel_block(){
 						  </tr>						  				
 					  				
 						  <tr>
-							<th width="30%" style="font-family: Calibri;font-weight: bolder;">
-								Folder
-							</th>
+							<th width="30%" style="font-family: Calibri;font-weight: bolder;"><% tcWebApi_Get("String_Entry", "routerSync_folder", "s") %></th>
 							<td>
 			          <input type="text" id="PATH" class="input_32_table" style="height: 23px;" name="cloud_dir" value="" onclick=""/>
 		  					<input name="button" type="button" class="button_gen_short" onclick="get_disk_tree();" value="Browser"/>
@@ -1252,14 +1248,12 @@ function cal_panel_block(){
 						  </tr>
 
 						  <tr>
-							<th width="30%" style="font-family: Calibri;font-weight: bolder;">
-								Rule
-							</th>
+							<th width="30%" style="font-family: Calibri;font-weight: bolder;"><% tcWebApi_Get("String_Entry", "Cloudsync_Rule", "s") %></th>
 							<td>
 								<select name="cloud_rule" class="input_option">
-									<option value="0">Sync</option>
-									<option value="1">Download to USB Disk</option>
-									<option value="2">Upload to Cloud</option>
+									<option value="0"><% tcWebApi_Get("String_Entry", "Cloudsync_Rule_sync", "s") %></option>
+									<option value="1"><% tcWebApi_Get("String_Entry", "Cloudsync_Rule_dl", "s") %></option>
+									<option value="2"><% tcWebApi_Get("String_Entry", "Cloudsync_Rule_ul", "s") %></option>
 								</select>			
 							</td>
 						  </tr>
