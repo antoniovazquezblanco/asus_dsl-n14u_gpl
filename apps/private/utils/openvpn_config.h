@@ -80,8 +80,9 @@ typedef struct ovpn_sconf_common {
 
 typedef struct ovpn_sconf {
 	int enable;
+	char progname[16];
 // Tunnel options
-	char proto[8];
+	char proto[16];
 	int port;
 	ovpn_if_t if_type;
 	char if_name[8];	//interface name
@@ -133,12 +134,13 @@ typedef struct ovpn_cconf_common {
 
 typedef struct ovpn_cconf {
 	int enable;
+	char progname[16];
 // Tunnel options
 	char addr[128];	//remote server address
 	int did_resolv_addr;
 	char resolv_addr[1024];
 	int retry;	//retry resolve hostname
-	char proto[8];
+	char proto[16];
 	int port;
 	ovpn_if_t if_type;
 	char if_name[8];	//interface name
@@ -222,6 +224,7 @@ extern char* get_lan_cidr(char* buf, size_t len);
 extern char* get_ovpn_sconf_remote(char* buf, size_t len);
 extern void update_ovpn_status(ovpn_type_t type, int unit, ovpn_status_t status_type, ovpn_errno_t err_no);
 extern ovpn_status_t get_ovpn_status(ovpn_type_t type, int unit);
+extern ovpn_errno_t get_ovpn_errno(ovpn_type_t type, int unit);
 extern void wait_time_sync(int max);
 
 extern ovpn_accnt_info_t* get_ovpn_accnt(ovpn_accnt_info_t *accnt_info);

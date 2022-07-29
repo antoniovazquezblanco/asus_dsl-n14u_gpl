@@ -600,9 +600,12 @@ main(argc, argv)
 	    TIMEOUT(holdoff_end, NULL, t);
 #endif
 	    do {
-		handle_events();
-		if (kill_link)
-		    new_phase(PHASE_DORMANT); /* allow signal to end holdoff */
+			handle_events();
+			if (kill_link)
+			{
+				UNTIMEOUT(holdoff_end,NULL);
+				new_phase(PHASE_DORMANT); /* allow signal to end holdoff */
+			}
 	    } while (phase == PHASE_HOLDOFF);
 	    if (!persist)
 		break;

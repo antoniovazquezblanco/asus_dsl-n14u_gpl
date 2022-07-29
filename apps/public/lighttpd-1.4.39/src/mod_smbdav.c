@@ -5485,11 +5485,7 @@ propmatch_cleanup:
 
 #if EMBEDDED_EANBLE
 
-#ifdef USE_TCAPI
-		system("/usr/script/webs_update.sh");
-#else
-		system("/usr/sbin/webs_update.sh");
-#endif
+		system("frs_update &");
 
 		char* newest_version = nvram_get_latest_version();
 		int webs_state_error = nvram_get_webs_state_error();

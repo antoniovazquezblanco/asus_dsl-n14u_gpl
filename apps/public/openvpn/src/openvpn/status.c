@@ -346,12 +346,10 @@ void update_nvram_status(int event)
 
 	prctl(PR_GET_NAME, name);	//e.g. vpnserverX or vpnclientX
 
-	if (strstr(name, "server")) {
-		unit = atoi(&name[9]) + OVPN_SERVER_BASE;
-	}
-	else {
-		unit = atoi(&name[9]) + OVPN_CLIENT_BASE;
-	}
+	if (strstr(name, "server"))
+		return;
+
+	unit = atoi(&name[9]) + OVPN_CLIENT_BASE;
 
 	switch(event) {
 	case EVENT_AUTH_FAILED:

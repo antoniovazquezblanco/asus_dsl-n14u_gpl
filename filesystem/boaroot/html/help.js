@@ -167,9 +167,11 @@ function overHint(itemNum){
                 else
                         lineDesc += "Link down";
 
-		if(wan_diag_state == "1" && 
-			((rc_support.search("usbX1") >= 0 && usb_path1.search("storage") >= 0) || 
-				(rc_support.search("usbX2") >= 0 && (usb_path1.search("storage") >= 0 || usb_path2.search("storage") >= 0)))
+		if(wan_diag_state == "1" &&
+			(	Diag2jffs_support ||
+				(rc_support.search("usbX1") >= 0 && usb_path1.search("storage") >= 0) || 
+				(rc_support.search("usbX2") >= 0 && (usb_path1.search("storage") >= 0 || usb_path2.search("storage") >= 0))
+			)
 		){
 			lineDesc += "<br>Diagnostic debug log capture in progress.<br>";
 			lineDesc += show_diagTime(boottime_update);

@@ -1187,6 +1187,7 @@ wan_up(char *wan_ifname)	// oleg patch, replace
 	char staticroute[MAXLEN_TCAPI_MSG] = {0};
 	int wan_unit;
 	int wan_subunit;
+	char word[64], *next;
 
 	_dprintf("%s(%s)\n", __FUNCTION__, wan_ifname);
 
@@ -1287,6 +1288,13 @@ wan_up(char *wan_ifname)	// oleg patch, replace
 
 	/* default route via default gateway */
 	add_multi_routes();
+
+	// add wan dns route via wan interface
+	tcapi_get(WANDUCK_DATA, strcat_r(prefix, "dns", tmp), dns);
+	foreach(word, dns, next){
+		_dprintf("[%s(%d)] add route for %s\n", __FUNCTION__, __LINE__, word);
+		route_add(wan_ifname, 0, word, gateway, "255.255.255.255");
+	}
 
 	if(!tcapi_match(wanpvc_prefix, "DEFAULTROUTE", "Yes")) {
 		_dprintf("%s(%s): done.\n", __FUNCTION__, wan_ifname);

@@ -428,8 +428,6 @@ add_option (char *p[], int line, int unit)
 
 		if(p[2])
 			tcapi_set(node, "port", p[2]);
-		else
-			tcapi_set(node, "port", "1194");
 
 		if(p[3])
 			tcapi_set(node, "proto", p[3]);

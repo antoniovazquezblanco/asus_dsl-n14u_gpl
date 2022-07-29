@@ -4118,8 +4118,7 @@ else
 	rm -f $(FILESYSTEM_DIR)/usr/script/3ginfo.sh
 endif
 
-#copy webs_update.sh and webs_upgrade.sh
-	cp $(APP_PRIVATE_DIR)/etc_script/webs_update.sh $(FILESYSTEM_DIR)/usr/script/webs_update.sh
+#copy webs_upgrade.sh
 	cp $(APP_PRIVATE_DIR)/etc_script/webs_upgrade.sh $(FILESYSTEM_DIR)/usr/script/webs_upgrade.sh
 #copy webs_upgrade2.sh for AiCloud live update
 	cp $(APP_PRIVATE_DIR)/etc_script/webs_upgrade2.sh $(FILESYSTEM_DIR)/usr/script/webs_upgrade2.sh
