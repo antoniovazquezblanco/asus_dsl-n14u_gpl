@@ -58,6 +58,7 @@ var webs_state_update = '<% tcWebApi_get("WebCustom_Entry", "webs_state_update",
 var webs_state_upgrade = '<% tcWebApi_get("WebCustom_Entry", "webs_state_upgrade", "s" ) %>';
 var webs_state_error = '<% tcWebApi_get("WebCustom_Entry", "webs_state_error", "s" ) %>';
 var webs_state_info = '<% tcWebApi_get("WebCustom_Entry", "webs_state_info", "s" ) %>';
+var webs_state_reboot = '<% tcWebApi_get("WebCustom_Entry", "webs_state_reboot", "s" ) %>';
 
 var exist_firmver="<% tcWebApi_staticGet("DeviceInfo","FwVer","s") %>";
 
@@ -92,36 +93,41 @@ function detect_firmware(){
 	      						Latest_firm = parseInt(Latest_firmver);
       							current_firm = parseInt(exist_firmver.replace(/[.]/gi,""));
       							if(current_firm < Latest_firm){
-												document.getElementById('update_scan').style.display="none";
-												if(confirm("<%tcWebApi_get("String_Entry","exist_new","s")%>\n\nDo not power off <%tcWebApi_get("String_Entry","Web_Title2","s")%> while upgrade in progress.")){
-													document.start_update.action_mode.value="apply";
-													document.start_update.action_script.value="start_webs_upgrade";
-													document.start_update.live_upgrade_flag.value="1";
-													document.start_update.DOWNLOAD_HEADER_TYPE.value="1";
-													startDownloading();
-													document.start_update.submit();
-													return;
-  											}
-  											else{
-  												document.getElementById('update_scan').style.display="none";
-													document.getElementById('update_states').innerHTML="";
-												}    							
-									}
-									else{												
-												document.getElementById('update_states').innerHTML="<%tcWebApi_get("String_Entry","is_latest","s")%>";
-												
-												document.getElementById('update_scan').style.display="none";
-    							}
-      					}
-      					else{		//miss-match model FW
-      							
-									document.getElementById('update_scan').style.display="none";
-									document.getElementById('update_states').innerHTML="<%tcWebApi_get("String_Entry","unavailable_update","s")%>.";
+								document.getElementById('update_scan').style.display="none";												
+								if(webs_state_reboot > 0)
+									var confirm_content = "<%tcWebApi_get("String_Entry","exist_new","s")%>\n\nAfter firmware updated, please press the reset button more than five seconds to reset the (modem) router in order to avoid some compatibility issues.\n\nDo not power off <%tcWebApi_get("String_Entry","Web_Title2","s")%> while upgrade in progress.";
+								else
+									var confirm_content = "<%tcWebApi_get("String_Entry","exist_new","s")%>\n\nDo not power off <%tcWebApi_get("String_Entry","Web_Title2","s")%> while upgrade in progress.";
+													
+								if(confirm(confirm_content)){
+	
+									document.start_update.action_mode.value="apply";
+									document.start_update.action_script.value="start_webs_upgrade";
+									document.start_update.live_upgrade_flag.value="1";
+									document.start_update.DOWNLOAD_HEADER_TYPE.value="1";
+									startDownloading();
+									document.start_update.submit();
 									return;
 								}
+								else{
+									document.getElementById('update_scan').style.display="none";
+									document.getElementById('update_states').innerHTML="";
+								} 									
 							}
+							else{												
+								document.getElementById('update_states').innerHTML="<%tcWebApi_get("String_Entry","is_latest","s")%>";
+								document.getElementById('update_scan').style.display="none";
+    							}
+      						}
+	      					else{		//miss-match model FW
+      							
+							document.getElementById('update_scan').style.display="none";
+							document.getElementById('update_states').innerHTML="<%tcWebApi_get("String_Entry","unavailable_update","s")%>.";
+							return;
 						}
-  			}
+					}
+			}
+  		}
   	});
 }
 
@@ -329,6 +335,32 @@ function chk_upgrade(){
 						setTimeout("chk_upgrade();", 1000);
   			}
   		});
+}
+function LoadingProgress(seconds){
+	if(webs_state_reboot > 0)
+		document.getElementById("loading_block2").innerHTML = "<%tcWebApi_get("String_Entry","FIRM_ok_desc","s")%><br>After firmware updated, please press the reset button more than five seconds to reset the (modem) router in order to avoid some compatibility issues.<br>Do not power off <%tcWebApi_get("String_Entry","Web_Title2","s")%> while upgrade in progress.";
+	$("LoadingBar").style.visibility = "visible";
+	y = y + progress;
+	if(typeof(seconds) == "number" && seconds >= 0){
+		if(seconds != 0){
+			$("proceeding_img").style.width = Math.round(y) + "%";
+			$("proceeding_img_text").innerHTML = Math.round(y) + "%";
+			if($("loading_block1")){
+				$("proceeding_img_text").style.width = document.getElementById("loading_block1").clientWidth;
+				$("proceeding_img_text").style.marginLeft = "175px";
+			}	
+			--seconds;
+			setTimeout("LoadingProgress("+seconds+");", 1000);
+		}
+		else{
+			$("proceeding_img_text").innerHTML = "<%tcWebApi_get("String_Entry","Main_alert_proceeding_desc3","s")%>";
+			y = 0;
+			if(location.pathname.indexOf("QIS_wizard.asp") < 0){
+				setTimeout("hideLoadingBar();",1000);
+				location.href = "index.asp";
+			}
+		}
+	}
 }
 </script>
 </head>

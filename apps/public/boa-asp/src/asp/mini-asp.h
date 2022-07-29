@@ -9,7 +9,7 @@
 #include "../boa.h"
 #endif/*RA_PARENTALCONTROL*/
 #ifdef TRENDCHIP
-#define ASP_MAX_PARAMS 3
+#define ASP_MAX_PARAMS 4
 #endif
 
 struct __asp_text{

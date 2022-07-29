@@ -2,7 +2,7 @@
 export UC_PROFILE = $(shell echo $(PROFILE) | sed 's/\(.*\)/\U\1/')
 
 #translate dash to underscore. "DSL-N66U-A-B-C" => "DSL_N66U_A_B_C"
-export US_PROFILE = $(shell echo $(UC_PROFILE) | sed 's/-/_/g')
+US_PROFILE = $(shell echo $(UC_PROFILE) | sed 's/-/_/g')
 
 # special profile for isp/customer which may need the original model profile
 # then modify ORIG_PROFILE
@@ -29,7 +29,18 @@ ORIG_PROFILE=dsl-n12u-c1
 UC_PROFILE=DSL-N12E-C1
 US_PROFILE=DSL_N12E_C1
 endif
+ifeq ($(PROFILE),dsl-n10-c1_pol)
+ORIG_PROFILE=dsl-n10p-c1
+UC_PROFILE=DSL-N10P-C1
+US_PROFILE=DSL_N10P_C1
+endif
+ifeq ($(PROFILE),dsl-n14u_wind)
+ORIG_PROFILE=dsl-n14u
+UC_PROFILE=DSL-N14U
+US_PROFILE=DSL_N14U
+endif
 export ORIG_PROFILE
+export US_PROFILE
 
 include Project/release.chk
 include Project/customer_release/c_release.chk
@@ -280,6 +291,7 @@ clean_fs:
 	if [ ! -d $(FILESYSTEM_DIR)/sys ]; then mkdir $(FILESYSTEM_DIR)/sys; fi
 	if [ ! -d $(FILESYSTEM_DIR)/lib ]; then mkdir $(FILESYSTEM_DIR)/lib; fi
 	if [ ! -d $(FILESYSTEM_DIR)/sbin ]; then mkdir $(FILESYSTEM_DIR)/sbin; fi
+	if [ ! -d $(FILESYSTEM_DIR)/userfs ]; then mkdir $(FILESYSTEM_DIR)/userfs; fi
 	if [ ! -d $(FILESYSTEM_DIR)/userfs/bin ]; then mkdir $(FILESYSTEM_DIR)/userfs/bin; fi
 	if [ ! -d $(FILESYSTEM_DIR)/usr/bin ]; then mkdir $(FILESYSTEM_DIR)/usr/bin; fi
 	if [ ! -d $(PROJECT_DIR)/images ]; then mkdir $(PROJECT_DIR)/images; fi
@@ -633,7 +645,7 @@ apps: br2684ctl brctl mxml busybox busybox-new shared openssl ssl cpu wirelessto
 	  libusb10 libusb libusb-0.1.12 u2ec lprng \
 	  webdav zlib cloudsync accel_pptpd \
 	  vpn_tools udpxy accel_pptp rp_l2tp \
-	  sdparm-1.02 usbmodeswitch comgt-0.32 uqmi ether-wake networkmap upnp
+	  sdparm-1.02 usbmodeswitch comgt-0.32 uqmi ether-wake networkmap upnp $(obj-y)
 
 apps_clean: br2684ctl_clean brctl_clean busybox_clean busybox-new_clean ssl_clean \
 	wirelesstool_clean cpu_clean iptables_clean tc_clean ebtables_clean mtd_clean pppd_clean tcwdog_clean \
@@ -645,7 +657,7 @@ apps_clean: br2684ctl_clean brctl_clean busybox_clean busybox-new_clean ssl_clea
 	libusb10_clean libusb_clean libusb-0.1.12_clean u2ec_clean lprng_clean \
 	webdav_clean zlib_clean cloudsync_clean accel_pptpd_clean vpn_tools_clean \
 	udpxy_clean accel_pptp_clean rp_l2tp_clean \
-	sdparm-1.02_clean usbmodeswitch_clean comgt-0.32_clean uqmi_clean ether-wake_clean networkmap_clean upnp_clean
+	sdparm-1.02_clean usbmodeswitch_clean comgt-0.32_clean uqmi_clean ether-wake_clean networkmap_clean upnp_clean $(obj-clean)
 #endif
 
 ifneq ($(strip $(ASUS_WEBDAV)),)
@@ -1004,6 +1016,15 @@ ebtables_clean:
 	echo "Clean ebtables"
 	$(MAKE) -C $(APP_EBTABLES_DIR) clean
 	
+nvram_linux:
+	echo "build nvram drivers"
+	$(MAKE) -C $(MODULES_PUBLIC_SRC_DIR)/nvram
+	cp $(MODULES_PUBLIC_SRC_DIR)/nvram/nvram_linux.ko $(FILESYSTEM_DIR)/lib/modules/
+
+nvram_linux_clean:
+	echo "clean nvram drivers"
+	$(MAKE) -C $(MODULES_PUBLIC_SRC_DIR)/nvram clean
+	rm -f $(FILESYSTEM_DIR)/lib/modules/nvram_linux.ko
 
 mtd:
 	echo "Build mtd"
@@ -1441,11 +1462,11 @@ upnp:
 	$(STRIP) $(APP_LIBNFNETLINK_DIR)/src/.libs/*.so*
 	cp -af $(APP_LIBNFNETLINK_DIR)/src/.libs/*.so* $(FILESYSTEM_DIR)/lib
 	#build miniupnpd
-ifneq ($(strip $(TCSUPPORT_IPV6)),)
-	cd $(APP_MINIUPNPD_DIR) && CONFIG_OPTIONS="--ipv6 --igd2 --strict --vendorcfg" IPTABLESPATH=$(APP_IPTABLES_DIR) $(MAKE) -f Makefile.asus
-else
+#ifneq ($(strip $(TCSUPPORT_IPV6)),)
+#	cd $(APP_MINIUPNPD_DIR) && CONFIG_OPTIONS="--ipv6 --igd2 --strict --vendorcfg" IPTABLESPATH=$(APP_IPTABLES_DIR) $(MAKE) -f Makefile.asus
+#else
 	cd $(APP_MINIUPNPD_DIR) && CONFIG_OPTIONS="--strict --vendorcfg" IPTABLESPATH=$(APP_IPTABLES_DIR) $(MAKE) -f Makefile.asus
-endif
+#endif
 	if test -e $(APP_MINIUPNPD_DIR)/miniupnpd; \
 		then echo "Compile miniupnpd success"; \
 	else echo "Compile miniupnpd error!"; exit 1; \
@@ -2087,6 +2108,11 @@ dnsmasq_clean:
 	echo "Clean dnsmasq"
 	$(MAKE) -C $(APP_DNSMASQ_DIR) clean
 
+obj-clean := $(foreach obj, $(obj-y) $(obj-n) $(obj-), $(obj)_clean)
+
+obj-$(RTCONFIG_OPENVPN) += lzo
+obj-$(RTCONFIG_OPENVPN) += openpam
+obj-$(RTCONFIG_OPENVPN) += openvpn
 
 #Build vconfig
 vconfig:
@@ -2989,6 +3015,105 @@ rp_l2tp:
 rp_l2tp_clean:
 endif
 
+nvram:
+	$(MAKE) -C $(APP_NVRAM_DIR)
+	cp $(APP_NVRAM_DIR)/libnvram.so $(FILESYSTEM_DIR)/usr/lib/libnvram.so
+	$(STRIP) $(FILESYSTEM_DIR)/usr/lib/libnvram.so
+	cp $(APP_NVRAM_DIR)/nvram $(FILESYSTEM_DIR)/usr/sbin/nvram
+	$(STRIP) $(FILESYSTEM_DIR)/usr/sbin/nvram
+
+nvram_clean:
+	-@$(MAKE) -C $(APP_NVRAM_DIR) clean
+	rm -f $(FILESYSTEM_DIR)/usr/lib/libnvram.so
+	rm -f $(FILESYSTEM_DIR)/usr/sbin/nvram
+
+lzo/stamp-h1:
+	if test ! -e $(APP_LZO_DIR)/stamp-h1; then \
+		cd $(APP_LZO_DIR) && \
+		CFLAGS="-Os -Wall" \
+		./configure \
+			--host=mips-linux \
+			--prefix=/usr \
+			--bindir=/usr/sbin \
+			--libdir=/usr/lib \
+			 --enable-shared --enable-static \
+		&& touch stamp-h1; \
+	fi
+
+lzo: lzo/stamp-h1
+	$(MAKE) -C $(APP_LZO_DIR)
+	cp $(APP_LZO_DIR)/src/.libs/liblzo2.so $(FILESYSTEM_DIR)/usr/lib/liblzo2.so.2
+	$(STRIP) $(FILESYSTEM_DIR)/usr/lib/liblzo2.so.2
+	cd $(FILESYSTEM_DIR)/usr/lib && ln -sf liblzo2.so.2 liblzo2.so
+
+lzo_clean:
+	-@$(MAKE) -C $(APP_LZO_DIR) clean
+	@rm -f $(APP_LZO_DIR)/stamp-h1
+	@rm -f $(FILESYSTEM_DIR)/usr/lib/liblzo2.so*
+
+openpam/Makefile:
+	if test ! -e $(APP_OPENPAM_DIR)/stamp-h1; then \
+		cd $(APP_OPENPAM_DIR) && mkdir -p m4 && ./autogen.sh && \
+		LDFLAGS=-ldl \
+		./configure \
+		--host=mips-linux \
+		--prefix=/usr \
+		--bindir=/usr/sbin \
+		--libdir=/usr/lib \
+		--without-doc --with-pam-unix \
+		&& touch stamp-h1; \
+	fi
+
+openpam: openpam/Makefile
+	$(MAKE) -C $(APP_OPENPAM_DIR)
+	cp $(APP_OPENPAM_DIR)/lib/libpam/.libs/libpam.so.2.0.0 $(FILESYSTEM_DIR)/usr/lib/libpam.so.2
+	$(STRIP) -s $(FILESYSTEM_DIR)/usr/lib/libpam.so.2
+	cp $(APP_OPENPAM_DIR)/modules/pam_unix/.libs/pam_unix.so.2.0.0 $(FILESYSTEM_DIR)/usr/lib/pam_unix.so
+	$(STRIP) -s $(FILESYSTEM_DIR)/usr/lib/pam_unix.so
+
+openpam_clean:
+	-@$(MAKE) -C $(APP_OPENPAM_DIR) distclean
+	@rm -f $(APP_OPENPAM_DIR)/stamp-h1
+	@rm -f $(FILESYSTEM_DIR)/usr/lib/libpam.so.2
+	@rm -f $(FILESYSTEM_DIR)/usr/lib/pam_unix.so
+
+openvpn/stamp-h1: lzo zlib openpam openssl
+	if test ! -e $(APP_OPENVPN_DIR)/stamp-h1; then \
+		cd $(APP_OPENVPN_DIR) && ./autogen.sh && \
+		OPENSSL_CRYPTO_CFLAGS="-I$(APP_OPENSSL_DIR)/OPSSL/include" \
+		OPENSSL_CRYPTO_LIBS="-L$(APP_OPENSSL_DIR)/OPSSL/lib -lcrypto" \
+		OPENSSL_SSL_CFLAGS="-I$(APP_OPENSSL_DIR)/OPSSL/include" \
+		OPENSSL_SSL_LIBS="-L$(APP_OPENSSL_DIR)/OPSSL/lib -lssl" \
+		CFLAGS="-Os -Wall -I$(APP_OPENSSL_DIR)/OPSSL/include/openssl" \
+		LDFLAGS="-L$(APP_OPENSSL_DIR)/OPSSL/lib -lcrypto -lssl -L$(APP_ZLIB_DIR) -lz -lpthread -ldl -L$(APP_LZO_DIR)/src/.libs -L$(APP_OPENPAM_DIR)/lib/libpam/.libs -ffunction-sections -fdata-sections -Wl,--gc-sections" \
+		CPPFLAGS="-I$(APP_LZO_DIR)/include -I$(APP_OPENSSL_DIR)/OPSSL/include -I$(APP_OPENPAM_DIR)/include" \
+		IPROUTE="/usr/sbin/ip" \
+		./configure -host=mips-linux \
+		--prefix=/usr --bindir=/usr/sbin --libdir=/usr/lib \
+		--disable-debug --enable-management --disable-small \
+		--disable-selinux --disable-socks --enable-password-save \
+		--enable-plugin-auth-pam \
+		ac_cv_lib_resolv_gethostbyname=no \
+		&& touch stamp-h1; \
+	fi
+
+openvpn: openvpn/stamp-h1
+	$(MAKE) -C $(APP_OPENVPN_DIR)
+	cp $(APP_OPENVPN_DIR)/src/openvpn/.libs/openvpn $(FILESYSTEM_DIR)/usr/sbin/openvpn
+	$(STRIP) -s $(FILESYSTEM_DIR)/usr/sbin/openvpn
+	chmod 0500 $(FILESYSTEM_DIR)/usr/sbin/openvpn
+	cp $(APP_OPENVPN_DIR)/src/plugins/auth-pam/.libs/openvpn-plugin-auth-pam.so $(FILESYSTEM_DIR)/usr/lib/openvpn-plugin-auth-pam.so
+	$(STRIP) -s $(FILESYSTEM_DIR)/usr/lib/openvpn-plugin-auth-pam.so
+	@mkdir -p $(FILESYSTEM_DIR)/rom/easy-rsa
+	cp $(APP_OPENVPN_DIR)/easy-rsa/2.0/* $(FILESYSTEM_DIR)/rom/easy-rsa
+
+openvpn_clean:
+	-@$(MAKE) -C $(APP_OPENVPN_DIR) clean
+	@rm -f $(APP_OPENVPN_DIR)/stamp-h1
+	@rm -f $(FILESYSTEM_DIR)/usr/sbin/openvpn
+	@rm -f $(FILESYSTEM_DIR)/usr/lib/openvpn-plugin-auth-pam.so
+	@rm -rf $(FILESYSTEM_DIR)/rom/easy-rsa
+
 buildimage:
 	@$(SEP)
 #	echo "buildimage: copy public tools"
@@ -3306,6 +3431,13 @@ ifneq ($(strip $(TCSUPORT_CLEAN_CACHE)),)
 	cp $(APP_PRIVATE_DIR)/etc_script/clean_cache.sh $(FILESYSTEM_DIR)/usr/etc/clean_cache.sh
 endif
 
+# generate jffs folder
+ifneq ($(strip $(TCSUPPORT_ADD_JFFS)),)
+	if [ ! -d $(FILESYSTEM_DIR)/jffs ]; then mkdir $(FILESYSTEM_DIR)/jffs; fi
+else
+	rm -rf $(FILESYSTEM_DIR)/jffs
+endif
+
 #if !defined(TCSUPPORT_TTNET)
 ifneq ($(strip $(TCSUPPORT_TTNET)),)
 	cp $(APP_PRIVATE_DIR)/etc_script/ttnet/string1.conf $(FILESYSTEM_DIR)/userfs/string1.conf
@@ -3512,6 +3644,8 @@ ifneq ($(strip $(GUI_STRING_CONFIG_SUPPORT)),)
 	cp $(APP_DIR)/private/etc_script/*.dict $(FILESYSTEM_DIR)/userfs/
 ifeq ($(ORIG_PROFILE),dsl-n10-c1)
 	sed -i 's/ZVMODELVZ/'DSL-N10_C1'/g' $(FILESYSTEM_DIR)/userfs/*.dict
+else ifeq ($(ORIG_PROFILE),dsl-n10p-c1)
+	sed -i 's/ZVMODELVZ/'DSL-N10P_C1'/g' $(FILESYSTEM_DIR)/userfs/*.dict
 else ifeq ($(ORIG_PROFILE),dsl-n12e-c1)
 	sed -i 's/ZVMODELVZ/'DSL-N12E_C1'/g' $(FILESYSTEM_DIR)/userfs/*.dict
 else ifeq ($(ORIG_PROFILE),dsl-n12u-c1)
@@ -3547,6 +3681,8 @@ ifneq ($(strip $(TCSUPPORT_GENERAL_MULTILANGUAGE)),)
 	cp $(APP_PRIVATE_DIR)/etc_script/*.dict $(FILESYSTEM_DIR)/userfs/
 ifeq ($(ORIG_PROFILE),dsl-n10-c1)
 	sed -i 's/ZVMODELVZ/'DSL-N10_C1'/g' $(FILESYSTEM_DIR)/userfs/*.dict
+else ifeq ($(ORIG_PROFILE),dsl-n10p-c1)
+	sed -i 's/ZVMODELVZ/'DSL-N10P_C1'/g' $(FILESYSTEM_DIR)/userfs/*.dict
 else ifeq ($(ORIG_PROFILE),dsl-n12e-c1)
 	sed -i 's/ZVMODELVZ/'DSL-N12E_C1'/g' $(FILESYSTEM_DIR)/userfs/*.dict
 else ifeq ($(ORIG_PROFILE),dsl-n12u-c1)
@@ -3565,7 +3701,7 @@ endif
 	echo "CHAR_set=UTF-8" >> $(APP_ASUS_WEBPAGE_DIR)/cgi-bin/Lang_Hdr
 	echo "PASS_LANG=Language:" >> $(APP_ASUS_WEBPAGE_DIR)/cgi-bin/Lang_Hdr
 	echo "LANG_select=Select Language" >> $(APP_ASUS_WEBPAGE_DIR)/cgi-bin/Lang_Hdr
-	grep "^banner_code +='<dd>" $(APP_ASUS_WEBPAGE_DIR)/html/state.js | sed 's/<\/.*//' | awk '{print substr($$0,index($$0,"id=")+3)}' |sed 's/^"/LANG_/'|sed 's/">/=/' >> $(APP_ASUS_WEBPAGE_DIR)/cgi-bin/Lang_Hdr
+	grep "banner_code +='<dd>" $(APP_ASUS_WEBPAGE_DIR)/html/state.js | sed 's/^[ \t]*//g' | grep "^banner_code +='<dd>" | sed 's/<\/.*//' | awk '{print substr($$0,index($$0,"id=")+3)}' |sed 's/^"/LANG_/'|sed 's/">/=/' >> $(APP_ASUS_WEBPAGE_DIR)/cgi-bin/Lang_Hdr
 	echo "[End of Language Type]" >> $(APP_ASUS_WEBPAGE_DIR)/cgi-bin/Lang_Hdr
 
 	#cp -a $(APP_WEBPAGE_DIR)/Router/ml/boaroot $(FILESYSTEM_DIR)

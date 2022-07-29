@@ -338,7 +338,7 @@ function check_macaddr(obj,flag){ //control hint of input mac address
 		childsel.setAttribute("id","check_mac");
 		childsel.style.color = "#FFCC00";
 		obj.parentNode.appendChild(childsel);
-		document.getElementById("check_mac").innerHTML = '<br><br><%tcWebApi_get("String_Entry","IPC_x_illegal_mac","s")%>';
+		document.getElementById("check_mac").innerHTML = "<br><br><%tcWebApi_get("String_Entry","IPC_x_illegal_mac","s")%>";
 		document.getElementById("check_mac").style.display = "";
 		return false;			
 	}

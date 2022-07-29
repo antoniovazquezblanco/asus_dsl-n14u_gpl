@@ -2151,7 +2151,7 @@ __DMEM int skbmgr_alloc_fail = 0;
 
 __DMEM int skbmgr_hot_list_len = SKBMGR_DEF_HOT_LIST_LEN;
 __DMEM int skbmgr_max_list_len = 0;
-
+EXPORT_SYMBOL(skbmgr_max_alloc_no);
 #ifdef SKBMGR_SINGLE_QUEUE
 __DMEM union {
 	struct sk_buff_head     list;
@@ -2310,14 +2310,18 @@ EXPORT_SYMBOL(skbmgr_recycling_callback);
 //use for wifi driver, size 3840 is accord to wifi driver RX_BUFFER_AGGRESIZE.
 #define SKBMGR_4K_RX_BUF_LEN 			SKB_WITH_OVERHEAD(4096)
 #define SKBMGR_4K_DEF_HOT_LIST_LEN		128
+#ifdef MT7592
+#define SKBMGR_4K_LIMIT					4096
+#else
 #define SKBMGR_4K_LIMIT					512
+#endif
 
 int skbmgr_4k_max_alloc_no = 0;
 int skbmgr_4k_alloc_fail = 0;
 //int skbmgr_limit = SKBMGR_4K_LIMIT; 
 int skbmgr_4k_hot_list_len = SKBMGR_4K_DEF_HOT_LIST_LEN;
 int skbmgr_4k_max_list_len = 0;
-
+EXPORT_SYMBOL(skbmgr_4k_max_alloc_no);
 #ifdef SKBMGR_SINGLE_QUEUE
 union {
 	struct sk_buff_head     list;

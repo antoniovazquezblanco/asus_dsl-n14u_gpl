@@ -64,23 +64,24 @@ function initial(){
 		$("guest_image").parentNode.style.display = "none";
 
 	if(document.form.qos_enable.value==1){
-		document.form.qos_obw.parentNode.parentNode.style.display = "";
-		document.form.qos_ibw.parentNode.parentNode.style.display = "";		
+		document.form.obw.parentNode.parentNode.style.display = "";
+		document.form.ibw.parentNode.parentNode.style.display = "";		
 	}else{
-		document.form.qos_obw.parentNode.parentNode.style.display = "none";
-		document.form.qos_ibw.parentNode.parentNode.style.display = "none";		
+		document.form.obw.parentNode.parentNode.style.display = "none";
+		document.form.ibw.parentNode.parentNode.style.display = "none";		
 	}
-	init_changeScale("qos_obw");
-	init_changeScale("qos_ibw");	
+	
+	init_changeScale();	
 	showqos_rulelist();
 	addOnlineHelp($("faq"), ["ASUSWRT", "QoS"]);
 }
 
-function init_changeScale(_obj_String){
-	if($(_obj_String).value > 999){
-		$(_obj_String+"_scale").value = "Mb/s";
-		$(_obj_String).value = Math.round(($(_obj_String).value/1024)*100)/100;
-	}
+function init_changeScale(){
+	var upload = document.form.qos_obw.value;
+	var download = document.form.qos_ibw.value;
+	
+	document.form.obw.value = upload/1024;
+	document.form.ibw.value = download/1024;
 }
 
 function changeScale(_obj_String){
@@ -100,35 +101,58 @@ function switchPage(page){
 }
 
 function submitQoS(){
+	if(document.form.qos_enable.value == 0 && document.form.qos_enable_orig.value == 0){
+		return false;
+	}
 
 	if(document.form.qos_enable.value == 1){
 		// Jieming To Do: please add a hint here when error occurred, and qos_ibw & qos_obw should allow number only.
-		if(document.form.qos_obw.value.length == 0 || document.form.qos_obw.value == 0){
+		if(document.form.obw.value.length == 0){
 				alert("<%tcWebApi_get("String_Entry","JS_fieldblank","s")%>");
-				document.form.qos_obw.focus();
-				document.form.qos_obw.select();
+				document.form.obw.focus();
+				document.form.obw.select();
 				return;
 		}
-		if(document.form.qos_ibw.value.length == 0 || document.form.qos_ibw.value == 0){
+		else if(document.form.obw.value == 0){
+				alert("Upload Bandwidth can not be 0");
+				document.form.obw.focus();
+				document.form.obw.select();
+				return;	
+			
+		}
+		else if(document.form.obw.value.split(".").length > 2){		//To check more than two point symbol
+			alert("The format of field of upload bandwidth is invalid");
+			document.form.obw.focus();
+			document.form.obw.select();
+			return;	
+		}
+		
+		if(document.form.ibw.value.length == 0){
 				alert("<%tcWebApi_get("String_Entry","JS_fieldblank","s")%>");
-				document.form.qos_ibw.focus();
-				document.form.qos_ibw.select();
+				document.form.ibw.focus();
+				document.form.ibw.select();
 				return;
+		}
+		else if(document.form.ibw.value < 1){
+			alert("Download Bandwidth can not be less than 1");
+			document.form.ibw.focus();
+			document.form.ibw.select();
+			return;	
+		}
+		else if(document.form.ibw.value.split(".").length > 2){
+			alert("The format of field of download bandwidth is invalid");
+			document.form.ibw.focus();
+			document.form.ibw.select();
+			return;	
 		}
 		// end
   }	
 
-	if($("qos_obw_scale").value == "Mb/s")
-		document.form.qos_obw.value = Math.round(document.form.qos_obw.value*1024);
-	if($("qos_ibw_scale").value == "Mb/s")
-		document.form.qos_ibw.value = Math.round(document.form.qos_ibw.value*1024);
+	document.form.qos_obw.disabled = false;
+	document.form.qos_ibw.disabled = false;
+	document.form.qos_obw.value = document.form.obw.value*1024;
+	document.form.qos_ibw.value = document.form.ibw.value*1024;
 	
-	//if(document.form.qos_enable.value != document.form.qos_enable_orig.value)
-    //	FormActions("start_apply.asp", "apply", "reboot", "30");
-			
-	//if(wl6_support != -1)
-	//	document.form.action_wait.value = parseInt(document.form.action_wait.value)+10;			// extend waiting time for BRCM new driver
-
 	document.form.apply_flag.value = "1";
 
 	document.form.action = "/cgi-bin/QoS_EZQoS.asp";
@@ -214,6 +238,8 @@ function showqos_rulelist(){
 <input type="hidden" name="flag" value="">
 <input type="hidden" name="qos_enable" value="<%if tcWebApi_get("QoS_Entry0","qos_enable","h") = "1" then asp_write("1") else asp_write("0") end if%>">
 <input type="hidden" name="qos_enable_orig" value="<%if tcWebApi_get("QoS_Entry0","qos_enable","h") = "1" then asp_write("1") else asp_write("0") end if%>">
+<input type="hidden" name="qos_obw" value="<% tcWebApi_get("QoS_Entry0","qos_obw","s") %>" disabled>
+<input type="hidden" name="qos_ibw" value="<% tcWebApi_get("QoS_Entry0","qos_ibw","s") %>" disabled>
 <table class="content" align="center" cellpadding="0" cellspacing="0">
   <tr>
 	<td width="17">&nbsp;</td>
@@ -289,13 +315,13 @@ function showqos_rulelist(){
 													$j('#radio_qos_enable').iphoneSwitch('<%tcWebApi_get("QoS_Entry0","qos_enable","s")%>', 
 														 function() {
 															document.form.qos_enable.value = "1";
-															document.form.qos_obw.parentNode.parentNode.style.display = "";
-															document.form.qos_ibw.parentNode.parentNode.style.display = "";
+															document.form.obw.parentNode.parentNode.style.display = "";
+															document.form.ibw.parentNode.parentNode.style.display = "";
 														 },
 														 function() {
 															document.form.qos_enable.value = "0";
-															document.form.qos_obw.parentNode.parentNode.style.display = "none";
-															document.form.qos_ibw.parentNode.parentNode.style.display = "none";
+															document.form.obw.parentNode.parentNode.style.display = "none";
+															document.form.ibw.parentNode.parentNode.style.display = "none";
 														 },
 														 {
 															switch_on_container_path: '/switcherplugin/iphone_switch_container_off.png'
@@ -305,25 +331,19 @@ function showqos_rulelist(){
 												</div>	
 											</td>
 										</tr>										
-										<tr>
+										
+										<tr id="upload_tr">
 											<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(20, 2);"><%tcWebApi_get("String_Entry","upload_bandwidth","s")%></a></th>
 											<td>
-													<input type="text" maxlength="10" id="qos_obw" name="qos_obw" onKeyPress="return is_number(this,event);" class="input_15_table" value="<%tcWebApi_get("QoS_Entry0","qos_obw","s")%>">
-														<select id="qos_obw_scale" class="input_option" style="width:87px;" onChange="changeScale('qos_obw');">
-															<option value="Kb/s">Kb/s</option>
-															<option value="Mb/s">Mb/s</option>
-														</select>
+												<input type="text" maxlength="10" id="obw" name="obw" onKeyPress="return isNumberFloat(this,event);" class="input_15_table" value="">
+												<label style="margin-left:5px;">Mb/s</label>
 											</td>
-										</tr>
-										
-										<tr>
+										</tr>									
+										<tr id="download_tr">
 											<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(20, 2);"><%tcWebApi_get("String_Entry","download_bandwidth","s")%></a></th>
 											<td>
-													<input type="text" maxlength="10" id="qos_ibw" name="qos_ibw" onKeyPress="return is_number(this,event);" class="input_15_table" value="<%tcWebApi_get("QoS_Entry0","qos_ibw","s")%>">
-														<select id="qos_ibw_scale" class="input_option" style="width:87px;" onChange="changeScale('qos_ibw');">
-															<option value="Kb/s">Kb/s</option>
-															<option value="Mb/s">Mb/s</option>
-														</select>
+												<input type="text" maxlength="10" id="ibw" name="ibw" onKeyPress="return isNumberFloat(this,event);" class="input_15_table" value="">
+												<label style="margin-left:5px;">Mb/s</label>
 											</td>
 										</tr>
 

@@ -31,6 +31,7 @@
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include "libtcapi.h"
+#include "tcapi.h"
 #include "rc.h"
 
 #ifdef RTCONFIG_USB_MODEM
@@ -42,6 +43,12 @@ int restart_dnsmasq(char *ifname, char *dns)
 	char cmd[256];
 	char tmp[64];
 	char word[256], *next;
+	int unit;
+	char dns_attr[32], dns_value[MAXLEN_TCAPI_MSG];
+	int i;
+	int wan_primary = wan_primary_ifunit();
+	int wan_secondary = wan_secondary_ifunit();
+	int wan_pool[] = {wan_primary, wan_secondary, -1};	//wan_secondary=-1 if dualwan disable
 
 	killall_tk("dnsmasq");
 	
@@ -56,7 +63,7 @@ int restart_dnsmasq(char *ifname, char *dns)
 	}
 #endif
 
-	if (dns != NULL)
+	if (dns != NULL && strlen(dns) != 0)
 	{
 		foreach(word, dns, next)
 		{
@@ -64,9 +71,34 @@ int restart_dnsmasq(char *ifname, char *dns)
 			strncat(cmd, tmp, (sizeof(cmd) - strlen(cmd) -1));
 		}
 	}
+	else {
+		//check active wan dns
+		for(i = 0; unit = wan_pool[i], unit != -1; i++)
+		{
+			if(!is_wan_connect(unit))
+				continue;
+
+			snprintf(dns_attr, sizeof(dns_attr), "wan%d_dns", unit);
+			if(tcapi_get("Wanduck_Common", dns_attr, dns_value) != TCAPI_PROCESS_OK)
+			{
+				_dprintf("%s : get dns failed\n", __FUNCTION__);
+				continue;
+			}
+
+			if (strlen(dns_value))
+			{
+				foreach(word, dns_value, next)
+				{
+					snprintf(tmp, sizeof(tmp), " -S %s", word);
+					strncat(cmd, tmp, (sizeof(cmd) - strlen(cmd) -1));
+				}
+			}
+		}
+	}
 
 	_dprintf("%s : run (%s)\n", __FUNCTION__, cmd);
 	system(cmd);
+	return 0;
 }
 
 #define WAN0_ROUTE_TABLE 100
@@ -134,6 +166,12 @@ int add_multi_routes(void)
 	char wan_isp[32];
 	char *nv, *nvp, *b;
 #endif
+#if !ASUSWRT	//make sure add wan_primary first
+	int i;
+	int wan_primary = wan_primary_ifunit();
+	int wan_secondary = wan_secondary_ifunit();
+	int wan_pool[] = {wan_primary, wan_secondary, -1};	//wan_secondary=-1 if dualwan disable
+#endif
 
 	// clean the rules of routing table and re-build them then.
 	system("ip rule flush");
@@ -146,7 +184,12 @@ int add_multi_routes(void)
 #ifdef RTCONFIG_DUALWAN
 	if(nvram_match("wans_mode", "lb")){
 		gate_num = 0;
-		for(unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; ++unit){ // Multipath
+#if ASUSWRT
+		for(unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; ++unit) // Multipath
+#else
+		for(i = 0; unit = wan_pool[i], unit != -1; i++)
+#endif
+		{
 			// when wan_down().
 			if(!is_wan_connect(unit))
 				continue;
@@ -169,16 +212,21 @@ int add_multi_routes(void)
 	memset(wan_multi_gate, 0, sizeof(char)*WAN_UNIT_MAX*32);
 #endif
 
-	for(unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; ++unit){ // Multipath
-		// when wan_down().
-		if(!is_wan_connect(unit))
-			continue;
-
-		if(unit != wan_primary_ifunit()
+#if ASUSWRT
+	for(unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; ++unit) // Multipath
+#else
+	for(i = 0; unit = wan_pool[i], unit != -1; i++)
+#endif
+	{
+		if(unit != wan_primary
 #ifdef RTCONFIG_DUALWAN
 				&& !nvram_match("wans_mode", "lb")
 #endif
 				)
+			continue;
+
+		// when wan_down().
+		if(!is_wan_connect(unit))
 			continue;
 
 		snprintf(prefix, sizeof(prefix), "wan%d_", unit);
@@ -195,10 +243,12 @@ int add_multi_routes(void)
 			if(strlen(wan_ip) <= 0 || !strcmp(wan_ip, "0.0.0.0"))
 				continue;
 
-			if(unit == wan_secondary_pvcunit())
+			if(unit == wan_secondary)
 				table = WAN1_ROUTE_TABLE;
-			else
+			else if(unit == wan_primary)
 				table = WAN0_ROUTE_TABLE;
+			else
+				continue;
 
 			// set the rules of wan[X]'s ip and gateway for multi routing tables.
 			snprintf(cmd2, 2048, "ip rule del pref 200 from %s table %d", wan_ip, table);
@@ -216,18 +266,22 @@ int add_multi_routes(void)
 			// set the routes for multi routing tables.
 			copy_routes(table);
 
+			/*
 			if(!strcmp(wan_proto, "pptp") || !strcmp(wan_proto, "l2tp")){
 				snprintf(cmd2, 2048, "ip route add %s dev %s table %d", wan_gate, wan_if, table);
 				system(cmd2);
 			}
+			*/
 
 			snprintf(cmd2, 2048, "ip route replace default via %s dev %s table %d", wan_gate, wan_if, table);
 			system(cmd2);
 
+			/*
 			if(!strcmp(wan_proto, "pptp") || !strcmp(wan_proto, "l2tp")){
 				snprintf(cmd2, 2048, "ip route del %s dev %s table %d", wan_gate, wan_if, table);
 				system(cmd2);
 			}
+			*/
 
 			strcpy(wan_multi_if[unit], wan_if);
 			strcpy(wan_multi_gate[unit], wan_gate);
@@ -247,12 +301,21 @@ int add_multi_routes(void)
 
 					rtable = atoi(rtable_str);
 
+#if ASUSWRT
 					if(rtable == WAN_UNIT_FIRST || rtable == WAN0_ROUTE_TABLE)
 						rtable = WAN0_ROUTE_TABLE;
 					else if(rtable == WAN_UNIT_SECOND || rtable == WAN1_ROUTE_TABLE)
 						rtable = WAN1_ROUTE_TABLE;
 					else // incorrect table.
 						continue;
+#else
+					if(rtable == 0 || rtable == WAN0_ROUTE_TABLE)
+						rtable = WAN0_ROUTE_TABLE;
+					else if(rtable == 1 || rtable == WAN1_ROUTE_TABLE)
+						rtable = WAN1_ROUTE_TABLE;
+					else // incorrect table.
+						continue;
+#endif
 
 					if(rtable == table){
 						snprintf(cmd2, 2048, "ip rule del pref 100 from %s to %s table %d", rfrom, rto, rtable);
@@ -291,19 +354,23 @@ int add_multi_routes(void)
 		else
 #endif
 		{
+			/*
 			if(!strcmp(wan_proto, "pptp") || !strcmp(wan_proto, "l2tp")){
 				snprintf(cmd, 2048, "ip route add %s dev %s", wan_gate, wan_if);
 				system(cmd);
 			}
+			*/
 
 			// set the default gateway.
 			snprintf(cmd, 2048, "ip route replace default via %s dev %s", wan_gate, wan_if);
 			system(cmd);
 
+			/*
 			if(!strcmp(wan_proto, "pptp") || !strcmp(wan_proto, "l2tp")){
 				snprintf(cmd, 2048, "ip route del %s dev %s", wan_gate, wan_if);
 				system(cmd);
 			}
+			*/
 		}
 
 #ifdef RTCONFIG_DUALWAN
@@ -316,13 +383,20 @@ int add_multi_routes(void)
 	// set the multi default gateway.
 	if(nvram_match("wans_mode", "lb") && gate_num > 1){
 		memset(cmd, 0, 2048);
-		for(unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; ++unit){
-			snprintf(prefix, sizeof(prefix), "wan%d_", unit);
-
-			if(unit == WAN_UNIT_SECOND)
+#if ASUSWRT
+		for(unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; ++unit)
+#else
+		for(i = 0; unit = wan_pool[i], unit != -1; i++)
+#endif
+		{
+			if(unit == wan_secondary)
 				table = WAN1_ROUTE_TABLE;
-			else
+			else if(unit == wan_primary)
 				table = WAN0_ROUTE_TABLE;
+			else
+				continue;
+
+			snprintf(prefix, sizeof(prefix), "wan%d_", unit);
 
 			// move the gateway via VPN+DHCP from the main routing table to the correct one.
 			strcpy(wan_gate, nvram_safe_get(strcat_r(prefix, "xgateway", tmp)));
@@ -373,9 +447,16 @@ int add_multi_routes(void)
 			int i = 0;
 			b = NULL;
 			while(nv && (b = strsep(&nvp, ":")) != NULL){
+#if ASUSWRT
 				if(i == unit)
 					break;
 
+#else
+				if(i == 0 && unit == wan_primary)
+					break;
+				else if(i == 1 && unit == wan_secondary)
+					break;
+#endif
 				++i;
 			}
 
@@ -396,6 +477,7 @@ int add_multi_routes(void)
 		}
 
 		if(strlen(cmd) > 0){
+			/*
 			for(unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; ++unit){
 				snprintf(prefix, sizeof(prefix), "wan%d_", unit);
 				strncpy(wan_proto, nvram_safe_get(strcat_r(prefix, "proto", tmp)), 32);
@@ -407,9 +489,11 @@ int add_multi_routes(void)
 					system(cmd2);
 				}
 			}
+			*/
 
 			system(cmd);
 
+			/*
 			for(unit = WAN_UNIT_FIRST; unit < WAN_UNIT_MAX; ++unit){
 				snprintf(prefix, sizeof(prefix), "wan%d_", unit);
 				strncpy(wan_proto, nvram_safe_get(strcat_r(prefix, "proto", tmp)), 32);
@@ -421,112 +505,12 @@ int add_multi_routes(void)
 					system(cmd2);
 				}
 			}
+			*/
 		}
 	}
 #endif
 	system("ip route flush cache");
 
-	return 0;
-}
-
-void update_wan_state(char *prefix, int state, int reason)
-{
-	char attr[32], value[4];
-
-	// nvram_set_int(strcat_r(prefix, "state_t", tmp), state);
-	strcat_r(prefix, "state_t", attr);
-	sprintf(value, "%d", state);
-	tcapi_set("Wanduck_Common", attr, value);
-	// nvram_set_int(strcat_r(prefix, "sbstate_t", tmp), 0);
-	strcat_r(prefix, "sbstate_t", attr);
-	tcapi_set("Wanduck_Common", attr, "0");
-	// nvram_set_int(strcat_r(prefix, "auxstate_t", tmp), 0);
-	strcat_r(prefix, "auxstate_t", attr);
-	tcapi_set("Wanduck_Common", attr, "0");
-
-	if (state == WAN_STATE_STOPPED) {
-		// Save Stopped Reason
-		// keep ip info if it is stopped from connected
-		// nvram_set_int(strcat_r(prefix, "sbstate_t", tmp), reason);
-		strcat_r(prefix, "sbstate_t", attr);
-		sprintf(value, "%d", reason);
-		tcapi_set("Wanduck_Common", attr, value);
-	}
-	else if(state == WAN_STATE_STOPPING){
-		unlink("/tmp/wanstatus.log");
-	}
-}
-
-int
-found_default_route(int wan_unit)
-{
-	int i, n, found;
-	FILE *f;
-	unsigned int dest, mask;
-	char buf[256], device[256];
-	char *wanif;
-
-	n = 0;
-	found = 0;
-	mask = 0;
-	device[0] = '\0';
-
-	if ((f = fopen("/proc/net/route", "r")))
-	{
-		while (fgets(buf, sizeof(buf), f) != NULL)
-		{
-			if (++n == 1 && strncmp(buf, "Iface", 5) == 0)
-				continue;
-
-			i = sscanf(buf, "%255s %x %*s %*s %*s %*s %*s %x",
-						device, &dest, &mask);
-
-			if (i != 3)
-			{
-//				fprintf(stderr, "junk in buffer");
-				break;
-			}
-
-			if (device[0] != '\0' && dest == 0 && mask == 0)
-			{
-//				fprintf(stderr, "default route dev: %s\n", device);
-				//found = 1;
-				//break;
-				wanif = get_wan_ifname(wan_unit);
-				if (!strcmp(wanif, device))
-				{
-		//			fprintf(stderr, "got default route!\n");
-					found = 1;
-					break;
-				}
-			}
-		}
-
-		fclose(f);
-
-		if (found)
-		{
-//			fprintf(stderr, "got default route!\n");
-			return 1;
-		}
-
-#if 0
-		wanif = get_wan_ifname(wan_unit);
-
-		if (found && !strcmp(wanif, device))
-		{
-//			fprintf(stderr, "got default route!\n");
-			return 1;
-		}
-		else
-		{
-			// fprintf(stderr, "no default route!\n");
-			return 0;
-		}
-#endif
-	}
-
-	fprintf(stderr, "no default route!!!\n");
 	return 0;
 }
 
@@ -558,6 +542,40 @@ void stop_iQos(void)
 
 	sprintf(cmdbuf, "%s stop", qosfn);
 	system(cmdbuf);
+}
+
+void update_wan_state(char *prefix, int state, int reason)
+{
+	char attr[32], value[4];
+
+	_dprintf("%s(%s, %d, %d)\n", __FUNCTION__, prefix, state, reason);
+
+	// nvram_set_int(strcat_r(prefix, "state_t", tmp), state);
+	strcat_r(prefix, "state_t", attr);
+	sprintf(value, "%d", state);
+	tcapi_set("Wanduck_Common", attr, value);
+	// nvram_set_int(strcat_r(prefix, "sbstate_t", tmp), 0);
+	strcat_r(prefix, "sbstate_t", attr);
+	tcapi_set("Wanduck_Common", attr, "0");
+	// nvram_set_int(strcat_r(prefix, "auxstate_t", tmp), 0);
+	strcat_r(prefix, "auxstate_t", attr);
+	tcapi_set("Wanduck_Common", attr, "0");
+
+	if (state == WAN_STATE_INITIALIZING)
+	{
+		/* reset wanX_* variables */
+	}
+	else if (state == WAN_STATE_STOPPED) {
+		// Save Stopped Reason
+		// keep ip info if it is stopped from connected
+		// nvram_set_int(strcat_r(prefix, "sbstate_t", tmp), reason);
+		strcat_r(prefix, "sbstate_t", attr);
+		sprintf(value, "%d", reason);
+		tcapi_set("Wanduck_Common", attr, value);
+	}
+	else if(state == WAN_STATE_STOPPING){
+		unlink("/tmp/wanstatus.log");
+	}
 }
 
 #ifdef RTCONFIG_USB_MODEM
@@ -1084,8 +1102,10 @@ wan_up(char *wan_ifname)	// oleg patch, replace
 {
 	char tmp[100];
 	char prefix[] = "wanXXXXXXXXXX_";
+	char wanpvc_prefix[] = "WanExt_PVCXXXXX";
 	char wan_proto[8] = {0};
 	char gateway[16] = {0};
+	char dns[64] = {0};
 	int wan_unit;
 
 	_dprintf("%s(%s)\n", __FUNCTION__, wan_ifname);
@@ -1097,9 +1117,23 @@ wan_up(char *wan_ifname)	// oleg patch, replace
 	}
 
 	snprintf(prefix, sizeof(prefix), "wan%d_", wan_unit);
+#ifdef TCSUPPORT_MULTISERVICE_ON_WAN
+	if(wan_unit == WAN_UNIT_PTM0 || wan_unit == WAN_UNIT_ETH)
+	{
+		snprintf(wanpvc_prefix, sizeof(wanpvc_prefix), "WanExt_PVC%de0", wan_unit);
+	}
+	else
+#endif
+	{
+		snprintf(wanpvc_prefix, sizeof(wanpvc_prefix), "Wan_PVC%d", wan_unit);
+	}
+	_dprintf("%s\n", wanpvc_prefix);
 
+	memset(tmp, 0, sizeof(tmp));
 	strncpy(wan_proto, nvram_safe_get(strcat_r(prefix, "proto", tmp)), sizeof(wan_proto)-1);
 	strncpy(gateway, nvram_safe_get(strcat_r(prefix, "gateway", tmp)), sizeof(gateway)-1);
+	_dprintf("proto:[%s]\ngateway:[%s]\n", wan_proto, gateway);
+
 	if (inet_addr_(gateway) == INADDR_ANY)
 		memset(gateway, 0, sizeof(gateway));
 
@@ -1110,13 +1144,25 @@ wan_up(char *wan_ifname)	// oleg patch, replace
 			route_add(wan_ifname, 0, gateway, NULL, "255.255.255.255");
 	}
 
-	//restart dns
-	snprintf(tmp, sizeof(tmp), "Wan_PVC%d", wan_unit);
-	if( tcapi_match(tmp, "DEFAULTROUTE", "Yes") ) {
-		restart_dnsmasq(wan_ifname, nvram_safe_get(strcat_r(prefix, "dns", tmp)));
+	//update dns info
+	if (strcmp(wan_proto, "dhcp") == 0 || strcmp(wan_proto, "pppoe") == 0) {
+		if(tcapi_match(wanpvc_prefix, "DNS_type", "1"))
+		{
+			sprintf(dns, "%s", tcapi_get_string(wanpvc_prefix, "Primary_DNS", tmp));
+			sprintf(dns + strlen(dns), "%s%s", strlen(dns) ? " " : "", tcapi_get_string(wanpvc_prefix, "Secondary_DNS", tmp));
+			tcapi_set(WANDUCK_DATA, strcat_r(prefix, "dns", tmp), dns);
+		}
+		else
+		{
+			tcapi_get_string(WANDUCK_DATA, strcat_r(prefix, "dns_rx", tmp), dns);
+			tcapi_set(WANDUCK_DATA, strcat_r(prefix, "dns", tmp), dns);
+		}
 	}
 
 	update_wan_state(prefix, WAN_STATE_CONNECTED, 0);
+
+	//restart dns
+	restart_dnsmasq(wan_ifname, NULL);
 
 	//restart firewall
 	tcapi_commit("Firewall");
@@ -1140,6 +1186,7 @@ wan_up(char *wan_ifname)	// oleg patch, replace
 	//Sync time?
 	tcapi_commit("Timezone");
 
+
 #ifdef RTCONFIG_VPNC
 	// check and start vpnc
 	if (tcapi_match("VPNC_Entry", "auto_conn", "1")) {
@@ -1153,6 +1200,9 @@ wan_up(char *wan_ifname)	// oleg patch, replace
 #ifdef RTCONFIG_TR069
 	tcapi_commit("TR069");
 #endif
+
+	//start/stop hw_nat according to setting
+	tcapi_commit("Misc");
 
 	_dprintf("%s(%s): done.\n", __FUNCTION__, wan_ifname);
 }
@@ -1178,6 +1228,10 @@ wan_down(char *wan_ifname)
 
 	update_wan_state(prefix, WAN_STATE_DISCONNECTED, WAN_STOPPED_REASON_NONE);
 
+#ifdef RTCONFIG_DUALWAN
+	if(nvram_match("wans_mode", "lb"))
+		add_multi_routes();
+#endif
 }
 
 int
@@ -1199,4 +1253,59 @@ wan_ifunit(char *wan_ifname)
 	}
 
 	return -1;
+}
+
+int
+found_default_route(int wan_unit)
+{
+	int i, n, found;
+	FILE *f;
+	unsigned int dest, mask;
+	char buf[256], device[256];
+	char *wanif;
+
+	if(wan_unit != wan_primary_ifunit())
+		return 1;
+
+	n = 0;
+	found = 0;
+	mask = 0;
+	device[0] = '\0';
+
+	if ((f = fopen("/proc/net/route", "r")))
+	{
+		while (fgets(buf, sizeof(buf), f) != NULL)
+		{
+			if (++n == 1 && strncmp(buf, "Iface", 5) == 0)
+				continue;
+
+			i = sscanf(buf, "%255s %x %*s %*s %*s %*s %*s %x",
+						device, &dest, &mask);
+
+			if (i != 3)
+			{
+				break;
+			}
+
+			if (device[0] != '\0' && dest == 0 && mask == 0)
+			{
+				wanif = get_wan_ifname(wan_unit);
+				if (!strcmp(wanif, device))
+				{
+					found = 1;
+					break;
+				}
+			}
+		}
+
+		fclose(f);
+
+		if (found)
+		{
+			return 1;
+		}
+	}
+
+	_dprintf("\nNO default route!!!\n");
+	return 0;
 }

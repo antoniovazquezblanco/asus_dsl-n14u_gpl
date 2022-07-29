@@ -3208,12 +3208,15 @@ int check_MTU_change(int filter_state)
     if(filter_on){
 #if KERNEL_2_6_36
 			system("insmod /lib/modules/2.6.36/kernel/net/ipv4/netfilter/iptable_filter.ko");
+			system("insmod /lib/modules/2.6.36/kernel/net/ipv4/netfilter/ipt_REJCT.ko");
 #else
 			system("insmod /lib/modules/2.6.22.15/kernel/net/ipv4/netfilter/iptable_filter.ko");			
+			system("insmod /lib/modules/2.6.22.15/kernel/net/ipv4/netfilter/ipt_REJCT.ko");			
 #endif
     }else{
       system("iptables -t filter -F");
       system("rmmod iptable_filter");
+      system("rmmod ipt_REJECT");
     }
   }
   return filter_on;

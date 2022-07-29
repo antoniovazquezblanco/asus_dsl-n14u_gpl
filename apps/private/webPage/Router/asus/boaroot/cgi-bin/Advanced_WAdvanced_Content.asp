@@ -26,16 +26,17 @@ If Request_Form("editFlag") = "1" then
 	tcWebApi_Set("WLan_Common","APSDCapable","wl_wme_apsd")
 	tcWebApi_Set("WLan_Common","DLSCapable","wl_DLSCapable")
 	tcWebApi_Set("WLan_Common","wl_wme_no_ack","wl_wme_no_ack")
-	tcWebApi_Set("WLan_Common","TxPower","wl_TxPower")
+	tcWebApi_Set("WLan_Common","TxPower","wl_txpower")
 	tcWebApi_Set("WLan_Common","wl_ap_isolate","wl_ap_isolate")
+	tcWebApi_Set("WLan_Entry","wl_user_rssi","wl_user_rssi")
 	tcWebApi_Set("WLan_Common","IgmpSnEnable","wl_igs")
 	tcWebApi_Set("WLan_Common","wl_mrate_x","wl_mrate_x")
+
+	load_parameters_from_generic()
+
 	tcWebApi_commit("WLan_Entry")
 end if
 
-If Request_Form("editFlag") = "1" then
-load_parameters_from_generic()
-end if
 load_parameters_to_generic()
 %>
 
@@ -59,12 +60,90 @@ load_parameters_to_generic()
 <script type="text/javascript" src="/help.js"></script>
 <script type="text/javascript" src="/popup.js"></script>
 <script type="text/javascript" src="/detect.js"></script>
-<script>
+<script type="text/javascript" src="/validator.js"></script>
+<script type="text/javascript" src="/jquery.js"></script>
+<script type="text/javascript" src="/calendar/jquery-ui.js"></script> 
+<style>
+.ui-slider {
+	position: relative;
+	text-align: left;
+}
+.ui-slider .ui-slider-handle {
+	position: absolute;
+	width: 12px;
+	height: 12px;
+}
+.ui-slider .ui-slider-range {
+	position: absolute;
+}
+.ui-slider-horizontal {
+	height: 6px;
+}
+
+.ui-widget-content {
+	border: 2px solid #000;
+	background-color:#000;
+}
+.ui-state-default,
+.ui-widget-content .ui-state-default,
+.ui-widget-header .ui-state-default {
+	border: 1px solid ;
+	background: #e6e6e6;
+	margin-top:-4px;
+	margin-left:-6px;
+}
+
+/* Corner radius */
+.ui-corner-all,
+.ui-corner-top,
+.ui-corner-left,
+.ui-corner-tl {
+	border-top-left-radius: 4px;
+}
+.ui-corner-all,
+.ui-corner-top,
+.ui-corner-right,
+.ui-corner-tr {
+	border-top-right-radius: 4px;
+}
+.ui-corner-all,
+.ui-corner-bottom,
+.ui-corner-left,
+.ui-corner-bl {
+	border-bottom-left-radius: 4px;
+}
+.ui-corner-all,
+.ui-corner-bottom,
+.ui-corner-right,
+.ui-corner-br {
+	border-bottom-right-radius: 4px;
+}
+
+.ui-slider-horizontal .ui-slider-range {
+	top: 0;
+	height: 100%;
+}
+
+#slider .ui-slider-range {
+	background: #93E7FF; 
+	border-top-left-radius: 3px;
+	border-top-right-radius: 1px;
+	border-bottom-left-radius: 3px;
+	border-bottom-right-radius: 1px;
+}
+#slider .ui-slider-handle { border-color: #93E7FF; }
+
+
+</style>
+<script>	
+var $j = jQuery.noConflict();//var flag = 0;
+	
 wan_route_x = '';
 wan_nat_x = '1';
 wan_proto = 'pppoe';
 var flag = 0;
 var enable_radio = "<% tcWebApi_get("WLan_Entry","radio_on","s") %>";
+var wl_user_rssi_onload = "<% tcWebApi_get("WLan_Entry","wl_user_rssi","s") %>";
 
 function login_ip_str() { return '<% tcWebApi_get("WebCurSet_Entry","login_ip_tmp","s"); %>'; }
 
@@ -95,8 +174,15 @@ var mcast_rates = [
 
 function initial(){
 	show_menu();
-	load_body();
 	autoFocus('<% get_parameter("af"); %>');
+	
+	register_event();
+	load_body();	
+
+	if(userRSSI_support > 0)
+		changeRSSI(wl_user_rssi_onload);
+	else
+		document.getElementById("rssiTr").style.display = "none";
 
 	if(sw_mode == "2"){
 		disableAdvFn(17);
@@ -152,10 +238,9 @@ function initial(){
 		inputCtrl(document.form.wl_wme_no_ack, 0);
 	}
 
+	adjust_tx_power();
 	loadDateTime();
-
-	if(power_support < 0)
-			inputHideCtrl(document.form.wl_TxPower, 0);
+	corrected_timezone(DAYLIGHT_orig, TZ_orig);
 
 	if(enable_radio == "1"){
 		$("wl_rf_schedule_enable").style.display = "";
@@ -171,6 +256,21 @@ function initial(){
 	control_TimeField();
 	//RT65168 use APOn to record enable/disable
 }
+
+function changeRSSI(_switch){
+	if(_switch == 0){
+		document.getElementById("rssiDbm").style.display = "none";
+		document.form.wl_user_rssi.value = 0;
+	}
+	else{
+		document.getElementById("rssiDbm").style.display = "";
+		if(wl_user_rssi_onload == 0)
+			document.form.wl_user_rssi.value = "-70";
+		else
+			document.form.wl_user_rssi.value = wl_user_rssi_onload;
+	}
+}
+
 function applyRule(){
 
 	if(document.form.radio_on[0].checked){	//if software radio on
@@ -209,6 +309,7 @@ function applyRule(){
 		}
 		document.form.action = "/cgi-bin/Advanced_WAdvanced_Content.asp";
 		document.form.editFlag.value = "1" ;
+		
 		if(navigator.appName.indexOf("Microsoft") >= 0){ 		// Jieming added at 2013/05/21, to avoid browser freeze when submitting form on IE
 			stopFlag = 1;
 		}
@@ -235,23 +336,12 @@ function validForm(){
 			|| !validate_timerange(document.form.wl_radio_time_x_endmin, 3)
 	)
 		return false;
-	if(document.form.wl_radio_time_x_starthour.value > document.form.wl_radio_time_x_endhour.value){
-			alert("<%tcWebApi_get("String_Entry","FC_URLActiveTime_itemhint","s")%>");
-		document.form.wl_radio_time_x_starthour.focus();
-		document.form.wl_radio_time_x_starthour.select;
-		return false;
-	}else if(document.form.wl_radio_time_x_starthour.value == document.form.wl_radio_time_x_endhour.value){
-		if(document.form.wl_radio_time_x_startmin.value > document.form.wl_radio_time_x_endmin.value){
-					alert("<%tcWebApi_get("String_Entry","FC_URLActiveTime_itemhint","s")%>");
+	
+	if(document.form.wl_radio_time_x_starthour.value == document.form.wl_radio_time_x_endhour.value && document.form.wl_radio_time_x_startmin.value == document.form.wl_radio_time_x_endmin.value){
+			alert("<%tcWebApi_get("String_Entry","FC_URLActiveTime_itemhint2","s")%>");
 			document.form.wl_radio_time_x_startmin.focus();
 			document.form.wl_radio_time_x_startmin.select;
 			return false;
-		}else if(document.form.wl_radio_time_x_startmin.value == document.form.wl_radio_time_x_endmin.value){
-					alert("<%tcWebApi_get("String_Entry","FC_URLActiveTime_itemhint2","s")%>");
-			document.form.wl_radio_time_x_startmin.focus();
-			document.form.wl_radio_time_x_startmin.select;
-			return false;
-		}
 	}
 	if(document.form.wl_radio_date_x_Sun.checked == false
 	&& document.form.wl_radio_date_x_Mon.checked == false
@@ -266,10 +356,15 @@ function validForm(){
 		$('blank_warn').style.display = "";
 		return false;
 	}
-
-	if(!validate_range(document.form.wl_TxPower, 1, 100))
-			return false;
 			
+	if(userRSSI_support){
+		if(document.form.wl_user_rssi.value != 0){
+			if(!validator.range(document.form.wl_user_rssi, -90, -70)){
+				document.form.wl_user_rssi.focus();
+				return false;
+			}
+		}
+	}
 	return true;
 }
 function done_validating(action){
@@ -279,6 +374,38 @@ function disableAdvFn(row){
 for(var i=row; i>=3; i--){
 $("WAdvTable").deleteRow(i);
 }
+}
+
+function adjust_tx_power(){
+	var power_value_old = document.form.wl_TxPower_orig.value;
+	var power_value_new = document.form.wl_TxPower_orig.value;
+	var translated_value = 0;
+	
+	if(!power_support){
+		$("wl_txPower_field").style.display = "none";
+	}
+	else{
+		if(power_value_old != ""){
+			translated_value = parseInt(power_value_old/80*100);
+			translated_value = parseInt(power_value_old);
+			//alert(translated_value);
+			if(translated_value >=100){
+				translated_value = 100;
+			}
+			else if(translated_value <= 1){
+				translated_value = 1;			
+			}
+
+			$('slider').children[0].style.width = translated_value + "%";
+			$('slider').children[1].style.left = translated_value + "%";
+			document.form.wl_txpower.value = translated_value;
+		}
+		else{
+			$('slider').children[0].style.width = power_value_new + "%";
+			$('slider').children[1].style.left = power_value_new + "%";
+			document.form.wl_txpower.value = power_value_new;
+		}
+	}
 }
 
 function loadDateTime(){
@@ -370,6 +497,41 @@ function _change_wl_unit(wl_unit){
 function redirect(){
 	document.location.href = "/cgi-bin/Advanced_WAdvanced_Content.asp";
 }
+
+function register_event(){
+	$j(function() {
+		$j( "#slider" ).slider({
+			orientation: "horizontal",
+			range: "min",
+			min:1,
+			max: 100,
+			value:100,
+			slide:function(event, ui){
+				document.getElementById('wl_txpower').value = ui.value; 
+			},
+			stop:function(event, ui){
+				set_power(ui.value);	  
+			}
+		}); 
+	});
+}
+
+
+function set_power(power_value){	
+	if(power_value < 1){
+		power_value = 1;
+		alert("The minimun value of power is 1");
+	}
+	
+	if(power_value > 100){
+		power_value = 100;
+		alert("The maximun value of power is 1");
+	}
+	
+	$('slider').children[0].style.width = power_value + "%";
+	$('slider').children[1].style.left = power_value + "%";
+	document.form.wl_txpower.value = power_value;	
+}
 </script>
 </head>
 <body onload="initial();" onunLoad="return unload_body();">
@@ -410,7 +572,7 @@ function redirect(){
 <input type="hidden" name="wl_subunit" value="-1">
 <input type="hidden" name="wl_plcphdr" value="long">
 <input type="hidden" name="wl_amsdu" value="auto">
-<input type="hidden" name="wl_TxPower_orig" value="100" disabled>
+<input type="hidden" name="wl_TxPower_orig" value="<% tcWebApi_get("WLan_Common","TxPower","s") %>">
 <input type="hidden" name="editFlag" value="0">
 <input type="hidden" name="MBSSID_changeFlag" value="0">
 <input type="hidden" name="MBSSID_able_Flag" value="0">
@@ -436,9 +598,9 @@ function redirect(){
 <td bgcolor="#4D595D" valign="top" >
 <div>&nbsp;</div>
 		  			<div class="formfonttitle"><%tcWebApi_get("String_Entry","menu5_1","s")%> - <%tcWebApi_get("String_Entry","menu5_1_6","s")%></div>
-<div style="margin-left:5px;margin-top:10px;margin-bottom:10px"><img src="/images/New_ui/export/line_export.png"></div>
+						<div style="margin-left:5px;margin-top:10px;margin-bottom:10px"><img src="/images/New_ui/export/line_export.png"></div>
 		 				<div class="formfontdesc"><%tcWebApi_get("String_Entry","WC11b_display5_sd","s")%></div>
-
+		 				<div id="timezone_hint" onclick="location.href='Advanced_System_Content.asp?af=uiViewdateToolsTZ'" style="display:none;margin-left:4px;color:#FFCC00;text-decoration:underline;cursor:pointer;"></div>
 <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" class="FormTable" id="WAdvTable">
 	<tr id="wl_unit_field">
 						<th><%tcWebApi_get("String_Entry","Interface","s")%></th>
@@ -512,6 +674,22 @@ function redirect(){
 	</div>
 	</td>
 	</tr>
+
+	<tr id="rssiTr">
+		<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(3, 23);"><%tcWebApi_get("String_Entry","Roaming_assistant","s")%></a></th>
+		<td>
+			<select id="wl_user_rssi_option" class="input_option" onchange="changeRSSI(this.value);">
+				<option value="1"><%tcWebApi_get("String_Entry","WC11b_WirelessCtrl_button1name","s")%></option>
+				<option value="0" <% if tcWebApi_get("WLan_Entry","wl_user_rssi","h") = "0" then asp_Write("selected") end if %>><%tcWebApi_get("String_Entry","WC11b_WirelessCtrl_buttonname","s")%></option>
+			</select>
+			<span id="rssiDbm" style="color:#FFF">
+				Disconnect clients with RSSI lower than
+			<input type="text" maxlength="3" name="wl_user_rssi" class="input_3_table" value="<% tcWebApi_get("WLan_Entry","wl_user_rssi","s"); %>" autocorrect="off" autocapitalize="off">
+				dB
+			</span>
+		</td>
+	</tr>
+
 	<tr id="wl_igs_select">
 		<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(3, 21);"><%tcWebApi_get("String_Entry","WC11b_x_IgmpSnEnable_in","s")%></a></th>
 		<td>
@@ -661,12 +839,23 @@ function redirect(){
 	</td>
 	</tr>
 
-	<tr>
-		<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(0, 17);"><%tcWebApi_get("String_Entry","WC11b_TxPower_in","s")%></a></th>
-		<td>
-			<input type="text" maxlength="3" name="wl_TxPower" class="input_3_table" value="<% If tcWebApi_get("WLan_Common","TxPower","h") <> "" then  tcWebApi_get("WLan_Common","TxPower","s") else asp_Write("100") end if %>"> %	
-		</td>
-	</tr>
+	<tr id="wl_txPower_field">
+						<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(0, 17);"><%tcWebApi_get("String_Entry","WC11b_TxPower_in","s")%></a></th>
+						<td>
+							<div>
+								<table>
+									<tr >
+										<td style="border:0px;width:60px;">
+											<input id="wl_txpower" name="wl_txpower" type="text" maxlength="3" class="input_3_table" value="<% If tcWebApi_get("WLan_Common","TxPower","h") <> "" then  tcWebApi_get("WLan_Common","TxPower","s") else asp_Write("100") end if %>" style="margin-left:-10px;" onkeyup="set_power(this.value);"> %
+										</td>					
+										<td style="border:0px;">
+											<div id="slider" style="width:200px;"></div>
+										</td>
+									</tr>
+								</table>
+							</div>
+						</td>
+					</tr>
 </table>
 <div class="apply_gen">
 <input class="button_gen" onclick="applyRule();" type="button" value="<%tcWebApi_get("String_Entry","CTL_apply","s")%>"/>

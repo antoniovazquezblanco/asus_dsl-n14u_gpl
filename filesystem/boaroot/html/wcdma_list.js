@@ -15,6 +15,7 @@ function gen_country_list(){
 	countrylist.push(["Egypt", "EG"]);
 	countrylist.push(["Finland", "FI"]);
 	countrylist.push(["Germany", "DE"]);
+	countrylist.push(["Greece", "GR"]);
 	countrylist.push(["Hong Kong", "HK"]);
 	countrylist.push(["India", "IN"]);
 	countrylist.push(["Indonesia", "ID"]);
@@ -173,6 +174,14 @@ function gen_list(){
 		daillist = new Array("*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#", "*99#");
 		userlist = new Array("tmobile", "tmobile", "tmobile", "tmobile", "tmobile", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "simyo", "blau", "", "eplus", "eplus", "", "", "", "", "", "", "", "", "", "", "");
 		passlist = new Array("tm", "tm", "tm", "tm", "tm", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "simyo", "blau", "", "gprs", "gprs", "", "", "", "", "", "", "", "", "", "", "");
+	}
+	else if(country == "GR"){
+		protolist = new Array("1");
+		isplist = new Array("WIND");
+		apnlist = new Array("gint.b-online.gr");
+		daillist = new Array("*99#");
+		userlist = new Array("");
+		passlist = new Array("");
 	}
 	else if(country == "HK"){
 		protolist = new Array("1", "1", "1", "1", "1", "1", "1", "1");

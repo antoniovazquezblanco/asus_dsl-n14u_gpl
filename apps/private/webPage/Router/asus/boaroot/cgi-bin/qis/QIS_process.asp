@@ -282,8 +282,13 @@ elseif Request_Form("current_page") = "/cgi-bin/qis/QIS_finish.asp" Then
 			tcWebApi_set("Wan_PVC","USERNAME","dsltmp_cfg_pppoe_username")
 			tcWebApi_set("Wan_PVC","PASSWORD","dsltmp_cfg_pppoe_passwd")
 			tcWebApi_set("Wan_PVC", "AUTHEN", "PPPAuthen")
-			tcWebApi_set("Wan_PVC","CONNECTION","wan_ConnectSelect")
-			tcWebApi_set("Wan_PVC","CLOSEIFIDLE","value_zero")
+			if tcWebApi_get("SysInfo_Entry", "Customer", "h") = "POL" then
+				tcWebApi_set("Wan_PVC","CONNECTION","wan_ConnectSelect_POL")
+				tcWebApi_set("Wan_PVC","CLOSEIFIDLE","value_30")
+			else	
+				tcWebApi_set("Wan_PVC","CONNECTION","wan_ConnectSelect")
+				tcWebApi_set("Wan_PVC","CLOSEIFIDLE","value_zero")
+			end if	
 			tcWebApi_set("Wan_PVC","MSS","value_zero")
 			tcWebApi_set("Wan_PVC","MTU","value_zero")
 

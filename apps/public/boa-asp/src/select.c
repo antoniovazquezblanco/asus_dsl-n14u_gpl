@@ -59,7 +59,7 @@ void select_loop(int server_s)
             if (sigterm_flag == 1)
                 sigterm_stage1_run(server_s);
 
-            if (sigterm_flag == 2 && !request_ready && !request_block) {
+            if (sigterm_flag == 2 /*&& !request_ready && !request_block*/) {
                 sigterm_stage2_run();
 
             }

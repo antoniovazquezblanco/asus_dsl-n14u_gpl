@@ -458,7 +458,7 @@ function submit_detect(){
 </table>
 </div>
 <div class="apply_gen" style="margin-top:30px">
-	<input type="button" id="detectButton" value="<% tcWebApi_Get("String_Entry", "QKS_detect_freshbtn", "s") %>" tabindex="8" onclick="submit_detect();" class="button_gen" >
+	<input type="button" id="detectButton" value="<% tcWebApi_Get("String_Entry", "QKS_detect_freshbtn", "s") %>" tabindex="8" onclick="submit_detect();" class="button_gen_long">
 	<input type="button" id="nextButton" value="<% tcWebApi_Get("String_Entry", "btn_next", "s") %>" tabindex="7" onclick="btnNext();" class="button_gen">
 </div>
 </div>

@@ -30,20 +30,9 @@ extern void __devinit ra_nand_remove(void);
 #define READ_FLASH_DWORD(i)  ( (VPint(CR_AHB_HWCONF) & 0x1) ? \
 								((ranand_read_dword != NULL) ? ranand_read_dword((i)) : -1) \
 								: (*((unsigned int*)i)) )
- #ifdef TCSUPPORT_MTD_ENCHANCEMENT
- #if 0
- #if defined ( TCSUPPORT_RESERVEAREA_1_BLOCK)
- #define BLOCK_NUM_FOR_RESERVEAREA 1
- #elif defined(TCSUPPORT_RESERVEAREA_2_BLOCK)
-  #define BLOCK_NUM_FOR_RESERVEAREA 2
- #elif defined(TCSUPPORT_RESERVEAREA_3_BLOCK)
- #define BLOCK_NUM_FOR_RESERVEAREA 3
-#else //TCSUPPORT_RESERVEAREA_4_BLOCK
- #define BLOCK_NUM_FOR_RESERVEAREA 4
-#endif
-#endif
+#ifdef TCSUPPORT_MTD_ENCHANCEMENT
 #if ((TCSUPPORT_RESERVEAREA_BLOCK != 1)&& (TCSUPPORT_RESERVEAREA_BLOCK != 2)&& (TCSUPPORT_RESERVEAREA_BLOCK !=3)&& (TCSUPPORT_RESERVEAREA_BLOCK !=4))
-#define BLOCK_NUM_FOR_RESERVEAREA 4
+ #define BLOCK_NUM_FOR_RESERVEAREA 4
 #else
  #define BLOCK_NUM_FOR_RESERVEAREA TCSUPPORT_RESERVEAREA_BLOCK
 #endif
@@ -57,6 +46,28 @@ static struct map_info tc3162_map = {
        .bankwidth = BUSWIDTH,
        .phys = WINDOW_ADDR,
 };
+
+#ifdef TCSUPPORT_ADD_JFFS
+	#ifdef TCSUPPORT_NAND_BADBLOCK_CHECK
+		#if TCSUPPORT_JFFS_BLOCK > 4
+			#define MTDPART_SIZ_JFFS2	TCSUPPORT_JFFS_BLOCK*0x20000
+		#else
+			#define MTDPART_SIZ_JFFS2	0x3A00000
+		#endif
+	#elif defined(TCSUPPORT_NAND_RT63368)
+		#if TCSUPPORT_JFFS_BLOCK > 4
+			#define MTDPART_SIZ_JFFS2	TCSUPPORT_JFFS_BLOCK*0x20000
+		#else
+			#define MTDPART_SIZ_JFFS2	0xA0000
+		#endif
+	#else
+		#if TCSUPPORT_JFFS_BLOCK > 4
+			#define MTDPART_SIZ_JFFS2	TCSUPPORT_JFFS_BLOCK*0x10000
+		#else
+			#define MTDPART_SIZ_JFFS2	0x50000
+		#endif
+	#endif
+#endif
 
 static struct mtd_partition tc3162_parts[] = {
 	{									 	/* First partition */
@@ -117,6 +128,14 @@ static struct mtd_partition tc3162_parts[] = {
 		  offset     : 0x00520000   
 	}
  #endif
+#ifdef TCSUPPORT_ADD_JFFS
+	,
+	{
+		name         : "jffs2",
+		size         : MTDPART_SIZ_JFFS2,
+		offset       : MTDPART_OFS_APPEND
+	}
+#endif
  #ifdef TCSUPPORT_MTD_ENCHANCEMENT
  	,
 	 {
@@ -172,6 +191,12 @@ static int __init tc3162_mtd_init(void)
 
 #if defined(TCSUPPORT_MTD_ENCHANCEMENT) || defined(TCSUPPORT_MULTI_BOOT)
 	u_int32_t tclinux_size = 0;
+#endif
+
+#ifdef TCSUPPORT_ADD_JFFS
+	u_int32_t jffs_size = MTDPART_SIZ_JFFS2;
+#else
+	u_int32_t jffs_size = 0;
 #endif
 
 #ifdef TCSUPPORT_NAND_BADBLOCK_CHECK
@@ -404,12 +429,12 @@ static int __init tc3162_mtd_init(void)
 			 * 64K block size SPI Flash & 128K block size NAND Flash
 			 */
 			if (tc3162_mtd_info->erasesize == 0x10000) {
-				tc3162_parts[i].size = tc3162_mtd_info->size - BLOCK_NUM_FOR_RESERVEAREA*( tc3162_mtd_info->erasesize) -0x20000; //reserve the last 4 blocks
+				tc3162_parts[i].size = tc3162_mtd_info->size - jffs_size - BLOCK_NUM_FOR_RESERVEAREA*( tc3162_mtd_info->erasesize) -0x20000;
 			} else if (tc3162_mtd_info->erasesize == 0x20000) {
-				tc3162_parts[i].size = tc3162_mtd_info->size - 6*( tc3162_mtd_info->erasesize) -0x20000; 
+				tc3162_parts[i].size = tc3162_mtd_info->size - jffs_size - 6*( tc3162_mtd_info->erasesize) -0x20000; 
 			/* 16K block size NAND Flash */
 			} else {
-				tc3162_parts[i].size = tc3162_mtd_info->size - BLOCK_NUM_FOR_RESERVEAREA*(0x10000);
+				tc3162_parts[i].size = tc3162_mtd_info->size - jffs_size - BLOCK_NUM_FOR_RESERVEAREA*(0x10000);
 			}
 			#endif
 			if(tclinux_size > tc3162_parts[i].size)
@@ -429,12 +454,12 @@ static int __init tc3162_mtd_init(void)
 			 * 64K block size SPI Flash & 128K block size NAND Flash
 			 */
 				if (tc3162_mtd_info->erasesize == 0x10000) {
-					tc3162_parts[i].size = tc3162_mtd_info->size -BLOCK_NUM_FOR_RESERVEAREA*( tc3162_mtd_info->erasesize) -tclinux_slave_offset; //reserve the last 4 blocks
+					tc3162_parts[i].size = tc3162_mtd_info->size - jffs_size - BLOCK_NUM_FOR_RESERVEAREA*( tc3162_mtd_info->erasesize) -tclinux_slave_offset;
 				} else if (tc3162_mtd_info->erasesize == 0x20000) {
-					tc3162_parts[i].size = tc3162_mtd_info->size -6*( tc3162_mtd_info->erasesize) -tclinux_slave_offset; 
+					tc3162_parts[i].size = tc3162_mtd_info->size - jffs_size - 6*( tc3162_mtd_info->erasesize) -tclinux_slave_offset; 
 				/* 16K block size NAND Flash */
 				} else {
-					tc3162_parts[i].size = tc3162_mtd_info->size -BLOCK_NUM_FOR_RESERVEAREA*(0x10000) - tclinux_slave_offset;
+					tc3162_parts[i].size = tc3162_mtd_info->size - jffs_size - BLOCK_NUM_FOR_RESERVEAREA*(0x10000) - tclinux_slave_offset;
 				}
 
 				if(tclinux_slave_size > tc3162_parts[i].size)

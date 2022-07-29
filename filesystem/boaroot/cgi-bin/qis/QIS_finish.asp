@@ -231,6 +231,7 @@ else
 <INPUT TYPE="hidden" NAME="value_no" value="No">
 <INPUT TYPE="hidden" NAME="value_one" value="1">
 <INPUT TYPE="hidden" NAME="value_zero" value="0">
+<INPUT TYPE="hidden" NAME="value_30" value="30">
 <INPUT TYPE="hidden" NAME="value_none" value="None">
 <INPUT TYPE="hidden" NAME="value_ubr" value="ubr">
 <INPUT TYPE="hidden" NAME="ipVerRadio" value="IPv4">
@@ -239,6 +240,7 @@ else
 <INPUT TYPE="hidden" NAME="wan_NAT" value="Enable">
 <INPUT TYPE="hidden" NAME="PPPAuthen" value="AUTO">
 <INPUT TYPE="hidden" NAME="wan_ConnectSelect" value="Connect_Keep_Alive">
+<INPUT TYPE="hidden" NAME="wan_ConnectSelect_POL" value="Connect_on_Demand">
 <INPUT TYPE="hidden" NAME="wan_PPPGetIP" value="Dynamic">
 
 <script>

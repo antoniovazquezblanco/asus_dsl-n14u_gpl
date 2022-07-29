@@ -17,21 +17,21 @@ function LoadingTime(seconds, flag){
 		if(seconds != 0){
 			if(flag == "upgrade_FAIL")
 			{
-				showtext($("proceeding_main_txt"), "Invalid firmware, now rebooting.<br><%tcWebApi_get("String_Entry","Main_alert_proceeding_desc4","s")%>");
+				showtext($("proceeding_main_txt"), "Invalid firmware, now rebooting.<br><%tcWebApi_get("String_Entry","Main_alert_proceeding_desc4","s")%> ");
 				hideInitialLoading = "1";
 			}
 			else if(flag == "upgrade_SAME")
 			{
-				showtext($("proceeding_main_txt"), "Identical firmware, now rebooting.<br><%tcWebApi_get("String_Entry","Main_alert_proceeding_desc4","s")%>");
+				showtext($("proceeding_main_txt"), "Identical firmware, now rebooting.<br><%tcWebApi_get("String_Entry","Main_alert_proceeding_desc4","s")%> ");
 				hideInitialLoading = "1";
 			}
 			else if(flag == "upgrade_FAIL_ROMFILE")
 			{
-				showtext($("proceeding_main_txt"), "Upload setting failed, now rebooting.<br><%tcWebApi_get("String_Entry","Main_alert_proceeding_desc4","s")%>");
+				showtext($("proceeding_main_txt"), "Upload setting failed, now rebooting.<br><%tcWebApi_get("String_Entry","Main_alert_proceeding_desc4","s")%> ");
 				hideInitialLoading = "1";
 			}
 			else
-				showtext($("proceeding_main_txt"), "<%tcWebApi_get("String_Entry","Main_alert_proceeding_desc4","s")%>");
+				showtext($("proceeding_main_txt"), "<%tcWebApi_get("String_Entry","Main_alert_proceeding_desc4","s")%> ");
 
 			if(Math.round(y) > 100)
 				showtext($("proceeding_txt"), "100% <%tcWebApi_get("String_Entry","Main_alert_proceeding_desc1","s")%>");

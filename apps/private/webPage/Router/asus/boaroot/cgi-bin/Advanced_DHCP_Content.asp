@@ -8,10 +8,8 @@ If Request_Form("lanFlag") <> "" Then
   End If
 
   If Request_Form("dhcpTypeRadio")="0" Then
-    TCWebApi_unset("DhcpRelay_Entry")
     TCWebApi_unset("Dproxy_Entry")
     If Request_Form("dhcpFlag") ="0" Then
-      tcWebApi_CommitWithoutSave("DhcpRelay_Entry")
       tcWebApi_CommitWithoutSave("Dhcpd_Common")
       tcWebApi_CommitWithoutSave("Dproxy_Entry")
     End If
@@ -42,9 +40,7 @@ If Request_Form("lanFlag") <> "" Then
       end if
     end if
 
-    TCWebApi_unset("DhcpRelay_Entry")
     If Request_Form("dhcpFlag") ="0" Then
-      tcWebApi_CommitWithoutSave("DhcpRelay_Entry")
       tcWebApi_CommitWithoutSave("Dhcpd_Common")
       tcWebApi_CommitWithoutSave("Dproxy_Entry")
     End If
@@ -585,9 +581,9 @@ function showLANIPList(){
 		htmlCode += '\', \'';
 		htmlCode += clientObj.IP;
 		htmlCode += '\');"><strong>';
-		htmlCode += clientObj.Name;
-		htmlCode += '</strong> ( ';
 		htmlCode += clientObj.MacAddr;
+		htmlCode += '</strong> ( ';
+		htmlCode += clientObj.Name;
 		htmlCode += ' )</div></a><!--[if lte IE 6.5]><iframe class="hackiframe2"></iframe><![endif]-->';	
 	}
 

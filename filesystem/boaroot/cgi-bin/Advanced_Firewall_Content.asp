@@ -49,6 +49,7 @@ function initial(){
 	show_menu();
 	showfilter_lwlist();
 	load_body();
+	corrected_timezone(DAYLIGHT_orig, TZ_orig);
 }
 function applyRule(){
 	if(validForm()){
@@ -356,8 +357,9 @@ function valid_icmp_portlist(){
 <td bgcolor="#4D595D" valign="top">
 <div>&nbsp;</div>
 		  				<div class="formfonttitle"><%tcWebApi_get("String_Entry","menu5_5","s")%> - <%tcWebApi_get("String_Entry","menu5_5_4","s")%></div>
-<div style="margin-left:5px;margin-top:10px;margin-bottom:10px"><img src="/images/New_ui/export/line_export.png"></div>
+							<div style="margin-left:5px;margin-top:10px;margin-bottom:10px"><img src="/images/New_ui/export/line_export.png"></div>
 		  				<div class="formfontdesc"><%tcWebApi_get("String_Entry","FC_display1_sd","s")%></div>
+		  				<div id="timezone_hint" onclick="location.href='Advanced_System_Content.asp?af=uiViewdateToolsTZ'" style="display:none;margin-left:4px;color:#FFCC00;text-decoration:underline;cursor:pointer;"></div>
 
 <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
 <thead>

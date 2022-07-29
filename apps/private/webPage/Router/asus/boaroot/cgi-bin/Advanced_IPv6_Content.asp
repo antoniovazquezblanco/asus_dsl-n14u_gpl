@@ -167,11 +167,11 @@ function validForm(){
 			
 			value1 = ipv4masklen.value;
 			if((!validInteger(value1)) ) {
-				alert("<%tcWebApi_get("String_Entry","6RDJS0Text","s")%>");
+				alert("<%tcWebApi_get("String_Entry","6rdJS0Text","s")%>");
 				return false;
 			}
 			if((Number(value1) > 32) || (Number(value1) < 0)) {
-				alert("<%tcWebApi_get("String_Entry","6RDJS0Text","s")%>");
+				alert("<%tcWebApi_get("String_Entry","6rdJS0Text","s")%>");
 				return false;
 			}
 			
@@ -182,7 +182,7 @@ function validForm(){
 			
 			value3 = parseInt(value2) + 32 - parseInt(value1);
 			if( value3 < 0 || value3 > 128 ) {
-				alert("<%tcWebApi_get("String_Entry","6RDJS1Text","s")%>");
+				alert("<%tcWebApi_get("String_Entry","6rdJS1Text","s")%>");
 				return false;
 			}
 		}
@@ -271,32 +271,32 @@ function applyRule(){
 										</td>
 									</tr>
 									<tr>
-										<th><%tcWebApi_get("String_Entry","6RDIPv6PrefixText","s")%></th>
+										<th><%tcWebApi_get("String_Entry","6rdIPv6PrefixText","s")%></th>
 										<td>
 											<INPUT TYPE="TEXT" name="ipv6rd_prefix" maxLength="39" class="input_32_table" value="<%If TcWebApi_get("ipv6rd_Entry","Prefix","h") <> "" then TcWebApi_get("ipv6rd_Entry","Prefix","s") else asp_Write("2001:55c::") end if %>" >
 											<INPUT TYPE="TEXT" NAME="ipv6rd_prefixlen" MAXLENGTH="3" class="input_3_table" VALUE="<%if tcwebapi_get("ipv6rd_Entry","PrefixLen","h")<> "" then tcwebApi_get("ipv6rd_Entry","PrefixLen","s") else asp_write("32") end if%>">
 										</td>
 									</tr>
 									<tr>
-										<th><%tcWebApi_get("String_Entry","6RDIPv4AddrText","s")%></th>
+										<th><%tcWebApi_get("String_Entry","6rdIPv4AddrText","s")%></th>
 										<td>
 											<INPUT TYPE="TEXT" name="CEipv4Addr" maxLength=20 class="input_20_table" value="<%If TcWebApi_get("ipv6rd_Entry","CEIPv4Addr","h") <> "" then TcWebApi_get("ipv6rd_Entry","CEIPv4Addr","s") else asp_Write("58.211.230.102") end if %>" >
 										</td>
 									</tr>
 									<tr>
-										<th><%tcWebApi_get("String_Entry","6RDIPv4MaskLengthText","s")%></th>
+										<th><%tcWebApi_get("String_Entry","6rdIPv4MaskLengthText","s")%></th>
 										<td>
 											<INPUT TYPE="TEXT" name="ipv4masklen" maxLength=3 class="input_3_table" value="<%If TcWebApi_get("ipv6rd_Entry","IPv4MaskLen","h") <> "" then TcWebApi_get("ipv6rd_Entry","IPv4MaskLen","s") else asp_Write("0") end if %>" >
 										</td>
 									</tr>
 									<tr>
-										<th><%tcWebApi_get("String_Entry","6RDBorderRelayIPv4AddrText","s")%></th>
+										<th><%tcWebApi_get("String_Entry","6rdBorderRelayIPv4AddrText","s")%></th>
 										<td>
 											<INPUT TYPE="TEXT" name="BRipv4Addr" maxLength=39 class="input_32_table" value="<%If TcWebApi_get("ipv6rd_Entry","BRIPv4Addr","h") <> "" then TcWebApi_get("ipv6rd_Entry","BRIPv4Addr","s") else asp_Write("69.252.80.66") end if %>" >
 										</td>
 									</tr>
 									<tr id="PrefixDelegation">
-										<th><%tcWebApi_get("String_Entry","6RDPrefixDelegationText","s")%></th>
+										<th><%tcWebApi_get("String_Entry","6rdPrefixDelegationText","s")%></th>
 										<td>
 											<%If TcWebApi_get("ipv6rd_Entry","6rdPD","h") <> "" Then TcWebApi_get("ipv6rd_Entry","6rdPD","s") else asp_Write("") end if%>
 										</td>

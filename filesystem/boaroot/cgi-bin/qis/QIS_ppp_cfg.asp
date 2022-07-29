@@ -40,8 +40,16 @@ else
 var encap_str = "LLC";
 if (encap_val == "vc") encap_str = "VC-Mux";
 
+var is_Custom = "<% tcWebApi_get("SysInfo_Entry", "Customer", "s") %>";
+
 function QKfinish_load_body(){
 	parent.document.title = "ASUS <%tcWebApi_get("String_Entry","Web_Title2","s")%> <% tcWebApi_staticGet("SysInfo_Entry","ProductTitle","s") %> - <%tcWebApi_get("String_Entry","QKS_all_title","s")%>";
+
+	if(is_Custom.toUpperCase() == "POL"){
+				document.form.dsltmp_cfg_pppoe_username.value = "<% tcWebApi_get("Wan_PVC0","USERNAME", "s") %>";
+				document.form.dsltmp_cfg_pppoe_passwd.value = "<% tcWebApi_get("Wan_PVC0","PASSWORD", "s") %>";
+	}	
+
 	//parent.set_step("t3");
 	if(detect_status == "pppoe")
 		document.form.dsltmp_cfg_prctl.value = "0";
@@ -174,7 +182,7 @@ function submitForm(){
 <%end if%>
 </table>
 <div class="apply_gen" style="margin-top:30px">
-<input type="button" id="prevButton" value="<% tcWebApi_Get("String_Entry", "Manual_Setting_btn", "s") %>" onclick="gotoprev(document.form);" class="button_gen" >
+<input type="button" id="prevButton" value="<% tcWebApi_Get("String_Entry", "Manual_Setting_btn", "s") %>" onclick="gotoprev(document.form);" class="button_gen_long" >
 <input type="button" id="nextButton" value="<% tcWebApi_Get("String_Entry", "btn_next", "s") %>" onclick="submitForm();" class="button_gen">
 </div>
 </div>

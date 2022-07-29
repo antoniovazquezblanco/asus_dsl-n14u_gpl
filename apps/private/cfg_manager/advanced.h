@@ -208,6 +208,9 @@
 
 #define DSLX_TESTLAB "dslx_testlab"
 
+#define MISC_ATTR_HWNAT "hwnat_enable"
+#define MISC_ATTR_TELNET "telnetd_enable"
+
 #define ADSL_NAME "Adsl"
 #define ADSL_ACTIVE "Active"
 #define SAR_OPEN_CMD "wan adsl open"

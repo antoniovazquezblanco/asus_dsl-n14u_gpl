@@ -48,6 +48,7 @@
 #include "tcapi_proc.h"
 #include "apps.h"
 #include "defaults.h"
+#include "vpn.h"
 
 #if VOIP
 #include "voip.h"
@@ -60,16 +61,18 @@
 
 #define MAX_TCAPI_TIME	10
 
-#ifdef TCSUPPORT_BB_NAND
+#if defined(TCSUPPORT_BB_NAND) || defined(TCSUPPORT_BOOTROM_LARGE_SIZE)
 #define MTD_DATA_AREA_OFFSET 0x0001ffa0L
 #define TCBOOT_MODEL_NAME_OFFSET 0x0001ff24L
 #define TCBOOT_CALIBRATION_FIRST_OFFSET 		0x0001fb00L
 #define TCBOOT_CALIBRATION_SECOND_OFFSET 		0x0001fd00L
+#define TCBOOT_BOOTLOADER_VERSION_OFFSET		0x0001FF9DL
 #else
 #define MTD_DATA_AREA_OFFSET 0x0000ffa0L
 #define TCBOOT_MODEL_NAME_OFFSET 0x0000ff24L
 #define TCBOOT_CALIBRATION_FIRST_OFFSET 		0x0000fb00L
 #define TCBOOT_CALIBRATION_SECOND_OFFSET 		0x0000fd00L
+#define TCBOOT_BOOTLOADER_VERSION_OFFSET		0x0000FF9DL
 #endif
 
 #define VSLN66U_WAN_NUM	4
@@ -506,5 +509,11 @@ typedef struct log_record_s{
 
 #define LOG_CRC_SNR_PERIOD 30
 #define LOG_MAX_ENTRY 6000
+
+#define WRITE_RUNNING_ROMFILE	0x0001
+#define WRITE_BACKUP_ROMFILE	0x0002
+#define WRITE_DEFAULT_ROMFILE	0x0004
+int write_cur_romfile_in_flash(mxml_node_t *node, const int write_type);
+int remove_dup_node_in_romfile(mxml_node_t *top);
 
 #endif

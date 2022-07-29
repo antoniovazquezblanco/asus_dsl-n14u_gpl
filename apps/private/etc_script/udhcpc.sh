@@ -32,7 +32,7 @@ LEASE_FILE="/tmp/udhcpc"$WAN_NUM".lease"
 
 if [ "$WAN_NUM" = "11" ]; then
 ISPCONF="/etc/isp""$WAN_NUM"".conf"
-elif [ "$TCSUPPORT_MULTISERVICE_ON_WAN" != "" -a $WAN_NUM -gt 7 ]; then
+elif [ "$TCSUPPORT_MULTISERVICE_ON_WAN" != "" -a $WAN_NUM -gt 7 -a $WAN_NUM -lt 11 ]; then
 ISPCONF="/etc/isp""$WAN_NUM""_0.conf"
 else
 ISPCONF=/etc/isp$WAN_NUM.conf
@@ -49,6 +49,18 @@ if [ -f $VPNC_CFG ] ; then
     . $VPNC_CFG
 fi
 
+DUALWAN_CFG=/etc/dualwan.conf
+if [ -f $DUALWAN_CFG ] ; then
+	. $DUALWAN_CFG
+else
+	DUALWAN_ENABLED=0
+fi
+if $( echo "$wans_dualwan" | grep -q 'none' )
+then
+	DUALWAN_ENABLED=0
+else
+	DUALWAN_ENABLED=1
+fi
 case "$1" in
 	deconfig)
 		#/sbin/ifconfig $interface down
@@ -59,11 +71,10 @@ case "$1" in
 
 	renew|bound)
 		/sbin/ifconfig $interface $ip $BROADCAST $NETMASK
-		/sbin/rcset System_Entry CurrentWANIP $ip
 		/sbin/rcset "Wanduck_Common" "wan"$WAN_NUM"_ipaddr" "$ip"
 		/sbin/rcset "Wanduck_Common" "wan"$WAN_NUM"_netmask" "$subnet"
 
-		if [ -n "$router" ] ; then
+		if [ -n "$router" -a -z "$DUALWAN_ENABLED" ] ; then
 			echo "deleting routers"
 			while /sbin/route del default gw 0.0.0.0 dev $interface ; do
 				:
@@ -97,54 +108,13 @@ case "$1" in
 		fi
 
 		# Set gateway info
-		[ -n "$router" ] && /sbin/rcset "Wan_PVC"$WAN_NUM "gateway_x" "$router"
 		[ -n "$router" ] && /sbin/rcset "Wanduck_Common" "wan"$WAN_NUM"_gateway" "$router"
 
 		# Set dns info
-		if [ "$DNS_type" != "1" ] ; then
-			[ -n "$dns" ] && /sbin/rcset "Wan_PVC"$WAN_NUM "dns_x" "$dns"
-			[ -n "$dns" ] && /sbin/rcset "Wanduck_Common" "wan"$WAN_NUM"_dns" "$dns"
-		fi
+		[ -n "$dns" ] && /sbin/rcset "Wanduck_Common" "wan"$WAN_NUM"_dns_rx" "$dns"
 
 		echo "[udhcpc.sh]DNS=$dns" > /dev/console
 		/sbin/wan_up $interface
-
-		# WAN_STATE_CONNECTED
-		#/userfs/bin/tcapi set "Wanduck_Common" "wan"$WAN_NUM"_state_t" "2" &
-		#/userfs/bin/tcapi set "Wanduck_Common" "wan"$WAN_NUM"_sbstate_t" "0" &
-		#/userfs/bin/tcapi set "Wanduck_Common" "wan"$WAN_NUM"_auxstate_t" "0" &
-
-		# restart firewall
-		#/userfs/bin/tcapi commit "Firewall" &
-
-		# restart QoS
-		#/userfs/bin/tcapi commit "QoS" &
-
-		# re-write routing table
-		#/userfs/bin/tcapi commit "Route" &
-
-		# restart ddns
-		#/userfs/bin/tcapi commit "Ddns" &
-
-		# check and start vpnc
-		#if [ "$auto_conn" = "1" ] ; then
-			#/userfs/bin/tcapi commit "VPNC" &
-			#Stop vpn client
-			#killall run_vpnc
-			#if [ -f /var/run/l2tpd-vpnc.pid ] ; then
-				#kill -15 `cat /var/run/l2tpd-vpnc.pid`
-				#sleep 1
-			#fi
-			#if [ -f /var/run/ppp20.pid ] ; then
-				#kill -15 `cat /var/run/ppp20.pid`
-				#sleep 2 
-				#if [ -f /var/run/ppp20.pid ] ; then
-					#kill -9 `cat /var/run/ppp20.pid`
-					#rm -f /var/run/ppp20.pid
-				#fi
-			#fi
-			#/sbin/run_vpnc &
-		#fi
 
 		;;
 esac

@@ -90,7 +90,8 @@ function ddns_load_body(){
 				document.getElementById("ddns_hostname_x").value = "<% tcWebApi_Get("String_Entry", "asusddns_inputhint", "s") %>";
 		}
 		change_ddns_setting(document.form.ddns_server_x.value);
-	}else{
+	}
+	else{
 		inputCtrl(document.form.ddns_server_x, 0);
 		document.getElementById('ddns_hostname_tr').style.display = "none";
 		inputCtrl(document.form.ddns_username_x, 0);

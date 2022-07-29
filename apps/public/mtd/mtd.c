@@ -993,7 +993,8 @@ main(int argc, char **argv)
 	}
 
 	sync();
-#if defined(TCSUPPORT_2_6_36_KERNEL)
+//#if defined(TCSUPPORT_2_6_36_KERNEL)
+#if defined(TCSUPORT_CLEAN_CACHE)
 	if (clean_cache == 1)
 		system("echo 1 > /proc/sys/vm/drop_caches");
 #endif

@@ -280,14 +280,14 @@ If request_Form("wanVCFlag") = "3" Then
 		tcWebApi_set("Dualwan_Entry", "wans_lanport", "wans_lanport")
 	end if
 
-	If should_wan_pvc_do_commit("DvInfo_PVC") = "1" Then
-		If request_Form("wanSaveFlag") = "1" Then
-			tcWebApi_CommitWithoutSave("Wan_PVC")
-			tcWebApi_CommitWithoutSave("Upnpd_Entry")
-		End If
 
-		tcWebApi_commit("Route")
-	End If	
+	If request_Form("wanSaveFlag") = "1" Then
+		tcWebApi_CommitWithoutSave("Wan_PVC")
+		tcWebApi_CommitWithoutSave("Upnpd_Entry")
+	End If
+
+	tcWebApi_commit("Route")
+
 ElseIf Request_Form("wanVCFlag")="1" Then
 	if request_Form("wanTransFlag") = "1" Then
 		tcWebApi_set("Wan_Common","TransMode","wan_TransMode")
@@ -321,16 +321,12 @@ ElseIf Request_Form("wanVCFlag")="2" Then
 		tcWebApi_set("Wan_PVC","ENCAP","DefaultWan_ENCAP")
 		tcWebApi_set("Wan_PVC","MLDproxy","DefaultWan_MLDproxy")
 	end if
-	If should_wan_pvc_do_commit("DvInfo_PVC") = "1" Then
-		tcWebApi_commit("Wan_PVC")
-	End If
+	tcWebApi_commit("Wan_PVC")
 End If
 
 If Request_Form("wanSaveFlag")="1" Then
-	If should_wan_pvc_do_commit("DvInfo_PVC")="1" Then
-		If should_dsl_do_commit()="1" Then
-			tcWebApi_commit("Adsl_Entry")
-		End If
+	If should_dsl_do_commit()="1" Then
+		tcWebApi_commit("Adsl_Entry")
 	End If
 End If
 
@@ -441,6 +437,7 @@ function showDSLWANList(){
 	}
 <%else%>
 <%if tcWebApi_get("WebCustom_Entry","isMultiSerSupported","h") = "Yes" then%>
+<%if tcWebApi_get("Wan_Common","TransMode","h") <> "LAN" then%>
 	if(config_num == 0){
 		addRow = document.getElementById('MultiServiceTable').insertRow(2);
 		cell[0] = addRow.insertCell(0);
@@ -503,6 +500,7 @@ function showDSLWANList(){
 			}
 		}
 	}
+<%end if%>
 <%end if%>
 <%end if%>
 }
@@ -616,16 +614,22 @@ function initial(){
 	<%else%>
 		showhide("ATMPVCTable", 0);
 		<%if tcWebApi_get("WebCustom_Entry","isMultiSerSupported","h") = "Yes" then%>
-			showhide("MultiServiceTable", 1);
-			showhide("SummaryTable", 1);
-			//remove bridge if service number is 0, lock to bridge if 1~7
-			if(document.form.service_num.selectedIndex == 0) {
+			<%if tcWebApi_get("Wan_Common","TransMode","h") = "LAN" then%>
+				showhide("MultiServiceTable", 0);
+				showhide("SummaryTable", 0);
 				document.form.wanTypeOption.remove(3);	//remove BRIDGE
-			}
-			else {
-				document.form.wanTypeOption.selectedIndex = 3;
-				showhide("wanTypeOption", 0);
-			}
+			<%else%>
+				showhide("MultiServiceTable", 1);
+				showhide("SummaryTable", 1);
+				//remove bridge if service number is 0, lock to bridge if 1~7
+				if(document.form.service_num.selectedIndex == 0) {
+					document.form.wanTypeOption.remove(3);	//remove BRIDGE
+				}
+				else {
+					document.form.wanTypeOption.selectedIndex = 3;
+					showhide("wanTypeOption", 0);
+				}
+			<%end if%>
 		<%else%>
 			showhide("SummaryTable", 0);
 			if(document.form.wan_TransMode.value == "Ethernet" || document.form.wan_TransMode.value == "LAN")
@@ -793,8 +797,8 @@ function applyRule(){
 			form.rmvlan.value = "1";
 <%end if%>
 
-		showLoading(8);
-		setTimeout("redirect();", 8000);
+		showLoading(13);
+		setTimeout("redirect();", 13000);
 		form.target = "hidden_frame";
 		form.submit();
 	}
@@ -1982,6 +1986,7 @@ function check_macaddr(obj,flag){ //control hint of input mac address
 						</tr>
 					<% end if %> <!--PTM-->
 					<%if tcWebApi_get("WebCustom_Entry","isMultiSerSupported","h") = "Yes" then%>
+					<%if tcWebApi_get("Wan_Common","TransMode","h") <> "LAN" then%>
 						<tr>
 							<th><%tcWebApi_get("String_Entry","service_unit","s")%></th>
 							<td align="left">
@@ -1997,6 +2002,7 @@ function check_macaddr(obj,flag){ //control hint of input mac address
 								</select>
 							</td>
 						</tr>
+					<% end if %> 
 					<% end if %> <!--isMultiSerSupported-->
 						<tr>
 							<th><%tcWebApi_get("String_Entry","WC11b_WirelessCtrl_button1name","s")%>?</th>

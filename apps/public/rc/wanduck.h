@@ -204,6 +204,7 @@ char current_lan_subnet[11];
 int current_wan_unit = WAN_UNIT_FIRST;
 int other_wan_unit = WAN_UNIT_SECOND;
 int current_state[WAN_UNIT_MAX];
+int wan_pool[] = {-1, -1, -1};
 
 char nvram_state[WAN_UNIT_MAX][16], nvram_sbstate[WAN_UNIT_MAX][16], nvram_auxstate[WAN_UNIT_MAX][17];
 

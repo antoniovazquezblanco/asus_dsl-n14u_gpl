@@ -92,91 +92,91 @@ int read_header(request * req)
 				if(!strcmp(str_lang, "en-us"))
 				{
 					tcapi_set("LanguageSwitch_Entry", "Type", "1");
-	      }
+				}
 				else if(!strcmp(str_lang, "ru-ru"))
 				{
 					tcapi_set("LanguageSwitch_Entry", "Type", "14");
-	      }
+				}
 				else if(!strcmp(str_lang, "fr-fr"))
 				{
 					tcapi_set("LanguageSwitch_Entry", "Type", "9");
-	      }
+				}
 				else if(!strcmp(str_lang, "de-at") || !strcmp(str_lang, "de-li") || !strcmp(str_lang, "de-lu") || !strcmp(str_lang, "de-de") || !strcmp(str_lang, "de-ch"))
 				{
 					tcapi_set("LanguageSwitch_Entry", "Type", "6");
-	      }
+				}
 				else if(!strcmp(str_lang, "cs-cz"))
 				{
 					tcapi_set("LanguageSwitch_Entry", "Type", "4");
-	      }
+				}
 				else if(!strcmp(str_lang, "pl-pl"))
 				{
 					tcapi_set("LanguageSwitch_Entry", "Type", "13");
-	      }
+				}
 				else if(!strcmp(str_lang, "zh-tw") || !strcmp(str_lang, "zh-hk") || !strcmp(str_lang, "zh-mo")) //Modify for Macau
 				{
 					tcapi_set("LanguageSwitch_Entry", "Type", "18");
-	      }
+				}
 				else if(!strcmp(str_lang, "zh-cn") || !strcmp(str_lang, "zh-sg")) //Modify for Singapore
 				{
 					tcapi_set("LanguageSwitch_Entry", "Type", "3");
-	      }
+				}
 				else if(!strcmp(str_lang, "ms-my") || !strcmp(str_lang, "ms-bn"))
 				{
 					tcapi_set("LanguageSwitch_Entry", "Type", "11");
-	      }
+				}
 				else if(!strcmp(str_lang, "th-th"))
 				{
 					tcapi_set("LanguageSwitch_Entry", "Type", "16");
-	      }
+				}
 				else if(!strcmp(str_lang, "tr-tr"))
 				{
 					tcapi_set("LanguageSwitch_Entry", "Type", "17");
-	      }
+				}
 				else if(!strcmp(str_lang, "da-dk"))
 				{
 					tcapi_set("LanguageSwitch_Entry", "Type", "5");
-	      }
+				}
 				else if(!strcmp(str_lang, "fi-fi"))
 				{
 					tcapi_set("LanguageSwitch_Entry", "Type", "8");
-	      }
+				}
 				else if(!strcmp(str_lang, "nb-no") || !strcmp(str_lang, "nn-no"))
 				{
 					tcapi_set("LanguageSwitch_Entry", "Type", "12");
-	      }
+				}
 				else if(!strcmp(str_lang, "sv-fi") || !strcmp(str_lang, "sv-se"))
 				{
 					tcapi_set("LanguageSwitch_Entry", "Type", "15");
-	      }
+				}
 				else if(!strcmp(str_lang, "pt-br"))
 				{
 					tcapi_set("LanguageSwitch_Entry", "Type", "2");
-	      }
+				}
 				else if(!strcmp(str_lang, "es-ec") || !strcmp(str_lang, "es-py") || !strcmp(str_lang, "es-pa") || !strcmp(str_lang, "es-ni") || !strcmp(str_lang, "es-gt"))
 				{
 					tcapi_set("LanguageSwitch_Entry", "Type", "7");
-	      }
+				}
 				else if(!strcmp(str_lang, "es-do") || !strcmp(str_lang, "es-es") || !strcmp(str_lang, "es-hn") || !strcmp(str_lang, "es-ve") || !strcmp(str_lang, "es-pr"))
 				{
 					tcapi_set("LanguageSwitch_Entry", "Type", "7");
-	      }
+				}
 				else if(!strcmp(str_lang, "es-ar") || !strcmp(str_lang, "es-bo") || !strcmp(str_lang, "es-us") || !strcmp(str_lang, "es-co") || !strcmp(str_lang, "es-cr"))
 				{
 					tcapi_set("LanguageSwitch_Entry", "Type", "7");
-	      }
+				}
 				else if(!strcmp(str_lang, "es-uy") || !strcmp(str_lang, "es-pe") || !strcmp(str_lang, "es-cl") || !strcmp(str_lang, "es-mx") || !strcmp(str_lang, "es-sv"))	
 				{
 					tcapi_set("LanguageSwitch_Entry", "Type", "7");
-	      }
+				}
 				else if(!strcmp(str_lang, "it-it") || !strcmp(str_lang, "it-ch"))
 				{
 					tcapi_set("LanguageSwitch_Entry", "Type", "10");
-	      }
+				}
 				else if(!strcmp(str_lang, "uk-ua")) /* Paul add 2013/12/4, for Ukrainian support*/
 				{
 					tcapi_set("LanguageSwitch_Entry", "Type", "19");
-	      }
+				}
 				else
 				{
 					/* Paul add 2013/12/10, for IE11 support */
@@ -185,78 +185,79 @@ int read_header(request * req)
 					if(!strcmp(str_lang, "en"))
 					{
 						tcapi_set("LanguageSwitch_Entry", "Type", "1");
-		      }
+					}
 					else if(!strcmp(str_lang, "ru"))
 					{
 						tcapi_set("LanguageSwitch_Entry", "Type", "14");
-		      }
+					}
 					else if(!strcmp(str_lang, "fr"))
 					{
 						tcapi_set("LanguageSwitch_Entry", "Type", "9");
-		      }
+					}
 					else if(!strcmp(str_lang, "de"))
 					{
 						tcapi_set("LanguageSwitch_Entry", "Type", "6");
-		      }
+					}
 					else if(!strcmp(str_lang, "cs"))
 					{
 						tcapi_set("LanguageSwitch_Entry", "Type", "4");
-		      }
+					}
 					else if(!strcmp(str_lang, "pl"))
 					{
 						tcapi_set("LanguageSwitch_Entry", "Type", "13");
-		      }
+					}
 					else if(!strcmp(str_lang, "ms"))
 					{
 						tcapi_set("LanguageSwitch_Entry", "Type", "11");
-		      }
+					}
 					else if(!strcmp(str_lang, "th"))
 					{
 						tcapi_set("LanguageSwitch_Entry", "Type", "16");
-		      }
+					}
 					else if(!strcmp(str_lang, "tr"))
 					{
 						tcapi_set("LanguageSwitch_Entry", "Type", "17");
-		      }
+					}
 					else if(!strcmp(str_lang, "da"))
 					{
 						tcapi_set("LanguageSwitch_Entry", "Type", "5");
-		      }
+					}
 					else if(!strcmp(str_lang, "fi"))
 					{
 						tcapi_set("LanguageSwitch_Entry", "Type", "8");
-		      }
+					}
 					else if(!strcmp(str_lang, "nb") || !strcmp(str_lang, "nn"))
 					{
 						tcapi_set("LanguageSwitch_Entry", "Type", "12");
-		      }
+					}
 					else if(!strcmp(str_lang, "sv"))
 					{
 						tcapi_set("LanguageSwitch_Entry", "Type", "15");
-		      }
+					}
 					else if(!strcmp(str_lang, "pt"))
 					{
 						tcapi_set("LanguageSwitch_Entry", "Type", "2");
-		      }
+					}
 					else if(!strcmp(str_lang, "es"))
 					{
 						tcapi_set("LanguageSwitch_Entry", "Type", "7");
-		      }
+					}
 					else if(!strcmp(str_lang, "it"))
 					{
 						tcapi_set("LanguageSwitch_Entry", "Type", "10");
-		      }
+					}
 					else if(!strcmp(str_lang, "uk"))
 					{
 						tcapi_set("LanguageSwitch_Entry", "Type", "19");
-		      }
+					}
 					else
 					{
 						tcapi_set("LanguageSwitch_Entry", "Type", "1");
-		      }
-	      }
+					}
+				}
 				tcapi_set("WebCurSet_Entry", "lang_detected", "1");
-	      tcapi_commit("LanguageSwitch_Entry");
+				initandparserfile();
+				tcapi_commit("LanguageSwitch_Entry");
 			}
 			/*else
 			{

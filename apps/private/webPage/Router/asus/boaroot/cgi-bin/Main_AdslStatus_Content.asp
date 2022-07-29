@@ -27,6 +27,7 @@ var adsl_timestamp = parseInt("<% tcWebApi_get("WebCurSet_Entry","dsl_uptime","s
 var sync_status_update = "<%tcWebApi_staticGet("Info_Adsl","lineState","s")%>";
 var adsl_timestamp_update = parseInt("<% tcWebApi_get("WebCurSet_Entry","dsl_uptime","s") %>");
 var adsl_boottime = boottime - adsl_timestamp;
+var dsl_type = "<% tcWebApi_get("Info_Adsl","AdslType","s") %>".replace("_", " ");
 var log_lineState;
 var log_Opmode;
 var log_AdslType;
@@ -90,12 +91,15 @@ function initial(){
 	show_menu();
 	load_body();
 	showadslbootTime();
+	document.getElementById("div_AdslType").innerHTML = dsl_type;
 	setTimeout("update_log();", 5000);
 } 
 
 function showadslbootTime(){
 	if(adsl_timestamp_update != "" && sync_status_update == "up")
 	{
+		if(adsl_boottime < 0)
+			dsl_boottime = boottime - adsl_timestamp_update;
 		Days = Math.floor(adsl_boottime / (60*60*24));
 		Hours = Math.floor((adsl_boottime / 3600) % 24);
 		Minutes = Math.floor(adsl_boottime % 3600 / 60);
@@ -182,7 +186,7 @@ function showadslbootTime(){
 <tr>
 <th width="20%"><%tcWebApi_get("String_Entry","dslsetting_disc2","s")%></th>
 <td>
-	<div id="div_AdslType"><% if tcWebApi_get("Info_Adsl","AdslType","h") <> "" then tcWebApi_get("Info_Adsl","AdslType","s") end if%></div>
+	<div id="div_AdslType"></div>
 </td>
 </tr>
 <tr>

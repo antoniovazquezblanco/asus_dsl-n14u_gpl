@@ -1,8 +1,3 @@
-<%
-if tcWebApi_Get("WebCurSet_Entry","lang_detected","h") = "1" then
-	tcWebApi_commit("LanguageSwitch_Entry")
-end if
-%>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <html xmlns:v>
@@ -153,7 +148,7 @@ function QIS_load_body(){
 
 function gotoIndex(){	
 	if(w_Setting_tmp == '0'){
-		alert('<%tcWebApi_get("String_Entry","QIS_recommand_encryption","s")%>');
+		alert("<%tcWebApi_get("String_Entry","QIS_recommand_encryption","s")%>");
 		with(document.redirectForm){
 			action = "qis/QIS_wireless.asp";
 			submit();

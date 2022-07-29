@@ -24,9 +24,6 @@ enum {
 	true	= 1
 };
 
-typedef unsigned char   bool;                   /* consistent w/BOOL */
-
-
 #ifdef RTCONFIG_PUSH_EMAIL
 //#define logmessage logmessage_push
 #define logmessage logmessage_normal	//tmp
@@ -221,6 +218,7 @@ enum {
 	MODEL_DSLN55UD1,
 	/* Paul add 2013/8/22 */
 	MODEL_DSLN10C1,
+	MODEL_DSLN10PC1,
 	MODEL_DSLN12EC1,
 	MODEL_DSLN12UC1,
 	MODEL_DSLN14U,
@@ -633,8 +631,14 @@ extern char* INET6_rresolve(struct sockaddr_in6 *sin6, int numeric);
 extern const char *ipv6_gateway_address(void);
 #endif
 #ifdef RTCONFIG_OPENVPN
-extern char *get_parsed_crt(const char *name, char *buf);
+#if defined(TCSUPPORT_ADD_JFFS)
+#define OVPN_FS_PATH	"/jffs/openvpn"
+#elif defined(TCSUPPORT_SQUASHFS_ADD_YAFFS)
+#define OVPN_FS_PATH	"/yaffs/openvpn"
+#endif
+extern char *get_parsed_crt(const char *name, char *buf, size_t buf_len);
 extern int set_crt_parsed(const char *name, char *file_path);
+extern int ovpn_crt_is_empty(const char *name);
 #endif
 
 /* mt7620.c */

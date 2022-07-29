@@ -592,7 +592,7 @@ create_rip_conf(mxml_node_t *tree);
 //#define WLAN_SCRIPT_PATH "/etc/Wireless/RT2860AP/WLAN_exec.sh"
 #define WLAN_MCS_SCRIPT_PATH "/etc/Wireless/RT2860AP/WLAN_mcs_exec.sh"
 
-//#define RESTART_BOA_SCRIPT "/usr/script/restart_boa.sh"
+#define RESTART_BOA_SCRIPT "/tmp/var/restart_boa.sh"	//Andy Chiu, 2015/06/15.
 #if defined(TCSUPPORT_WLAN_RT6856)
 #define WLAN_SCRIPT_PATH "/etc/Wireless/RT6856/WLAN_exec.sh"	//For RT-6856. Javier.20120813
 #define WLAN_SCRIPT_PREFIX "/userfs/bin/iwpriv ra0%d_0 set %s=%s\n"	//For RT-6856. Javier.20120813
@@ -748,6 +748,7 @@ int https_execute(mxml_node_t *top, char name[][MAX_NODE_NAME]);
 
 #ifdef RTCONFIG_DUALWAN
 int dualwan_init(void);
+int dualwan_boot(mxml_node_t *top);
 int dualwan_write(mxml_node_t *top, mxml_node_t *parant);
 int dualwan_execute(mxml_node_t *top, char name[][MAX_NODE_NAME]);
 #endif

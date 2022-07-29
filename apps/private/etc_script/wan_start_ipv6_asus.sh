@@ -5,7 +5,7 @@ if [ -f $PROFILE_CFG ] ; then
     . $PROFILE_CFG
 fi
 
-if [ $1 -lt 8 ]; then
+if [ $1 -lt 8 -o $1 -gt 10 ]; then
 	if [ "$TCSUPPORT_UNIQUEMAC" != "" ] ;then
 		if [ $# -gt 3 ] ; then
 			echo "usage: $0 [PVCn] [UniqueMac Flag] [Unique Mac]"
@@ -33,11 +33,17 @@ fi
 
 i=$1
 k=$1
-if [ "$i" = "8" ] || [ "$i" = "9" ] || [ "$i" = "10" ] || [ "$i" = "12" ]; then
+if [ "$i" = "8" ] || [ "$i" = "9" ] || [ "$i" = "10" ]; then
 	isPTMETHER=1
 else
 	isPTMETHER=0
-fi	
+fi
+if [ "$i" = "12" ]; then
+	isLAN_ETHERWAN=1
+else
+	isLAN_ETHERWAN=0
+fi
+	
 if [ "$TCSUPPORT_MULTISERVICE_ON_WAN" != "" ] && [ "$TCSUPPORT_WAN_PTM" != "" -o "$TCSUPPORT_WAN_ETHER" != "" ] ;then
 	if [ "$isPTMETHER" = "1" ] ; then
 		org_i=$i
@@ -78,19 +84,19 @@ fi
 
 # power up Ethernet Wan
 #this case means the model including Ethernet WAN.
-if [ "$TCSUPPORT_MTK_INTERNAL_ETHER_SWITCH" = "" -a "$i" = "10" ]; then
+#if [ "$TCSUPPORT_MTK_INTERNAL_ETHER_SWITCH" = "" -a "$i" = "10" ]; then
 	#rtkethcmd up wan
 	#sleep 2
-if [ "$TCSUPPORT_MT7530_EXTERNAL" != "" ] ; then
-	isEtherUp=`cat /proc/tc3162/eth1_link_st`
-else
+#if [ "$TCSUPPORT_MT7530_EXTERNAL" != "" ] ; then
+#	isEtherUp=`cat /proc/tc3162/eth1_link_st`
+#else
 	#this case means the model using RTK giga switch.
-	isEtherUp=`cat /proc/tc3162/eth_wan_link_st`
-fi
-	if [ "$isEtherUp" = "0" ]; then
-		exit 0
-	fi
-fi
+#	isEtherUp=`cat /proc/tc3162/eth_wan_link_st`
+#fi
+#	if [ "$isEtherUp" = "0" ]; then
+#		exit 0
+#	fi
+#fi
 
 if [ "$TCSUPPORT_MULTISERVICE_ON_WAN" != "" ] && [ "$TCSUPPORT_WAN_PTM" != "" -o "$TCSUPPORT_WAN_ETHER" != "" ] ;then
 	if [ "$isPTMETHER" = "1" ] ; then
@@ -138,6 +144,18 @@ if [ -f $VPNC_CFG ] ; then
     . $VPNC_CFG
 fi
 
+DUALWAN_CFG=/etc/dualwan.conf
+if [ -f $DUALWAN_CFG ] ; then
+	. $DUALWAN_CFG
+else
+	DUALWAN_ENABLED=0
+fi
+if $( echo "$wans_dualwan" | grep -q 'none' )
+then
+	DUALWAN_ENABLED=0
+else
+	DUALWAN_ENABLED=1
+fi
 if [ $ISP = "0" ] ; then
 
 	if [ "$TCSUPPORT_MULTISERVICE_ON_WAN" != "" ] && [ "$TCSUPPORT_WAN_PTM" != "" -o "$TCSUPPORT_WAN_ETHER" != "" ] && [ "$isPTMETHER" = "1" ]; then
@@ -181,21 +199,22 @@ if [ $ISP = "0" ] ; then
 
 	/sbin/ifconfig nas$i down
 
-if [ "$TCSUPPORT_UNIQUEMAC" != "" ] ;then
-	if [ "$UNIQUEMAC_FLAG" = "1" ]; then
-		/sbin/ifconfig nas$i hw ether $UNIQUE_MAC
+	if [ "$TCSUPPORT_UNIQUEMAC" != "" ] ;then
+		if [ "$UNIQUEMAC_FLAG" = "1" ]; then
+			/sbin/ifconfig nas$i hw ether $UNIQUE_MAC
+		else
+			if [ "$WAN_MAC" != "" ]; then
+				/sbin/ifconfig nas$i hw ether $WAN_MAC
+			fi
+		fi
 	else
-		if [ "$WAN_MAC" != "" ]; then
-		/sbin/ifconfig nas$i hw ether $WAN_MAC
+		if [ "$TCSUPPORT_MULTISERVICE_ON_WAN" = "" ] || [ "$TCSUPPORT_WAN_PTM" = "" -a "$TCSUPPORT_WAN_ETHER" = "" ] || [ "$isPTMETHER" != "1" ] ;then
+			if [ "$WAN_MAC" != "" ]; then
+				/sbin/ifconfig nas$i hw ether $WAN_MAC
+			fi
 		fi
 	fi
-else
-	if [ "$TCSUPPORT_MULTISERVICE_ON_WAN" = "" ] || [ "$TCSUPPORT_WAN_PTM" = "" -a "$TCSUPPORT_WAN_ETHER" = "" ] || [ "$isPTMETHER" != "1" ] ;then
-		if [ "$WAN_MAC" != "" ]; then
-			 /sbin/ifconfig nas$i hw ether $WAN_MAC
-		fi
-	fi
-fi
+
 	if [ "$IPVERSION" != "IPv4" ] && [ "$EnableDynIPv6" = "0" ]; then
 		echo 1 > /proc/sys/net/ipv6/conf/nas$i/autoconf
 		if [ "$TCSUPPORT_IPV6_PRIVACYADDRS" != "" ] ;then
@@ -220,72 +239,72 @@ fi
 		if [ "$DHCP_clientid" != "" ] ; then
 			UDHCPC_PARAM="$UDHCPC_PARAM -c $DHCP_clientid"
 		fi
-	if [ "$TCSUPPORT_UNIQUEMAC" != "" ] ;then
-		if [ "$UNIQUEMAC_FLAG" = "1" ]; then
-			if [ "$DEFAULTROUTE" = "Yes" ] ; then
-				#/sbin/udhcpc -i nas$i -s /sbin/udhcpc_wan -p /var/run/udhcpc-nas$i.pid -m $UNIQUE_MAC $UDHCPC_PARAM &
-				/sbin/udhcpc -i nas$i -s /usr/script/udhcpc.sh -p /var/run/udhcpc-nas$i.pid -m $UNIQUE_MAC $UDHCPC_PARAM &
-			else
-				/sbin/udhcpc -i nas$i -s /usr/script/udhcpc_nodef.sh -p /var/run/udhcpc-nas$i.pid -m $UNIQUE_MAC $UDHCPC_PARAM &
-			fi
-		else	
-			if [ "$WAN_MAC" != "" ]; then
+		if [ "$TCSUPPORT_UNIQUEMAC" != "" ] ;then
+			if [ "$UNIQUEMAC_FLAG" = "1" ]; then
 				if [ "$DEFAULTROUTE" = "Yes" ] ; then
-					#/sbin/udhcpc -i nas$i -s /sbin/udhcpc_wan -p /var/run/udhcpc-nas$i.pid -m $WAN_MAC $UDHCPC_PARAM &
-					/sbin/udhcpc -i nas$i -s /usr/script/udhcpc.sh -p /var/run/udhcpc-nas$i.pid -m $WAN_MAC $UDHCPC_PARAM &
+					#/sbin/udhcpc -i nas$i -s /sbin/udhcpc_wan -p /var/run/udhcpc-nas$i.pid -m $UNIQUE_MAC $UDHCPC_PARAM &
+					/sbin/udhcpc -i nas$i -s /usr/script/udhcpc.sh -p /var/run/udhcpc-nas$i.pid -m $UNIQUE_MAC $UDHCPC_PARAM &
 				else
-					/sbin/udhcpc -i nas$i -s /usr/script/udhcpc_nodef.sh -p /var/run/udhcpc-nas$i.pid -m $WAN_MAC $UDHCPC_PARAM &
+					/sbin/udhcpc -i nas$i -s /usr/script/udhcpc_nodef.sh -p /var/run/udhcpc-nas$i.pid -m $UNIQUE_MAC $UDHCPC_PARAM &
+				fi
+			else	
+				if [ "$WAN_MAC" != "" ]; then
+					if [ "$DEFAULTROUTE" = "Yes" ] ; then
+						#/sbin/udhcpc -i nas$i -s /sbin/udhcpc_wan -p /var/run/udhcpc-nas$i.pid -m $WAN_MAC $UDHCPC_PARAM &
+						/sbin/udhcpc -i nas$i -s /usr/script/udhcpc.sh -p /var/run/udhcpc-nas$i.pid -m $WAN_MAC $UDHCPC_PARAM &
+					else
+						/sbin/udhcpc -i nas$i -s /usr/script/udhcpc_nodef.sh -p /var/run/udhcpc-nas$i.pid -m $WAN_MAC $UDHCPC_PARAM &
+					fi
+				fi
+			fi
+		else
+			if [ "$TCSUPPORT_WPA_SUPPLICANT" = "" ] || [ "$IPOE_DOT1X_STATUS" != "Enable" ];then
+				if [ "$WAN_MAC" != "" ]; then
+					if [ "$DEFAULTROUTE" = "Yes" ] ; then
+						#/sbin/udhcpc -i nas$i -s /sbin/udhcpc_wan -p /var/run/udhcpc-nas$i.pid -m $WAN_MAC $UDHCPC_PARAM &
+						/sbin/udhcpc -i nas$i -s /usr/script/udhcpc.sh -p /var/run/udhcpc-nas$i.pid -m $WAN_MAC $UDHCPC_PARAM &
+					else
+						/sbin/udhcpc -i nas$i -s /usr/script/udhcpc_nodef.sh -p /var/run/udhcpc-nas$i.pid -m $WAN_MAC $UDHCPC_PARAM &
+					fi
 				fi
 			fi
 		fi
-	else
-		if [ "$TCSUPPORT_WPA_SUPPLICANT" = "" ] || [ "$IPOE_DOT1X_STATUS" != "Enable" ];then
-			if [ "$WAN_MAC" != "" ]; then
-				if [ "$DEFAULTROUTE" = "Yes" ] ; then
-					#/sbin/udhcpc -i nas$i -s /sbin/udhcpc_wan -p /var/run/udhcpc-nas$i.pid -m $WAN_MAC $UDHCPC_PARAM &
-					/sbin/udhcpc -i nas$i -s /usr/script/udhcpc.sh -p /var/run/udhcpc-nas$i.pid -m $WAN_MAC $UDHCPC_PARAM &
-				else
-					/sbin/udhcpc -i nas$i -s /usr/script/udhcpc_nodef.sh -p /var/run/udhcpc-nas$i.pid -m $WAN_MAC $UDHCPC_PARAM &
-				fi
-			fi
-		fi
-	fi
 
-	# Set dns info
-	if [ "$DNS_type" = "1" ] ; then
-		if [ "$TCSUPPORT_MULTISERVICE_ON_WAN" != "" ] && [ "$TCSUPPORT_WAN_PTM" != "" -o "$TCSUPPORT_WAN_ETHER" != "" ] ;then
-			if [ "$isPTMETHER" = "1" ] ; then
-				if [ "$serv_num" = "0" ]; then
-					/userfs/bin/tcapi set "WanExt_PVC"$org_i"e"$serv_num "dns_x" "$Primary_DNS $Secondary_DNS" &
-					/userfs/bin/tcapi set "Wanduck_Common" "wan"$org_i"_dns" "$Primary_DNS $Secondary_DNS" &
+		# Set dns info
+		if [ "$DNS_type" = "1" ] ; then
+			if [ "$TCSUPPORT_MULTISERVICE_ON_WAN" != "" ] && [ "$TCSUPPORT_WAN_PTM" != "" -o "$TCSUPPORT_WAN_ETHER" != "" ] ;then
+				if [ "$isPTMETHER" = "1" ] ; then
+					if [ "$serv_num" = "0" ]; then
+						/userfs/bin/tcapi set "WanExt_PVC"$org_i"e"$serv_num "dns_x" "$Primary_DNS $Secondary_DNS" &
+						/userfs/bin/tcapi set "Wanduck_Common" "wan"$org_i"_dns" "$Primary_DNS $Secondary_DNS" &
+					fi
+				else
+					/userfs/bin/tcapi set "Wan_PVC"$i "dns_x" "$Primary_DNS $Secondary_DNS" &
+					/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_dns" "$Primary_DNS $Secondary_DNS" &
 				fi
 			else
 				/userfs/bin/tcapi set "Wan_PVC"$i "dns_x" "$Primary_DNS $Secondary_DNS" &
 				/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_dns" "$Primary_DNS $Secondary_DNS" &
 			fi
-		else
-			/userfs/bin/tcapi set "Wan_PVC"$i "dns_x" "$Primary_DNS $Secondary_DNS" &
-			/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_dns" "$Primary_DNS $Secondary_DNS" &
 		fi
-	fi
 
-	# if [ "$NATENABLE" = "Enable" ] ; then
-		# iptables -t nat -A POSTROUTING -j ADDRMAP_POS$i
-	# if [ "$TCSUPPORT_MULTI_NAT" != "" ] ;then
-		# iptables -t nat -A ADDRMAP_POS -j ADDRMAP_POS$i
-	# fi	
-		# iptables -t nat -A POSTROUTING -o nas$i -j MASQUERADE
-		# iptables -t nat -A PREROUTING -j VS_PRE$i
-		# iptables -t nat -A PREROUTING -j DMZ_PRE$i
-		# iptables -t nat -A PREROUTING -j ADDRMAP_PRE$i
-	# if [ "$TCSUPPORT_MULTI_NAT" != "" ] ;then
-		# iptables -t filter -A ADDRMAP_FORWARD -j ADDRMAP_FORWARD$i	
-	# fi
-# if [ "$TCSUPPORT_PORT_TRIGGER" != "" ] ;then
-		# iptables -t nat -A PREROUTING -i nas$i -j PREROUTING_WAN
-		# iptables -t filter -A FORWARD -i nas$i -j FORWARD_WAN
-# fi
-	# fi
+		# if [ "$NATENABLE" = "Enable" ] ; then
+			# iptables -t nat -A POSTROUTING -j ADDRMAP_POS$i
+			# if [ "$TCSUPPORT_MULTI_NAT" != "" ] ;then
+				# iptables -t nat -A ADDRMAP_POS -j ADDRMAP_POS$i
+			# fi	
+			# iptables -t nat -A POSTROUTING -o nas$i -j MASQUERADE
+			# iptables -t nat -A PREROUTING -j VS_PRE$i
+			# iptables -t nat -A PREROUTING -j DMZ_PRE$i
+			# iptables -t nat -A PREROUTING -j ADDRMAP_PRE$i
+			# if [ "$TCSUPPORT_MULTI_NAT" != "" ] ;then
+				# iptables -t filter -A ADDRMAP_FORWARD -j ADDRMAP_FORWARD$i	
+			# fi
+			# if [ "$TCSUPPORT_PORT_TRIGGER" != "" ] ;then
+				# iptables -t nat -A PREROUTING -i nas$i -j PREROUTING_WAN
+				# iptables -t filter -A FORWARD -i nas$i -j FORWARD_WAN
+			# fi
+		# fi
 	fi
 	WAN_IF=nas$i
 
@@ -318,12 +337,12 @@ elif [ $ISP = "1" ] ; then
 	fi
 	
 	if [ "$TCSUPPORT_WAN_ATM" != "" -o "$TCSUPPORT_WAN_PTM" != "" -o "$TCSUPPORT_WAN_ETHER" != "" ]; then
-	#ATM only
-	if [ "$isPTMETHER" = "0" ] ; then
-		br2684ctl -c $i $ENCAP_T -t $QOS $PCR_V -a 0.$VPI.$VCI &
-		echo $! > /var/run/nas$i.pid
-		sleep 1
-	fi
+		#ATM only
+		if [ "$isPTMETHER" = "0" ] ; then
+			br2684ctl -c $i $ENCAP_T -t $QOS $PCR_V -a 0.$VPI.$VCI &
+			echo $! > /var/run/nas$i.pid
+			sleep 1
+		fi
 	else
 		br2684ctl -c $i $ENCAP_T -t $QOS $PCR_V -a 0.$VPI.$VCI &
 		echo $! > /var/run/nas$i.pid
@@ -332,27 +351,25 @@ elif [ $ISP = "1" ] ; then
 
 	/sbin/ifconfig nas$i down
 
-if [ "$TCSUPPORT_UNIQUEMAC" != "" ] ;then
-	if [ "$UNIQUEMAC_FLAG" = "1" ]; then
-		/sbin/ifconfig nas$i hw ether $UNIQUE_MAC
-	else	
-		if [ "$WAN_MAC" != "" ]; then
-		/sbin/ifconfig nas$i hw ether $WAN_MAC
+	if [ "$TCSUPPORT_UNIQUEMAC" != "" ] ;then
+		if [ "$UNIQUEMAC_FLAG" = "1" ]; then
+			/sbin/ifconfig nas$i hw ether $UNIQUE_MAC
+		else	
+			if [ "$WAN_MAC" != "" ]; then
+				/sbin/ifconfig nas$i hw ether $WAN_MAC
+			fi
 		fi
+	else
+		if [ "$TCSUPPORT_MULTISERVICE_ON_WAN" = "" ] || [ "$TCSUPPORT_WAN_PTM" = "" -a "$TCSUPPORT_WAN_ETHER" = "" ] || [ "$isPTMETHER" != "1" ] ;then
+			if [ "$WAN_MAC" != "" ]; then
+				/sbin/ifconfig nas$i hw ether $WAN_MAC
+			fi
+		fi	
 	fi
-else
-	if [ "$TCSUPPORT_MULTISERVICE_ON_WAN" = "" ] || [ "$TCSUPPORT_WAN_PTM" = "" -a "$TCSUPPORT_WAN_ETHER" = "" ] || [ "$isPTMETHER" != "1" ] ;then
-		if [ "$WAN_MAC" != "" ]; then
-			 /sbin/ifconfig nas$i hw ether $WAN_MAC
-		fi
-	fi	
-fi
-#	/sbin/ifconfig nas$i $IPADDR netmask $NETMASK up
-#	/sbin/ifconfig nas$i $IPADDR6/$PREFIX6
-#	echo -e "server=$DNSIPv61st@nas$i\\nserver=$DNSIPv62nd@nas$i">>/etc/dnsmasq.conf
-
-	
-#	echo -e "nameserver $DNSIPv61st\\nnameserver $DNSIPv62nd">/var/run/dhcp6c-nas$i.info
+	#	/sbin/ifconfig nas$i $IPADDR netmask $NETMASK up
+	#	/sbin/ifconfig nas$i $IPADDR6/$PREFIX6
+	#	echo -e "server=$DNSIPv61st@nas$i\\nserver=$DNSIPv62nd@nas$i">>/etc/dnsmasq.conf
+	#	echo -e "nameserver $DNSIPv61st\\nnameserver $DNSIPv62nd">/var/run/dhcp6c-nas$i.info
 
 	if [ "$MTU" = "0" ] || [ "$MTU" = "" ] ; then
 		/sbin/ifconfig nas$i mtu 1500
@@ -364,14 +381,13 @@ fi
 	/sbin/ifconfig nas$i up
 	if [ "$IPVERSION" != "IPv6" ] ; then	
 		/sbin/ifconfig nas$i $IPADDR netmask $NETMASK
-		/userfs/bin/tcapi set System_Entry CurrentWANIP $IPADDR &
 	fi
 	if [ "$IPVERSION" != "IPv4" ] ; then
 		/sbin/ifconfig nas$i $IPADDR6/$PREFIX6
 		echo -e "nameserver $DNSIPv61st\\nnameserver $DNSIPv62nd">/var/run/dhcp6c-nas$i.info
 	fi
 
-	if [ "$DEFAULTROUTE" = "Yes" ] ; then
+	if [ "$DEFAULTROUTE" = "Yes"  -a -z "$DUALWAN_ENABLED" ] ; then
 		if [ "$IPVERSION" != "IPv6" ] ; then
 			route add default gw $GATEWAY dev nas$i
 		fi
@@ -382,27 +398,27 @@ fi
 		fi
 		#/sbin/route -A inet6 add $IPADDR6/$PREFIX6 gw $DEFGATEWAY6 dev $WAN_IF
 		#echo -e "server=$DNSIPv61st@nas$i\\nserver=$DNSIPv62nd@nas$i">>/etc/dnsmasq.conf
-	# route add default gw 
+		# route add default gw 
 	fi
 
 	# if [ "$IPVERSION" != "IPv6" ] ; then
-	# if [ "$NATENABLE" = "Enable" ] ; then
-		# iptables -t nat -A POSTROUTING -j ADDRMAP_POS$i
-	# if [ "$TCSUPPORT_MULTI_NAT" != "" ] ;then	
-		# iptables -t nat -A ADDRMAP_POS -j ADDRMAP_POS$i
-	# fi
-		# iptables -t nat -A POSTROUTING -o nas$i -j MASQUERADE
-		# iptables -t nat -A PREROUTING -j VS_PRE$i
-		# iptables -t nat -A PREROUTING -j DMZ_PRE$i
-		# iptables -t nat -A PREROUTING -j ADDRMAP_PRE$i
-	# if [ "$TCSUPPORT_MULTI_NAT" != "" ] ;then	
-		# iptables -t filter -A ADDRMAP_FORWARD -j ADDRMAP_FORWARD$i	
-	# fi
-# if [ "$TCSUPPORT_PORT_TRIGGER" != "" ] ;then
-		# iptables -t nat -A PREROUTING -i nas$i -j PREROUTING_WAN
-		# iptables -t filter -A FORWARD -i nas$i -j FORWARD_WAN
-# fi
-	# fi
+		# if [ "$NATENABLE" = "Enable" ] ; then
+			# iptables -t nat -A POSTROUTING -j ADDRMAP_POS$i
+			# if [ "$TCSUPPORT_MULTI_NAT" != "" ] ;then	
+				# iptables -t nat -A ADDRMAP_POS -j ADDRMAP_POS$i
+			# fi
+			# iptables -t nat -A POSTROUTING -o nas$i -j MASQUERADE
+			# iptables -t nat -A PREROUTING -j VS_PRE$i
+			# iptables -t nat -A PREROUTING -j DMZ_PRE$i
+			# iptables -t nat -A PREROUTING -j ADDRMAP_PRE$i
+			# if [ "$TCSUPPORT_MULTI_NAT" != "" ] ;then	
+				# iptables -t filter -A ADDRMAP_FORWARD -j ADDRMAP_FORWARD$i	
+			# fi
+			# if [ "$TCSUPPORT_PORT_TRIGGER" != "" ] ;then
+				# iptables -t nat -A PREROUTING -i nas$i -j PREROUTING_WAN
+				# iptables -t filter -A FORWARD -i nas$i -j FORWARD_WAN
+			# fi
+		# fi
 	# fi
 	WAN_IF=nas$i
 	
@@ -417,10 +433,8 @@ fi
 				/userfs/bin/tcapi set "Wanduck_Common" "wan"$org_i"_ipaddr" "$IPADDR" &
 				/userfs/bin/tcapi set "Wanduck_Common" "wan"$org_i"_netmask" "$NETMASK" &
 				# Set gateway info
-				/userfs/bin/tcapi set "WanExt_PVC"$org_i"e"$serv_num "gateway_x" "$GATEWAY" &
 				/userfs/bin/tcapi set "Wanduck_Common" "wan"$org_i"_gateway" "$GATEWAY" &
 				# Set dns info
-				/userfs/bin/tcapi set "WanExt_PVC"$org_i"e"$serv_num "dns_x" "$Primary_DNS $Secondary_DNS" &
 				/userfs/bin/tcapi set "Wanduck_Common" "wan"$org_i"_dns" "$Primary_DNS $Secondary_DNS" &
 			fi
 		else
@@ -432,10 +446,8 @@ fi
 			/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_ipaddr" "$IPADDR" &
 			/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_netmask" "$NETMASK" &
 			# Set gateway info
-			/userfs/bin/tcapi set "Wan_PVC"$i "gateway_x" "$GATEWAY" &
 			/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_gateway" "$GATEWAY" &
 			# Set dns info
-			/userfs/bin/tcapi set "Wan_PVC"$i "dns_x" "$Primary_DNS $Secondary_DNS" &
 			/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_dns" "$Primary_DNS $Secondary_DNS" &
 		fi
 	else
@@ -447,10 +459,8 @@ fi
 		/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_ipaddr" "$IPADDR" &
 		/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_netmask" "$NETMASK" &
 		# Set gateway info
-		/userfs/bin/tcapi set "Wan_PVC"$i "gateway_x" "$GATEWAY" &
 		/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_gateway" "$GATEWAY" &
 		# Set dns info
-		/userfs/bin/tcapi set "Wan_PVC"$i "dns_x" "$Primary_DNS $Secondary_DNS" &
 		/userfs/bin/tcapi set "Wanduck_Common" "wan"$i"_dns" "$Primary_DNS $Secondary_DNS" &
 	fi
 
@@ -499,130 +509,138 @@ elif [ $ISP = "2" ] ; then
 			PPP_PARAM="unit $i user $USERNAME password $PASSWORD nodetach holdoff 4 maxfail 0 usepeerdns lcp-echo-interval 10 lcp-echo-failure 60"
 		else
 			if [ "$TCSUPPORT_MULTISERVICE_ON_WAN" != "" ] && [ "$TCSUPPORT_WAN_PTM" != "" -o "$TCSUPPORT_WAN_ETHER" != "" ] && [ "$isPTMETHER" = "1" ]; then
-			PPP_PARAM="unit "$org_i""$serv_num" user $USERNAME password $PASSWORD nodetach holdoff 4 maxfail 0 usepeerdns lcp-echo-interval 6 lcp-echo-failure 10"
+				PPP_PARAM="unit "$org_i""$serv_num" user $USERNAME password $PASSWORD nodetach holdoff 4 maxfail 0 usepeerdns lcp-echo-interval 6 lcp-echo-failure 10"
 			else
-			PPP_PARAM="unit $i user $USERNAME password $PASSWORD nodetach holdoff 4 maxfail 0 usepeerdns lcp-echo-interval 6 lcp-echo-failure 10"
+				PPP_PARAM="unit $i user $USERNAME password $PASSWORD nodetach holdoff 4 maxfail 0 usepeerdns lcp-echo-interval 6 lcp-echo-failure 10"
 			fi
-	fi 
-	if [ "$TCSUPPORT_WAN_ATM" != "" -o "$TCSUPPORT_WAN_PTM" != "" -o "$TCSUPPORT_WAN_ETHER" != "" ]; then
-		if [ "$isPTMETHER" = "1" ] ; then
-			PPP_PARAM="$PPP_PARAM plugin libpppoe.so nas$i"
+		fi
+
+		PPP_PARAM="$PPP_PARAM novj"
+
+		if [ "$TCSUPPORT_WAN_ATM" != "" -o "$TCSUPPORT_WAN_PTM" != "" -o "$TCSUPPORT_WAN_ETHER" != "" ]; then
+			if [ "$isPTMETHER" = "1" -o "$isLAN_ETHERWAN" = "1" ] ; then
+				PPP_PARAM="$PPP_PARAM plugin libpppoe.so nas$i"
+				if [ "$SRVNAME" != "" ] ; then
+					PPP_PARAM="$PPP_PARAM rp_pppoe_service $SRVNAME" 
+				fi 
+				ENCAP=""
+			fi
+		fi
+
+		if [ "$ENCAP" = "PPPoE LLC" ] || [ "$ENCAP" = "PPPoE VC-Mux" ] ; then
+			PPP_PARAM="$PPP_PARAM plugin libpppoe.so" 
 			if [ "$SRVNAME" != "" ] ; then
 				PPP_PARAM="$PPP_PARAM rp_pppoe_service $SRVNAME" 
-			fi 
-			ENCAP=""
+			fi
+			PPP_PARAM="$PPP_PARAM nas$i" 
+		elif [ "$ENCAP" = "PPPoA LLC" ] ; then
+			PPP_PARAM="$PPP_PARAM plugin libpppoatm.so llc-encaps $VPI.$VCI"
+		elif [ "$ENCAP" = "PPPoA VC-Mux" ] ; then
+			PPP_PARAM="$PPP_PARAM plugin libpppoatm.so vc-encaps $VPI.$VCI"
 		fi
-	fi
 
-    if [ "$ENCAP" = "PPPoE LLC" ] || [ "$ENCAP" = "PPPoE VC-Mux" ] ; then
-	PPP_PARAM="$PPP_PARAM plugin libpppoe.so" 
-	if [ "$SRVNAME" != "" ] ; then
-		PPP_PARAM="$PPP_PARAM rp_pppoe_service $SRVNAME" 
-	fi
-	PPP_PARAM="$PPP_PARAM nas$i" 
-    elif [ "$ENCAP" = "PPPoA LLC" ] ; then
-	PPP_PARAM="$PPP_PARAM plugin libpppoatm.so llc-encaps $VPI.$VCI"
-    elif [ "$ENCAP" = "PPPoA VC-Mux" ] ; then
-	PPP_PARAM="$PPP_PARAM plugin libpppoatm.so vc-encaps $VPI.$VCI"
-    fi
+		/sbin/ifconfig nas$i down
 
-	/sbin/ifconfig nas$i down
+		if [ "$TCSUPPORT_WAN_ATM" != "" -o "$TCSUPPORT_WAN_PTM" != "" -o "$TCSUPPORT_WAN_ETHER" != "" ]; then
+			if [ "$isPTMETHER" = "1" -o "$isLAN_ETHERWAN" = "1" ] ; then
+				if [ "$AUTHEN" = "CHAP" ] ; then
+					PPP_PARAM="$PPP_PARAM -pap"
+				elif [ "$AUTHEN" = "PAP" ] ; then
+					PPP_PARAM="$PPP_PARAM -chap -mschap -mschap-v2"
+				fi
 
-	if [ "$TCSUPPORT_WAN_ATM" != "" -o "$TCSUPPORT_WAN_PTM" != "" -o "$TCSUPPORT_WAN_ETHER" != "" ]; then
-		if [ "$isPTMETHER" = "1" ] ; then
+				if [ "$TCSUPPORT_UNIQUEMAC" != "" ] ;then
+					if [ "$UNIQUEMAC_FLAG" = "1" ]; then
+						/sbin/ifconfig nas$i hw ether $UNIQUE_MAC
+					else	
+						if [ "$WAN_MAC" != "" ]; then
+							/sbin/ifconfig nas$i hw ether $WAN_MAC
+						fi
+					fi
+				else
+					if [ "$TCSUPPORT_MULTISERVICE_ON_WAN" = "" ] || [ "$TCSUPPORT_WAN_PTM" = "" -a "$TCSUPPORT_WAN_ETHER" = "" ] || [ "$isPTMETHER" != "1" ] ;then
+						if [ "$WAN_MAC" != "" ]; then
+			 				/sbin/ifconfig nas$i hw ether $WAN_MAC
+						fi
+					fi	
+				fi
+
+				/sbin/ifconfig nas$i 0.0.0.0
+				ENCAP=""
+				AUTHEN=""	
+			fi
+		fi
+
+		# PPPoE
+		if [ "$ENCAP" = "PPPoE LLC" ] || [ "$ENCAP" = "PPPoE VC-Mux" ] ; then
 			if [ "$AUTHEN" = "CHAP" ] ; then
 				PPP_PARAM="$PPP_PARAM -pap"
 			elif [ "$AUTHEN" = "PAP" ] ; then
 				PPP_PARAM="$PPP_PARAM -chap -mschap -mschap-v2"
 			fi
-if [ "$TCSUPPORT_UNIQUEMAC" != "" ] ;then
-	if [ "$UNIQUEMAC_FLAG" = "1" ]; then
-		/sbin/ifconfig nas$i hw ether $UNIQUE_MAC
-	else	
-		if [ "$WAN_MAC" != "" ]; then
-		/sbin/ifconfig nas$i hw ether $WAN_MAC
-		fi
-	fi
-else
-	if [ "$TCSUPPORT_MULTISERVICE_ON_WAN" = "" ] || [ "$TCSUPPORT_WAN_PTM" = "" -a "$TCSUPPORT_WAN_ETHER" = "" ] || [ "$isPTMETHER" != "1" ] ;then
-		if [ "$WAN_MAC" != "" ]; then
-			 /sbin/ifconfig nas$i hw ether $WAN_MAC
-		fi
-	fi	
-fi
+
+			if [ "$QOS" = "ubr" ] ; then
+				PCR_V="-p $PCR"
+			elif [ "$QOS" = "cbr" ] || [ "$QOS" = "rt-vbr" ] || [ "$QOS" = "nrt-vbr" ] ; then
+				PCR_V="-p $PCR -q $SCR -m $MBS"
+			fi
+
+			if [ "$ENCAP" = "PPPoE LLC" ] ; then
+				ENCAP_T="-e 0"
+    			elif [ "$ENCAP" = "PPPoE VC-Mux" ] ; then
+				ENCAP_T="-e 1"
+			fi
+
+			br2684ctl -c $i $ENCAP_T -t $QOS $PCR_V -a 0.$VPI.$VCI &
+			echo $! > /var/run/nas$i.pid
+			sleep 1
+
+			if [ "$TCSUPPORT_UNIQUEMAC" != "" ] ;then
+				if [ "$UNIQUEMAC_FLAG" = "1" ]; then
+					/sbin/ifconfig nas$i hw ether $UNIQUE_MAC
+				else	
+					if [ "$WAN_MAC" != "" ]; then
+						/sbin/ifconfig nas$i hw ether $WAN_MAC
+					fi
+				fi
+			else
+				if [ "$TCSUPPORT_MULTISERVICE_ON_WAN" = "" ] || [ "$TCSUPPORT_WAN_PTM" = "" -a "$TCSUPPORT_WAN_ETHER" = "" ] || [ "$isPTMETHER" != "1" ] ;then
+					if [ "$WAN_MAC" != "" ]; then
+			 			/sbin/ifconfig nas$i hw ether $WAN_MAC
+					fi
+				fi	
+			fi
 			/sbin/ifconfig nas$i 0.0.0.0
-			ENCAP=""
-			AUTHEN=""	
-		fi
-	fi
 
-    # PPPoE
-    if [ "$ENCAP" = "PPPoE LLC" ] || [ "$ENCAP" = "PPPoE VC-Mux" ] ; then
-	if [ "$AUTHEN" = "CHAP" ] ; then
-		PPP_PARAM="$PPP_PARAM -pap"
-	elif [ "$AUTHEN" = "PAP" ] ; then
-		PPP_PARAM="$PPP_PARAM -chap -mschap -mschap-v2"
-	fi
+			# PPPoA
+		else
+			if [ "$AUTHEN" = "CHAP" ] ; then
+				PPP_PARAM="$PPP_PARAM -pap"
+			elif [ "$AUTHEN" = "PAP" ] ; then
+				PPP_PARAM="$PPP_PARAM -chap -mschap -mschap-v2"
+			fi
 
-	if [ "$QOS" = "ubr" ] ; then
-		PCR_V="-p $PCR"
-	elif [ "$QOS" = "cbr" ] || [ "$QOS" = "rt-vbr" ] || [ "$QOS" = "nrt-vbr" ] ; then
-		PCR_V="-p $PCR -q $SCR -m $MBS"
-	fi
-    	if [ "$ENCAP" = "PPPoE LLC" ] ; then
-		ENCAP_T="-e 0"
-    	elif [ "$ENCAP" = "PPPoE VC-Mux" ] ; then
-		ENCAP_T="-e 1"
-	fi
-	br2684ctl -c $i $ENCAP_T -t $QOS $PCR_V -a 0.$VPI.$VCI &
-	echo $! > /var/run/nas$i.pid
-	sleep 1
-
-if [ "$TCSUPPORT_UNIQUEMAC" != "" ] ;then
-	if [ "$UNIQUEMAC_FLAG" = "1" ]; then
-		/sbin/ifconfig nas$i hw ether $UNIQUE_MAC
-	else	
-		if [ "$WAN_MAC" != "" ]; then
-		/sbin/ifconfig nas$i hw ether $WAN_MAC
-		fi
-	fi
-else
-	if [ "$TCSUPPORT_MULTISERVICE_ON_WAN" = "" ] || [ "$TCSUPPORT_WAN_PTM" = "" -a "$TCSUPPORT_WAN_ETHER" = "" ] || [ "$isPTMETHER" != "1" ] ;then
-		if [ "$WAN_MAC" != "" ]; then
-			 /sbin/ifconfig nas$i hw ether $WAN_MAC
-		fi
-	fi	
-fi
-	/sbin/ifconfig nas$i 0.0.0.0
-
-    # PPPoA
-    else
-	if [ "$AUTHEN" = "CHAP" ] ; then
-		PPP_PARAM="$PPP_PARAM -pap"
-	elif [ "$AUTHEN" = "PAP" ] ; then
-		PPP_PARAM="$PPP_PARAM -chap -mschap -mschap-v2"
-	fi
-
-	PCR_V=""
-	if [ "$QOS" = "ubr" ] ; then
-		PCR_V="qos UBR qos_pcr $PCR"
-	elif [ "$QOS" = "cbr" ] || [ "$QOS" = "rt-vbr" ] || [ "$QOS" = "nrt-vbr" ] ; then
-		if [ "$QOS" = "cbr" ] ; then 
-			PCR_V="qos CBR"
-		elif [ "$QOS" = "rt-vbr" ] ; then
-			PCR_V="qos VBR"
-		elif [ "$QOS" = "nrt-vbr" ] ; then
-			PCR_V="qos NRTVBR"
-		fi
-		PCR_V="$PCR_V qos_pcr $PCR qos_scr $SCR qos_mbs $MBS"
-	fi
-	if [ "$TCSUPPORT_WAN_ATM" != "" -o "$TCSUPPORT_WAN_PTM" != "" -o "$TCSUPPORT_WAN_ETHER" != "" ]; then
-		if [ "$isPTMETHER" = "1" ] ; then
 			PCR_V=""
+			if [ "$QOS" = "ubr" ] ; then
+				PCR_V="qos UBR qos_pcr $PCR"
+			elif [ "$QOS" = "cbr" ] || [ "$QOS" = "rt-vbr" ] || [ "$QOS" = "nrt-vbr" ] ; then
+				if [ "$QOS" = "cbr" ] ; then 
+					PCR_V="qos CBR"
+				elif [ "$QOS" = "rt-vbr" ] ; then
+					PCR_V="qos VBR"
+			elif [ "$QOS" = "nrt-vbr" ] ; then
+				PCR_V="qos NRTVBR"
+			fi
+			PCR_V="$PCR_V qos_pcr $PCR qos_scr $SCR qos_mbs $MBS"
 		fi
-	fi
-	PPP_PARAM="$PPP_PARAM $PCR_V"
-    fi
+
+		if [ "$TCSUPPORT_WAN_ATM" != "" -o "$TCSUPPORT_WAN_PTM" != "" -o "$TCSUPPORT_WAN_ETHER" != "" ]; then
+			if [ "$isPTMETHER" = "1" ] ; then
+				PCR_V=""
+			fi
+		fi
+		PPP_PARAM="$PPP_PARAM $PCR_V"
+    	fi
 
 	if [ "$DEFAULTROUTE" = "Yes" ] ; then
 		PPP_PARAM="$PPP_PARAM defaultroute"

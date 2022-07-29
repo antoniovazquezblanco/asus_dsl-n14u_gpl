@@ -14,6 +14,11 @@
 #define EUCLEAN     117 /* Structure needs cleaning */
 #endif
 
+#define ECC_NO_ERR 0
+#define ECC_ONE_BIT_ERR -6
+#define ECC_DATA_ERR -7
+#define ECC_CODE_ERR -8
+#define ECC_NFC_CONFLICT -9
 
 
 /* frankliao deleted 20100916 */
@@ -130,6 +135,10 @@
 #define TCLINUX_BLOCK_NUM  512
 #endif
 
+#ifdef TCSUPPORT_ADD_JFFS
+#define JFFS_BLOCK_NUM 464
+#endif
+
 #define TCSYSLOG_BLOCK_NUM 11
 #define TCWIFI_BLOCK_NUM 2
 
@@ -142,6 +151,11 @@
 #ifdef CONFIG_DUAL_IMAGE
 #define TCLINUX_SLAVE_BLOCK_START  276
 #define TCLINUX_SLAVE_BLOCK_END    (TCLINUX_SLAVE_BLOCK_START + TCLINUX_BLOCK_NUM)
+#endif
+
+#ifdef TCSUPPORT_ADD_JFFS
+#define JFFS_BLOCK_START 532
+#define JFFS_BLOCK_END JFFS_BLOCK_START + JFFS_BLOCK_NUM
 #endif
 
 #define TCSYSLOG_START 996

@@ -42,6 +42,7 @@ static int rctest_main(int argc, char *argv[])
 				stop_samba();
 				stop_ftpd();
 				sleep(1);
+				create_passwd();	//Andy Chiu, 2015/06/05. Add for samba account modification.
 				start_samba();
 				start_ftpd();
 			}
@@ -69,6 +70,7 @@ static int rctest_main(int argc, char *argv[])
 			else if(on == 2) {	//restart
 				stop_samba();
 				sleep(1);
+				create_passwd();	//Andy Chiu, 2015/06/05. Add for samba account modification.
 				start_samba();
 			}
 			else

@@ -39,7 +39,7 @@ end if
     <script type="text/javascript" src="/detect.js"></script>
     <script type="text/javascript" src="/general.js"></script>
     <script type="text/javascript" src="/client_function.js"></script>
-    <script type="text/javascript" src="/jquery.js"></script>
+    <script type="text/javascript" src="/calendar/jquery.js"></script>
 		<script type="text/javascript" src="/calendar/fullcalendar.js"></script>
 		<script type="text/javascript" src="/calendar/jquery-ui-1.8.11.custom.min.js"></script>
 
@@ -392,26 +392,9 @@ function showLANIPList(){
     JS_timeObj.getFullYear();
     $("system_time").value = JS_timeObj2;
     setTimeout("showclock()", 1000);
-    corrected_timezone();
+    corrected_timezone(DAYLIGHT_orig, TZ_orig);
     }
-    function corrected_timezone(){
-    var today = new Date();
-    var StrIndex;
-    if(today.toString().lastIndexOf("-") > 0)
-    StrIndex = today.toString().lastIndexOf("-");
-    else if(today.toString().lastIndexOf("+") > 0)
-    StrIndex = today.toString().lastIndexOf("+");
-    if(StrIndex > 0){
-    if(timezone != today.toString().substring(StrIndex, StrIndex+5)){
-    $("timezone_hint").style.display = "";
-			$("timezone_hint").innerHTML = "<%tcWebApi_get("String_Entry","LHC_x_TimeZone_itemhint","s")%>";
-    }
-    else
-    return;
-    }
-    else
-    return;
-    }
+   
     function gen_lantowanTable(client){
 		_client = client;
 		var code = "";
@@ -421,7 +404,7 @@ function showLANIPList(){
 			code +='<thead><tr><td colspan="6" id="LWFilterList"><%tcWebApi_get("String_Entry","ParentalCtrl_Act_schedule","s")%><\/td><\/tr><\/thead>';
 			code +='<tr><th width="20%"><%tcWebApi_get("String_Entry","General_x_SystemTime_in","s")%><\/th><td>';
 			code +='<input type="text" id="system_time" name="system_time" class="devicepin" value="" readonly="1" style="font-size:12px;width:200px;">';
-			code +='<br><span id="timezone_hint" onclick="location.href=\'Advanced_System_Content.asp\'" style="display:none;text-decoration:underline;cursor:pointer;"><\/span><\/td><\/tr>';
+			code +='<br><span id="timezone_hint" onclick="location.href=\'Advanced_System_Content.asp?af=uiViewdateToolsTZ\'" style="display:none;text-decoration:underline;cursor:pointer;"><\/span><\/td><\/tr>';
 			code +='<tr>';
 			code +='<th style="width:40%;height:20px;" align="right">Client<\/th>';
 			if(MULTIFILTER_DEVICENAME_row[client] != "")

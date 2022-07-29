@@ -734,6 +734,9 @@ typedef struct mac_table_s {
 	mac_entry_t macEntry[MAX_LEN_OF_MAC_TABLE];
 }mac_table_t;
 
+extern int _get_sta_list(int band, RT_802_11_MAC_TABLE *sta_list);
+extern int DisConnectSta(int band, RT_802_11_MAC_TABLE *sta_list);
+
 typedef struct _SITE_SURVEY_RT3352_iNIC
 {
 	char channel[4];
@@ -803,8 +806,6 @@ typedef struct GNU_PACKED _RT_802_11_ACL {
 #endif
 #endif
 
-
-//
 
 #ifdef TCSUPPORT_PRODUCTIONLINE
 int tcgetProLinePara(void*buf,int flag);

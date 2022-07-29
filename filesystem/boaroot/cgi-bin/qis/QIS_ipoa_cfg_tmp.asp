@@ -382,7 +382,7 @@ autocomplete="off" />
 <div class="test_css" style="margin-top:20px;margin-left:55px;">Note:  If you are not sure about the IP/DNS address setting, then please contact with your ISP.</div>
 
 <div class="apply_gen" style="margin-top:30px">
-<input type="button" id="prevButton" value="<% tcWebApi_Get("String_Entry", "Manual_Setting_btn", "s") %>" tabindex="7" onclick="gotoprev(document.form);" class="button_gen" >
+<input type="button" id="prevButton" value="<% tcWebApi_Get("String_Entry", "Manual_Setting_btn", "s") %>" tabindex="7" onclick="gotoprev(document.form);" class="button_gen_long">
 <input type="button" id="nextButton" value="<% tcWebApi_Get("String_Entry", "btn_next", "s") %>" tabindex="6" onclick="submitForm();" class="button_gen">
 </div>
 </div>

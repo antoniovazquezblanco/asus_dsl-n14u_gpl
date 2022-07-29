@@ -54,10 +54,28 @@ var wan_IP = wanlink_ipaddr();
 var wandns = wanlink_dns();
 var wan_Gateway = wanlink_gateway();
 	
+function tabclickhandler(unit){
+	if(unit == 1){
+		location.href = "DSL_dashboard.asp";
+	}
+	else{
+		return;
+	}	
+}	
+	
 function initial()
 {
-	update_all_info();
+	update_all_info();	
+	show_DSL_tab();
 	setTimeout('update_wan_status();', 1000);
+}
+
+function show_DSL_tab(){
+	//0:ATM, 8:PTM
+	if("<% tcWebApi_staticGet("WebCurSet_Entry","dev_pvc","s") %>" == "0" || "<% tcWebApi_staticGet("WebCurSet_Entry","dev_pvc","s") %>" == "8")	
+		document.getElementById("DSL_tab").style.display = "";
+	else
+		document.getElementById("DSL_tab").style.display = "none";
 }
 
 function doSave() {
@@ -162,22 +180,22 @@ function update_wan_status(){
 	<INPUT TYPE="HIDDEN" NAME="IPv6PrivacyAddrsSupportedFlag" value="<%tcWebApi_get("WebCustom_Entry","isIPv6PrivacyAddrsSupported","s")%>" >
 	<INPUT TYPE="HIDDEN" NAME="DipConnFlag" VALUE="0">
 	<INPUT TYPE="HIDDEN" NAME="pvcFlag" VALUE="0">
-<table border="0" cellpadding="0" cellspacing="0">
+<table id="DSL_tab" border="0" cellpadding="0" cellspacing="0" style="display:none;">
 <tr>
-<td>
-<table width="100px" border="0" align="left" style="margin-left:8px;" cellpadding="0" cellspacing="0">
-<td>
-<div id="t0" class="tabclick_NW" align="center" style="display:none; margin-right:2px; width:90px;" onclick="tabclickhandler(0)">
-<span id="span0" style="cursor:pointer;">WAN 0</span>
-</div>
-</td>
-<td>
-<div id="t1" class="tab_NW" align="center" style="display:none; margin-right:2px; width:90px;" onclick="tabclickhandler(1)">
-<span id="span1" style="cursor:pointer;">WAN 1</span>
-</div>
-</td>
-</table>
-</td>
+	<td>
+	<table width="100px" border="0" align="left" style="margin-left:8px;" cellpadding="0" cellspacing="0">
+	<td>
+		<div id="t0" class="tabclick_NW" align="center" style="margin-right:2px; width:90px;" onclick="tabclickhandler(0)">
+			<span id="span0" style="cursor:pointer;">WAN</span>
+		</div>
+	</td>
+	<td>
+		<div id="t1" class="tab_NW" align="center" style="font-weight: bolder; margin-right:2px; width:90px;" onclick="tabclickhandler(1)">
+			<span id="span1" style="cursor:pointer;font-weight: bolder;">DSL</span>
+		</div>
+	</td>
+	</table>
+	</td>
 </tr>
 </table>
 <table width="95%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="table1px" id="rt_table">

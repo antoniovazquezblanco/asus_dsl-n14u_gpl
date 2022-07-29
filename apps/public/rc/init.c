@@ -126,6 +126,7 @@ int init_nvram(void)
 		add_rc_support("2.4G 5G update usbX2 modem rawifi dsl wifi_hw_sw ipv6 PARENTAL2 printer mssid appnet pwrctrl iptv wds HTTPS");
 		break;
 	case MODEL_DSLN10C1:
+	case MODEL_DSLN10PC1:
 	case MODEL_DSLN12EC1:
 		add_rc_support("2.4G update rawifi dsl wifi_hw_sw ipv6 PARENTAL2 mssid no5gmssid pwrctrl iptv wds HTTPS");
 		break;
@@ -161,11 +162,23 @@ int init_nvram(void)
 
 	}
 
+	add_rc_support("switchctrl"); //LAN -> Switch Control
+	add_rc_support("feedback");
+	add_rc_support("telnet");
+	add_rc_support("WPS_reset");
+
+#ifdef RTCONFIG_USER_LOW_RSSI
+	add_rc_support("user_low_rssi");
+#endif
+
 #ifdef RTCONFIG_DUALWAN
 	add_rc_support("dualwan");
 #endif
 #if defined(RTCONFIG_PPTPD) || defined(RTCONFIG_ACCEL_PPTPD)
 	add_rc_support("pptpd");
+#endif
+#ifdef RTCONFIG_OPENVPN
+	add_rc_support("openvpnd");
 #endif
 #if defined(RTCONFIG_VPNC)
 	add_rc_support("vpnc");

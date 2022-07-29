@@ -117,7 +117,7 @@ function clearLog(){
 </tr>
 </table>
 <div style="margin-top:8px">
-<iframe src="/cgi-bin/status_log2.cgi" width="100%" height="450" marginwidth="5" #marginheight="0" scrolling="no" frameborder="0" align="center"></iframe>
+<iframe src="/cgi-bin/status_log2.cgi" width="100%" height="470" marginwidth="5" #marginheight="0" scrolling="no" frameborder="0" align="center"></iframe>
 </div>
 			<div style="margin-top:-10px;">
 				<table class="apply_gen" >

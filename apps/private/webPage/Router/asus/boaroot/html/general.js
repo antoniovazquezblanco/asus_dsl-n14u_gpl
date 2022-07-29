@@ -29,6 +29,20 @@ return v1*256*256*256+v2*256*256+v3*256+v4;
 }
 return -2;
 }
+
+//Filtering ip address with leading zero, if end-user keyin IP 192.168.02.1, system auto filtering IP 192.168.2.1
+function ipFilterZero(ip_str){ 
+	var re = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/;
+	if(re.test(ip_str)){
+		var v1 = parseInt(RegExp.$1);
+		var v2 = parseInt(RegExp.$2);
+		var v3 = parseInt(RegExp.$3);
+		var v4 = parseInt(RegExp.$4);
+		return v1+"."+v2+"."+v3+"."+v4;
+	}
+	return -2;
+}
+
 function isMask(ip_str){
 if(!ip_str)
 return 0;
@@ -365,6 +379,18 @@ function is_number(o,event){
 		return false;
 	}
 }
+function isNumberFloat(o,event){
+		var keyPressed = event.keyCode ? event.keyCode : event.which;
+
+		if (isFunctionButton(event)){
+			return true;
+		}
+
+		if ((keyPressed == 46) || (keyPressed>47 && keyPressed<58))
+			return true;
+		else
+			return false;
+}
 function validate_range(o, min, max) {
 for(i=0; i<o.value.length; i++)
 {
@@ -449,6 +475,31 @@ if(o.value=="") o.value="0";
 return true;
 }
 }
+
+function isFunctionButton(e){
+	//function keycode for Firefox/Opera
+		var keyCode = e.keyCode;
+		if(e.which == 0) {
+			if (keyCode == 0
+				|| keyCode == 27 //Esc
+				|| keyCode == 35 //end
+				|| keyCode == 36 //home
+				|| keyCode == 37 //<-
+				|| keyCode == 39 //->
+				|| keyCode == 45 //Insert
+				|| keyCode == 46 //Del
+				){
+				return true;
+			}
+		}
+		if (keyCode == 8 	//backspace
+			|| keyCode == 9 	//tab
+			){
+			return true;
+		}
+		return false;
+}
+
 function change_ipaddr(o){}
 function is_ipaddr(o,event){
 keyPressed = event.keyCode ? event.keyCode : event.which;
@@ -1929,12 +1980,16 @@ function change_ddns_setting(v){
 		showhide("link", 0);
 		showhide("linkToHome", 0);	
 		showhide("wildcard_field",0);
-	}else{
+	}
+	else{
 		document.form.ddns_hostname_x.parentNode.style.display = "";
 		document.form.DDNSName.parentNode.style.display = "none";
 		inputCtrl(document.form.ddns_username_x, 1);
 		inputCtrl(document.form.ddns_passwd_x, 1);
-		var disable_wild = (v == "WWW.TUNNELBROKER.NET") ? 1 : 0;
+		if(v == "WWW.SELFHOST.DE" || v == "WWW.TUNNELBROKER.NET")
+			var disable_wild = 1;
+		else
+			var disable_wild = 0;	
 		document.form.ddns_wildcard_x[0].disabled= disable_wild;
 		document.form.ddns_wildcard_x[1].disabled= disable_wild;
 		

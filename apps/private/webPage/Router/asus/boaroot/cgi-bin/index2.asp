@@ -112,12 +112,11 @@ location.href = 'QIS_wizard.asp?flag=welcome';
 else if('1' == '0' && sw_mode != 2)
 location.href = 'QIS_wizard.asp?flag=wireless';
 }
-<% login_state_hook(); %>
 
 <% wanlink(); %>
-wan_route_x = '';
-wan_nat_x = '1';
-wan_proto = 'pppoe';
+<% first_wanlink(); %>
+<% secondary_wanlink(); %>
+
 var wanstate = -1;
 var wansbstate = -1;
 var wanauxstate = -1;
@@ -130,6 +129,15 @@ var wan_primary_pvcunit = '<% get_wan_primary_pvcunit() %>';
 var wan_secondary_pvcunit = '<% get_wan_secondary_pvcunit() %>';
 var wans_dualwan_orig = '<% tcWebApi_Get("Dualwan_Entry", "wans_dualwan", "s") %>';
 var wans_mode = '<%tcWebApi_Get("Dualwan_Entry", "wans_mode", "s")%>';
+
+var wanlink_status = wanlink_statusstr();
+var wanlink_ipaddr = wanlink_ipaddr();
+var first_wanlink_status = first_wanlink_statusstr();
+var first_wanlink_ipaddr = first_wanlink_ipaddr();
+var secondary_wanlink_status = secondary_wanlink_statusstr();
+var secondary_wanlink_ipaddr = secondary_wanlink_ipaddr();
+
+
 if(wans_dualwan_orig.search(" ") == -1)
 	var wans_flag = 0;
 else
@@ -773,9 +781,11 @@ function update_wan_status(e) {
 		success: function(response) {
 			wanlink_status = wanlink_statusstr();
 			wanlink_ipaddr = wanlink_ipaddr();
+			first_wanlink_status = first_wanlink_statusstr();
+			first_wanlink_ipaddr = first_wanlink_ipaddr();
 			secondary_wanlink_status = secondary_wanlink_statusstr();
 			secondary_wanlink_ipaddr = secondary_wanlink_ipaddr();
-			change_wan_state(wanlink_status,secondary_wanlink_status);
+			change_wan_state(first_wanlink_status,secondary_wanlink_status);
 			setTimeout("update_wan_status();", 3000);
 		}
 	});
@@ -786,52 +796,41 @@ function change_wan_state(primary_status, secondary_status){
 		return true;
 
 	if(wans_mode == "fo" || wans_mode == "fb"){
-		if(wan_unit == 0){
-			$('primary_status').innerHTML = primary_status;
-			if(primary_status == "Disconnected"){
-				$('primary_line').className = "primary_wan_disconnected";
-			}
-			else{
-				$('primary_line').className = "primary_wan_connected";
-			}
+		if(first_wanlink_ipaddr != '0.0.0.0'
+			&& first_wanlink_ipaddr != wanlink_ipaddr
+			&& primary_status != 'Disconnected'
+			)
+			primary_status = "Standby";
 
-			/*if(secondary_wanlink_ipaddr != '0.0.0.0' && secondary_status != 'Disconnected')
-				secondary_status = "Standby";*/
+		if(secondary_wanlink_ipaddr != '0.0.0.0'
+			&& secondary_wanlink_ipaddr != wanlink_ipaddr
+			&& secondary_status != 'Disconnected'
+			)
+			secondary_status = "Standby";
 
-			$('seconday_status').innerHTML = secondary_status;
-			if(secondary_status == 'Disconnected'){
-				$('secondary_line').className = "secondary_wan_disconnected";
-			}
-			else if(secondary_status == 'Standby'){
-				$('secondary_line').className = "secondary_wan_standby";
-			}
-			else{
-				$('secondary_line').className = "secondary_wan_connected";
-			}
+		if(primary_status == 'Disconnected'){
+			$('primary_line').className = "primary_wan_disconnected";
 		}
-		else{	//wan_unit : 1
-			/*if(wanlink_ipaddr != '0.0.0.0' && primary_status != 'Disconnected')
-				primary_status = "Standby";*/
-
-			$('primary_status').innerHTML = primary_status;
-			if(primary_status == 'Disconnected'){
-				$('primary_line').className = "primary_wan_disconnected";
-			}
-			else if(primary_status == 'Standby'){
-				$('primary_line').className = "primary_wan_standby";
-			}
-			else{
-				$('primary_line').className = "primary_wan_connected";
-			}
-
-			$('seconday_status').innerHTML = secondary_status;
-			if(secondary_status == "Disconnected"){
-				$('secondary_line').className = "secondary_wan_disconnected";
-			}
-			else{
-				$('secondary_line').className = "secondary_wan_connected";
-			}
+		else if(primary_status == 'Standby'){
+			$('primary_line').className = "primary_wan_standby";
 		}
+		else{
+			$('primary_line').className = "primary_wan_connected";
+		}
+
+		if(secondary_status == 'Disconnected'){
+			$('secondary_line').className = "secondary_wan_disconnected";
+		}
+		else if(secondary_status == 'Standby'){
+			$('secondary_line').className = "secondary_wan_standby";
+		}
+		else{
+			$('secondary_line').className = "secondary_wan_connected";
+		}
+
+		$('primary_status').innerHTML = primary_status;
+		$('seconday_status').innerHTML = secondary_status;
+
 	}
 	else{	//lb
 		$('primary_status').innerHTML = primary_status;

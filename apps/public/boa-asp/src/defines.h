@@ -51,6 +51,8 @@
 
 #define CGI_MIME_TYPE                           "application/x-httpd-cgi"
 
+#define MAX_CLIENT 4
+
 /***** CHANGE ANYTHING BELOW THIS LINE AT YOUR OWN PERIL *****/
 /***** You will probably introduce buffer overruns unless you know
        what you are doing *****/

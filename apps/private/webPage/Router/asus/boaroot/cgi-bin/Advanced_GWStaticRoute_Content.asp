@@ -389,9 +389,9 @@ function showLANIPList(){
 		htmlCode += '<a><div onmouseover="over_var=1;" onmouseout="over_var=0;" onclick="setClientIP(\'';
 		htmlCode += clientObj.IP;
 		htmlCode += '\');"><strong>';
-		htmlCode += clientObj.Name;
-		htmlCode += '</strong> ( ';
 		htmlCode += clientObj.IP;
+		htmlCode += '</strong> ( ';
+		htmlCode += clientObj.Name;
 		htmlCode += ' )</div></a><!--[if lte IE 6.5]><iframe class="hackiframe2"></iframe><![endif]-->';	
 	}
 

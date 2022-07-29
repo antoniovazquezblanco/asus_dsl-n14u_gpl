@@ -47,6 +47,17 @@ struct alias {
 
 typedef struct alias alias;
 
+typedef struct allowed_client_list_s {
+	 in_addr_t client_ip;
+	char client_ip_str[NI_MAXHOST];
+} allowed_client_list_t;
+
+typedef struct restrict_client_s {
+	int enabled;
+	int client_cnt;
+	allowed_client_list_t allowed_client_list[MAX_CLIENT];
+} restrict_client_t;
+
 struct request {                /* pending requests */
     int fd;                     /* client's socket fd */
     int status;                 /* see #defines.h */
@@ -83,7 +94,6 @@ struct request {                /* pending requests */
     /* CGI vars */
 
     int remote_port;            /* could be used for ident */
-
     char remote_ip_addr[NI_MAXHOST]; /* after inet_ntoa */
 
     int is_cgi;                 /* true if CGI/NPH */
@@ -132,6 +142,8 @@ struct request {                /* pending requests */
 	 char web_api_addr[32];
 	 char val_def_addr[32];
       #endif
+
+	restrict_client_t *restrict_client;
 };
 
 typedef struct request request;

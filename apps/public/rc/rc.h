@@ -191,11 +191,15 @@ extern int wanx_ifunit(char *wan_ifname);
 extern int preset_wan_routes(char *wan_ifname);
 extern int found_default_route(int wan_unit);
 extern int autodet_main(int argc, char *argv[]);
+extern int add_multi_routes(void);
 #ifdef RTCONFIG_USB_MODEM
 void start_wan_if(int unit);
 void stop_wan_if(int unit);
 #endif
 int restart_dnsmasq(char *ifname, char *dns);
+
+// lan.c
+extern void hotplug_net(void);
 
 // firewall.c
 extern int start_firewall(int wanunit, int lanunit);

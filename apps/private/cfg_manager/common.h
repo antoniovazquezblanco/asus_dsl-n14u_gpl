@@ -32,4 +32,7 @@
 //#define RAS_KERNEL_PATH  "/var/tmp/linux.7z"
 //#define RAS_ROOTFS_PATH  "/var/tmp/rootfs"
 
+#define CUSTOMER_POL	"POL"
+#define CUSTOMER_WIND	"WIND"
+
 #endif

@@ -130,7 +130,7 @@ function goWireless(){
 	<p class='QISGeneralFont'>Please ensure that the phone cable is connected to the DSL port.</p>
 	</p>
 	<div class="apply_gen" style="margin-top:30px">
-		<input type="button" id="nextButton" value="<% tcWebApi_Get("String_Entry", "Manual_Setting_btn", "s") %>" onclick="redirect_page('manual_setting');" class="button_gen_long" >
+		<input type="button" id="nextButton" value="<% tcWebApi_Get("String_Entry", "Manual_Setting_btn", "s") %>" onclick="redirect_page('manual_setting');" class="button_gen_long">
 		<input type="button" id="nextButton" value="Wireless Setting" onclick="goWireless();" class="button_gen_long">
 	</div>
 </div>

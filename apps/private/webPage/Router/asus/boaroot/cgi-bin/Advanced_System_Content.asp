@@ -65,6 +65,12 @@ If tcWebApi_Get("WebCustom_Entry", "isSwapFileSupport", "h") = "Yes" then
 	End if
 End if
 
+If Request_Form("http_client") <> "" Then
+	TCWebApi_set("SysInfo_Entry","http_restrict_client","http_client")
+	TCWebApi_set("SysInfo_Entry","http_clientlist","http_clientlist")
+	update_http_clientlist()
+End if
+
 If Request_Form("tcWebApi_Save_Flag") = "1" Then
 	tcWebApi_Save()
 End if
@@ -96,8 +102,9 @@ End if
 <script language="JavaScript" type="text/javascript" src="/state.js"></script>
 <script language="JavaScript" type="text/javascript" src="/general.js"></script>
 <script language="JavaScript" type="text/javascript" src="/popup.js"></script>
-<script type="text/javascript" language="JavaScript" src="/help.js"></script>
-<script type="text/javascript" language="JavaScript" src="/detect.js"></script>
+<script language="JavaScript" type="text/javascript" src="/help.js"></script>
+<script language="JavaScript" type="text/javascript" src="/detect.js"></script>
+<script language="JavaScript" type="text/javascript" src="/client_function.js"></script>
 <script language="JavaScript" src="/jsl.js"></script>
 <script language="JavaScript" src="/ip.js"></script>
 <style>
@@ -105,9 +112,8 @@ End if
 border:1px outset #999;
 background-color:#576D73;
 position:absolute;
-margin-top:106px;
-*margin-top:96px;
-margin-left:127px;
+margin-top:0px;
+margin-left:122px;
 width:345px;
 text-align:left;
 height:auto;
@@ -149,6 +155,7 @@ if((location.href.search('https://') >= 0) || (location.href.search('HTTPS://') 
         isFromHTTPS = true;
 }
 
+var http_clientlist_array = "<% TCWebApi_get("SysInfo_Entry","http_clientlist","s") %>";
 var set_http_autologout = "";
 
 var timezones = [
@@ -158,48 +165,49 @@ var timezones = [
 	["GMT+09:00",	"(GMT-09:00) <% tcWebApi_get("String_Entry","TZ04","s")%>"],
 	["GMT+08:00",	"(GMT-08:00) <% tcWebApi_get("String_Entry","TZ05","s")%>"],
 	["GMT+07:00",	"(GMT-07:00) <% tcWebApi_get("String_Entry","TZ06","s")%>, <% tcWebApi_get("String_Entry","TZ07","s")%>, <% tcWebApi_get("String_Entry","TZ08","s")%>"],
-	["GMT+06:00",	"(GMT-06:00) <% tcWebApi_get("String_Entry","TZ09","s")%>, <% tcWebApi_get("String_Entry","TZ10","s")%>, <% tcWebApi_get("String_Entry","TZ11","s")%>, <% tcWebApi_get("String_Entry","TZ12","s")%>, <% tcWebApi_get("String_Entry","TZ13","s")%>"],
+	["GMT+06:00",	"(GMT-06:00) <% tcWebApi_get("String_Entry","TZ10","s")%>, <% tcWebApi_get("String_Entry","TZ11","s")%>, <% tcWebApi_get("String_Entry","TZ12","s")%>, <% tcWebApi_get("String_Entry","TZ13","s")%>"],
 	["GMT+05:00",	"(GMT-05:00) <% tcWebApi_get("String_Entry","TZ14","s")%>, <% tcWebApi_get("String_Entry","TZ15","s")%>, <% tcWebApi_get("String_Entry","TZ16","s")%>"],
+	["GMT+04:30",   "(GMT-04:30) <% tcWebApi_get("String_Entry","TZ18_1","s")%>"],
 	["GMT+04:00",	"(GMT-04:00) <% tcWebApi_get("String_Entry","TZ17","s")%>, <% tcWebApi_get("String_Entry","TZ18","s")%>, <% tcWebApi_get("String_Entry","TZ19","s")%>"],
 	["GMT+03:30",	"(GMT-03:30) <% tcWebApi_get("String_Entry","TZ20","s")%>"],
 	["GMT+03:00",	"(GMT-03:00) <% tcWebApi_get("String_Entry","TZ21","s")%>, <% tcWebApi_get("String_Entry","TZ22","s")%>, <% tcWebApi_get("String_Entry","TZ23","s")%>"],
 	["GMT+02:00",	"(GMT-02:00) <% tcWebApi_get("String_Entry","TZ24","s")%>"],
 	["GMT+01:00",	"(GMT-01:00) <% tcWebApi_get("String_Entry","TZ25","s")%>, <% tcWebApi_get("String_Entry","TZ26","s")%>"],
-	["GMT",	"(GMT) <% tcWebApi_get("String_Entry","TZ27","s")%>, <% tcWebApi_get("String_Entry","TZ27_2","s")%>, <% tcWebApi_get("String_Entry","TZ28","s")%>"],
+	["GMT",	"(GMT) <% tcWebApi_get("String_Entry","TZ27","s")%>, <% tcWebApi_get("String_Entry","TZ27_2","s")%>, <% tcWebApi_get("String_Entry","TZ28","s")%>, <% tcWebApi_get("String_Entry","TZ28_1","s")%>"],
 	["GMT-01:00",	"(GMT+01:00) <% tcWebApi_get("String_Entry","TZ33","s")%>, <% tcWebApi_get("String_Entry","TZ31","s")%>, <% tcWebApi_get("String_Entry","TZ32","s")%>, <% tcWebApi_get("String_Entry","TZ37","s")%>, <% tcWebApi_get("String_Entry","TZ34","s")%>"],
 	["GMT-01:00",	"(GMT+01:00) <% tcWebApi_get("String_Entry","TZ35","s")%>, <% tcWebApi_get("String_Entry","TZ36","s")%>, <% tcWebApi_get("String_Entry","TZ29","s")%>, <% tcWebApi_get("String_Entry","TZ30","s")%>"],
-	["GMT-02:00",	"(GMT+02:00) <% tcWebApi_get("String_Entry","TZ41","s")%>, <% tcWebApi_get("String_Entry","TZ40","s")%>, <% tcWebApi_get("String_Entry","TZ38","s")%>, Eastern Europe"],
-	["GMT-02:00",	"(GMT+02:00) <% tcWebApi_get("String_Entry","TZ43_2","s")%>, <% tcWebApi_get("String_Entry","TZ39","s")%>, <% tcWebApi_get("String_Entry","TZ42","s")%>, <% tcWebApi_get("String_Entry","TZ43","s")%>, Israel"],
-	["GMT-03:00",	"(GMT+03:00) <% tcWebApi_get("String_Entry","TZ48","s")%>, <% tcWebApi_get("String_Entry","TZ47","s")%>, <% tcWebApi_get("String_Entry","TZ46","s")%>"],
+	["GMT-02:00",	"(GMT+02:00) <% tcWebApi_get("String_Entry","TZ41","s")%>, <% tcWebApi_get("String_Entry","TZ40","s")%>, <% tcWebApi_get("String_Entry","TZ40_2","s")%>, <% tcWebApi_get("String_Entry","TZ38","s")%>, <% tcWebApi_get("String_Entry","TZ33_1","s")%>, <% tcWebApi_get("String_Entry","TZ87","s")%>"],
+	["GMT-02:00",	"(GMT+02:00) <% tcWebApi_get("String_Entry","TZ43_2","s")%>, <% tcWebApi_get("String_Entry","TZ39","s")%>, <% tcWebApi_get("String_Entry","TZ42","s")%>, <% tcWebApi_get("String_Entry","TZ43","s")%>, <% tcWebApi_get("String_Entry","TZ88","s")%>"],
+	["GMT-03:00",	"(GMT+03:00) <% tcWebApi_get("String_Entry","TZ48","s")%>, <% tcWebApi_get("String_Entry","TZ40_1","s")%>, <% tcWebApi_get("String_Entry","TZ47","s")%>, <% tcWebApi_get("String_Entry","TZ46","s")%>, <% tcWebApi_get("String_Entry","TZ44","s")%>, <% tcWebApi_get("String_Entry","TZ45","s")%>"],
 	["GMT-03:30",	"(GMT+03:30) <% tcWebApi_get("String_Entry","TZ49","s")%>"],
-	["GMT-04:00",	"(GMT+04:00) <% tcWebApi_get("String_Entry","TZ50","s")%>, <% tcWebApi_get("String_Entry","TZ51","s")%>, <% tcWebApi_get("String_Entry","TZ45","s")%>, <% tcWebApi_get("String_Entry","TZ44","s")%>"],
+	["GMT-04:00",	"(GMT+04:00) <% tcWebApi_get("String_Entry","TZ50","s")%>, <% tcWebApi_get("String_Entry","TZ50_1","s")%>, <% tcWebApi_get("String_Entry","TZ50_2","s")%>, <% tcWebApi_get("String_Entry","TZ51","s")%>"],
 	["GMT-04:30",	"(GMT+04:30) <% tcWebApi_get("String_Entry","TZ52","s")%>"],
-	["GMT-05:00",	"(GMT+05:00) <% tcWebApi_get("String_Entry","TZ54","s")%>"],
+	["GMT-05:00",	"(GMT+05:00) <% tcWebApi_get("String_Entry","TZ54","s")%>,  <% tcWebApi_get("String_Entry","TZ53","s")%>"],
 	["GMT-05:30",	"(GMT+05:30) <% tcWebApi_get("String_Entry","TZ55","s")%>, <% tcWebApi_get("String_Entry","TZ56","s")%>, <% tcWebApi_get("String_Entry","TZ59","s")%>"],
 	["GMT-05:45",   "(GMT+05:45) <% tcWebApi_get("String_Entry","TZ57","s")%>"],
-	["GMT-06:00",	"(GMT+06:00) <% tcWebApi_get("String_Entry","TZ60","s")%>, <% tcWebApi_get("String_Entry","TZ58","s")%>, <% tcWebApi_get("String_Entry","TZ53","s")%>"],
+	["GMT-06:00",	"(GMT+06:00) <% tcWebApi_get("String_Entry","TZ60","s")%>, <% tcWebApi_get("String_Entry","TZ62_1","s")%>, <% tcWebApi_get("String_Entry","TZ58","s")%>"],
 	["GMT-06:30",	"(GMT+06:30) <% tcWebApi_get("String_Entry","TZ61","s")%>"],
-	["GMT-07:00",	"(GMT+07:00) <% tcWebApi_get("String_Entry","TZ62","s")%>"],
-	["GMT-08:00",	"(GMT+08:00) <% tcWebApi_get("String_Entry","TZ64","s")%>, <% tcWebApi_get("String_Entry","TZ67","s")%>, <% tcWebApi_get("String_Entry","TZ66","s")%>, <% tcWebApi_get("String_Entry","TZ68","s")%>, <% tcWebApi_get("String_Entry","TZ63","s")%>, <% tcWebApi_get("String_Entry","TZ65","s")%>, <% tcWebApi_get("String_Entry","TZ69","s")%>"],
-	["GMT-09:00",	"(GMT+09:00) <% tcWebApi_get("String_Entry","TZ70","s")%>, <% tcWebApi_get("String_Entry","TZ71","s")%>"],
+	["GMT-07:00",	"(GMT+07:00) <% tcWebApi_get("String_Entry","TZ62","s")%>, <% tcWebApi_get("String_Entry","TZ63","s")%>"],
+	["GMT-08:00",	"(GMT+08:00) <% tcWebApi_get("String_Entry","TZ64","s")%>, <% tcWebApi_get("String_Entry","TZ67","s")%>, <% tcWebApi_get("String_Entry","TZ66","s")%>, <% tcWebApi_get("String_Entry","TZ68","s")%>, <% tcWebApi_get("String_Entry","TZ65","s")%>, <% tcWebApi_get("String_Entry","TZ69","s")%>, <% tcWebApi_get("String_Entry","TZ70","s")%>"],
+	["GMT-09:00",	"(GMT+09:00) <% tcWebApi_get("String_Entry","TZ70_1","s")%>, <% tcWebApi_get("String_Entry","TZ71","s")%>, <% tcWebApi_get("String_Entry","TZ72","s")%>"],
 	["GMT-09:30",	"(GMT+09:30) <% tcWebApi_get("String_Entry","TZ73","s")%>, <% tcWebApi_get("String_Entry","TZ74","s")%>"],
-	["GMT-10:00",	"(GMT+10:00) <% tcWebApi_get("String_Entry","TZ76","s")%>, <% tcWebApi_get("String_Entry","TZ75","s")%>, <% tcWebApi_get("String_Entry","TZ77","s")%>, <% tcWebApi_get("String_Entry","TZ72","s")%>, <% tcWebApi_get("String_Entry","TZ79","s")%>"],
-	["GMT-11:00",	"(GMT+11:00) <% tcWebApi_get("String_Entry","TZ80","s")%>, <% tcWebApi_get("String_Entry","TZ81","s")%>, <% tcWebApi_get("String_Entry","TZ78","s")%>"],
-	["GMT-12:00",	"(GMT+12:00) <% tcWebApi_get("String_Entry","TZ82","s")%>, <% tcWebApi_get("String_Entry","TZ83","s")%>"],
+	["GMT-10:00",	"(GMT+10:00) <% tcWebApi_get("String_Entry","TZ76","s")%>, <% tcWebApi_get("String_Entry","TZ75","s")%>, <% tcWebApi_get("String_Entry","TZ77","s")%>, <% tcWebApi_get("String_Entry","TZ79","s")%>, <% tcWebApi_get("String_Entry","TZ82_1","s")%>, <% tcWebApi_get("String_Entry","TZ78","s")%>"],
+	["GMT-11:00",	"(GMT+11:00) <% tcWebApi_get("String_Entry","TZ80","s")%>, <% tcWebApi_get("String_Entry","TZ81","s")%>, <% tcWebApi_get("String_Entry","TZ78","s")%>, <% tcWebApi_get("String_Entry","TZ86","s")%>"],
+	["GMT-12:00",	"(GMT+12:00) <% tcWebApi_get("String_Entry","TZ82","s")%>, <% tcWebApi_get("String_Entry","TZ83","s")%>, <% tcWebApi_get("String_Entry","TZ85","s")%>"],
 	["GMT-13:00",   "(GMT+13:00) <% tcWebApi_get("String_Entry","TZ84","s")%>"]
 	];
 
 function load_timezones(){
-	free_options(document.tool_admin.uiViewdateToolsTZ);
+	free_options(document.form.uiViewdateToolsTZ);
 	for(var i = 0; i < timezones.length; i++){
-		if( (i==15 || i==17) && document.tool_admin.uiTimezoneSecond.value != 1){
-			add_option(document.tool_admin.uiViewdateToolsTZ,
+		if( (i==15 || i==17) && document.form.uiTimezoneSecond.value != 1){
+			add_option(document.form.uiViewdateToolsTZ,
 							timezones[i][1],
 							timezones[i][0],
 							false
 						  );
 		}else{
-			add_option(document.tool_admin.uiViewdateToolsTZ,
+			add_option(document.form.uiViewdateToolsTZ,
 							timezones[i][1],
 							timezones[i][0],
 							("<% tcWebApi_get("Timezone_Entry","TZ","s")%>" == timezones[i][0])
@@ -209,7 +217,7 @@ function load_timezones(){
 }
 
 function remove_btn_ez_radiotoggle(){
-	if((model_name == "DSL-N10-C1")||(model_name == "DSL-N12E-C1")||(model_name == "DSL-N12U-C1")||(model_name == "DSL-N14U"))
+	if((model_name == "DSL-N10-C1")||(model_name == "DSL-N10P-C1")||(model_name == "DSL-N12E-C1")||(model_name == "DSL-N12U-C1")||(model_name == "DSL-N14U"))
 	{
 		document.getElementById('radio2').style.display = "none";
 		document.getElementById('radio_text2').style.display = "none";
@@ -225,24 +233,30 @@ function remove_btn_ez_radiotoggle(){
 
 function initial(){
 	show_menu();
-	remove_btn_ez_radiotoggle();
-	corrected_timezone();
+	autoFocus('<% get_parameter("af"); %>');
+	show_http_clientlist();
+	remove_btn_ez_radiotoggle();	
 	load_timezones();
+	corrected_timezone(DAYLIGHT_orig, TZ_orig);
 	hideport("<% tcWebApi_get("Firewall_Entry","misc_http_x", "s") %>");
-	if(HTTPS_support == -1 || model_name == "DSL-N10-C1" || model_name == "DSL-N12E-C1"){       //MODELDEP: DSL-N10-C1, DSL-N12E-C1
+	if("<% TCWebApi_get("SysInfo_Entry","http_restrict_client","s") %>" != "1")	{
+		display_spec_IP(0);
+	}
+	
+	if(HTTPS_support == -1 || model_name == "DSL-N10-C1" || model_name == "DSL-N10P-C1" || model_name == "DSL-N12E-C1"){       //MODELDEP: DSL-N10-C1, DSL-N12E-C1
 		$("https_tr").style.display = "none";
 		$("https_lanport").style.display = "none";
 	}
 	else{
-		//showLANIPList();
-		hide_https_lanport(document.tool_admin.http_enable.value);
-		hide_https_wanport(document.tool_admin.http_enable.value);
+		hide_https_lanport(document.form.http_enable.value);
+		hide_https_wanport(document.form.http_enable.value);
 	}
-	$("accessfromwan_port").style.display = (document.tool_admin.misc_http_x[0].checked == 1) ? "" : "none";
+	showLANIPList();
+	$("accessfromwan_port").style.display = (document.form.misc_http_x[0].checked == 1) ? "" : "none";
 
 	if(HTTPS_support  == -1 || '<% tcWebApi_get("Https_Entry","http_enable","s") %>' == 1)
 		$("https_port").style.display = "none";
-	else if(model_name == "DSL-N10-C1" || model_name == "DSL-N12E-C1"){       //MODELDEP: DSL-N10-C1, DSL-N12E-C1
+	else if(model_name == "DSL-N10-C1" || model_name == "DSL-N10P-C1" || model_name == "DSL-N12E-C1"){       //MODELDEP: DSL-N10-C1, DSL-N12E-C1
 		$("https_port").style.display = "none";
 	}	
 	else if('<% tcWebApi_get("Https_Entry","http_enable","s") %>' == 2)
@@ -255,7 +269,19 @@ function initial(){
 	else{
         	set_http_autologout = 30;
 	}
-	document.tool_admin.http_autologout.value = set_http_autologout;
+	document.form.http_autologout.value = set_http_autologout;
+	
+	//Hide enable_telnet or not
+	if(telnet_support == -1){
+		document.getElementById("telnet_tr").style.display = "none";
+		document.form.telnetd_enable[0].disabled = true;
+		document.form.telnetd_enable[1].disabled = true;
+	}
+	else{
+		document.getElementById("telnet_tr").style.display = "";
+		document.form.telnetd_enable[0].disabled = false;
+		document.form.telnetd_enable[1].disabled = false;
+	}
 }
 
 function hideport(flag){
@@ -263,27 +289,27 @@ $("accessfromwan_port").style.display = (flag == 1) ? "" : "none";
 }
 
 function redirect(){
-	if(document.tool_admin.http_enable.value == "1"){
+	if(document.form.http_enable.value == "1"){
 		if(isFromWAN)
-			document.location.href = "http://" + location.hostname + ":" + document.tool_admin.misc_httpport_x.value + "/cgi-bin/Advanced_System_Content.asp";
+			document.location.href = "http://" + location.hostname + ":" + document.form.misc_httpport_x.value + "/cgi-bin/Advanced_System_Content.asp";
 		else
 			document.location.href = "http://" + location.hostname + "/cgi-bin/Advanced_System_Content.asp";
 
-	}else if(document.tool_admin.http_enable.value == "2"){
+	}else if(document.form.http_enable.value == "2"){
 		if(isFromWAN)
-			document.location.href = "https://" + location.hostname + ":" + document.tool_admin.misc_httpsport_x.value + "/cgi-bin/Advanced_System_Content.asp";
+			document.location.href = "https://" + location.hostname + ":" + document.form.misc_httpsport_x.value + "/cgi-bin/Advanced_System_Content.asp";
 		else
-			document.location.href = "https://" + location.hostname + ":" + document.tool_admin.https_lanport.value + "/cgi-bin/Advanced_System_Content.asp";
+			document.location.href = "https://" + location.hostname + ":" + document.form.https_lanport.value + "/cgi-bin/Advanced_System_Content.asp";
 
 	}else{
 		if(isFromHTTPS){
 			if(isFromWAN)
-					document.location.href = "https://" + location.hostname + ":" + document.tool_admin.misc_httpsport_x.value + "/cgi-bin/Advanced_System_Content.asp";
+					document.location.href = "https://" + location.hostname + ":" + document.form.misc_httpsport_x.value + "/cgi-bin/Advanced_System_Content.asp";
 			else
-					document.location.href = "https://" + location.hostname + ":" + document.tool_admin.https_lanport.value + "/cgi-bin/Advanced_System_Content.asp";
+					document.location.href = "https://" + location.hostname + ":" + document.form.https_lanport.value + "/cgi-bin/Advanced_System_Content.asp";
 		}else{
 			if(isFromWAN)
-					document.location.href = "http://" + location.hostname + ":" + document.tool_admin.misc_httpport_x.value + "/cgi-bin/Advanced_System_Content.asp";
+					document.location.href = "http://" + location.hostname + ":" + document.form.misc_httpport_x.value + "/cgi-bin/Advanced_System_Content.asp";
 			else
 					document.location.href = "http://" + location.hostname + "/cgi-bin/Advanced_System_Content.asp";
 		}
@@ -294,22 +320,44 @@ function redirect(){
 function uiSave() {
 	if(validForm())
 	{
-		document.tool_admin.SaveFirewall.value = 1;
-		if(document.tool_admin.misc_http_x[0].checked == true)
-				document.tool_admin.misc_http_x.value = "1";
-		else
-				document.tool_admin.misc_http_x.value = "0";
+		var rule_num = $('http_clientlist_table').rows.length;
+		var item_num = $('http_clientlist_table').rows[0].cells.length;
+		var tmp_value = "";
 
-		if(HTTPS_support != -1 && model_name != "DSL-N10-C1" && model_name != "DSL-N12E-C1"){	//MODELDEP : exclude DSL-N10-C1, DSL-N12E-C1
-			if((document.tool_admin.http_enable.value != document.tool_admin.prev_http_enable.value) || (document.tool_admin.https_lanport.value != document.tool_admin.prev_https_lanport.value)
-				|| (document.tool_admin.adminFlag.value == 1) || (document.tool_admin.passwdFlag.value == 1)
+		for(i=0; i<rule_num; i++){
+			tmp_value += ":"		
+			for(j=0; j<item_num-1; j++){	
+				tmp_value += $('http_clientlist_table').rows[i].cells[j].innerHTML;
+				if(j != item_num-2)	
+					tmp_value += ":";
+			}
+		}
+		if(tmp_value == ":"+"<% tcWebApi_Get("String_Entry", "IPC_VSList_Norule", "s") %>" || tmp_value == ":")
+			tmp_value = "";	
+		document.form.http_clientlist.value = tmp_value;
+
+		if(document.form.http_clientlist.value == "" && document.form.http_client[0].checked == 1){
+			alert("<% tcWebApi_Get("String_Entry", "JS_fieldblank", "s") %>");
+			document.form.http_client_ip_x_0.focus();
+			return false;
+		}
+		
+		document.form.SaveFirewall.value = 1;
+		if(document.form.misc_http_x[0].checked == true)
+				document.form.misc_http_x.value = "1";
+		else
+				document.form.misc_http_x.value = "0";
+
+		if(HTTPS_support != -1 && model_name != "DSL-N10-C1"  && model_name != "DSL-N10P-C1" && model_name != "DSL-N12E-C1"){	//MODELDEP : exclude DSL-N10-C1, DSL-N12E-C1
+			if((document.form.http_enable.value != document.form.prev_http_enable.value) || (document.form.https_lanport.value != document.form.prev_https_lanport.value)
+				|| (document.form.adminFlag.value == 1) || (document.form.passwdFlag.value == 1)
 			)
 			{
-				document.tool_admin.SaveHttps.value = 1;
+				document.form.SaveHttps.value = 1;
 			}
 			else
 			{
-				document.tool_admin.SaveHttps.value = 0;
+				document.form.SaveHttps.value = 0;
 			}
 		}
 	}
@@ -319,42 +367,42 @@ function uiSave() {
 		return false;
 	}
 
-	if(document.tool_admin.uiViewTools_Password.value.length > 0)
+	if(document.form.uiViewTools_Password.value.length > 0)
                 alert("<% tcWebApi_get("String_Entry","File_Pop_content_alert_desc10","s") %>");
 
-        if(document.tool_admin.syslogServerAddr.value == "")
+        if(document.form.syslogServerAddr.value == "")
         {
-                document.tool_admin.logFlag.value = 1;
-                document.tool_admin.RemotelogEnable.value = 0;
-                //document.tool_admin.syslogServerAddr.value = "N/A";
+                document.form.logFlag.value = 1;
+                document.form.RemotelogEnable.value = 0;
+                //document.form.syslogServerAddr.value = "N/A";
         }
         else
         {
-                document.tool_admin.logFlag.value = 1;
-                document.tool_admin.RemotelogEnable.value = 1;
+                document.form.logFlag.value = 1;
+                document.form.RemotelogEnable.value = 1;
         }
 
-        document.tool_admin.RadioButtonFlag.value = 1;
-        document.tool_admin.SaveTime.value = 1;
-        document.tool_admin.SaveTelnetd.value = 1;
+        document.form.RadioButtonFlag.value = 1;
+        document.form.SaveTime.value = 1;
+        document.form.SaveTelnetd.value = 1;
         <%if tcWebApi_Get("WebCustom_Entry", "isSwapFileSupport", "h") = "Yes" then%>
-        if(document.tool_admin.swap_enable.value != "<%TCWebApi_get("SysInfo_Entry","swap_enable","s")%>")
-                document.tool_admin.SaveSwap.value = 1;
+        if(document.form.swap_enable.value != "<%TCWebApi_get("SysInfo_Entry","swap_enable","s")%>")
+                document.form.SaveSwap.value = 1;
         <%end if%>
 
-        if(document.tool_admin.uiViewSNTPServer.value == "")
+        if(document.form.uiViewSNTPServer.value == "")
         {
-                document.tool_admin.uiViewSNTPServer.value = "0.0.0.0";
+                document.form.uiViewSNTPServer.value = "0.0.0.0";
         }
 
-	if(document.tool_admin.uiViewdateToolsTZ[15].selected == true || document.tool_admin.uiViewdateToolsTZ[17].selected == true)
-		document.tool_admin.uiTimezoneSecond.value = "1";
+	if(document.form.uiViewdateToolsTZ[15].selected == true || document.form.uiViewdateToolsTZ[17].selected == true)
+		document.form.uiTimezoneSecond.value = "1";
 	else
-		document.tool_admin.uiTimezoneSecond.value = "";
+		document.form.uiTimezoneSecond.value = "";
 
 	showLoading(20);	//Extend from 10 to 20 to restore_webtype 
 	setTimeout("redirect();", 20000);
-	document.tool_admin.submit();
+	document.form.submit();
 	return;
 }
 
@@ -364,159 +412,140 @@ function validForm(){
         showtext($("alert_msg2"), "");
 
 	//account
-        if(document.tool_admin.uiViewTools_username.value.length == 0){
+        if(document.form.uiViewTools_username.value.length == 0){
                 showtext($("alert_msg1"), "<%tcWebApi_get("String_Entry","File_Pop_content_alert_desc1","s")%>");
-                document.tool_admin.uiViewTools_username.focus();
-                document.tool_admin.uiViewTools_username.select();
+                document.form.uiViewTools_username.focus();
+                document.form.uiViewTools_username.select();
                 return false;
         }
         else{
-                var alert_str = validate_hostname(document.tool_admin.uiViewTools_username);
+                var alert_str = validate_hostname(document.form.uiViewTools_username);
                 if(alert_str != ""){
                         showtext($("alert_msg1"), alert_str);
                         $("alert_msg1").style.display = "";
-                        document.tool_admin.uiViewTools_username.focus();
-                        document.tool_admin.uiViewTools_username.select();
+                        document.form.uiViewTools_username.focus();
+                        document.form.uiViewTools_username.select();
                         changeiuiBackground(0);
                         return false;
                 }else{
                         $("alert_msg1").style.display = "none";
                 }
 
-                document.tool_admin.uiViewTools_username.value = trim(document.tool_admin.uiViewTools_username.value);
+                document.form.uiViewTools_username.value = trim(document.form.uiViewTools_username.value);
 
-		if(document.tool_admin.uiViewTools_username.value == "root"
-                                || document.tool_admin.uiViewTools_username.value == "guest"
-                                || document.tool_admin.uiViewTools_username.value == "anonymous"
+		if(document.form.uiViewTools_username.value == "root"
+                                || document.form.uiViewTools_username.value == "guest"
+                                || document.form.uiViewTools_username.value == "anonymous"
                 ){
                                 showtext($("alert_msg1"), "<% tcWebApi_get("String_Entry","USB_App_account_alert","s") %>");
                                 $("alert_msg1").style.display = "";
-                                document.tool_admin.uiViewTools_username.focus();
-                                document.tool_admin.uiViewTools_username.select();
+                                document.form.uiViewTools_username.focus();
+                                document.form.uiViewTools_username.select();
                                 changeiuiBackground(0);
                                 return false;
                 }
-                else if(accounts.getIndexByValue(document.tool_admin.uiViewTools_username.value) > 0
-                                && document.tool_admin.uiViewTools_username.value != accounts[0]){
+                else if(accounts.getIndexByValue(document.form.uiViewTools_username.value) > 0
+                                && document.form.uiViewTools_username.value != accounts[0]){
                                 showtext($("alert_msg1"), "<% tcWebApi_get("String_Entry","File_Pop_content_alert_desc5","s") %>");
                                 $("alert_msg1").style.display = "";
-                                document.tool_admin.uiViewTools_username.focus();
-                                document.tool_admin.uiViewTools_username.select();
+                                document.form.uiViewTools_username.focus();
+                                document.form.uiViewTools_username.select();
                                 changeiuiBackground(0);
                                 return false;
                 }else{
                                 $("alert_msg1").style.display = "none";
                 }
 
-		if(document.tool_admin.uiViewTools_username.value != document.tool_admin.prev_username.value)
+		if(document.form.uiViewTools_username.value != document.form.prev_username.value)
 		{
-			document.tool_admin.adminFlag.value = 1;
+			document.form.adminFlag.value = 1;
 		}
 	}
 
 	//password
-	if (document.tool_admin.uiViewTools_Password.value.length == 0 && document.tool_admin.uiViewTools_PasswordConfirm.value.length == 0){
-                document.tool_admin.passwdFlag.value = 0;
+	if (document.form.uiViewTools_Password.value.length == 0 && document.form.uiViewTools_PasswordConfirm.value.length == 0){
+                document.form.passwdFlag.value = 0;
         }
         else{
 
-	        if(document.tool_admin.uiViewTools_Password.value != document.tool_admin.uiViewTools_PasswordConfirm.value){
+	        if(document.form.uiViewTools_Password.value != document.form.uiViewTools_PasswordConfirm.value){
         	        showtext($("alert_msg2"),"*<% tcWebApi_get("String_Entry","File_Pop_content_alert_desc7","s") %>");
-	                if(document.tool_admin.uiViewTools_Password.value.length <= 0){
-                	        document.tool_admin.uiViewTools_Password.focus();
-        	                document.tool_admin.uiViewTools_Password.select();
+	                if(document.form.uiViewTools_Password.value.length <= 0){
+                	        document.form.uiViewTools_Password.focus();
+        	                document.form.uiViewTools_Password.select();
 	                }else{
-                	        document.tool_admin.uiViewTools_PasswordConfirm.focus();
-        	                document.tool_admin.uiViewTools_PasswordConfirm.select();
+                	        document.form.uiViewTools_PasswordConfirm.focus();
+        	                document.form.uiViewTools_PasswordConfirm.select();
 	                }
 
                 	return false;
         	}
 
-	        if(!validate_string(document.tool_admin.uiViewTools_Password)){
-        	        document.tool_admin.uiViewTools_Password.focus();
-                	document.tool_admin.uiViewTools_Password.select();
+	        if(!validate_string(document.form.uiViewTools_Password)){
+        	        document.form.uiViewTools_Password.focus();
+                	document.form.uiViewTools_Password.select();
 	                return false;
         	}
-		if(document.tool_admin.uiViewTools_Password.value != document.tool_admin.prev_web_passwd.value)
+		if(document.form.uiViewTools_Password.value != document.form.prev_web_passwd.value)
 		{
-			document.tool_admin.passwdFlag.value = 1;
+			document.form.passwdFlag.value = 1;
 		}
 	}
 
-	if((document.tool_admin.adminFlag.value == 1) || (document.tool_admin.passwdFlag.value == 1))
+	if((document.form.adminFlag.value == 1) || (document.form.passwdFlag.value == 1))
 	{
-		document.tool_admin.accountFlag.value = 1;
+		document.form.accountFlag.value = 1;
 	}
 
-	if (document.tool_admin.misc_http_x[0].checked) {
-		if (!validate_range(document.tool_admin.misc_httpport_x, 1024, 65535))
+	if (document.form.misc_http_x[0].checked) {
+		if (!validate_range(document.form.misc_httpport_x, 1024, 65535))
 			return false;
-		if(HTTPS_support != -1 && model_name != "DSL-N10-C1" && model_name != "DSL-N12E-C1"){	//MODELDEP: exclude DSL-N10-C1, DSL-N12E-C1
-			if (!validate_range(document.tool_admin.https_lanport, 1024, 65535))
+		if(HTTPS_support != -1 && model_name != "DSL-N10-C1" && model_name != "DSL-N10P-C1" && model_name != "DSL-N12E-C1"){	//MODELDEP: exclude DSL-N10-C1, DSL-N12E-C1
+			if (!validate_range(document.form.https_lanport, 1024, 65535))
 				return false;
 
-			if (!validate_range(document.tool_admin.misc_httpsport_x, 1024, 65535))
+			if (!validate_range(document.form.misc_httpsport_x, 1024, 65535))
 				return false;
 		}
 	}
 	else{
-		document.tool_admin.misc_httpport_x.value = '<% tcWebApi_get("Firewall_Entry","misc_httpport_x", "s") %>';
-		document.tool_admin.misc_httpsport_x.value = '<% tcWebApi_get("Firewall_Entry","misc_httpsport_x", "s") %>';
+		document.form.misc_httpport_x.value = '<% tcWebApi_get("Firewall_Entry","misc_httpport_x", "s") %>';
+		document.form.misc_httpsport_x.value = '<% tcWebApi_get("Firewall_Entry","misc_httpsport_x", "s") %>';
 	}
 
-	if(isPortConflict(document.tool_admin.misc_httpport_x.value)){
-		alert(isPortConflict(document.tool_admin.misc_httpport_x.value));
-		document.tool_admin.misc_httpport_x.focus();
+	if(isPortConflict(document.form.misc_httpport_x.value)){
+		alert(isPortConflict(document.form.misc_httpport_x.value));
+		document.form.misc_httpport_x.focus();
 		return false;
 	}
 	
-	if(HTTPS_support != -1 &&  model_name != "DSL-N10-C1" && model_name != "DSL-N12E-C1"){     //MODELDEP: exclude DSL-N10-C1, DSL-N12E-C1
-		if(isPortConflict(document.tool_admin.misc_httpsport_x.value)){
-			alert(isPortConflict(document.tool_admin.misc_httpsport_x.value));
-			document.tool_admin.misc_httpsport_x.focus();
+	if(HTTPS_support != -1 &&  model_name != "DSL-N10-C1" &&  model_name != "DSL-N10P-C1" && model_name != "DSL-N12E-C1"){     //MODELDEP: exclude DSL-N10-C1, DSL-N12E-C1
+		if(isPortConflict(document.form.misc_httpsport_x.value)){
+			alert(isPortConflict(document.form.misc_httpsport_x.value));
+			document.form.misc_httpsport_x.focus();
 			return false;
 		}
-		if(isPortConflict(document.tool_admin.https_lanport.value)){
-			alert(isPortConflict(document.tool_admin.https_lanport.value));
-			document.tool_admin.https_lanport.focus();
+		if(isPortConflict(document.form.https_lanport.value)){
+			alert(isPortConflict(document.form.https_lanport.value));
+			document.form.https_lanport.focus();
 			return false;
 		}
-		if(document.tool_admin.misc_httpsport_x.value == document.tool_admin.misc_httpport_x.value){
+		if(document.form.misc_httpsport_x.value == document.form.misc_httpport_x.value){
 			alert("<%tcWebApi_get("String_Entry","https_port_conflict","s")%>");
-			document.tool_admin.misc_httpsport_x.focus();
+			document.form.misc_httpsport_x.focus();
 			return false;
 		}
 	}
 	
-	if(!validate_range_sp(document.tool_admin.http_autologout, 10, 999, set_http_autologout))
+	if(!validate_range_sp(document.form.http_autologout, 10, 999, set_http_autologout))
 		return false;
 
 	return true;
 }
 
-function corrected_timezone(){
-    var today = new Date();
-    var StrIndex;
-    if(today.toString().lastIndexOf("-") > 0)
-    StrIndex = today.toString().lastIndexOf("-");
-    else if(today.toString().lastIndexOf("+") > 0)
-    StrIndex = today.toString().lastIndexOf("+");
-    if(StrIndex > 0){
-    if(timezone != today.toString().substring(StrIndex, StrIndex+5)){
-    $("timezone_hint").style.display = "";
-			$("timezone_hint").innerHTML = "<%tcWebApi_get("String_Entry","LHC_x_TimeZone_itemhint","s")%>";
-    }
-    else
-    return;
-    }
-    else
-    return;
-}
-
 /* password item show or not */
 function pass_checked(obj){
-	switchType(obj, document.tool_admin.show_pass_1.checked, true);
+	switchType(obj, document.form.show_pass_1.checked, true);
 }
 
 var theUrl = "router.asus.com";
@@ -524,7 +553,7 @@ function hide_https_lanport(_value){
 	if(sw_mode == '1' || sw_mode == '2'){
 		var https_lanport_num = "<% TCWebApi_get("Https_Entry","https_lanport","s") %>";
 		$("https_lanport").style.display = (_value == "1") ? "none" : "";
-		document.tool_admin.https_lanport.value = "<% TCWebApi_get("Https_Entry","https_lanport","s") %>";
+		document.form.https_lanport.value = "<% TCWebApi_get("Https_Entry","https_lanport","s") %>";
 		$("https_access_page").innerHTML = "<%tcWebApi_get("String_Entry","https_access_url","s")%> ";
 		$("https_access_page").innerHTML += "<a href=\"https://"+theUrl+":"+https_lanport_num+"\" target=\"_blank\" style=\"color:#FC0;text-decoration: underline; font-family:Lucida Console;\">http<span>s</span>://"+theUrl+"<span>:"+https_lanport_num+"</span></a>";
 		$("https_access_page").style.display = (_value == "1") ? "none" : "";
@@ -539,6 +568,116 @@ function hide_https_wanport(_value){
 	$("https_port").style.display = (_value == "1") ? "none" : "";
 }
 
+// show clientlist
+function show_http_clientlist(){
+	var http_clientlist_row = http_clientlist_array.split(":");
+	var code = "";
+	code +='<table width="100%" border="1" cellspacing="0" cellpadding="4" align="center" class="list_table" id="http_clientlist_table">'; 
+	if(http_clientlist_row.length == 1)
+		code +='<tr><td style="color:#FFCC00;"><% tcWebApi_Get("String_Entry", "IPC_VSList_Norule", "s") %></td>';
+	else{
+		for(var i =1; i < http_clientlist_row.length; i++){
+		code +='<tr id="row'+i+'">';
+		code +='<td width="80%">'+ http_clientlist_row[i] +'</td>';		//Url keyword
+		code +='<td width="20%">';
+		code +="<input class=\"remove_btn\" type=\"button\" onclick=\"deleteRow(this);\" value=\"\"/></td>";
+		}
+	}
+  	code +='</tr></table>';
+	
+	$("http_clientlist_Block").innerHTML = code;
+}
+
+function setClientIP(ipaddr){
+	document.form.http_client_ip_x_0.value = ipaddr;
+	hideClients_Block();
+	over_var = 0;
+}
+
+var over_var = 0;
+var isMenuopen = 0;
+
+function hideClients_Block(){
+	$("pull_arrow").src = "/images/arrow-down.gif";
+	$('ClientList_Block_PC').style.display='none';
+	isMenuopen = 0;
+}
+
+function pullLANIPList(obj){
+	if(isMenuopen == 0){		
+		obj.src = "/images/arrow-top.gif"
+		$("ClientList_Block_PC").style.display = 'block';		
+		document.form.http_client_ip_x_0.focus();		
+		isMenuopen = 1;
+	}
+	else
+		hideClients_Block();
+}
+
+function deleteRow(r){
+	var i=r.parentNode.parentNode.rowIndex;
+	$('http_clientlist_table').deleteRow(i);
+  
+	var http_clientlist_value = "";
+	for(i=0; i<$('http_clientlist_table').rows.length; i++){
+		http_clientlist_value += ":";
+		http_clientlist_value += $('http_clientlist_table').rows[i].cells[0].innerHTML;
+	}
+	
+	http_clientlist_array = http_clientlist_value;
+	if(http_clientlist_array == "")
+		show_http_clientlist();
+}
+
+function addRow(obj, upper){
+	if('<% TCWebApi_get("SysInfo_Entry","http_restrict_client","h") %>' != "1")
+		document.form.http_client[0].checked = true;
+		
+	//Viz check max-limit 
+	var rule_num = $('http_clientlist_table').rows.length;
+	var item_num = $('http_clientlist_table').rows[0].cells.length;		
+	if(rule_num >= upper){
+		alert("<% tcWebApi_Get("String_Entry", "JS_itemlimit1", "s") %> " + upper + " <% tcWebApi_Get("String_Entry", "JS_itemlimit2", "s") %>");
+		return false;	
+	}
+			
+	if(obj.value == ""){
+		alert(" <% tcWebApi_Get("String_Entry", "JS_fieldblank", "s") %>");
+		obj.focus();
+		obj.select();			
+		return false;
+	}
+	else if(valid_IP_form(obj, 0) != true){
+		return false;
+	}
+	else{		
+		//Viz check same rule
+		for(i=0; i<rule_num; i++){
+			for(j=0; j<item_num-1; j++){		//only 1 value column
+				if(obj.value == $('http_clientlist_table').rows[i].cells[j].innerHTML){
+					alert(" <% tcWebApi_Get("String_Entry", "JS_duplicate", "s") %>");
+					return false;
+				}	
+			}
+		}
+		
+		http_clientlist_array += ":";
+		http_clientlist_array += obj.value;
+		obj.value = "";		
+		show_http_clientlist();
+	}	
+}
+
+function display_spec_IP(flag){
+	if(flag == 0){
+			document.getElementById("http_client_table").style.display = "none";
+			document.getElementById("http_clientlist_Block").style.display = "none";
+	}
+	else{
+			document.getElementById("http_client_table").style.display = "";
+			document.getElementById("http_clientlist_Block").style.display = "";
+	}
+}
 
 //Viz add 2012.12 show url for https [start]
 function change_url(num, flag){
@@ -552,6 +691,33 @@ function change_url(num, flag){
 }
 //Viz add 2012.12 show url for https [end]
 
+function showLANIPList(){	
+	if(clientList.length == 0){
+		setTimeout(function() {
+			genClientList();
+			showLANIPList();
+		}, 500);
+		return false;
+	}
+	
+	var htmlCode = "";		
+	for(var i=0; i<clientList.length;i++){
+		var clientObj = clientList[clientList[i]];
+
+		if(clientObj.IP == "offline") clientObj.IP = "";
+		if(clientObj.Name.length > 30) clientObj.Name = clientObj.Name.substring(0, 27) + "...";
+
+		htmlCode += '<a><div onmouseover="over_var=1;" onmouseout="over_var=0;" onclick="setClientIP(\'';
+		htmlCode += clientObj.IP;		
+		htmlCode += '\');"><strong>';
+		htmlCode += clientObj.IP;
+		htmlCode += '</strong> ( ';
+		htmlCode += clientObj.Name;
+		htmlCode += ' )</div></a><!--[if lte IE 6.5]><iframe class="hackiframe2"></iframe><![endif]-->';	
+	}
+
+	$("ClientList_Block_PC").innerHTML = htmlCode;
+}
 
 function clean_scorebar(obj){
 	if(obj.value == "")
@@ -563,11 +729,7 @@ function clean_scorebar(obj){
 <div id="TopBanner"></div>
 <div id="Loading" class="popup_bg"></div>
 <iframe name="hidden_frame" id="hidden_frame" src="" width="0" height="0" frameborder="0"></iframe>
-<form method="post" name="form" action="" target="hidden_frame">
-<input type="hidden" name="action_mode" value="">
-<input type="hidden" name="action_script" value="">
-<input type="hidden" name="action_wait" value=""></form>
-<FORM METHOD="POST" ACTION="/cgi-bin/Advanced_System_Content.asp" name="tool_admin" target="hidden_frame">
+<FORM METHOD="POST" ACTION="/cgi-bin/Advanced_System_Content.asp" name="form" target="hidden_frame">
 <INPUT TYPE="HIDDEN" NAME="accountFlag" VALUE="0">
 <INPUT TYPE="HIDDEN" NAME="adminFlag" VALUE="0">
 <INPUT TYPE="HIDDEN" NAME="passwdFlag" VALUE="0">
@@ -595,6 +757,8 @@ function clean_scorebar(obj){
 <INPUT TYPE="HIDDEN" name="prev_https_lanport" VALUE="<%tcWebApi_get("Https_Entry","https_lanport","s")%>">
 <INPUT TYPE="HIDDEN" name="prev_username" VALUE="<%tcWebApi_get("Account_Entry0","username","s")%>">
 <INPUT TYPE="HIDDEN" name="prev_web_passwd" VALUE="<%tcWebApi_get("Account_Entry0","web_passwd","s")%>">
+<INPUT TYPE="HIDDEN" name="http_clientlist" value="<% TCWebApi_get("SysInfo_Entry","http_clientlist","s") %>">
+
 <table class="content" align="center" cellpadding="0" cellspacing="0">
 <tr>
 	<td width="17">&nbsp;</td>
@@ -636,14 +800,14 @@ function clean_scorebar(obj){
 									<div id="scorebarBorder" name="scorebarBorder" style="margin-left:140px; margin-top:-25px; display:none;" title="<%tcWebApi_get("String_Entry","LHC_x_Password_itemSecur","s")%>">
 										<div id="score" name="score"></div>
 										<div id="scorebar" name="scorebar">&nbsp;</div>
-									</div>
-									<div style="margin-top:1px;"><input type="checkbox" name="show_pass_1" onclick="pass_checked(document.tool_admin.uiViewTools_Password);pass_checked(document.tool_admin.uiViewTools_PasswordConfirm);"><%tcWebApi_get("String_Entry","QIS_show_pass","s")%></div>
+									</div>									
 								</td>
 							</tr>
 							<tr>
 								<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(11,4)"><%tcWebApi_get("String_Entry","PASS_retype","s")%></a></th>
 								<td>
 									<INPUT TYPE="PASSWORD" autocapitalization="off" autocomplete="off" NAME="uiViewTools_PasswordConfirm" MAXLENGTH="16" VALUE="" onKeyPress="return is_string(this, event);" onpaste="return false;" class="input_15_table">
+									<div style="margin:-25px 0px 5px 135px;"><input type="checkbox" name="show_pass_1" onclick="pass_checked(document.form.uiViewTools_Password);pass_checked(document.form.uiViewTools_PasswordConfirm);"><%tcWebApi_get("String_Entry","QIS_show_pass","s")%></div>
 									<br/><span id="alert_msg2" style="color:#FC0;margin-left:8px;"></span>
 								</td>
 							</tr>
@@ -672,7 +836,7 @@ function clean_scorebar(obj){
 							<tr>
 								<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(11,2)"><%tcWebApi_get("String_Entry","LHC_x_TimeZone_in","s")%></a></th>
 								<td>
-									<SELECT NAME="uiViewdateToolsTZ" class="input_option" style="width:400px;">
+									<SELECT NAME="uiViewdateToolsTZ" class="input_option" style="width:400px;" onChange="corrected_timezone(document.form.uiViewdateDS.value, this.value);">
 									</SELECT><br>
 									<span id="timezone_hint" style="display:none;"></span>
 									<div>
@@ -682,8 +846,8 @@ function clean_scorebar(obj){
 							<tr>
 								<th><%tcWebApi_get("String_Entry","WC11b_WirelessCtrl_button1name","s")%> Daylight Saving</th>
 								<td>
-									<INPUT TYPE="RADIO" NAME="uiViewdateDS" VALUE="Enable"  <% If TCWebApi_get("Timezone_Entry","DAYLIGHT","h") = "Enable" then asp_Write("checked") end if%> ><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
-									<INPUT TYPE="RADIO" NAME="uiViewdateDS" VALUE="Disable" <% If TCWebApi_get("Timezone_Entry","DAYLIGHT","h") = "Disable" then asp_Write("checked") end if%> ><%tcWebApi_get("String_Entry","checkbox_No","s")%>
+									<INPUT TYPE="RADIO" NAME="uiViewdateDS" VALUE="Enable" onClick="corrected_timezone(this.value, document.form.uiViewdateToolsTZ.value);" <% If TCWebApi_get("Timezone_Entry","DAYLIGHT","h") = "Enable" then asp_Write("checked") end if%> ><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
+									<INPUT TYPE="RADIO" NAME="uiViewdateDS" VALUE="Disable" onClick="corrected_timezone(this.value, document.form.uiViewdateToolsTZ.value);" <% If TCWebApi_get("Timezone_Entry","DAYLIGHT","h") = "Disable" then asp_Write("checked") end if%> ><%tcWebApi_get("String_Entry","checkbox_No","s")%>
 								</td>
 							</tr>
 							<tr>
@@ -693,8 +857,8 @@ function clean_scorebar(obj){
 									<a href="javascript:openLink('x_NTPServer1')" name="x_NTPServer1_link" style=" margin-left:5px; text-decoration: underline;"><%tcWebApi_get("String_Entry","LHC_x_NTPServer1_linkname","s")%></a>
 								</td>
 							</tr>
-							<tr>
-								<th><%tcWebApi_get("String_Entry","WC11b_WirelessCtrl_button1name","s")%> Telnet</th>
+							<tr id="telnet_tr">
+								<th><%tcWebApi_get("String_Entry","Enable_Telnet","s")%></th>
 								<td>
 									<input type="radio" name="telnetd_enable" class="input" value="1" <% If TCWebApi_get("Misc_Entry","telnetd_enable","h") = "1" then asp_Write("checked") end if%> ><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
 									<input type="radio" name="telnetd_enable" class="input" value="0" <% If TCWebApi_get("Misc_Entry","telnetd_enable","h") = "0" then asp_Write("checked") end if%> ><%tcWebApi_get("String_Entry","checkbox_No","s")%>
@@ -761,7 +925,39 @@ function clean_scorebar(obj){
 								</td>
 							</tr>
 						<%end if%>
+							<tr id="http_client_tr">
+								<th><% tcWebApi_Get("String_Entry", "System_login_specified_IP", "s") %></th>
+								<td>
+									<input type="radio" name="http_client" class="input" value="1" onclick="display_spec_IP(1);" <% If TCWebApi_get("SysInfo_Entry","http_restrict_client","h") = "1" then asp_Write("checked") end if%>><%tcWebApi_get("String_Entry","checkbox_Yes","s")%>
+									<input type="radio" name="http_client" class="input" value="0" onclick="display_spec_IP(0);" <% If TCWebApi_get("SysInfo_Entry","http_restrict_client","h") <> "1" then asp_Write("checked") end if%>><%tcWebApi_get("String_Entry","checkbox_No","s")%>
+								</td>
+							</tr>
 						</table><br>
+						<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" class="FormTable_table" id="http_client_table">
+							<thead>
+								<tr>
+									<td colspan="4"><% tcWebApi_Get("String_Entry", "System_login_specified_Iplist", "s") %>&nbsp;(<% tcWebApi_Get("String_Entry", "List_limit", "s") %>&nbsp;4)</td>
+								</tr>
+							</thead>
+							
+							<tr>
+								<th width="80%"><% tcWebApi_Get("String_Entry", "ConnectedClient", "s") %></th>
+								<th width="20%"><% tcWebApi_Get("String_Entry", "list_add_delete", "s") %></th>
+							</tr>
+
+							<tr>
+									<!-- client info -->
+								<td width="80%">
+									<input type="text" class="input_32_table" maxlength="15" name="http_client_ip_x_0"  onKeyPress="" onClick="hideClients_Block();" onblur="if(!over_var){hideClients_Block();}">
+									<img id="pull_arrow" height="14px;" src="/images/arrow-down.gif" style="position:absolute;*margin-left:-3px;*margin-top:1px;" onclick="pullLANIPList(this);" title=<% tcWebApi_Get("String_Entry", "select_client", "s") %> onmouseover="over_var=1;" onmouseout="over_var=0;">	
+									<div id="ClientList_Block_PC" class="ClientList_Block_PC"></div>	
+								 </td>
+								 <td width="20%">	
+									<input class="add_btn" type="button" onClick="addRow(document.form.http_client_ip_x_0, 4);" value="">
+								 </td>	
+							</tr>
+						</table>
+						<div id="http_clientlist_Block"></div>
 						<center><input name="button" type="button" class="button_gen" onclick="uiSave();" value="<%tcWebApi_get("String_Entry","CTL_apply","s")%>"/></center>
 					</td>
 				</tr>

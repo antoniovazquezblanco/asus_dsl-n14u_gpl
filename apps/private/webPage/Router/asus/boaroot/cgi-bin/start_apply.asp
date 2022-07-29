@@ -69,6 +69,7 @@ elseif Request_Form("current_page") = "Advanced_VPNClient_Content.asp" then
 		tcWebApi_Set("VPNC_Entry", "clientlist7", "vpnc_clientlist7")
 		tcWebApi_Set("VPNC_Entry", "clientlist8", "vpnc_clientlist8")
 		tcWebApi_Set("VPNC_Entry", "clientlist9", "vpnc_clientlist9")
+		tcWebApi_Set("VPNC_Entry", "pptp_options_list", "vpnc_pptp_options_x_list")
 		tcWebApi_Commit("VPNC")
 	elseif Request_form("listFlag") = "2" Then	
 		tcWebApi_Set("VPNC_Entry", "appendix", "vpnc_appendix")
@@ -80,7 +81,8 @@ elseif Request_Form("current_page") = "Advanced_VPNClient_Content.asp" then
 		tcWebApi_Set("VPNC_Entry", "heartbeat", "vpnc_heartbeat_x")
 		tcWebApi_Set("VPNC_Entry", "username", "vpnc_pppoe_username")
 		tcWebApi_Set("VPNC_Entry", "passwd", "vpnc_pppoe_passwd")	
-		tcWebApi_Set("VPNC_Entry", "auto_conn", "vpnc_auto_conn")	
+		tcWebApi_Set("VPNC_Entry", "auto_conn", "vpnc_auto_conn")
+		tcWebApi_Set("VPNC_Entry", "pptp_options", "vpnc_pptp_options_x")
 		tcWebApi_Commit("VPNC")
 	elseif Request_form("connFlag") = "2" Then	
 		tcWebApi_Commit("VPNC")
@@ -299,7 +301,7 @@ function initial(){
 
 	}else if(current_page.indexOf("Advanced_SettingBackup_Content.asp") >= 0){
 		if(postflag == "5"){
-				setTimeout("alert('<% tcWebApi_Get("String_Entry", "SET_fail_desc", "s") %>');", 5000);
+				setTimeout("alert(\"<% tcWebApi_Get("String_Entry", "SET_fail_desc", "s") %>\");", 5000);
 				setTimeout("parent.redirect_self();", 5000);
 		}else if(postflag == "1"){
 				parent.chk_upgrade();

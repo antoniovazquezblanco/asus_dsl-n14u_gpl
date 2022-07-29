@@ -1063,10 +1063,22 @@ config ASUS_TR181
 	help
 		TR181 data model support.		
 
+config ASUS_USER_LOW_RSSI
+	bool "ASUS_USER_LOW_RSSI"
+	help
+		User specified accepted min rssi.
+
 config ASUS_CFGMGR_RESTART
 	bool "Restart cfg_manager Support"
 	help
 	   When cfg_manager is stuck or gone, restart it.
+
+config ASUS_OPENVPN
+	bool "OpenVPN Support"
+	default n
+	depends TCSUPPORT_ADD_JFFS || TCSUPPORT_SQUASHFS_ADD_YAFFS
+	help
+	   OpenVPN Support
 
 endmenu
 
@@ -1531,6 +1543,19 @@ config TCSUPPORT_NOTDEFAULTROMFILEAREA
 	help
 	     not support default romfile function
 
+config TCSUPPORT_ADD_JFFS
+	bool "TCSUPPORT_ADD_JFFS Support"
+	help
+		add one mtd for JFFS2 between tclinux and reserve area
+
+config TCSUPPORT_JFFS_BLOCK
+	int "Block number of which jffs2 cover"
+	default "0"
+	depends on TCSUPPORT_ADD_JFFS
+	help
+		This controls the amount of flash blocks for jffs2.
+		set 0 for a default value
+
 config TCSUPPORT_CT_2PWIFI
 	bool "TCSUPPORT_CT_2PWIFI Support"
 	help
@@ -1857,6 +1882,12 @@ config TCSUPPORT_BTN_CHECK
 	help
 	      support BTN CHECK 
 
+config TCSUPPORT_WLAN_WPS_SHARE_BTN
+	default n
+	bool "TCSUPPORT_WLAN_WPS_SHARE_BTN Support"
+	help
+	      WLAN radio and WPS share one button
+
 config	TCSUPPORT_RESTORE_LINOS_INFO
 	depends TCSUPPORT_CPU_TC3162U || TCSUPPORT_CPU_RT63260
 	bool "TCSUPPORT_RESTORE_LINOS_INFO Support"
@@ -2006,6 +2037,11 @@ config TCSUPPORT_ARPSTORM
 	bool "TCSUPPORT_ARPSTORM"
 	help
 		Enable run-in mode for arpstorm.
+
+config TCSUPORT_CLEAN_CACHE
+	bool "TCSUPORT_CLEAN_CACHE"
+	help
+		Enable drop cache.
 
 config TCSUPPORT_EDCCA
 	bool "TCSUPPORT_EDCCA"

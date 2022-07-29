@@ -78,6 +78,9 @@ fi
 	else
 		PPP_PARAM="unit $i user $USERNAME password $PASSWORD nodetach holdoff 4 maxfail 0 usepeerdns lcp-echo-interval 6 lcp-echo-failure 10"
 	fi
+
+	PPP_PARAM="$PPP_PARAM novj"
+
 	if [ "$TCSUPPORT_WAN_ATM" != "" -o "$TCSUPPORT_WAN_PTM" != "" -o "$TCSUPPORT_WAN_ETHER" != "" ]; then
 		if [ "$isPTMETHER" = "1" ]; then
 			PPP_PARAM="$PPP_PARAM plugin libpppoe.so nas$i" 

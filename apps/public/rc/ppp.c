@@ -59,7 +59,6 @@ ipup_main(int argc, char **argv)
 	int unit;
 	char *value;
 	char buf[256];
-	char wan_prefix[] = "WanXXXXXXXXXX_";
 
 	_dprintf("%s(%s)\n", __FUNCTION__, wan_ifname);
 
@@ -67,7 +66,6 @@ ipup_main(int argc, char **argv)
 	if ((unit = ppp_linkunit(wan_ifname)) < 0)
 		return 0;
 
-	snprintf(wan_prefix, sizeof(wan_prefix), "Wan_PVC%d", unit);
 	snprintf(prefix, sizeof(prefix), "wan%d_", unit);
 
 	if ((value = getenv("IPLOCAL"))) {
@@ -76,7 +74,6 @@ ipup_main(int argc, char **argv)
 	}
 
 	if ((value = getenv("IPREMOTE"))) {
-		tcapi_set(wan_prefix, "gateway_x", value);
 		tcapi_set(WANDUCK_DATA, strcat_r(prefix, "gateway", tmp), value);
 	}
 
@@ -87,8 +84,7 @@ ipup_main(int argc, char **argv)
 		sprintf(buf + strlen(buf), "%s%s", strlen(buf) ? " " : "", value);
 
 	if (strlen(buf)) {
-		tcapi_set(wan_prefix, "dns_x", buf);
-		tcapi_set(WANDUCK_DATA, strcat_r(prefix, "dns", tmp), buf);
+		tcapi_set(WANDUCK_DATA, strcat_r(prefix, "dns_rx", tmp), buf);
 	}
 
 	wan_up(wan_ifname);

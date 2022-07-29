@@ -9,7 +9,8 @@ If Request_Form("lanFlag") <> "" Then
     	TCWebApi_set("Dhcpd_Common","start","dhcp_start")
     	TCWebApi_set("Dhcpd_Common","end","dhcp_end")
 		tcWebApi_CommitWithoutSave("Dhcpd")
-  	End If				
+  	End If		
+  	tcWebApi_CommitWithoutSave("Wan")
   End If
   
 	tcWebApi_commit("Route")
@@ -53,11 +54,11 @@ function initial(){
 
 function applyRule(){
 	if(validForm()){
-		showLoading(17);
+		showLoading(23);
 		document.getElementById('drword').innerHTML = "<%tcWebApi_get("String_Entry","LAN_IP_changed_suggedtion1","s")%>"+document.uiViewLanForm.lan_ipaddr.value+"<%tcWebApi_get("String_Entry","LAN_IP_changed_suggedtion2","s")%>";
-		setTimeout("hideLoading();", 17000);
-		setTimeout("dr_advise();", 17000);
-		setTimeout("redirect();", 23000);
+		setTimeout("hideLoading();", 23000);
+		setTimeout("dr_advise();", 23000);
+		setTimeout("redirect();", 26000);
 		document.uiViewLanForm.submit();
 	}
 }

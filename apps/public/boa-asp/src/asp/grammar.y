@@ -66,6 +66,7 @@ stmt_call: GB_ID '('')' { $$=new_stmt(yy_reent,AST_CALL);  $$->v_call.func = $1;
 | GB_ID '(' GB_STRING ')' { $$=new_stmt(yy_reent,AST_CALL);  $$->v_call.func = $1;$$->v_call.params[0] = $3; }
 | GB_ID '(' GB_STRING ',' GB_STRING ')' { $$=new_stmt(yy_reent,AST_CALL);  $$->v_call.func = $1;$$->v_call.params[0] = $3;$$->v_call.params[1] = $5; }
 | GB_ID '(' GB_STRING ',' GB_STRING ',' GB_STRING ')' { $$=new_stmt(yy_reent,AST_CALL);  $$->v_call.func = $1;$$->v_call.params[0] = $3;$$->v_call.params[1] = $5;$$->v_call.params[2] = $7; }
+| GB_ID '(' GB_STRING ',' GB_STRING ',' GB_STRING ',' GB_STRING ')' { $$=new_stmt(yy_reent,AST_CALL);  $$->v_call.func = $1;$$->v_call.params[0] = $3;$$->v_call.params[1] = $5;$$->v_call.params[2] = $7;$$->v_call.params[3] = $9; }
 /*old asp grammer
 | GB_ID '(' GB_ID ')' { $$=new_stmt(yy_reent,AST_CALL_ID); $$->v_call.func = $1;if(lookup_asp_constant($3.str, $3.len, &($$->v_call.id))){constant_error(&$3); YYABORT;}}
 | GB_ID '(' GB_ID ',' GB_STRING ')' { $$=new_stmt(yy_reent,AST_CALL_ID_1); $$->v_call.func = $1;$$->v_call.param = $5;if (lookup_asp_constant($3.str,$3.len, &($$->v_call.id))){constant_error(&$3);  YYABORT;}}*/

@@ -34,7 +34,8 @@
 #include "bcmnvram.h"
 #define wan_prefix(unit, prefix) snprintf(prefix, sizeof(prefix), "wan%d_", unit)
 #define WANDUCK	"Wanduck_Common"
-#define	APPS_DATA	"Apps_Entry"
+#define APPS_DATA	"Apps_Entry"
+#define DUALWAN_DATA "Dualwan_Entry"
 
 #include "asp_handler.h"	//javi
 #include "../../../networkmap/networkmap.h"
@@ -99,11 +100,14 @@ static void tcWebApi_Unset (asp_reent* reent, const asp_text* params,  asp_text*
 static void tcWebApi_Commit (asp_reent* reent, const asp_text* params,  asp_text* ret);
 static void tcWebApi_Save (asp_reent* reent, const asp_text* params,  asp_text* ret);
 static void tcWebApi_CurrentDefaultRoute(asp_reent * reent, const asp_text * params, asp_text * ret);
-
+static void tcWebApi_MatchThenWrite (asp_reent* reent, const asp_text* params,  asp_text* ret);
+static void tcWebApi_clean_get (asp_reent* reent, const asp_text* params,  asp_text* ret);
 static void get_post_parameter (asp_reent* reent, const asp_text* params, asp_text* ret);
 
 //Sam
 #ifdef RTCONFIG_USB
+inline int ishex(int x);
+int decode(const char *s, char *dec);
 static void get_folder_tree (asp_reent* reent, const asp_text* params, asp_text* ret);
 static void get_share_tree (asp_reent* reent, const asp_text* params, asp_text* ret);
 static void disk_pool_mapping_info (asp_reent* reent, const asp_text* params, asp_text* ret);
@@ -140,10 +144,15 @@ static void dms_info(asp_reent* reent, const asp_text* params, asp_text* ret);
 static void do_swap(asp_reent* reent, const asp_text* params, asp_text* ret);
 #endif
 #endif
+#ifdef RTCONFIG_OPENVPN
+static void vpn_server_get_parameter(asp_reent* reent, const asp_text* params, asp_text* ret);
+#endif
+
 static void do_apply_cgi (asp_reent* reent, const asp_text* params, asp_text* ret);
 static void wanstate (asp_reent* reent, const asp_text* params, asp_text* ret);
 static void disable_other_wan (asp_reent* reent, const asp_text* params, asp_text* ret);
 static void wanlink (asp_reent* reent, const asp_text* params, asp_text* ret);
+static void first_wanlink (asp_reent* reent, const asp_text* params, asp_text* ret);
 static void secondary_wanlink (asp_reent* reent, const asp_text* params, asp_text* ret);
 static void get_wan_unit_hook (asp_reent* reent, const asp_text* params, asp_text* ret);
 static void get_wan_primary_pvcunit_hook (asp_reent* reent, const asp_text* params, asp_text* ret);
@@ -197,7 +206,6 @@ static void update_variables(asp_reent* reent, const asp_text* params, asp_text*
 static void init_wifiIfname();
 #endif
 static void init_netdevData();
-static void pushData(char * ifname, unsigned long long tx, unsigned long long rx);
 //Ren.E
 
 int char_all_to_ascii(const char *output, const char *input, int outsize);
@@ -272,6 +280,8 @@ netDev_t ATMData; //nas0
 netDev_t PTMData[2]; //nas8, nas9
 netDev_t EthernetWANData; //nas10
 //Ren.E
+
+int isPPPoA_boa = 0;
 
 //Ren.B
 typedef struct wifiIfName_s
@@ -604,7 +614,6 @@ static void
 set_dsl_restart_flag (asp_reent* reent, const asp_text* params,  asp_text* ret)
 {
 	char *wanVCFlag = get_param(g_var_post, "wanVCFlag");
-	char tmp[16] = {0};
 	char transmode[8] = {0};
 	int current_wanmode = -1;
 	int do_restart = 1;
@@ -684,6 +693,12 @@ ej_should_dsl_do_commit (asp_reent* reent, const asp_text* params,  asp_text* re
 	}
 }
 
+extern void http_update_allowed_client(void);
+static void update_http_clientlist(asp_reent* reent, const asp_text* params,  asp_text* ret)
+{
+	http_update_allowed_client(); 
+}
+
 void init_asp_funcs(void)
 {
     #ifndef TRENDCHIP
@@ -702,9 +717,9 @@ void init_asp_funcs(void)
     append_asp_func ("tcWebApi_Save", tcWebApi_Save);
 /*krammer add for bug 1321*/
     append_asp_func("tcWebApi_CurrentDefaultRoute", tcWebApi_CurrentDefaultRoute);
-
     append_asp_func("get_parameter", get_post_parameter);
-
+	append_asp_func("tcWebApi_MatchThenWrite", tcWebApi_MatchThenWrite);
+	append_asp_func("tcWebApi_clean_get", tcWebApi_clean_get);
 	//Sam
 #ifdef RTCONFIG_USB
 	append_asp_func("get_folder_tree", get_folder_tree);
@@ -743,10 +758,14 @@ void init_asp_funcs(void)
 	append_asp_func ("modify_admin_account", modify_admin_account);
 	append_asp_func ("modify_aidisk_account", modify_aidisk_account);
 #endif
+#ifdef RTCONFIG_OPENVPN
+	append_asp_func("vpn_server_get_parameter", vpn_server_get_parameter);
+#endif
 	append_asp_func("do_apply_cgi", do_apply_cgi);
 	append_asp_func("wanstate", wanstate);
 	append_asp_func("disable_other_wan", disable_other_wan);
 	append_asp_func("wanlink", wanlink);
+	append_asp_func("first_wanlink", first_wanlink);
 	append_asp_func("secondary_wanlink", secondary_wanlink);
 	append_asp_func("get_wan_unit", get_wan_unit_hook);
 	append_asp_func("get_wan_primary_pvcunit", get_wan_primary_pvcunit_hook);
@@ -816,6 +835,7 @@ void init_asp_funcs(void)
     append_asp_func ("should_wan_pvc_do_commit", ej_should_wan_pvc_do_commit);
     append_asp_func ("set_dsl_restart_flag", set_dsl_restart_flag);
     append_asp_func ("should_dsl_do_commit", ej_should_dsl_do_commit);
+    append_asp_func ("update_http_clientlist", update_http_clientlist);
 #endif
 }
 
@@ -1957,114 +1977,69 @@ static void init_netdevData()
 #endif /* TCSUPPORT_WLAN_RT6856 */
 }
 
-static void pushData( char *ifname, unsigned long long tx, unsigned long long rx )
+void readATMData_MTK(void)
 {
-	if( ifname == NULL )
+	FILE *fp = NULL;
+	char buf[256] = {0};
+	unsigned long in;
+	unsigned long out;
+
+	system("cat /proc/tc3162/tsarm_stats > /tmp/atm_traffic");
+
+	fp = fopen( "/tmp/atm_traffic", "r" );
+	if (fp)
 	{
-		printf( "[%s][%d]ifname is NULL!!\n", __FILE__, __LINE__ );
-		return;
-	}
-#if defined(TCSUPPORT_MTK_INTERNAL_ETHER_SWITCH)
-	else if ( strcmp( ifname, "eth0") == 0 )
-	{
-		WiredData.tx = tx;
-		WiredData.rx = rx;
-		return;
-	}
-#else if defined(MT7530_SUPPORT)
-	else if ( strncmp( ifname, "eth0.", 5) == 0 )
-	{
-		WiredData.tx += tx;
-		WiredData.rx += rx;
-		return;
-	}
-#endif
-	else if ( strcmp( ifname, "nas0" ) == 0 || strcmp( ifname, "nas1" ) == 0 ||
-		strcmp( ifname, "nas2" ) == 0 || strcmp( ifname, "nas3" ) == 0 ||
-		strcmp( ifname, "nas4" ) == 0 || strcmp( ifname, "nas5" ) == 0 ||
-		strcmp( ifname, "nas6" ) == 0 || strcmp( ifname, "nas7" ) == 0)
-	{
-		ATMData.tx += tx;
-		ATMData.rx += rx;
-		return;
-	}
-	else if ( strncmp( ifname, "nas8_", 5 ) == 0 )
-	{
-		PTMData[0].tx += tx;
-		PTMData[0].rx += rx;
-		return;
-	}
-	else if ( strncmp( ifname, "nas9_", 5 ) == 0 )
-	{
-		PTMData[1].tx += tx;
-		PTMData[1].rx += rx;
-		return;
-	}
-#if defined(TCSUPPORT_MULTISERVICE_ON_WAN)
-	else if ( strncmp( ifname, "nas10_", 6 ) == 0 )
-	{
-		EthernetWANData.tx += tx;
-		EthernetWANData.rx += rx;
-		return;
-	}
-#elif defined(TCSUPPORT_WAN_ETHER_LAN)
-	else if ( strcmp( ifname, "nas12" ) == 0 )
-	{
-		EthernetWANData.tx = tx;
-		EthernetWANData.rx = rx;
-		return;
-	}
-#else
-	else if ( strcmp( ifname, "nas10" ) == 0 )
-	{
-		EthernetWANData.tx = tx;
-		EthernetWANData.rx = rx;
-		return;
-	}
-#endif
-	else if ( strcmp( ifname, "eth0" ) == 0 ) // May be changed to another interface!!!
-	{
-		InternetData.tx = tx;
-		InternetData.rx = rx;
-		return;
-	}
-	else if ( strcmp( ifname, "br0" ) == 0 ) // just a temporary test
-	{
-		BridgeData.tx = tx;
-		BridgeData.rx = rx;
-		return;
-	}
-#ifdef TCSUPPORT_WLAN_RT6856
-		//do nothing
-#else
-	else
-	{
-		unsigned int index;
-		for(index = 0; index < Wifi2Gifname.count; index++)
+		while (fgets(buf, sizeof(buf), fp))
 		{
-			if ( strcmp( ifname, Wifi2Gifname.ifnames[index]) == 0 )
+			if (!strncmp(buf, "inBytes", 7))
 			{
-				Wireless2GData[index].tx = tx;
-				Wireless2GData[index].rx = rx;
-				return;
+				sscanf(buf, "%*[^=]= 0x%lx,%*[^=]= 0x%lx", &in, &out);
+				ATMData.rx = in;
+				ATMData.tx = out;
 			}
 		}
-
-		for(index = 0; index < Wifi5Gifname.count; index++)
-		{
-			if ( strcmp( ifname, Wifi5Gifname.ifnames[index]) == 0 )
-			{
-				Wireless5GData[index].tx = tx;
-				Wireless5GData[index].rx = rx;
-				return;
-			}
-		}
+			
+		fclose(fp);
 	}
-#endif /* TCSUPPORT_WLAN_RT6856 */
-
+	unlink("/tmp/atm_traffic");
 }
 
-void readWiFiData_boa(void)
+void readPTMData_MTK(void)
+{
+	FILE *fp = NULL;
+	char buf[256] = {0};
+	unsigned long in;
+	unsigned long out;
+
+	system("cat /proc/tc3162/ptm_b0_stats > /tmp/ptm_traffic");
+
+	fp = fopen( "/tmp/ptm_traffic", "r" );
+	if (fp)
+	{
+		while (fgets(buf, sizeof(buf), fp))
+		{
+			if (!strncmp(buf, "inOctets", 8))
+			{
+				sscanf(buf, "%*[^=]= 0x%lx,%*[^=]= 0x%*x", &in);
+				PTMData[0].rx = in;
+			}
+			else if (!strncmp(buf, "outOctets", 9))
+			{
+				sscanf(buf, "%*[^=]= 0x%lx,%*[^=]= 0x%*x", &out);
+				PTMData[0].tx = out;
+			}
+
+		}
+		
+		fclose(fp);
+	}
+
+	unlink("/tmp/ptm_traffic");
+}
+
+
+#ifdef TCSUPPORT_WLAN_RT6856
+void readWiFiData_RT6856(void)
 {
 	FILE *fp = NULL;
 	char buf[256] = {0};
@@ -2121,8 +2096,194 @@ void readWiFiData_boa(void)
 	#endif
 
 }
+#endif
 
-void readWiredData_boa( void )
+static void parseWiFiData_MTK(netDev_t *data)
+{
+	FILE *fp = NULL;
+	char buf[256] = {0};
+
+	if (data == NULL)
+		return;
+
+	fp = fopen( "/tmp/wifi_traffic", "r" );
+	if (fp)
+	{
+		while (fgets(buf, sizeof(buf), fp))
+		{
+			if (!strncmp(buf, "Bytes Received", 14))
+			{
+				sscanf(buf, "%*[^=]= %llu", &(data->rx));
+			}
+			else if (!strncmp(buf, "Bytes Sent", 10))
+			{
+				sscanf(buf, "%*[^=]= %llu", &(data->tx));
+			}
+		}
+			
+		fclose(fp);
+	}
+	unlink("/tmp/wifi_traffic");
+}
+
+void readWiFiData_MTK(void)
+{
+	char cmd[128] = {0};
+	int i;
+
+	//ra0 ~ ra3 record the same statisic ..
+	for (i=0; i<1; i++)
+	{
+		//2.4G
+		sprintf(cmd, "/userfs/bin/iwpriv ra%d stat > /tmp/wifi_traffic", i);
+		system(cmd);
+		parseWiFiData_MTK(&Wireless2GData[i]);
+
+		//5G
+		sprintf(cmd, "/userfs/bin/iwpriv rai%d stat > /tmp/wifi_traffic", i);
+		system(cmd);
+		parseWiFiData_MTK(&Wireless5GData[i]);
+	}
+
+	#if 0 //debug
+	{
+		FILE *output = fopen("/tmp/output", "w");
+		fprintf(output, "2GRX=%llu, %llu, %llu, %llu, total=%llu\n", Wireless2GData[0].rx, Wireless2GData[1].rx, Wireless2GData[2].rx, Wireless2GData[3].rx, Sum2GData.rx);
+		fprintf(output, "2GTX=%llu, %llu, %llu, %llu, total=%llu\n", Wireless2GData[0].tx, Wireless2GData[1].tx, Wireless2GData[2].tx, Wireless2GData[3].tx, Sum2GData.tx);
+		fprintf(output, "5GRX=%llu, %llu, %llu, %llu, total=%llu\n", Wireless5GData[0].rx, Wireless5GData[1].rx, Wireless5GData[2].rx, Wireless5GData[3].rx, Sum5GData.rx);
+		fprintf(output, "5GTX=%llu, %llu, %llu, %llu, total=%llu\n", Wireless5GData[0].tx, Wireless5GData[1].tx, Wireless5GData[2].tx, Wireless5GData[3].tx, Sum5GData.tx);
+		fclose(output);
+	}
+	#endif
+
+}
+
+#if defined(TCSUPPORT_CPU_MT7510)
+void readWiredData_MTK_mt7510(void)
+{
+	FILE *fp = NULL;
+	char buf[256] = {0};
+	char tmp[32] = {0};
+	int port_no = 0;
+	unsigned long in;
+	unsigned long out;
+
+
+	system("cat /proc/tc3162/gsw_stats > /tmp/ether_switch_traffic");
+
+	fp = fopen( "/tmp/ether_switch_traffic", "r" );
+	if (fp)
+	{
+		while (fgets(buf, sizeof(buf), fp))
+		{
+			sprintf(tmp, "[ Port %d ]", port_no);
+			if (!strncmp(buf, tmp, 10))
+			{
+				while (fgets(buf, sizeof(buf), fp))
+				{
+					if (!strncmp(buf, "Tx Bytes", 8))
+					{
+						sscanf(buf, "%*[^=]= 0x%lx,%*[^=]= 0x%lx", &out, &in);
+						if (port_no < 4)
+						{
+							WiredData.rx += in;
+							WiredData.tx += out;
+						}
+						else
+						{
+							EthernetWANData.rx += in;
+							EthernetWANData.tx += out;
+						}
+
+						port_no++;
+						if (get_cur_lanwan_port() == port_no)
+						{
+							EthernetWANData.rx += in;
+							EthernetWANData.tx += out;
+						}
+
+						break;
+					}
+				}
+			}
+
+			if (port_no >= 5)
+				break;
+		}
+			
+		fclose(fp);
+	}
+	unlink("/tmp/ether_switch_traffic");
+}
+#else
+void readWiredData_MTK(void)
+{
+	FILE *fp = NULL;
+	char buf[256] = {0};
+	char tmp[32] = {0};
+	int port_no = 0;
+	unsigned long in;
+	unsigned long out;
+
+
+	system("cat /proc/tc3162/gsw_stats > /tmp/ether_switch_traffic");
+
+	fp = fopen( "/tmp/ether_switch_traffic", "r" );
+	if (fp)
+	{
+		while (fgets(buf, sizeof(buf), fp))
+		{
+			sprintf(tmp, "[ Port %d ]", port_no);
+			if (!strncmp(buf, tmp, 10))
+			{
+				while (fgets(buf, sizeof(buf), fp))
+				{
+					if (!strncmp(buf, "Rx Good Bytes", 13))
+					{
+						sscanf(buf, "%*[^=]= 0x%x,%*[^=]= 0x%*x", &in);
+						if (port_no < 4)
+						{
+							WiredData.rx += in;
+						}
+						else
+						{
+							EthernetWANData.rx += in;
+						}
+					}
+					else if (!strncmp(buf, "Tx Good Bytes", 13))
+					{
+						sscanf(buf, "%*[^=]= 0x%x,%*[^=]= 0x%*x", &out);
+						if (port_no < 4)
+						{
+							WiredData.tx += out;
+						}
+						else
+						{
+							EthernetWANData.tx += out;
+						}
+						port_no++;
+						break;
+					}
+				}
+
+				if (get_cur_lanwan_port() == port_no)
+				{
+					EthernetWANData.rx += in;
+					EthernetWANData.tx += out;
+				}
+			}
+
+			if (port_no >= 5)
+				break;
+		}
+			
+		fclose(fp);
+	}
+	unlink("/tmp/ether_switch_traffic");
+}
+#endif
+
+void readWiredData_RTK( void )
 {
 	char buf[256] = {0};
 	char *p = NULL;
@@ -2161,22 +2322,14 @@ void readWiredData_boa( void )
 	
 }
 
-void modifyData_boa( void )
+void modifyTrafficData( void )
 {
-#if defined(TCSUPPORT_MTK_INTERNAL_ETHER_SWITCH) || defined(MT7530_SUPPORT)
-	//nothing to do for WiredData.
-#else
-	readWiredData_boa();
-#endif
-
 #if defined(TCSUPPORT_WAN_ETHER_LAN)
 	WiredData.rx -= EthernetWANData.rx;
 	WiredData.tx -= EthernetWANData.tx;
 #endif
 
 #ifdef TCSUPPORT_WLAN_RT6856
-	readWiFiData_boa();
-
 	WiredData.rx -= Sum2GData.rx - Sum5GData.rx;
 	WiredData.tx -= Sum2GData.tx - Sum5GData.tx;
 #else
@@ -2190,47 +2343,50 @@ void modifyData_boa( void )
 
 static void tcWebApi_UpdateNetdev(asp_reent* reent, const asp_text* params, asp_text* ret)
 {
-	FILE *fp = NULL;
-	char buf[256] = {0};
 	char tmp[256] = {0};
-	unsigned long long tx = 0, rx = 0;
-	char *p = NULL;
-	char *ifname = 0;
 
 	init_netdevData();
 
-	if( (fp = fopen( "/proc/net/dev", "r" ))  != NULL )
-	{
-		fgets(buf, sizeof(buf), fp);
-		fgets(buf, sizeof(buf), fp);
+	//read wired traffic 
+#if defined(TCSUPPORT_MTK_INTERNAL_ETHER_SWITCH) || defined(MT7530_SUPPORT)
+	#if defined(TCSUPPORT_CPU_MT7510)
+	readWiredData_MTK_mt7510();
+	#else	
+	readWiredData_MTK();
+	#endif
+#else
+	readWiredData_RTK();
+#endif
 
-		while (fgets(buf, sizeof(buf), fp)) {
-			if ((p = strchr(buf, ':')) == NULL) continue;
-			*p = 0;
-			if ((ifname = strrchr(buf, ' ')) == NULL) ifname = buf;
-			    else ++ifname;
-			if (sscanf(p + 1, "%llu%*u%*u%*u%*u%*u%*u%*u%llu", &rx, &tx) != 2) continue;
+	//read ATM traffic
+	readATMData_MTK();
 
-			pushData( ifname, tx, rx );
-		}
-		fclose(fp);
+	//read PTM traffic
+	readPTMData_MTK();
 
-		modifyData_boa();
+	//read wireless traffic 
+#ifdef TCSUPPORT_WLAN_RT6856
+	readWiFiData_RT6856();
+#else
+	readWiFiData_MTK();
+#endif
 
-		websWrite( tmp, "\nnetdev = {\n" );
-		websWrite( tmp, "'%s':{rx:0x%llx,tx:0x%llx}\n", "WIRED" , WiredData.rx, WiredData.tx );
-		websWrite( tmp, ",'%s':{rx:0x%llx,tx:0x%llx}\n", "WIRELESS0" , Sum2GData.rx, Sum2GData.tx );
-		websWrite( tmp, ",'%s':{rx:0x%llx,tx:0x%llx}\n", "WIRELESS1" , Sum5GData.rx, Sum5GData.tx );
-		websWrite( tmp, ",'%s':{rx:0x%llx,tx:0x%llx}\n", "BRIDGE" , BridgeData.rx, BridgeData.tx );
+	modifyTrafficData();
+
+	memset(tmp, 0, sizeof(tmp));
+	websWrite( tmp, "\nnetdev = {\n" );
+	websWrite( tmp, "'%s':{rx:0x%llx,tx:0x%llx}\n", "WIRED" , WiredData.rx, WiredData.tx );
+	websWrite( tmp, ",'%s':{rx:0x%llx,tx:0x%llx}\n", "WIRELESS0" , Sum2GData.rx, Sum2GData.tx );
+	websWrite( tmp, ",'%s':{rx:0x%llx,tx:0x%llx}\n", "WIRELESS1" , Sum5GData.rx, Sum5GData.tx );
+	websWrite( tmp, ",'%s':{rx:0x%llx,tx:0x%llx}\n", "BRIDGE" , BridgeData.rx, BridgeData.tx );
+	
+	//Paul add 2012/10/23
+	websWrite( tmp, ",'%s':{rx:0x%llx,tx:0x%llx}\n", "ATM" , ATMData.rx, ATMData.tx );
+	websWrite( tmp, ",'%s':{rx:0x%llx,tx:0x%llx}\n", "PTM0" , PTMData[0].rx, PTMData[0].tx );
+	websWrite( tmp, ",'%s':{rx:0x%llx,tx:0x%llx}\n", "PTM1" , PTMData[1].rx, PTMData[1].tx );
+	websWrite( tmp, ",'%s':{rx:0x%llx,tx:0x%llx}\n", "ETHERNETWAN" , EthernetWANData.rx, EthernetWANData.tx );
+	websWrite( tmp, "}" );
 		
-		//Paul add 2012/10/23
-		websWrite( tmp, ",'%s':{rx:0x%llx,tx:0x%llx}\n", "ATM" , ATMData.rx, ATMData.tx );
-		websWrite( tmp, ",'%s':{rx:0x%llx,tx:0x%llx}\n", "PTM0" , PTMData[0].rx, PTMData[0].tx );
-		websWrite( tmp, ",'%s':{rx:0x%llx,tx:0x%llx}\n", "PTM1" , PTMData[1].rx, PTMData[1].tx );
-		websWrite( tmp, ",'%s':{rx:0x%llx,tx:0x%llx}\n", "ETHERNETWAN" , EthernetWANData.rx, EthernetWANData.tx );
-		websWrite( tmp, "}" );
-		
-	}
 }
 
 static void tcWebApi_UpdateBandwidth(asp_reent* reent, const asp_text* params, asp_text* ret)
@@ -2546,46 +2702,44 @@ tcWebApi_Get (asp_reent* reent, const asp_text* params,  asp_text* ret)
 #ifdef RA_PARENTALCONTROL
 	if(strcmp(node, "Parental") == 0 && strcmp(attr, "BrowserMAC") == 0){
 		getClientMacAddr(reent->server_env->remote_ip_addr);
-	} else {
+	} else
 #endif/*RA_PARENTALCONTROL*/
-
+	{
 #if defined(TCSUPPORT_GENERAL_MULTILANGUAGE)
 		if (!strcmp(node, "String_Entry"))
 		{
 			if(0 == getString(attr, val))
 				strcpy(val, "N/A");
 		}
-		else {
+		else
 #endif
-		r_val = tcapi_get(node, attr, val);
-		if(r_val < 0){
-			strcpy(val,""); /* Paul modify 2013/2/7 */
+		{
+			r_val = tcapi_get(node, attr, val);
+			if(r_val < 0){
+				strcpy(val,""); /* Paul modify 2013/2/7 */
+			}
 		}
-#if defined(TCSUPPORT_GENERAL_MULTILANGUAGE)
-		}
-#endif
+
 		if(!strcmp(show,"s")){//show -> s
 #if defined(TCSUPPORT_GUI_STRING_CONFIG) || defined(TCSUPPORT_GENERAL_MULTILANGUAGE)
-	if(strcmp(node,"String_Entry"))          //not from String_Entry
-    	{    		
-    		strQuotConvertHTML(val,retVal);
-    	}
-	else
-	{
-		memset(retVal,0,572);
-		strcpy(retVal,val);
-	}
+			if(strcmp(node,"String_Entry"))          //not from String_Entry
+		    	{    		
+		    		strQuotConvertHTML(val,retVal);
+		    	}
+			else
+			{
+				memset(retVal, 0, sizeof(retVal));
+				strcpy(retVal, val);
+			}
 #endif
-			asp_send_response (NULL,retVal,strlen(retVal));
+			asp_send_response (NULL, retVal, strlen(retVal));
 		}
 		else if(!strcmp(show,"h")){//hide -> h
 			if(strlen(val))
 				ret->str = val;
 			ret->len = strlen(val);
 		}
-#ifdef RA_PARENTALCONTROL
 	}
-#endif/*RA_PARENTALCONTROL*/
 #endif
 }
 /*_____________________________________________________________________________*
@@ -2747,6 +2901,8 @@ tcWebApi_CommitWithoutSave (asp_reent* reent, const asp_text* params,  asp_text*
 	r_val = tcapi_commit(node);
 	cprintf("commit %s return %d\n", node, r_val);
 
+	//Andy Chiu, 2015/04/15. Set x_Setting as 1 after configuration
+	tcapi_set("SysInfo_Entry", "x_Setting", "1");
 }
 
 static void
@@ -6575,7 +6731,7 @@ static void disable_other_wan (asp_reent* reent, const asp_text* params, asp_tex
 					continue;
 				else if(CurSet_pvc >= 0 && CurSet_pvc < 8 && i >= 0 && i < 8)	//pvc 0~7 can active at the same time
 					continue;
-			#if defined(RTCONFIG_DUALWAN) && defined(TCSUPPORT_WAN_PTM)
+			#if defined(RTCONFIG_DUALWAN)
 				else if( (i == WAN_UNIT_ETH || i == WAN_UNIT_USB || i == WAN_UNIT_ETH_LAN) && (strstr(tmp, "none") == NULL))
 					continue;	//DSL can be changed, but if dualwan enable, don't disable ETH or USB
 			#endif
@@ -6687,13 +6843,7 @@ static void wanlink (asp_reent* reent, const asp_text* params, asp_text* ret)
 	char name[32] = {0};
 	char wp[256] = {0};
 
-#ifdef RTCONFIG_DUALWAN
-	tcapi_get("Dualwan_Entry", "wans_dualwan", tmp);
-	if(!strstr(tmp, "none"))
-		unit = wan_primary_pvcunit();
-	else
-#endif
-		unit = wan_primary_ifunit();
+	unit = wan_primary_ifunit();
 
 	memset(tmp, 0, sizeof(tmp));
 	memset(wan_proto, 0, sizeof(wan_proto));
@@ -6865,6 +7015,203 @@ static void wanlink (asp_reent* reent, const asp_text* params, asp_text* ret)
 	websWrite(wp, "function wanlink_xdns() { return '%s';}\n", xdns);
 	websWrite(wp, "function wanlink_xlease() { return %d;}\n", xlease);
 	websWrite(wp, "function wanlink_xexpires() { return %d;}\n", xexpires);
+
+	return;
+}
+
+static void first_wanlink (asp_reent* reent, const asp_text* params, asp_text* ret)
+{
+	char tmp[32], prefix[32] = "wanXXXXXXXXXX_";
+	int wan_state = -1, wan_sbstate = -1, wan_auxstate = -1;
+	int unit, status = 0;
+	char *statusstr[2] = { "Disconnected", "Connected" };
+	char *type;
+	char wan_proto[8];
+	char ip[18] = "0.0.0.0";
+	char netmask[18] = "0.0.0.0";
+	char gateway[18] = "0.0.0.0";
+	char dns[64] = "0.0.0.0";
+	unsigned int lease = 0, expires = 0;
+	char *xtype = "";
+	char xip[18] = "0.0.0.0";
+	char xnetmask[18] = "0.0.0.0";
+	char xgateway[18] = "0.0.0.0";
+	char xdns[32] = "0.0.0.0";
+	unsigned int xlease = 0, xexpires = 0;
+	char name[32] = {0};
+	char wp[256] = {0};
+
+	unit = wan_primary_pvcunit();
+
+	memset(tmp, 0, sizeof(tmp));
+	memset(wan_proto, 0, sizeof(wan_proto));
+	wan_prefix(unit, prefix);
+
+	wan_state = tcapi_get_int(WANDUCK, strcat_r(prefix, "state_t", tmp));
+	wan_sbstate = tcapi_get_int(WANDUCK, strcat_r(prefix, "sbstate_t", tmp));
+	wan_auxstate = tcapi_get_int(WANDUCK, strcat_r(prefix, "auxstate_t", tmp));
+
+	// wan_proto = nvram_safe_get(strcat_r(prefix, "proto", tmp));
+	tcapi_get(WANDUCK, strcat_r(prefix, "proto", tmp), wan_proto);
+
+	if (dualwan_unit__usbif(unit)) {
+		if(wan_state == WAN_STATE_INITIALIZING){
+			status = 0;
+		}
+		else if(wan_state == WAN_STATE_CONNECTING){
+			status = 0;
+		}
+		else if(wan_state == WAN_STATE_DISCONNECTED){
+			status = 0;
+		}
+		else if(wan_state == WAN_STATE_STOPPED){
+			status = 0;
+		}
+		else if(wan_state == WAN_STATE_DISABLED){
+			status = 0;
+		}
+		else{
+			status = 1;
+		}
+	}
+	else if(wan_state == WAN_STATE_DISABLED){
+		status = 0;
+	}
+// DSLTODO, need a better integration	
+#ifdef RTCONFIG_DSL
+	// if dualwan & enable lan port as wan
+	// it always report disconnected
+	//Some AUXSTATE is displayed for reference only
+	else if(wan_auxstate == WAN_AUXSTATE_NOPHY && (tcapi_get_int(WANDUCK, "web_redirect")&WEBREDIRECT_FLAG_NOLINK)) { 
+		status = 0;
+	}
+#else
+	//Some AUXSTATE is displayed for reference only
+	else if(wan_auxstate == WAN_AUXSTATE_NOPHY && (tcapi_get_int(WANDUCK, "web_redirect")&WEBREDIRECT_FLAG_NOLINK)) { 
+		status = 0;
+	}
+#endif
+	else if(wan_auxstate == WAN_AUXSTATE_NO_INTERNET_ACTIVITY&&(tcapi_get_int(WANDUCK, "web_redirect")&WEBREDIRECT_FLAG_NOINTERNET)) { 
+		status = 0;
+	}
+	else if(!strcmp(wan_proto, "pppoe")
+			// || !strcmp(wan_proto, "pptp")
+			// || !strcmp(wan_proto, "l2tp")
+			)
+	{
+		if(wan_state == WAN_STATE_INITIALIZING){
+			status = 0;
+		}
+		else if(wan_state == WAN_STATE_CONNECTING){
+			status = 0;
+		}
+		else if(wan_state == WAN_STATE_DISCONNECTED){
+			status = 0;
+		}
+		else if(wan_state == WAN_STATE_STOPPED && wan_sbstate != WAN_STOPPED_REASON_PPP_LACK_ACTIVITY){
+			status = 0;
+		}
+		else{
+			status = 1;
+		}
+	}
+	else{
+		if(wan_state == WAN_STATE_STOPPED && wan_sbstate == WAN_STOPPED_REASON_INVALID_IPADDR){
+			status = 0;
+		}
+		else if(wan_state == WAN_STATE_INITIALIZING){
+			status = 0;
+		}
+		else if(wan_state == WAN_STATE_CONNECTING){
+			status = 0;
+		}
+		else if(wan_state == WAN_STATE_DISCONNECTED){
+			status = 0;
+		}
+		else {
+			lease = nvram_get_int(strcat_r(prefix, "lease", tmp));
+			// treat short lease time as disconnected
+			if(!strcmp(wan_proto, "dhcp") &&	//DHCP
+				lease <= 60 &&
+				is_private_subnet(nvram_safe_get(strcat_r(prefix, "ipaddr", tmp)))
+			) {
+				status = 0;
+			}
+			else {
+				status = 1;
+			}
+		}
+	}
+
+#ifdef RTCONFIG_USB_MODEM
+	if (dualwan_unit__usbif(unit))
+		type = "USB Modem";
+	else
+#endif
+		type = wan_proto;
+
+	if(status != 0){
+		strncpy(ip, nvram_safe_get(strcat_r(prefix, "ipaddr", tmp)), sizeof(ip)-1);
+		strncpy(netmask, nvram_safe_get(strcat_r(prefix, "netmask", tmp)), sizeof(netmask)-1);
+		strncpy(gateway, nvram_safe_get(strcat_r(prefix, "gateway", tmp)), sizeof(gateway)-1);
+		strncpy(dns, nvram_safe_get(strcat_r(prefix, "dns", dns)), sizeof(dns)-1);
+		lease = nvram_get_int(strcat_r(prefix, "lease", tmp));
+		if (lease > 0)
+			expires = nvram_get_int(strcat_r(prefix, "expires", tmp)) - uptime();
+	}
+
+	websWrite(wp, "function first_wanlink_status() { return %d;}\n", status);
+	websWrite(wp, "function first_wanlink_statusstr() { return '%s';}\n", statusstr[status]);
+	websWrite(wp, "function first_wanlink_type() { return '%s';}\n", type);
+	websWrite(wp, "function first_wanlink_ipaddr() { return '%s';}\n", ip);
+	websWrite(wp, "function first_wanlink_netmask() { return '%s';}\n", netmask);
+	websWrite(wp, "function first_wanlink_gateway() { return '%s';}\n", gateway);
+	websWrite(wp, "function first_wanlink_dns() { return '%s';}\n", dns);
+	websWrite(wp, "function first_wanlink_lease() { return %d;}\n", lease);
+	websWrite(wp, "function first_wanlink_expires() { return %d;}\n", expires);
+
+	if (strcmp(wan_proto, "pppoe") == 0
+		//|| strcmp(wan_proto, "pptp") == 0
+		//|| strcmp(wan_proto, "l2tp") == 0
+		)
+	{
+		// int dhcpenable = nvram_get_int(strcat_r(prefix, "dhcpenable_x", tmp));
+		int dhcpenable = 0;
+		sprintf(name, "Wan_PVC%d", unit);
+		tcapi_get(name, "PPPGETIP", tmp);
+		dhcpenable = strcmp(tmp, "Dynamic") ? 0 : 1;
+#if 0
+		if (strcmp(wan_proto, "pppoe") == 0 &&
+		    dhcpenable && nvram_match(strcat_r(prefix, "vpndhcp", tmp), "0"))
+			dhcpenable = 2;
+#endif
+
+		if (dhcpenable == 0)
+			xtype = "static";
+		else if (dhcpenable != 2 || strcmp(wan_proto, "pppoe") != 0)
+			xtype = "dhcp";
+		
+		tcapi_get(name, "WanIP", xip);
+		tcapi_get(name, "WanSubMask", xnetmask);
+		tcapi_get(name, "WanDefGW", xgateway);
+		tcapi_get(name, "DNSIP", xdns);
+		xlease = tcapi_get_int(name, "DhcpLeaseTime");
+		// xip = nvram_safe_get(strcat_r(prefix, "xipaddr", tmp));
+		// xnetmask = nvram_safe_get(strcat_r(prefix, "xnetmask", tmp));
+		// xgateway = nvram_safe_get(strcat_r(prefix, "xgateway", tmp));
+		// xlease = nvram_get_int(strcat_r(prefix, "xlease", tmp));
+		if (xlease > 0)
+			// xexpires = nvram_get_int(strcat_r(prefix, "xexpires", tmp)) - uptime();
+			xexpires = tcapi_get_int(name, "DhcpExpiresTime") - uptime();
+	}
+
+	websWrite(wp, "function first_wanlink_xtype() { return '%s';}\n", xtype);
+	websWrite(wp, "function first_wanlink_xipaddr() { return '%s';}\n", xip);
+	websWrite(wp, "function first_wanlink_xnetmask() { return '%s';}\n", xnetmask);
+	websWrite(wp, "function first_wanlink_xgateway() { return '%s';}\n", xgateway);
+	websWrite(wp, "function first_wanlink_xdns() { return '%s';}\n", xdns);
+	websWrite(wp, "function first_wanlink_xlease() { return %d;}\n", xlease);
+	websWrite(wp, "function first_wanlink_xexpires() { return %d;}\n", xexpires);
 
 	return;
 }
@@ -7759,6 +8106,11 @@ static void dump_fb_fail_content( void )
 		tcapi_get_string("Info_Adsl", "PowerUp", tmp_val);
 		sprintf(buf, "Power Up: %s\n\n", tmp_val);
 		asp_send_response(NULL, buf, strlen(buf));
+
+		memset(tmp_val, 0, sizeof(tmp_val));
+		tcapi_get_string("Info_Adsl", "FarEndVendorID", tmp_val);
+		sprintf(buf, "Far end vendor: %s\n\n", tmp_val);
+		asp_send_response(NULL, buf, strlen(buf));
 	}
 
 	memset(tmp_val, 0, sizeof(tmp_val));
@@ -7934,6 +8286,13 @@ static void ej_dump(asp_reent* reent, const asp_text* params, asp_text* ret) {
 			dump_fb_fail_content();
 		}
 	}
+#ifdef RTCONFIG_OPENVPN
+	else if(!strncmp(file, "vpn_crt_", 8)) {
+		sprintf(filename, "/%s/%s", OVPN_FS_PATH, file);
+		if(f_exists(filename))
+			dump_file(wp, filename);
+	}
+#endif
 	else {
 		sprintf(filename, "/tmp/%s", file);
 		dump_file(wp, filename);
@@ -8145,7 +8504,8 @@ static void NetworkToolsAnalysis(asp_reent* reent, const asp_text* params, asp_t
 			strcat(cmd, " ");
 		}
 
-		//Andy Chiu, 2015/03/04.
+		//Andy Chiu, 2015/06/01.
+		unlink("/tmp/nettool.log");
 		sprintf(cmd, "%s -o %s ",  cmd, "/tmp/nettool.log");		
 	}
 
@@ -8473,14 +8833,14 @@ static void get_client_list(asp_reent* reent, const asp_text* params, asp_text* 
 	if (shm_client_info_id == -1){
 	    fprintf(stderr,"shmget failed\n");
 	    file_unlock(lock);
-	    return 0;
+	    return;
 	}
 
 	shared_client_info = shmat(shm_client_info_id,(void *) 0,0);
 	if (shared_client_info == (void *)-1){
 		fprintf(stderr,"shmat failed\n");
 		file_unlock(lock);
-		return 0;
+		return;
 	}
 	
 	tcapi_get("ClientList_Common", "scan", output_buf);
@@ -8533,7 +8893,7 @@ static void get_client_list(asp_reent* reent, const asp_text* params, asp_text* 
 		tcapi_set("ClientList_Common", "cache_size", output_buf);
 	}
 #endif
-	return 0;
+	return;
 }
 
 /*******************************************************************
@@ -8639,7 +8999,7 @@ static void get_cl_userdef_list(asp_reent* reent, const asp_text* params, asp_te
 *******************************************************************/
 static void get_static_dhcp_list(asp_reent* reent, const asp_text* params, asp_text* ret)
 {
-	int count, i, attr_num;
+	int i;
 	char buf[1024], node[32], ip[32], mac[32];
 	int max;
 
@@ -8665,3 +9025,86 @@ static void get_static_dhcp_list(asp_reent* reent, const asp_text* params, asp_t
 	}	
 }
 
+/*******************************************************************
+* NAME: tcWebApi_MatchThenWrite
+* AUTHOR: Sam Wen
+* CREATE DATE: 2015/06/03
+* DESCRIPTION:
+* 	same as:
+* 		<% if tcWebApi_Get(.....) = "...." then asp_write("xxx") end if %>
+* INPUT:
+* 	reent:	for memory handle
+* 	params:	params[0] node name.
+* 			params[1] attribute name.
+* 			params[2] string to compare
+* 			params[3] string to response to web page if value of attribute match params[2]
+* 	ret:	return params[3] if value of attribute match params[2], else return NULL and len=0
+* OUTPUT:
+* RETURN:
+* NOTE:
+*******************************************************************/
+static void tcWebApi_MatchThenWrite (asp_reent* reent, const asp_text* params,  asp_text* ret)
+{
+	char *node,*attr,*comp,*resp;
+
+	node = (char*)asp_alloc(reent,params[0].len+1);
+	attr = (char*)asp_alloc(reent,params[1].len+1);
+	comp = (char*)asp_alloc(reent,params[2].len+1);
+	resp = (char*)asp_alloc(reent,params[3].len+1);
+	memset(node,0,params[0].len+1);
+	memset(attr,0,params[1].len+1);
+	memset(comp,0,params[2].len+1);
+	memset(resp,0,params[3].len+1);
+	memcpy(node,params[0].str,params[0].len);
+	memcpy(attr,params[1].str,params[1].len);
+	memcpy(comp,params[2].str,params[2].len);
+	memcpy(resp,params[3].str,params[3].len);
+	node[params[0].len]='\0';
+	attr[params[1].len]='\0';
+	comp[params[2].len]='\0';
+	resp[params[3].len]='\0';
+
+	if(tcapi_match(node, attr, comp)) {
+		asp_send_response (NULL, resp, params[3].len);
+		ret->str = params[3].str;
+		ret->len = params[3].len;
+	}
+	else {
+		ret->str = NULL;
+		ret->len = 0;
+	}
+}
+
+static void tcWebApi_clean_get (asp_reent* reent, const asp_text* params,  asp_text* ret)
+{
+	char *node,*attr, *c;
+	char buf[MAXLEN_TCAPI_MSG] = {0};
+	char wp[128] = {0};
+
+	node = (char*)asp_alloc(reent,params[0].len+1);
+	attr = (char*)asp_alloc(reent,params[1].len+1);
+	memset(node,0,params[0].len+1);
+	memset(attr,0,params[1].len+1);
+	memcpy(node,params[0].str,params[0].len);
+	memcpy(attr,params[1].str,params[1].len);
+	node[params[0].len]='\0';
+	attr[params[1].len]='\0';
+
+	if(tcapi_get(node, attr, buf))	//error
+		return;
+
+	for (c = buf; *c; c++) {
+		if (isprint(*c) &&
+		    *c != '"' && *c != '&' && *c != '<' && *c != '>')
+			websWrite(wp, "%c", *c);
+		else
+			websWrite(wp, "&#%d", *c);
+	}
+}
+
+#ifdef RTCONFIG_OPENVPN
+static void vpn_server_get_parameter(asp_reent* reent, const asp_text* params, asp_text* ret)
+{
+	tcapi_set("WebCurSet_Entry", "openvpn_id", "21");
+}
+#endif

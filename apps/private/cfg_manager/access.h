@@ -91,8 +91,10 @@
 /**********20081021 krammer add************/
 #define MAX_APP_RULE 4
 #define MAX_URL_RULE 16
+#define MAX_KEYWORD_RULE 16
 #define APPFILTER "AppFilter"
 #define URLFILTER "UrlFilter"
+#define KEYWORDFILTER "KeywordFilter"
 #define APP_FILTER_SH	"/tmp/etc/AppFilter.sh"
 #define URL_FILTER_SH	"/tmp/etc/UrlFilter.sh"
 #define URL_PATTER_PATH "/etc/l7-protocols/Url.pat"
@@ -359,6 +361,23 @@ int
 url_check_filter(mxml_node_t *top);
 int
 urlfilter_check_duplicate(mxml_node_t *top,mxml_node_t *parant);
+
+/****** keywork filter *********/
+int
+keyword_filter_boot(mxml_node_t *top);
+int
+keyword_filter_init(void);
+int
+keyword_filter_write(mxml_node_t *top, mxml_node_t *parant);
+int
+keyword_filter_verify(mxml_node_t *node);
+int
+keyword_filter_execute(mxml_node_t *top, char name[][MAX_NODE_NAME]);
+int
+keyword_check_filter(mxml_node_t *top);
+int
+keyword_filter_check_duplicate(mxml_node_t *top,mxml_node_t *parant);
+
 /**********20081021 krammer add************/
 /**********20091221 jlliu add**************/
 #ifdef USE_SSL
@@ -400,17 +419,6 @@ parental_url_check_filter(mxml_node_t *top);
 //#ifdef CWMP
 //void start_cwmp(void);
 //#endif
-#ifdef RTCONFIG_ACCEL_PPTPD
-int pptp_init(void);
-int pptp_execute(mxml_node_t *top, char name[][MAX_NODE_NAME]);
-#endif
-
-#ifdef RTCONFIG_VPNC
-#define VPNC_CONF_PATH "/etc/vpnc.conf"
-int vpnc_init(void);
-int vpnc_execute(mxml_node_t *top, char name[][MAX_NODE_NAME]);
-int vpnc_write(mxml_node_t *top, mxml_node_t *parant);
-#endif
 
 //Andy Chiu add for wol, 2014/10/13
 //#ifdef RTCONFIG_WOL

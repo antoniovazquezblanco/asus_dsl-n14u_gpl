@@ -19,6 +19,7 @@ update_url=`cat /tmp/update_url`
 /userfs/bin/tcapi set WebCustom_Entry webs_state_update 0 &# INITIALIZING
 /userfs/bin/tcapi set WebCustom_Entry webs_state_error 0 &
 /userfs/bin/tcapi set WebCustom_Entry webs_state_url "" &
+/userfs/bin/tcapi set WebCustom_Entry webs_state_reboot 0 &
 /userfs/bin/tcapi set WebCustom_Entry webs_state_info "" &
 /userfs/bin/tcapi set WebCustom_Entry webs_state_error_msg "" &
 
@@ -54,6 +55,7 @@ if [ "$?" != "0" ]; then
 else
 	buildno=`grep $model /tmp/wlan_update.txt | sed 's/.*#FW//;' | sed 's/#.*//;'`
 	url_path=`grep $model /tmp/wlan_update.txt | sed 's/.*#URL//;' | sed 's/#.*//;'`
+	need_reboot=`grep $model /tmp/wlan_update.txt | grep '#RBT' /tmp/wlan_update.txt`
 	if [ "$buildno" = "" ]; then
 		/userfs/bin/tcapi set WebCustom_Entry webs_state_error 1 &
 		/userfs/bin/tcapi set WebCustom_Entry webs_state_error_msg "parse wlan_update.txt fail" &
@@ -63,6 +65,9 @@ else
 			/userfs/bin/tcapi set WebCustom_Entry webs_state_url $url_path &
 		else
 			/userfs/bin/tcapi set WebCustom_Entry webs_state_url "" &
+		fi
+		if [ ${#need_reboot} > 0 ]; then
+			/userfs/bin/tcapi set WebCustom_Entry webs_state_reboot ${#need_reboot} &
 		fi
 	fi
 fi

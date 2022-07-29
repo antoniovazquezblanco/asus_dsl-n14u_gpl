@@ -187,8 +187,14 @@ function clean_scorebar(obj){
 		</tr>
 	</table>
 	<br>
-	<div class="QISTutorFont" style="margin-top:5px;"><%tcWebApi_get("String_Entry","QIS_pass_desc3","s")%><br><%tcWebApi_get("String_Entry","QIS_pass_desc2","s")%></div>
-	<div style="margin-left:300px;margin-top:-120px;"><img width="300px" src="/images/qis/router_login.jpg"></span></div>
+	<div id="adminPassDesc" class="QISTutorFont_admin_pass" style="height:200px;margin-left:-10px;">
+		<ul>
+			<li><%tcWebApi_get("String_Entry","QIS_pass_desc3","s")%>
+			<li><%tcWebApi_get("String_Entry","QIS_pass_desc2","s")%>
+			<li><%tcWebApi_get("String_Entry","QIS_pass_desc5","s")%>&nbsp;<% tcWebApi_get("Account_Entry0","default_username","s") %>&nbsp;/&nbsp;<% tcWebApi_get("Account_Entry0","default_passwd","s") %>
+		</ul>
+	</div>
+	<div style="margin-left:320px;margin-top:-200px;"><img width="300px" src="/images/qis/router_login.jpg"></span></div>
 </div>
 	<br/>
 <div class="apply_gen">

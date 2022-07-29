@@ -34,7 +34,7 @@
 #include <sys/types.h>
 #include <signal.h>
 #include <unistd.h>
-//#include <typedefs.h>
+#include <typedefs.h>
 #include <bcmnvram.h>
 #include "shutils.h"
 #include "shared.h"

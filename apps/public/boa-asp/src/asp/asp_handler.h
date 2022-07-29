@@ -36,6 +36,7 @@ struct tcapi_tuple wlan_system_router_defaults[] = {
 	{"WLan_Entry", "wl_radio_date","1111111"},
 	{"WLan_Entry", "wl_radio_time","00002359"},
 	{ "WLan_Common", "wl_wme_no_ack", "off"},		/* WME No-Acknowledgment mode */
+	{"WLan_Entry", "wl_user_rssi", "0"},
 	{NULL, NULL, NULL }
 //for ASUS WRT.E
 #else
@@ -579,11 +580,11 @@ struct tcapi_tuple wlan_configuration_router_defaults[] = {
 	{"WLan_Entry", "DisableOLBC", "0"},
 	{"WLan_Common", "BGProtection", "0"},
 	{"WLan_Common", "MaxStaNum", "0"},
-	{"WLan_Common", "TxPreamble", "0"},
+	{"WLan_Common", "TxPreamble", "1"},
 	{"WLan_Common", "RTSThreshold", "2347"},
 	{"WLan_Common", "FragThreshold", "2346"},
 	{"WLan_Common", "TxBurst", "1"},
-#if defined(DSL_N55U_D1)
+#if defined(DSL_N55U_D1) || defined (DSL_N10_C1)  || defined (DSL_N10P_C1) || defined (DSL_N12E_C1) || defined (DSL_N14U)
 	{"WLan_Common", "ED_MODE", "2"},
 #endif
 	{"WLan_Common", "EDCCA_AP_STA_TH", "255"},
@@ -659,6 +660,8 @@ struct tcapi_tuple wlan_configuration_router_defaults[] = {
 	{"WLan_Common", "HT_AMSDU", "0"},
 	{"WLan_Common", "HT_BAWinSize", "64"},
 	{"WLan_Common", "HT_GI", "1"},
+	{"WLan_Common", "HT_BADecline", "0"},
+	{"WLan_Common", "HT_STBC", "1"},
 	{"WLan_Entry", "HT_MCS", "33"},
 	{"WLan_Entry", "MeshId", "MESH"},
 	{"WLan_Entry", "MeshAutoLink", "1"},

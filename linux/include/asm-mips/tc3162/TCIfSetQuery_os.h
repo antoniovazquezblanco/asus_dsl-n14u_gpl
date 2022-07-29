@@ -230,8 +230,8 @@
 #if 1//def CMD_ADSL_SNRM
 #define ADSL_QUERY_SNR		0x0034
 #define ADSL_QUERY_SNRM	0x0035
-#define ADSL_QUERY_USBIT	0x0036 //Ren: Add for DMT V5.4.11.21_General, these query ID are for VDSL only.
-#define ADSL_QUERY_DSBIT	0x0037 //Ren: Add for DMT V5.4.11.21_General, these query ID are for VDSL only.
+#define ADSL_QUERY_USBIT	0x0037 //VDSL only.
+#define ADSL_QUERY_DSBIT	0x0038 //VDSL only.
 
 #define ADSL_SET_HIGH_PERFORMANCE       0x1109
 

@@ -18,10 +18,13 @@ int get_model(void)
 	else if(!strcmp(ProductName, "DSL-N55U-C1")) return MODEL_DSLN55UC1;
 	else if(!strcmp(ProductName, "DSL-N55U-D1")) return MODEL_DSLN55UD1;
 	else if(!strcmp(ProductName, "DSL-N10-C1")) return MODEL_DSLN10C1;
+	else if(!strcmp(ProductName, "DSL-N10P-C1")) return MODEL_DSLN10PC1;
 	else if(!strcmp(ProductName, "DSL-N12E-C1")) return MODEL_DSLN12EC1;
 	else if(!strcmp(ProductName, "DSL-N12U-C1")) return MODEL_DSLN12UC1;
 	else if(!strcmp(ProductName, "DSL-N14U")) return MODEL_DSLN14U;
 	else if(!strcmp(ProductName, "DSL-AC56U")) return MODEL_DSLAC56U;
 	else if(!strcmp(ProductName, "DSL-N17U")) return MODEL_DSLN17U;
+	else if(!strcmp(ProductName, "DSL-AC52U")) return MODEL_DSLAC52U;
+	else if(!strcmp(ProductName, "DSL-N16")) return MODEL_DSLN16;
 	else return MODEL_UNKNOWN;
 }

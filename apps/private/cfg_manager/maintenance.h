@@ -111,6 +111,8 @@ account_write(mxml_node_t *top, mxml_node_t *parant);
 int
 account_verify(mxml_node_t *node);
 int
+account_boot(mxml_node_t *top);
+int
 account_execute(mxml_node_t *top, char name[][MAX_NODE_NAME]);
 #if 0  /*Orginal ci-command mode */
 int

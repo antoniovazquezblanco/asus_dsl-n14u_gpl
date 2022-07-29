@@ -63,19 +63,15 @@
 <script type="text/javascript" src="/jquery.js"></script>
 <script type="text/javascript" src="/switcherplugin/jquery.iphone-switch.js"></script>
 <script>
-wan_route_x = '';
-wan_nat_x = '1';
 var wans_caps = '<%tcWebApi_Get("Dualwan_Entry", "wans_cap", "s")%>';
 var wans_dualwan_orig = '<%tcWebApi_Get("Dualwan_Entry", "wans_dualwan", "s")%>';
-var wandog_maxfail_orig = '<% tcWebApi_Get("Dualwan_Entry", "wandog_maxfail", "s") %>';
 var wans_routing_rulelist_array = '<%tcWebApi_Get("Dualwan_Entry", "wans_routing_rulelist", "s")%>';
 var wans_flag;
 var switch_stb_x = '<%tcWebApi_Get("IPTV_Entry", "switch_stb_x", "s")%>';
 var wans_caps_primary;
 var wans_caps_secondary;
-function login_ip_str() { return '<% tcWebApi_get("WebCurSet_Entry","login_ip_tmp","s"); %>'; }
-function login_mac_str() { return ''; }
-var wireless = []; // [[MAC, associated, authorized], ...]
+var wandog_fb_count_orig = '<% tcWebApi_Get("Dualwan_Entry", "wandog_fb_count", "s") %>';
+var wandog_maxfail_orig = '<% tcWebApi_Get("Dualwan_Entry", "wandog_maxfail", "s") %>';
 
 var $j = jQuery.noConflict();
 
@@ -465,8 +461,7 @@ function appendModeOption(v){
 			document.getElementById("watchdog_table").style.display = "";
 			document.getElementById("routing_table").style.display = "none";
 
-			//document.getElementById("fb_span").style.display = "";
-			document.getElementById("fb_span").style.display = "none";	//Viz tmp
+			document.getElementById("fb_span").style.display = "";
 			
 			add_option_count(document.form.wandog_interval, document.form.wandog_maxfail, wandog_maxfail_orig);
 			
@@ -474,6 +469,7 @@ function appendModeOption(v){
 			{
 				document.getElementById("fb_checkbox").checked = true;
 				document.getElementById("wandog_fb_count_tr").style.display = "";
+				add_option_count(document.form.wandog_interval, document.form.wandog_fb_count, wandog_fb_count_orig);
 				document.form.wans_mode.value = "fb";
 			}
 			else
@@ -553,7 +549,7 @@ function addRow(obj, head){
 }
 
 function show_wans_rules(){
-	var wans_rules_row = wans_routing_rulelist_array.split('&#60');
+	var wans_rules_row = wans_routing_rulelist_array.split('<');
 	var code = "";
 
 	code +='<table width="100%" cellspacing="0" cellpadding="4" align="center" class="list_table" id="wans_RoutingRules_table">';
@@ -562,7 +558,7 @@ function show_wans_rules(){
 	else{
 		for(var i = 1; i < wans_rules_row.length; i++){
 			code +='<tr id="row'+i+'">';
-			var routing_rules_col = wans_rules_row[i].split('&#62');
+			var routing_rules_col = wans_rules_row[i].split('>');
 			for(var j = 0; j < routing_rules_col.length; j++){
 				if(j != 2){
 					code +='<td width="30%">'+ routing_rules_col[j] +'</td>'; //IP width="98"
@@ -800,7 +796,7 @@ function pullLANIPList(obj){
 var str0="";
 function add_option_count(obj, obj_t, selected_flag){
 		
-		if(obj_t.name == "wandog_maxfail"){		// Viz  || (obj_t.name == "wandog_fb_count" && document.getElementById("wandog_fb_count_tr").style.display == "") 
+		if(obj_t.name == "wandog_maxfail" || (obj_t.name == "wandog_fb_count" && document.getElementById("wandog_fb_count_tr").style.display == "")) {
 				
 				free_options(obj_t);
 				for(var i=1; i<100; i++){
@@ -927,9 +923,7 @@ function add_option_count(obj, obj_t, selected_flag){
 													<input type="hidden" name="wans_mode" value='<% tcWebApi_Get("Dualwan_Entry", "wans_mode", "s") %>'>
 													<select id="wans_mode_option" class="input_option" onchange="appendModeOption(this.value);">
 														<option value="fo" ><%tcWebApi_Get("String_Entry", "dualwan_mode_fo", "s")%></option>
-														<!--	tmp
 														<option value="lb" <% if tcWebApi_Get("Dualwan_Entry", "wans_mode", "h") = "lb" then asp_Write("selected") end if %>><%tcWebApi_Get("String_Entry", "dualwan_mode_lb", "s")%></option>
-														-->
 													</select>
 													<span id="fb_span" style="display:none"><input type="checkbox" id="fb_checkbox"><%tcWebApi_Get("String_Entry", "dualwan_failback_allow", "s")%></span>													
 													<script>
@@ -993,7 +987,7 @@ function add_option_count(obj, obj_t, selected_flag){
 											<tr>
 												<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(26,3);"><%tcWebApi_Get("String_Entry", "Interval", "s")%></a></th>
 												<td>
-													<input type="text" name="wandog_interval" class="input_3_table" maxlength="1" value="<% tcWebApi_Get("Dualwan_Entry", "wandog_interval", "s") %>" onBlur="add_option_count(this, document.form.wandog_maxfail, document.form.wandog_maxfail.value);" onKeyPress="return is_number(this, event);" placeholder="5">&nbsp;&nbsp;<%tcWebApi_Get("String_Entry", "Second", "s")%>
+													<input type="text" name="wandog_interval" class="input_3_table" maxlength="1" value="<% tcWebApi_Get("Dualwan_Entry", "wandog_interval", "s") %>" onBlur="add_option_count(this, document.form.wandog_maxfail, document.form.wandog_maxfail.value);add_option_count(this, document.form.wandog_fb_count, document.form.wandog_fb_count.value);" onKeyPress="return is_number(this, event);" placeholder="5">&nbsp;&nbsp;<%tcWebApi_Get("String_Entry", "Second", "s")%>
 												</td>
 											</tr>
 											<tr>
@@ -1047,7 +1041,7 @@ function add_option_count(obj, obj_t, selected_flag){
 										<!-- ----------Routing Rules Table  ---------------- -->
 										<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" class="FormTable_table" style="margin-top:8px;" id="Routing_rules_table">
 											<thead>
-												<tr><td colspan="4" id="Routing_table"><%tcWebApi_Get("String_Entry", "dualwan_routing_rule_list", "s")%>&nbsp;(<%tcWebApi_Get("String_Entry", "List_limit", "s")%>&nbsp;32)</td></tr>
+												<tr><td colspan="4" id="Routing_table"><%tcWebApi_Get("String_Entry", "dualwan_routing_rule_list", "s")%>&nbsp;(<%tcWebApi_Get("String_Entry", "List_limit", "s")%>&nbsp;16)</td></tr>
 											</thead>
 
 											<tr>
@@ -1072,7 +1066,7 @@ function add_option_count(obj, obj_t, selected_flag){
 												</td>
 												<td width="15%">
 													<div>
-													<input type="button" class="add_btn" onClick="addRow_Group(32);" value="">
+													<input type="button" class="add_btn" onClick="addRow_Group(16);" value="">
 													</div>
 												</td>
 											</tr>

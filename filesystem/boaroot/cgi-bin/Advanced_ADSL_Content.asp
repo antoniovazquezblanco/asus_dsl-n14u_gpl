@@ -126,11 +126,46 @@ function change_dla(enable){
 		document.form.dslx_snrm_offset.disabled = true;         
 		document.getElementById("dslx_snrm_offset_read").style.display = "";
 		document.getElementById("dslx_snrm_offset_read").innerHTML = get_snrm_offset();
+		document.getElementById("dslx_snrm_offset_read").title = "Auto configured by Dynamic Line Adjustment (DLA)";
+
+		document.form.adsl_rx_agc.style.display = "none";
+		document.form.adsl_rx_agc.disabled = true;
+		document.getElementById("adsl_rx_agc_read").style.display = "";
+		document.getElementById("adsl_rx_agc_read").innerHTML = "<%tcWebApi_get("Adsl_Entry","adsl_rx_agc","s")%>";
+		document.getElementById("adsl_rx_agc_read").title = "Auto configured by Dynamic Line Adjustment (DLA)";
+
+	<%if tcWebApi_get("WebCustom_Entry","havePtm","h") = "Yes" then%>
+		document.form.vdsl_rx_agc.style.display = "none";
+		document.form.vdsl_rx_agc.disabled = true;
+		document.getElementById("vdsl_rx_agc_read").style.display = "";
+		document.getElementById("vdsl_rx_agc_read").innerHTML = get_vdsl_rx_agc();
+		document.getElementById("vdsl_rx_agc_read").title = "Auto configured by Dynamic Line Adjustment (DLA)";
+
+		document.form.dslx_vdsl_esnp.style.display = "none";
+		document.form.dslx_vdsl_esnp.disabled = true;
+		document.getElementById("dslx_vdsl_esnp_read").style.display = "";
+		document.getElementById("dslx_vdsl_esnp_read").innerHTML = get_vdsl_esnp();
+		document.getElementById("dslx_vdsl_esnp_read").title = "Auto configured by Dynamic Line Adjustment (DLA)";
+	<%end if%>
 	}
 	else {
 		document.form.dslx_snrm_offset.style.display = "";
 		document.form.dslx_snrm_offset.disabled = false;
 		document.getElementById("dslx_snrm_offset_read").style.display = "none";
+
+		document.form.adsl_rx_agc.style.display = "";
+		document.form.adsl_rx_agc.disabled = false;
+		document.getElementById("adsl_rx_agc_read").style.display = "none";
+
+	<%if tcWebApi_get("WebCustom_Entry","havePtm","h") = "Yes" then%>
+		document.form.vdsl_rx_agc.style.display = "";
+		document.form.vdsl_rx_agc.disabled = false;
+		document.getElementById("vdsl_rx_agc_read").style.display = "none";
+
+		document.form.dslx_vdsl_esnp.style.display = "";
+		document.form.dslx_vdsl_esnp.disabled = false;
+		document.getElementById("dslx_vdsl_esnp_read").style.display = "none";
+	<%end if%>
 	}
 	
 	<%if tcWebApi_get("WebCustom_Entry","ADSLChip","h") = "Yes" then%>
@@ -212,8 +247,32 @@ function get_snrm_offset(){
         }
 }
 
+function get_vdsl_rx_agc(){
+	var vdsl_rx_agc="<%tcWebApi_get("Adsl_Entry","vdsl_rx_agc","s")%>";
+	switch(vdsl_rx_agc){
+		case "394":
+			return "Stable";
+		case "550":
+			return "High Performance";
+		case "65535":
+		default:
+			return "Default";
+	}
+}
+
+function get_vdsl_esnp(){
+	var vdsl_esnp="<%tcWebApi_get("Adsl_Entry","dslx_vdsl_esnp","s")%>";
+	switch(vdsl_esnp){
+		case "1":
+			return "Stable";
+		case "0":
+		default:
+			return "Default";
+	}
+}
+
 function remove_rx_agc_option(){
-	if(productid == "DSL-N66U" || productid == "DSL-N55U-C1" || productid == "DSL-N16U" || productid == "DSL-N14U" || productid == "DSL-N12U-C1" || productid == "DSL-N12E-C1" || productid == "DSL-N10-C1"){
+	if(productid == "DSL-N66U" || productid == "DSL-N55U-C1" || productid == "DSL-N16U" || productid == "DSL-N14U" || productid == "DSL-N12U-C1" || productid == "DSL-N12E-C1" || productid == "DSL-N10-C1" || productid == "DSL-N10P-C1"){	//MODELDEP
 		for(var i=0; i<document.form.adsl_rx_agc.length; i++){
 			if(document.form.adsl_rx_agc.options[i].value == 'High Performance')
 				document.form.adsl_rx_agc.remove(i);
@@ -332,13 +391,17 @@ $("nonstd_vectoring").style.display = (_value == "0") ? "none" : "";
 		<%if tcWebApi_get("SysInfo_Entry","ProductName","h") <> "DSL-N12U-C1" then%>
 			<option <% if tcWebApi_get("Adsl_Entry","ANNEXTYPEA","h") = "ANNEX B" then asp_Write("selected") end if %>>ANNEX B
 			<%if tcWebApi_get("SysInfo_Entry","ProductName","h") = "DSL-N66U" then%>
-			<option <% if tcWebApi_get("Adsl_Entry","ANNEXTYPEA","h") = "ANNEX B/J" then asp_Write("selected") end if %>>ANNEX B/J
+				<option <% if tcWebApi_get("Adsl_Entry","ANNEXTYPEA","h") = "ANNEX B/J" then asp_Write("selected") end if %>>ANNEX B/J
 			<%elseif tcWebApi_get("SysInfo_Entry","ProductName","h") = "DSL-N17U" then%>
-			<option <% if tcWebApi_get("Adsl_Entry","ANNEXTYPEA","h") = "ANNEX B/J" then asp_Write("selected") end if %>>ANNEX B/J
+				<option <% if tcWebApi_get("Adsl_Entry","ANNEXTYPEA","h") = "ANNEX B/J" then asp_Write("selected") end if %>>ANNEX B/J
+			<%elseif tcWebApi_get("SysInfo_Entry","ProductName","h") = "DSL-N16" then%>
+				<option <% if tcWebApi_get("Adsl_Entry","ANNEXTYPEA","h") = "ANNEX B/J" then asp_Write("selected") end if %>>ANNEX B/J
 			<%elseif tcWebApi_get("SysInfo_Entry","ProductName","h") = "DSL-AC56U" then%>
-			<option <% if tcWebApi_get("Adsl_Entry","ANNEXTYPEA","h") = "ANNEX B/J" then asp_Write("selected") end if %>>ANNEX B/J
+				<option <% if tcWebApi_get("Adsl_Entry","ANNEXTYPEA","h") = "ANNEX B/J" then asp_Write("selected") end if %>>ANNEX B/J
+			<%elseif tcWebApi_get("SysInfo_Entry","ProductName","h") = "DSL-AC52U" then%>
+				<option <% if tcWebApi_get("Adsl_Entry","ANNEXTYPEA","h") = "ANNEX B/J" then asp_Write("selected") end if %>>ANNEX B/J
 			<%else%>
-			<option <% if tcWebApi_get("Adsl_Entry","ANNEXTYPEA","h") = "ANNEX B/J/M" then asp_Write("selected") end if %>>ANNEX B/J/M
+				<option <% if tcWebApi_get("Adsl_Entry","ANNEXTYPEA","h") = "ANNEX B/J/M" then asp_Write("selected") end if %>>ANNEX B/J/M
 			<%end if%>
 		<%end if%>
 	</SELECT>
@@ -361,7 +424,7 @@ $("nonstd_vectoring").style.display = (_value == "0") ? "none" : "";
 
 <tr>
 	<th>
-		<a class="hintstyle" href="javascript:void(0);" onClick="openHint(25,12);">Dynamic Line Adjustment (ADSL)</a>
+		<a class="hintstyle" href="javascript:void(0);" onClick="openHint(25,12);">Dynamic Line Adjustment (DLA)</a>
 	</th>
 	<td>
 		<select id="" class="input_option" name="dslx_dla_enable" onchange='change_dla(this.value);'>
@@ -408,7 +471,8 @@ $("nonstd_vectoring").style.display = (_value == "0") ? "none" : "";
 <a id="adsl_rx_agc_desc" class="hintstyle" href="javascript:void(0);" onClick="openHint(25,15);">Rx AGC GAIN Adjustment (ADSL)</a>
 </th>
 <td>
-	<select id="" class="input_option" name="adsl_rx_agc">
+	<span id="adsl_rx_agc_read" name="adsl_rx_agc_read" style="display:none;color:#FFFFFF;"></span>
+	<select id="adsl_rx_agc" class="input_option" name="adsl_rx_agc">
 		<option value="Default" <% if tcWebApi_get("Adsl_Entry","adsl_rx_agc","h") = "Default" then asp_Write("selected") end if %>>Default</option>
 		<option value="Stable" <% if tcWebApi_get("Adsl_Entry","adsl_rx_agc","h") = "Stable" then asp_Write("selected") end if %>>Stable</option>
 		<option value="High Performance" <% if tcWebApi_get("Adsl_Entry","adsl_rx_agc","h") = "High Performance" then asp_Write("selected") end if %>>High Performance</option>
@@ -483,7 +547,8 @@ $("nonstd_vectoring").style.display = (_value == "0") ? "none" : "";
 <a id="vdsl_rx_agc_desc" class="hintstyle" href="javascript:void(0);" onClick="openHint(25,9);">Rx AGC GAIN Adjustment (VDSL)</a>
 </th>
 <td>
-	<select id="" class="input_option" name="vdsl_rx_agc">
+	<span id="vdsl_rx_agc_read" name="vdsl_rx_agc_read" style="display:none;color:#FFFFFF;"></span>
+	<select id="vdsl_rx_agc" class="input_option" name="vdsl_rx_agc">
 		<option value="65535" <% if tcWebApi_get("Adsl_Entry","vdsl_rx_agc","h") = "65535" then asp_Write("selected") end if %>>Default</option>
 		<option value="394" <% if tcWebApi_get("Adsl_Entry","vdsl_rx_agc","h") = "394" then asp_Write("selected") end if %>>Stable</option>
 		<option value="550" <% if tcWebApi_get("Adsl_Entry","vdsl_rx_agc","h") = "550" then asp_Write("selected") end if %>>High Performance</option>
@@ -511,7 +576,8 @@ $("nonstd_vectoring").style.display = (_value == "0") ? "none" : "";
 <a class="hintstyle" href="javascript:void(0);" onClick="openHint(25,18);">ESNP - Enhanced Sudden Noise Protection (VDSL)</a>
 </th>
 <td>
-	<select id="" class="input_option" name="dslx_vdsl_esnp">
+	<span id="dslx_vdsl_esnp_read" name="dslx_vdsl_esnp_read" style="display:none;color:#FFFFFF;"></span>
+	<select id="dslx_vdsl_esnp" class="input_option" name="dslx_vdsl_esnp">
 		<option value="0" <% if tcWebApi_get("Adsl_Entry","dslx_vdsl_esnp","h") = "0" then asp_Write("selected") end if %>>Default</option>
 		<option value="1" <% if tcWebApi_get("Adsl_Entry","dslx_vdsl_esnp","h") = "1" then asp_Write("selected") end if %>>Stable</option>
 	</select>

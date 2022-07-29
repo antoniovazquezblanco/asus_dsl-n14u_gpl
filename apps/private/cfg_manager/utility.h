@@ -250,13 +250,6 @@ struct pc{
 	pc_s *next;
 };
 
-enum TransferMode{
-	TM_ADSL = 0,
-	TM_VDSL,
-	TM_Ether,
-	TM_USB
-};
-
 void config_daytime_string(FILE *fp);
 
 #define	IPT_V4	0x01
@@ -304,10 +297,12 @@ void start_default_filter( void ); //Ren
 int start_firewall(void); //Ren
 void route_setting(void);
 
+extern unsigned char get_rand();
+extern unsigned long readFileSize( char *filepath );
+extern int encryptRomfile(char *src, char *dst, char *productName);
 extern int decryptRomfile( char *path, unsigned int *length, unsigned int offset ); //Ren
 extern int timerTrigger(unsigned int seconds, void (*func)(int signo)); //Ren
 extern int timerTrigger_re(unsigned int first_seconds, unsigned int interval, void (*func)(int signo)); //Ren
-extern int getTransferMode(void); //Ren
 extern int modifyXDSLscript(void); //Ren
 extern char * getWanIfName(char *buffer); //Ren
 extern char *getWanNasIfName(char *buffer);
@@ -318,7 +313,28 @@ extern int host_addr_info(const char *name, int af, struct sockaddr_storage *buf
 extern int host_addrtypes(const char *name, int af); //Ren
 extern int ipt_addr_compact(const char *s, int af, int strict); //Ren
 extern int run_app_script2(const char *pkg_name, const char *pkg_action); //Ren
+extern char *trimWS(char *str);
+extern char *trimNL(char *str);
 int wan_primary_ifunit(void);
+int wan_secondary_ifunit(void);
 int copy_node_all_attribute(mxml_node_t* top, char* from, char* to);
+int if_down(char* ifname);
 void stop_all_wan(void);
+typedef enum{
+	IFID_BR0 = 0,
+	IFID_WL24G,
+	IFID_WL5G
+}IFID;
+int getMacAddrWithoutColon(const IFID ifid, char *mac);
+int is_wan_connect(int unit);
+
+#define eval(cmd, args...) ({ \
+	char *argv[] = { cmd, ## args, NULL }; \
+	_eval(argv, NULL, 0, NULL); \
+})
+
+extern int _ifconfig(const char *name, int flags, const char *addr, const char *netmask, const char *dstaddr);
+#define ifconfig(name, flags, addr, netmask) _ifconfig(name, flags, addr, netmask, NULL)
+#define IFUP (IFF_UP | IFF_RUNNING | IFF_BROADCAST | IFF_MULTICAST)
+
 #endif

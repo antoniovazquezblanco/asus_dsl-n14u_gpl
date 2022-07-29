@@ -808,7 +808,7 @@ function clean_input(obj){
 				</tr>
 
 				<tr>
-					<th><%tcWebApi_get("String_Entry","Access_Time","s")%></th>
+					<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(0, 25);"><%tcWebApi_get("String_Entry","Access_Time","s")%></a></th>
 					<td>
 					<input type="radio" value="1" name="wl_expire_radio" class="content_input_fd" onClick="">
 					<input type="text" maxlength="2" name="wl_expire_hr" class="input_3_table" value="" onKeyPress="return is_number(this,event);" onblur="validate_number_range(this, 0, 23)"><% tcWebApi_Get("String_Entry", "Hour", "s") %>
@@ -818,7 +818,7 @@ function clean_input(obj){
 				</tr>
 
 			 	<tr>
-					<th><%tcWebApi_get("String_Entry","Access_Intranet","s")%></th>
+					<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(0, 26);"><%tcWebApi_get("String_Entry","Access_Intranet","s")%></a></th>
 					<td>
 				 		<select name="wl_lanaccess" class="input_option">
 							<option value="on" <% if tcWebApi_get("WLan_Entry","lanaccess","h") = "on" then asp_Write("selected") end if %>><%tcWebApi_get("String_Entry","WC11b_WirelessCtrl_button1name","s")%></option>

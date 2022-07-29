@@ -116,22 +116,32 @@ int if_down(char* ifname)
 extern int reboot_main(int argc, char **argv)
 {
 	char *delay; /* delay in seconds before rebooting */
-
+	unsigned long opt;
+	int fw_upgrade = 0;
+	
 #if defined(TCSUPPORT_START_TRAP) || defined(TCSUPPORT_SYSLOG_ENHANCE)
 	int count = 0;
 #endif
-	if(bb_getopt_ulflags(argc, argv, "d:", &delay)) {
-		sleep(atoi(delay));
+	if((opt = bb_getopt_ulflags(argc, argv, "d:u", &delay)) > 0) {
+		if (opt & 0x1)
+			sleep(atoi(delay));
+
+		if (opt & 0x2)
+			fw_upgrade = 1;
 	}
 	
-#if defined(TCSUPPORT_START_TRAP) || defined(TCSUPPORT_SYSLOG_ENHANCE)	
 	system("killall -9 monitorcfgmgr");	//Andy Chiu, 2015/03/18. stop monitorcfgmgr before stop cfg_manager
-	system("killall -SIGUSR1 cfg_manager");
-	/* wait cfg_manager done */
-	while (!quit_signal() && count++ < 10)
-		sleep(1);
-	
-#endif
+	if (fw_upgrade)
+	{
+		system("killall -9 cfg_manager");
+	}
+	else
+	{
+		system("killall -SIGTERM cfg_manager");	//Andy Chiu, 2015/05/12. send SIGTERM to cfg_manager first and make sure it 
+		/* wait cfg_manager done */
+		while (!quit_signal() && count++ < 10)
+			sleep(1);
+	}
 #ifdef TCSUPPORT_SYSLOG_ENHANCE
 	count = 0;
 	system("killall syslogd");

@@ -298,10 +298,11 @@ function overHint(itemNum){
 						}
 					}
 					else{
+						/*
 						if(wan0_enable == 0){
 							statusmenu += "<span>WAN is disabled.</span>";
 						}
-						else{
+						else{*/
 							if(first_link_auxstatus == "1"){
 								if( wans_dualwan_array[0] == "lan"){
 									statusmenu += "<span>Please check that the ethernet cable is connected properly to the <% tcWebApi_Get("String_Entry", "menu5_2", "s") %>"+wans_lanport+" port.</span>";
@@ -325,7 +326,7 @@ function overHint(itemNum){
 								statusmenu += "<span>PIN code is not correct. After three failed attempts to enter the PIN code, your SIM card will be blocked.</span>";	
 							else
 								statusmenu += "<span><% tcWebApi_Get("String_Entry", "Disconnected", "s") %></span>";	
-						}	
+						/*}*/	
 					}
 				}		
 			}
@@ -373,10 +374,10 @@ function overHint(itemNum){
 						}											
 					}
 					else{
-						if(wan0_enable == 0){
+						/*if(wan0_enable == 0){	//Viz hid it because no 
 							statusmenu += "<span>WAN is disabled.</span>";
 						}
-						else{
+						else{*/
 							if(link_auxstatus == "1"){
 								if( wans_dualwan_array[0] == "lan"){
 									statusmenu += "<span>Please check that the ethernet cable is connected properly to the <% tcWebApi_Get("String_Entry", "menu5_2", "s") %>"+wans_lanport+" port.</span>";
@@ -400,7 +401,7 @@ function overHint(itemNum){
 								statusmenu += "<span>PIN code is not correct. After three failed attempts to enter the PIN code, your SIM card will be blocked.</span>";	
 							else
 								statusmenu += "<span><% tcWebApi_Get("String_Entry", "Disconnected", "s") %></span>";	
-						}
+						/*}*/
 					}
 				}
 			}

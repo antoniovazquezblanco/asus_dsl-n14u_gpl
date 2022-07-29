@@ -11,7 +11,7 @@ helpcontent[0] = new Array("",
 "<%tcWebApi_get("String_Entry","WC11b_x_Phrase_id","s")%>",
 "<%tcWebApi_get("String_Entry","WC11b_WEPType_id","s")%>",
 "<%tcWebApi_get("String_Entry","WC11b_WEPDefaultKey_id","s")%>",
-"<%tcWebApi_get("String_Entry","WC11b_x_Rekey_id","s")%><%tcWebApi_get("String_Entry","JS_field_wanip_rule3","s")%>",
+"<%tcWebApi_get("String_Entry","WC11b_x_Rekey_id","s")%><%tcWebApi_get("String_Entry","JS_field_wanip_rule3","s")%>",	//11
 "<%tcWebApi_get("String_Entry","WC11b_WEPKey_itemtype1","s")%>",
 "<%tcWebApi_get("String_Entry","WC11b_WEPKey_itemtype2","s")%>",
 "<%tcWebApi_get("String_Entry","WC11b_ChannelBW_id","s")%><br/><%tcWebApi_get("String_Entry","WC11b_Wireless_Speed_in_3","s")%>",
@@ -21,10 +21,12 @@ helpcontent[0] = new Array("",
 "<%tcWebApi_get("String_Entry","WC11b_WEPKey_itemtype1","s")%><br/><%tcWebApi_get("String_Entry","WC11b_WEPKey_itemtype2","s")%>",
 "<%tcWebApi_get("String_Entry","WC11b_WEPKey_itemtype1","s")%><br/><%tcWebApi_get("String_Entry","WC11b_WEPKey_itemtype2","s")%>",
 "<%tcWebApi_get("String_Entry","WC11b_WEPKey_itemtype1","s")%><br/><%tcWebApi_get("String_Entry","WC11b_WEPKey_itemtype2","s")%>",
-"<%tcWebApi_get("String_Entry","WC11b_WEPKey_itemtype1","s")%><br/><%tcWebApi_get("String_Entry","WC11b_WEPKey_itemtype2","s")%>",
+"<%tcWebApi_get("String_Entry","WC11b_WEPKey_itemtype1","s")%><br/><%tcWebApi_get("String_Entry","WC11b_WEPKey_itemtype2","s")%>",	//21
 '<div><%tcWebApi_get("String_Entry","qis_wireless_help1","s")%>.</div><br/><img src="/images/qis/select_wireless.jpg">',
 '<div><%tcWebApi_get("String_Entry","qis_wireless_help2","s")%></div><br/><img width="350px" src="/images/qis/security_key.png">',
-'<% tcWebApi_Get("String_Entry", "WC11n_automode_limition_hint", "s") %>'
+'<% tcWebApi_Get("String_Entry", "WC11n_automode_limition_hint", "s") %>',
+"<%tcWebApi_get("String_Entry","Access_Time_desc","s")%>",
+"<%tcWebApi_get("String_Entry","Access_Intranet_desc","s")%>"
 );
 
 helpcontent[1] = new Array("",
@@ -61,7 +63,8 @@ helpcontent[3] = new Array("",
 "[n Only]: <%tcWebApi_get("String_Entry","WC11b_x_HT_OpMode_id","s")%>",
 "<%tcWebApi_get("String_Entry","WC11n_PremblesType_id","s")%>",
 "<%tcWebApi_get("String_Entry","WC11b_x_IgmpSnEnable_id","s")%>", //21
-"<%tcWebApi_get("String_Entry","WC11b_x_SchedEnable_id","s")%>"
+"<%tcWebApi_get("String_Entry","WC11b_x_SchedEnable_id","s")%>",
+"<%tcWebApi_get("String_Entry","WC11b_x_roamingassit_desc","s")%>"
 );
 
 helpcontent[4] = new Array("",
@@ -264,7 +267,7 @@ helpcontent[25] = new Array("",
 							"This item configures Rx AGC(Auto Gain Control) GAIN for VDSL, if tweak the Stability Adjustment (VDSL) setting still could not get desired downstream speed, then could try to set Rx AGC GAIN Adjustment to High Performance mode. However if your VDSL connection is unstable and has some CRC then could set to Stable mode.",
 							"This item allows you to control whether to Enable/Disable UPBO(Upstream Power Back Off) for VDSL. DSLAM could use UPBO to reduce the Tx Power of your xDSL modem router, in some cases abnormal UPBO control from DSLAM could leads to sync up issue(such as not enough Tx Power to sync with minimum rate). Thus with this feature now you could disable UPBO and won’t get affected by DSLAM setting.",
 							"The G.INP stands for Impulse Noise Protection. It works on ADSL2, ADSL2+, and VDSL2 only. It is enabled to provide enhanced protection against impulse noise or to increase the efficiency of providing impulse noise protection. If your DSLAM does not support it, please disable it.",
-							"This item allows system to monitor the ADSL line, designed to maintain stability of the line. Based on current line condition necessary changes will be adopted.",
+							"This item allows system to monitor the DSL line, designed to maintain stability of the line. Based on current line condition necessary changes will be adopted.",
 							"This item configures Rx AGC(Auto Gain Control) GAIN for VDSL, if after tweak the Stability Adjustment (VDSL) setting, VDSL connection is still unstable and has some CRC then could set to Stable mode.",
 							"This item configures Rx AGC(Auto Gain Control) GAIN for ADSL, if tweak the Stability Adjustment (ADSL) setting still could not get desired downstream speed, then could try to set Rx AGC GAIN Adjustment to High Performance mode. However if your ADSL connection is unstable and has some CRC then could set to Stable mode.",
 							"This item configures Rx AGC(Auto Gain Control) GAIN for ADSL, if after tweak the Stability Adjustment (ADSL) setting, ADSL connection is still unstable and has some CRC then could set to Stable mode.",

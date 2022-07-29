@@ -123,9 +123,8 @@ static void safe_leave(int signo){
 void get_related_nvram(){
 #if ASUSWRT
 	sw_mode = nvram_get_int("sw_mode");
-
-	boot_end = nvram_get_int("success_start_service");
 #endif
+	boot_end = nvram_get_int("success_start_service");
 
 	if(nvram_match("x_Setting", "1"))
 		isFirstUse = 0;
@@ -553,13 +552,13 @@ int chk_proto(int wan_unit, int wan_state){
 	// Start chk_proto() in SW_MODE_ROUTER.
 #ifdef RTCONFIG_USB_MODEM
 	if (dualwan_unit__usbif(wan_unit)) {
-		ppp_fail_state = pppstatus();
 
 		if(wan_state == WAN_STATE_INITIALIZING){
 			disconn_case[wan_unit] = CASE_PPPFAIL;
 			return DISCONN;
 		}
 		else if(wan_state == WAN_STATE_CONNECTING){
+			ppp_fail_state = pppstatus();
 			if(ppp_fail_state == WAN_STOPPED_REASON_PPP_AUTH_FAIL)
 				record_wan_state_nvram(wan_unit, -1, -1, WAN_AUXSTATE_PPP_AUTH_FAIL);
 
@@ -1226,7 +1225,7 @@ void record_conn_status(int wan_unit){
 				return;
 			disconn_case_old[wan_unit] = CASE_DISWAN;
 
-			logmessage(log_title, "Ethernet link down.");
+			logmessage(log_title, "Wan link down.");	//ethernet, dsl
 		}
 		else if(disconn_case[wan_unit] == CASE_PPPFAIL){
 			if(disconn_case_old[wan_unit] == CASE_PPPFAIL)
@@ -1259,9 +1258,9 @@ void record_conn_status(int wan_unit){
 			logmessage(log_title, "The router's ip was the same as gateway's ip. It led to your packages couldn't dispatch to internet correctly.");
 		}
 		else if(disconn_case[wan_unit] == CASE_THESAMESUBNET){
-			if(disconn_case_old[wan_unit] == CASE_MISROUTE)
+			if(disconn_case_old[wan_unit] == CASE_THESAMESUBNET)
 				return;
-			disconn_case_old[wan_unit] = CASE_MISROUTE;
+			disconn_case_old[wan_unit] = CASE_THESAMESUBNET;
 
 			logmessage(log_title, "The LAN's subnet may be the same with the WAN's subnet.");
 		}
@@ -1281,7 +1280,7 @@ void record_conn_status(int wan_unit){
 		logmessage(log_title, "WAN was restored.");
 	}
 	else if(conn_changed_state[wan_unit] == PHY_RECONN){
-		logmessage(log_title, "link up.");
+		logmessage(log_title, "Wan link up.");	//ethernet, dsl
 	}
 }
 
@@ -1351,9 +1350,8 @@ int switch_wan_line(const int wan_unit, const int restart_other){
 			if(unit == wan_unit)
 				continue;
 
-			memset(cmd, 0, 32);
-			sprintf(cmd, "restart_wan_if %d", unit);
-TRACE_PT("%s.\n", cmd);
+			csprintf("wanduck1: restart_wan_if %d.\n", unit);
+			snprintf(cmd, 32, "restart_wan_if %d", unit);
 			notify_rc_and_wait(cmd);
 			sleep(1);
 		}
@@ -1367,39 +1365,28 @@ TRACE_PT("%s.\n", cmd);
 			if(dualwan_unit__nonusbif(unit))
 				continue;
 
-			memset(cmd, 0, 32);
-			sprintf(cmd, "stop_wan_if %d", unit);
-TRACE_PT("%s.\n", cmd);
+			csprintf("wanduck1: stop_wan_if %d.\n", unit);
+			snprintf(cmd, 32, "stop_wan_if %d", unit);
 			notify_rc_and_wait(cmd);
 			sleep(1);
 		}
 	}
 #endif
 #else //TCLINUX
-	unit = wan_secondary_ifunit();
-	memset(tmp, 0, sizeof(tmp));
-#ifdef TCSUPPORT_MULTISERVICE_ON_WAN
-	if(unit == WAN_UNIT_PTM0 || unit == WAN_UNIT_ETH)
-		sprintf(tmp, "WanExt_PVC%de0", unit);
-	else
-#endif
-		sprintf(tmp, "Wan_PVC%d", unit);
-	tcapi_set(tmp, "Active", "No");
-	csprintf("Stop %s\n", tmp);
-	tcapi_commit(tmp);
 
 	if(restart_other)
 	{
-		//unit = wan_secondary_ifunit();
-		//memset(tmp, 0, sizeof(tmp));
-//#ifdef TCSUPPORT_MULTISERVICE_ON_WAN
-		//if(unit > 7 && unit < 11)
-		//sprintf(tmp, "WanExt_PVC%de0", unit);
-		//else
-//#endif
-		//sprintf(tmp, "Wan_PVC%d", unit);
+		unit = wan_secondary_ifunit();
+		csprintf("wanduck1: restart_wan_if %d.\n", unit);
+		memset(tmp, 0, sizeof(tmp));
+#ifdef TCSUPPORT_MULTISERVICE_ON_WAN
+		if(unit == WAN_UNIT_PTM0 || unit == WAN_UNIT_ETH)
+		sprintf(tmp, "WanExt_PVC%de0", unit);
+		else
+#endif
+		sprintf(tmp, "Wan_PVC%d", unit);
 		//tcapi_set(tmp, "Active", "Yes");
-		//tcapi_commit(tmp);
+		tcapi_commit(tmp);
 	}
 #endif
 
@@ -1407,10 +1394,10 @@ TRACE_PT("%s.\n", cmd);
 #if ASUSWRT
 	memset(cmd, 0, 32);
 	if(get_wan_state(wan_unit) == WAN_STATE_CONNECTED)
-		sprintf(cmd, "restart_wan_line %d", wan_unit);
+		snprintf(cmd, 32, "restart_wan_line %d", wan_unit);
 	else
-		sprintf(cmd, "restart_wan_if %d", wan_unit);
-TRACE_PT("%s.\n", cmd);
+		snprintf(cmd, 32, "restart_wan_if %d", wan_unit);
+	csprintf("wanduck2: %s.\n", cmd);
 	notify_rc_and_wait(cmd);
 
 #else //TCLINUX
@@ -1421,7 +1408,7 @@ TRACE_PT("%s.\n", cmd);
 	else
 #endif
 	sprintf(tmp, "Wan_PVC%d", wan_unit);
-	tcapi_set(tmp, "Active", "Yes");
+	//tcapi_set(tmp, "Active", "Yes");
 	csprintf("Start %s\n", tmp);
 	tcapi_commit(tmp);
 #endif
@@ -1448,6 +1435,11 @@ int wanduck_main(int argc, char *argv[]){
 	char prefix_wan[8];
 	//char cmd[32];
 	char tmp[100]="";
+#if !ASUSWRT
+	int i;
+	int wan_primary = wan_primary_ifunit();
+	int wan_secondary = wan_secondary_ifunit();
+#endif
 
 	unsigned int now;
 
@@ -1556,12 +1548,19 @@ int wanduck_main(int argc, char *argv[]){
 #if ASUSWRT
 	WAN_FB_UNIT = WAN_UNIT_FIRST;
 #else
-	WAN_FB_UNIT = wan_primary_ifunit();
+	WAN_FB_UNIT = wan_primary;
+	wan_pool[0] = wan_primary;
+	wan_pool[1] = wan_secondary;
 #endif
 
 	if(sw_mode == SW_MODE_ROUTER && !strcmp(dualwan_mode, "lb")){
 		cross_state = DISCONN;
-		for(wan_unit = WAN_UNIT_FIRST; wan_unit < WAN_UNIT_MAX; ++wan_unit){
+#if ASUSWRT
+		for(wan_unit = WAN_UNIT_FIRST; wan_unit < WAN_UNIT_MAX; ++wan_unit)
+#else
+		for(i = 0; wan_unit = wan_pool[i], wan_unit != -1; i++)
+#endif
+		{
 			conn_state[wan_unit] = if_wan_phyconnected(wan_unit);
 			if(conn_state[wan_unit] == CONNED){
 #ifdef RTCONFIG_USB_MODEM
@@ -1674,7 +1673,6 @@ _dprintf("wanduck(%d) 1: conn_state %d, conn_state_old %d, conn_changed_state %d
 		conn_state_old[current_wan_unit] = conn_state[current_wan_unit];
 	}
 
-#if ASUSWRT
 	/*
 	 * Because start_wanduck() is run early than start_wan()
 	 * and the redirect rules is already set before running wanduck,
@@ -1688,9 +1686,7 @@ _dprintf("wanduck(%d) 1: conn_state %d, conn_state_old %d, conn_changed_state %d
 		csprintf("\n#CONNED : Enable direct rule\n");
 		rule_setup = 1;
 	}
-#else
-	csprintf("\n# Enable direct rule\n");
-	rule_setup = 1;
+#if !ASUSWRT
 	handle_wan_line(current_wan_unit ,rule_setup);
 #endif
 if(test_log)
@@ -1739,7 +1735,12 @@ _dprintf("wanduck(%d) 2: conn_state %d, conn_state_old %d, conn_changed_state %d
 #ifdef RTCONFIG_DUALWAN
 		if(sw_mode == SW_MODE_ROUTER && !strcmp(dualwan_mode, "lb")){
 			cross_state = DISCONN;
-			for(wan_unit = WAN_UNIT_FIRST; wan_unit < WAN_UNIT_MAX; ++wan_unit){
+#if ASUSWRT
+			for(wan_unit = WAN_UNIT_FIRST; wan_unit < WAN_UNIT_MAX; ++wan_unit)
+#else
+			for(i = 0; wan_unit = wan_pool[i], wan_unit != -1; i++)
+#endif
+			{
 #if 0
 #ifdef RTCONFIG_USB_MODEM
 				if(dualwan_unit__usbif(wan_unit) && !link_wan[wan_unit]){
@@ -1838,7 +1839,9 @@ _dprintf("wanduck(%d): detect the modem to be reset...\n", wan_unit);
 					else if(conn_state[wan_unit] == CONNED){
 						if(rule_setup == 1 && !isFirstUse){
 							csprintf("\n# DualWAN: Disable direct rule(D2C)\n");
+#if ASUSWRT
 							rule_setup = 0;
+#endif
 						}
 
 						conn_changed_state[wan_unit] = D2C;
@@ -1859,7 +1862,6 @@ _dprintf("wanduck(%d): detect the modem to be reset...\n", wan_unit);
 					if(get_disconn_count(wan_unit) >= max_disconn_count){
 						set_disconn_count(wan_unit, S_IDLE);
 
-#if ASUSWRT
 #ifdef RTCONFIG_USB_MODEM
 						if(dualwan_unit__usbif(wan_unit) &&
 								(!strcmp(modem_type, "ecm") || !strcmp(modem_type, "ncm") || !strcmp(modem_type, "rndis") || !strcmp(modem_type, "asix") || !strcmp(modem_type, "qmi") || !strcmp(modem_type, "gobi"))
@@ -1868,15 +1870,37 @@ _dprintf("wanduck(%d): detect the modem to be reset...\n", wan_unit);
 						else
 #endif
 						{
+#if ASUSWRT
 							memset(cmd, 0, 32);
 							sprintf(cmd, "restart_wan_if %d", wan_unit);
 							notify_rc_and_period_wait(cmd, 30);
+#else
+							memset(tmp, 0, sizeof(tmp));
+							sprintf(tmp, "Wan_PVC%d", wan_unit);
+							csprintf("%d %s\n", __LINE__, tmp);
+							wan_down(get_wan_ifname(wan_unit));
+							tcapi_commit(tmp);
+#endif
 						}
 
+#if ASUSWRT
 						if(get_wan_state(!wan_unit) == WAN_STATE_CONNECTED){
 							memset(cmd, 0, 32);
 							sprintf(cmd, "restart_wan_line %d", !wan_unit);
 							notify_rc(cmd);
+						}
+#else
+						if(wan_unit == wan_primary && get_wan_state(wan_secondary) == WAN_STATE_CONNECTED){
+							memset(tmp, 0, sizeof(tmp));
+							sprintf(tmp, "Wan_PVC%d", wan_secondary);
+							csprintf("%d %s\n", __LINE__, tmp);
+							tcapi_commit(tmp);
+						}
+						else if (wan_unit == wan_secondary && get_wan_state(wan_primary) == WAN_STATE_CONNECTED){
+							memset(tmp, 0, sizeof(tmp));
+							sprintf(tmp, "Wan_PVC%d", wan_primary);
+							csprintf("%d %s\n", __LINE__, tmp);
+							tcapi_commit(tmp);
 						}
 #endif
 					}
@@ -2197,8 +2221,6 @@ _dprintf("wanduck(%d) fail-back: conn_state %d, conn_state_old %d, conn_changed_
 #if ASUSWRT
 			other_wan_unit = !current_wan_unit;
 #else
-			//DUALWAN=y, wans_mode will be lb/fo/fb, will not be here
-			//DUALWAN=n, no other_wan_unit
 			other_wan_unit = current_wan_unit;
 #endif
 
@@ -2396,6 +2418,10 @@ _dprintf("wanduck(%d) 6: conn_state %d, conn_state_old %d, conn_changed_state %d
 							memset(cmd, 0, 32);
 							sprintf(cmd, "restart_wan_if %d", other_wan_unit);
 							notify_rc_and_wait(cmd);
+#else
+							memset(tmp, 0, sizeof(tmp));
+							sprintf(tmp, "Wan_PVC%d", other_wan_unit);
+							tcapi_commit(tmp);
 #endif
 						}
 					}
@@ -2482,6 +2508,21 @@ _dprintf("wanduck(%d) 6: conn_state %d, conn_state_old %d, conn_changed_state %d
 			rule_setup = 1;
 			handle_wan_line(other_wan_unit, rule_setup);
 			switch_wan_line(other_wan_unit, 0);
+		}
+		// hot-standby: Try to prepare the backup line.
+		else if(!strcmp(dualwan_mode, "fo") || !strcmp(dualwan_mode, "fb")){
+			if(nvram_get_int("wans_standby") == 1 && link_wan[other_wan_unit] == 1 && get_wan_state(other_wan_unit) == WAN_STATE_INITIALIZING){
+				csprintf("\n# wanduck(hot-standby): Try to prepare the backup line.\n");
+#if ASUSWRT
+				memset(cmd, 0, 32);
+				sprintf(cmd, "restart_wan_if %d", other_wan_unit);
+				notify_rc_and_wait(cmd);
+#else
+				memset(tmp, 0, sizeof(tmp));
+				sprintf(tmp, "Wan_PVC%d", other_wan_unit);
+				tcapi_commit(tmp);
+#endif
+			}
 		}
 #endif
 

@@ -66,6 +66,8 @@ function uiDoUpdate()
 		string3 = form.tools_FW_UploadFile.value.search(/Settings_DSL-N12U-C1/);
 	else if(model_name == "DSL-N10-C1")
 		string3 = form.tools_FW_UploadFile.value.search(/Settings_DSL-N10-C1/);
+	else if(model_name == "DSL-N10P-C1")
+		string3 = form.tools_FW_UploadFile.value.search(/Settings_DSL-N10P-C1/);
 	else if(model_name == "DSL-N14U")
 		string3 = form.tools_FW_UploadFile.value.search(/Settings_DSL-N14U/);
 	else if(model_name == "DSL-AC56U")

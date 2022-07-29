@@ -889,4 +889,6 @@ if [ -f $CLEAN_CACHE_FILE ] ;then
         $CLEAN_CACHE_FILE &
 fi
 
+fwver=`cat /etc/fwver.conf`
+echo "Firmware version=[$fwver]" > /proc/tc3162/dbg_msg
 

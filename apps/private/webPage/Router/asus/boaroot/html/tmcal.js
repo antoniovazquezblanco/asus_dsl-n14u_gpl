@@ -259,7 +259,7 @@ else if(modelname == "DSL-N55U-C1" || modelname == "DSL-N55U-D1"){ //dual band +
 	else
 	t = i;
 }
-else if(modelname == "DSL-N16U" || modelname == "DSL-N14U" || modelname == "DSL-N12U-C1" || modelname == "DSL-N12E-C1" || modelname == "DSL-N10-C1") //single band + dual wan
+else if(modelname == "DSL-N16U" || modelname == "DSL-N14U" || modelname == "DSL-N12U-C1" || modelname == "DSL-N12E-C1" || modelname == "DSL-N10-C1" || modelname == "DSL-N10P-C1") //single band + dual wan
 {
 	if (i == "WIRELESS0")
 	t = 'Wireless';
@@ -351,7 +351,7 @@ else if(modelname == "DSL-N55U-C1" || modelname == "DSL-N55U-D1"){ //dual band +
 	//tabs.push(['speed-tab-' + i, t]);
 	}
 }
-else if(modelname == "DSL-N16U" || modelname == "DSL-N14U" || modelname == "DSL-N12U-C1" || modelname == "DSL-N12E-C1" || modelname == "DSL-N10-C1") //single band + dual wan
+else if(modelname == "DSL-N16U" || modelname == "DSL-N14U" || modelname == "DSL-N12U-C1" || modelname == "DSL-N12E-C1" || modelname == "DSL-N10-C1" || modelname == "DSL-N10P-C1") //single band + dual wan
 {
 	if(t != "LAN" && t != "NotUsed"){ // hide Tabs
 					if(i == "ATM")

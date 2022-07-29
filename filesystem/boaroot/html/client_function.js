@@ -41,9 +41,9 @@ var totalClientNum = {
 	online: 0,
 	wireless: 0,
 	wired: 0,
+	wireless_0: 0,
 	wireless_1: 0,
-	wireless_2: 0,
-	wireless_3: 0
+	wireless_2: 0
 }
 
 var setClientAttr = function(){
@@ -81,9 +81,9 @@ var ClientRow = new Array(0);
 function genClientList(){
 	clientList = [];
 	totalClientNum.wireless = 0;
+	totalClientNum.wireless_0 = 0;
 	totalClientNum.wireless_1 = 0;
 	totalClientNum.wireless_2 = 0;
-	totalClientNum.wireless_3 = 0;
 
 	if(networkmap_fullscan == 0){
 		
@@ -157,7 +157,7 @@ function genClientList(){
 			clientList[wlClientMacAddr].rssi = originData.wlList_2g[i][1];	//Viz patched 2014.12.22
 			clientList[wlClientMacAddr].isWL = 1;														//Viz patched	2014.12.22
 			totalClientNum.wireless++;
-			totalClientNum.wireless_1++;		
+			totalClientNum.wireless_0++;		
 		}		
 	}	
 	
@@ -170,7 +170,7 @@ function genClientList(){
 		clientList[thisClientMacAddr].rssi = originData.wlList_5g[i][1];
 		clientList[thisClientMacAddr].isWL = 2;
 		totalClientNum.wireless++;
-		totalClientNum.wireless_2++;
+		totalClientNum.wireless_1++;
 	}
 	
 	for(var i=0; i<originData.staticList.length; i++){
@@ -201,18 +201,5 @@ function getUserIcon(clientMac, custom_usericon) {
 			break;
 		}
 	}	
-	return userIcon;
-}
-
-function getUserIcon(clientMac, custom_usericon) {
-	var userIcon = "";
-	var custom_usericon_array = custom_usericon.split("<");
-	for(var i = 0; i < custom_usericon_array.length; i += 1) {		
-		var custom_usericon_array_col = custom_usericon_array[i].split(">");
-		if(custom_usericon_array_col[0] == clientMac) {
-			userIcon = custom_usericon_array_col[1];
-			break;
-		}
-	}
 	return userIcon;
 }

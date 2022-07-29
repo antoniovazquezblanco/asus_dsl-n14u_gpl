@@ -1339,15 +1339,27 @@ int is_psr(int unit)
 #endif
 
 #ifdef RTCONFIG_OPENVPN
-char *get_parsed_crt(const char *name, char *buf)
+char *get_parsed_crt(const char *name, char *buf, size_t buf_len)
 {
 	char *value;
 	int len, i;
+#if defined(TCSUPPORT_ADD_JFFS) || defined(TCSUPPORT_SQUASHFS_ADD_YAFFS)
+	FILE *fp;
+	char tmpBuf[256] = {0};
+	char *p = buf;
+#endif
 
 	value = nvram_safe_get(name);
 
 	len = strlen(value);
 
+#if defined(TCSUPPORT_ADD_JFFS) || defined(TCSUPPORT_SQUASHFS_ADD_YAFFS)
+	if(!check_if_dir_exist(OVPN_FS_PATH))
+		mkdir(OVPN_FS_PATH, S_IRWXU);
+	snprintf(tmpBuf, sizeof(tmpBuf) -1, "%s/%s", OVPN_FS_PATH, name);
+#endif
+
+	if(len) {
 	for (i=0; (i < len); i++) {
 		if (value[i] == '>')
 			buf[i] = '\n';
@@ -1357,11 +1369,60 @@ char *get_parsed_crt(const char *name, char *buf)
 
 	buf[i] = '\0';
 
+#if defined(TCSUPPORT_ADD_JFFS) || defined(TCSUPPORT_SQUASHFS_ADD_YAFFS)
+		//save to file and then clear nvram value
+		fp = fopen(tmpBuf, "w");
+		if(fp) {
+			fprintf(fp, "%s", buf);
+			fclose(fp);
+			nvram_set(name, "");
+		}
+#endif
+	}
+	else {
+#if defined(TCSUPPORT_ADD_JFFS) || defined(TCSUPPORT_SQUASHFS_ADD_YAFFS)
+		//nvram value cleard, get from file
+		fp = fopen(tmpBuf, "r");
+		if(fp) {
+			while(fgets(buf, buf_len, fp)) {
+				if(!strncmp(buf, "-----BEGIN", 10))
+					break;
+			}
+			if(feof(fp)) {
+				fclose(fp);
+				memset(buf, 0, buf_len);
+				return buf;
+			}
+			p += strlen(buf);
+			memset(tmpBuf, 0, sizeof(tmpBuf));
+			while(fgets(tmpBuf, sizeof(tmpBuf), fp)) {
+				strncpy(p, tmpBuf, strlen(tmpBuf));
+				p += strlen(tmpBuf);
+			}
+			*p = '\0';
+			fclose(fp);
+		}
+#endif
+	}
 	return buf;
 }
 
 int set_crt_parsed(const char *name, char *file_path)
 {
+#if defined(TCSUPPORT_ADD_JFFS) || defined(TCSUPPORT_SQUASHFS_ADD_YAFFS)
+	char target_file_path[128] ={0};
+
+	if(!check_if_dir_exist(OVPN_FS_PATH))
+		mkdir(OVPN_FS_PATH, S_IRWXU);
+
+	if(check_if_file_exist(file_path)) {
+		snprintf(target_file_path, sizeof(target_file_path) -1, "%s/%s", OVPN_FS_PATH, name);
+		return eval("cp", file_path, target_file_path);
+	}
+	else {
+		return -1;
+	}
+#else
 	FILE *fp=fopen(file_path, "r");
 	char buffer[3000] = {0};
 	char buffer2[256] = {0};
@@ -1392,6 +1453,42 @@ int set_crt_parsed(const char *name, char *file_path)
 	}
 	else
 		return -ENOENT;
+#endif
+}
+
+int ovpn_crt_is_empty(const char *name)
+{
+	char file_path[128] ={0};
+	struct stat st;
+
+	if( nvram_is_empty(name) ) {
+#if defined(TCSUPPORT_ADD_JFFS) || defined(TCSUPPORT_SQUASHFS_ADD_YAFFS)
+		//check file
+		if(d_exists(OVPN_FS_PATH)) {
+			snprintf(file_path, sizeof(file_path) -1, "%s/%s", OVPN_FS_PATH, name);
+			if(stat(file_path, &st) == 0) {
+				if( !S_ISDIR(st.st_mode) && st.st_size ) {
+					return 0;
+				}
+				else {
+					return 1;
+				}
+			}
+			else {
+				return 1;
+			}
+		}
+		else {
+			mkdir(OVPN_FS_PATH, S_IRWXU);
+			return 1;
+		}
+#else
+		return 1;
+#endif
+	}
+	else {
+		return 0;
+	}
 }
 #endif
 

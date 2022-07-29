@@ -46,6 +46,8 @@ int flag_save = 0;
 #define SUB_NODE_NAME "Entry"
 #endif
 
+restrict_client_t restrict_client;
+
 typedef struct cgibin_exception_file
 {
 	char filename[60];
@@ -101,6 +103,7 @@ request *new_request(void)
 		//lee 2006-4-20
 		req->cookie = NULL;
 		req->authorize = NULL;
+		req->restrict_client = &restrict_client;
 #if  defined(TCSUPPORT_WEBSERVER_SSL)
 		req->ssl = NULL;
 #endif
@@ -1556,6 +1559,80 @@ static int is_cgibin_exception(char *request)
 	return 0;
 }
 
+void http_update_allowed_client(void) 
+{
+	char getbuf[128];
+	char *nvp, *b;
+	int i=0;
+
+	memset(&restrict_client, 0, sizeof(restrict_client));
+	memset(getbuf, 0, sizeof(getbuf));
+	if (tcapi_get("SysInfo_Entry", "http_restrict_client", getbuf) == 0)
+	{
+		if (atoi(getbuf) == 1)
+			restrict_client.enabled = 1;
+		else
+			restrict_client.enabled = 0;
+	}
+
+	memset(getbuf, 0, sizeof(getbuf));
+	if (tcapi_get("SysInfo_Entry", "http_clientlist", getbuf) == 0)
+	{
+		nvp = getbuf;
+		while ((b = strsep(&nvp, ":")) != NULL) {
+			if (strlen(b)==0) continue;
+			if (i >= MAX_CLIENT) {
+				break;
+			}
+
+			sprintf(restrict_client.allowed_client_list[i].client_ip_str, "%s", b);
+			restrict_client.allowed_client_list[i].client_ip = 
+				inet_addr(restrict_client.allowed_client_list[i].client_ip_str);
+			i++;
+		}
+	}
+	restrict_client.client_cnt = i;
+	cprintf("%s-restrict_client(%d): (%d)clients\n", __FUNCTION__, restrict_client.enabled, restrict_client.client_cnt);
+	for (i=0; i<restrict_client.client_cnt; i++)
+	{
+		if(strlen(restrict_client.allowed_client_list[i].client_ip_str) != 0)
+		{
+			cprintf("-ip%d(%s)(0x%x)\n", i, restrict_client.allowed_client_list[i].client_ip_str,
+				restrict_client.allowed_client_list[i].client_ip);
+		}
+	}
+}
+
+static int http_client_ip_check(request * req) 
+{
+	int i = 0;
+	in_addr_t remote_ip;
+	restrict_client_t *restrict_client = NULL;
+
+	if (req == NULL)
+		return 1;
+
+	if (req->restrict_client == NULL)
+		return 1;
+
+	restrict_client = req->restrict_client;
+	if (restrict_client->enabled) 
+	{
+		remote_ip = inet_addr(req->remote_ip_addr);
+		for (i=0; i<restrict_client->client_cnt; i++)
+		{
+			if(remote_ip == restrict_client->allowed_client_list[i].client_ip)
+			{
+				return 1;
+			}
+		}
+		return 0;
+	}
+
+	return 1;
+}
+
+
 #define APPLYAPPSTR 	"applyapp.cgi"
 #define GETAPPSTR	"getapp"
 #define GETWEBDAVINFO	"get_webdavInfo.asp"
@@ -1597,6 +1674,13 @@ int process_header_end(request * req)
 	}
 	else if(strstr(req->request_uri, GETWEBDAVINFO)) {
 		fromapp=1;
+	}
+
+	/* Check if request come from allowed client list */
+	if (http_client_ip_check(req) == 0)
+	{
+		send_r_forbidden(req);
+		return 0;
 	}
 
 		/* Paul add start 2013/1/3, only allow single user to be logged in, and unlock if not accessed again in 60 seconds. */

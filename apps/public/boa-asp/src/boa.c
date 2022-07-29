@@ -69,6 +69,9 @@ extern	void	initParseStruct(void);
 extern	int	initandparserfile(void);
 #endif
 
+extern void http_update_allowed_client(void);
+
+
 #if !defined(TCSUPPORT_C1_NEW_GUI) 
 #if !defined(TCSUPPORT_CD_NEW_GUI) 
 void init_pageMap()
@@ -378,6 +381,7 @@ int main(int argc, char **argv)
     drop_privs();
     create_common_env();
     build_needs_escape();
+    http_update_allowed_client(); 
 
 #if defined(TCSUPPORT_GENERAL_MULTILANGUAGE)
 	initParseStruct();

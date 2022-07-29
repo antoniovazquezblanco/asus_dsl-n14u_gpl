@@ -121,6 +121,12 @@ function initial(){
 		wps_enable_old = "0";
 	}
 	
+	//Hide button WPS_reset or not
+	if(wps_reset_support == -1){
+		$("wps_conf_tr").style.display = "none";
+		document.getElementById("Reset_OOB").disabled = true;
+	}
+	
 	loadXML();
 
 }

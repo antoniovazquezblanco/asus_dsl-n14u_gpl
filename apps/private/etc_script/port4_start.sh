@@ -79,6 +79,7 @@ elif [ "$ConnectType" = "StaticIP" ] ; then
 
 elif [ "$ConnectType" = "PPPoE" ] ; then
 	PPP_PARAM="unit 100 user $USERNAME password $PASSWORD nodetach holdoff 4 maxfail 0 usepeerdns lcp-echo-interval 1 lcp-echo-failure 60 plugin libpppoe.so $Interface"
+	PPP_PARAM="$PPP_PARAM novj"
 	
 	if [ "$AUTHEN" = "CHAP" ] ; then
 		PPP_PARAM="$PPP_PARAM -pap"
