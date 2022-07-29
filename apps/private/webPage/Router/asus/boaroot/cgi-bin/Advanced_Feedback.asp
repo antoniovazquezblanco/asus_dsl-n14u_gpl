@@ -80,6 +80,7 @@ function check_wan_state(){
 		document.adv_adsl.fb_ISP.disabled = "true";
 		document.adv_adsl.fb_Subscribed_Info.disabled = "true";
 		document.adv_adsl.fb_email.disabled = "true";		
+		document.adv_adsl.fb_serviceno.disabled = "true";
 		document.adv_adsl.attach_syslog.disabled = "true";
 		document.adv_adsl.attach_cfgfile.disabled = "true";
 		document.adv_adsl.attach_iptables.disabled = "true";
@@ -102,6 +103,7 @@ function check_wan_state(){
 		document.adv_adsl.fb_ISP.disabled = "";
 		document.adv_adsl.fb_Subscribed_Info.disabled = "";
 		document.adv_adsl.fb_email.disabled = "";
+		document.adv_adsl.fb_serviceno.disabled = "";
 		document.adv_adsl.attach_syslog.disabled = "";
 		document.adv_adsl.attach_cfgfile.disabled = "";
 		document.adv_adsl.attach_iptables.disabled = "";
@@ -179,17 +181,24 @@ function applyRule(){
 		split_fb_comment();
 		
 		if(document.adv_adsl.fb_email.value == ""){
-				if(!confirm("E-mail address field is empty. Are you sure you want to proceed?")){
+				if(!confirm("<%tcWebApi_get("String_Entry","feedback_email_confirm","s")%>")){
 						document.adv_adsl.fb_email.focus();
 						return false;
 				}
 		}
 		else{   //validate email                        
 				if(!isEmail(document.adv_adsl.fb_email.value)){
-					alert(Untranslated.Email_validation);
+					alert("<%tcWebApi_get("String_Entry","feedback_email_alert","s")%>");
 					document.adv_adsl.fb_email.focus();
 					return false;
 				}
+		}
+
+		var re = new RegExp("^[a-zA-Z][0-9]{10}","gi");
+		if(!re.test(document.adv_adsl.fb_serviceno.value) && document.adv_adsl.fb_serviceno.value != ""){
+			alert("<%tcWebApi_get("String_Entry","JS_validchar","s")%>");
+			document.adv_adsl.fb_serviceno.focus();
+			return false;
 		}
 		
 		document.adv_adsl.saveFlag.value = 1;
@@ -321,7 +330,7 @@ function change_dsl_diag_enable(value) {
 <div class="formfonttitle"><%tcWebApi_get("String_Entry","menu5_6","s")%> - <%tcWebApi_get("String_Entry","menu_dsl_feedback","s")%></div>
 <div style="margin-left:5px;margin-top:10px;margin-bottom:10px"><img src="/images/New_ui/export/line_export.png"></div>
 <div class="formfontdesc"><%tcWebApi_get("String_Entry","Feedback_desc","s")%></div>
-<div id="fb_desc_disconnect" class="formfontdesc" style="display:none;color:#FC0;">Now this function can't work, because your ASUS Router isn't connected to the Internet. Please send your Feedback to this email address : <a href="mailto:xdsl_feedback@asus.com?Subject=<% tcWebApi_staticGet("SysInfo_Entry","ProductName","s") %>" target="_top" style="color:#FFCC00;">xdsl_feedback@asus.com </a></div><!-- untranslated -->
+<div id="fb_desc_disconnect" class="formfontdesc" style="display:none;color:#FC0;">Now this function can't work, because your ASUS Router isn't connected to the Internet. Please send your Feedback to this email address : <a href="mailto:broadband_feedback@asus.com?Subject=<% tcWebApi_staticGet("SysInfo_Entry","ProductName","s") %>" target="_top" style="color:#FFCC00;">broadband_feedback@asus.com </a></div><!-- untranslated -->
 <table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
 <tr>
 <th width="30%"><%tcWebApi_get("String_Entry","feedback_country","s")%> *</th>
@@ -349,6 +358,13 @@ function change_dsl_diag_enable(value) {
 </tr>
 
 <tr>
+<th><a class="hintstyle" href="javascript:void(0);" onClick="openHint(34,2);">ASUS Service No./Case#</a></th>
+<td>
+	<input type="text" name="fb_serviceno" maxlength="11" class="input_15_table" value="">
+</td>
+</tr>
+<tr>
+
 <th>Extra information for debugging *</th>
 <td>
 	<input type="checkbox" class="input" name="attach_syslog">Syslog&nbsp;&nbsp;&nbsp;
@@ -421,7 +437,7 @@ function change_dsl_diag_enable(value) {
 	<td colspan="2">
 		<strong><%tcWebApi_get("String_Entry","FW_note","s")%></strong>
 		<ul>
-			<li><%tcWebApi_get("String_Entry","feedback_note4","s")%></li>
+			<li><%tcWebApi_get("String_Entry","feedback_note4","s")%><br><a style="font-weight: bolder;text-decoration:underline;cursor:pointer;" href="https://www.asus.com/support/CallUs/" target="_blank">https://www.asus.com/support/CallUs/</a></li>
 		</ul>
 	</td>
 </tr>	

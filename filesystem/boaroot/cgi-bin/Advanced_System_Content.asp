@@ -1329,7 +1329,7 @@ function update_rewanDateTime()
 				<tr>
 					<td bgcolor="#4D595D" valign="top">
 						<div>&nbsp;</div>
-						<div class="formfonttitle"><%tcWebApi_get("String_Entry","menu5_6_adv","s")%> - <%tcWebApi_get("String_Entry","menu5_6_2","s")%></div>
+						<div class="formfonttitle"><%tcWebApi_get("String_Entry","menu5_6","s")%> - <%tcWebApi_get("String_Entry","menu5_6_2","s")%></div>
 						<div style="margin-left:5px;margin-top:10px;margin-bottom:10px"><img src="/images/New_ui/export/line_export.png"></div>
 						<div class="formfontdesc"><%tcWebApi_get("String_Entry","Syste_title","s")%></div>
 						<table width="100%" border="1" align="center" cellpadding="4" cellspacing="0" bordercolor="#6b8fa3" class="FormTable">
@@ -1348,7 +1348,7 @@ function update_rewanDateTime()
 							<tr>
 								<th width="40%"><a class="hintstyle" href="javascript:void(0);" onClick="openHint(11,4)"><%tcWebApi_get("String_Entry","PASS_new","s")%></a></th>
 								<td>
-									<input type="password" autocapitalization="off" autocomplete="off" name="uiViewTools_Password" maxlength="16" value="" onKeyPress="return validator.isString(this, event);" onkeyup="chkPass(this.value, 'http_passwd');" onpaste="return false;" class="input_18_table" onBlur="clean_scorebar(this);">
+									<input type="password" autocapitalization="off" autocomplete="off" name="uiViewTools_Password" maxlength="16" value="" onKeyPress="return validator.isString(this, event);" onKeyUp="chkPass(this.value, 'http_passwd', 16);" onPaste="return false;" class="input_18_table" onBlur="clean_scorebar(this);">
 										&nbsp;&nbsp;
 									<div id="scorebarBorder" name="scorebarBorder" style="margin-left:180px; margin-top:-25px; display:none;" title="<%tcWebApi_get("String_Entry","LHC_x_Password_itemSecur","s")%>">
 										<div id="score" name="score"></div>

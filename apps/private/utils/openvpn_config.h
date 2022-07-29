@@ -29,12 +29,14 @@ typedef enum ovpn_key {
 	OVPN_CLIENT_STATIC = 0,
 	OVPN_CLIENT_CA,
 	OVPN_CLIENT_CERT,
+	OVPN_CLIENT_EXTRA,
 	OVPN_CLIENT_KEY,
 	OVPN_CLIENT_CRL,
 	OVPN_SERVER_STATIC,
 	OVPN_SERVER_CA,
 	OVPN_SERVER_CA_KEY,
 	OVPN_SERVER_CERT,
+	OVPN_SERVER_EXTRA,
 	OVPN_SERVER_KEY,
 	OVPN_SERVER_DH,
 	OVPN_SERVER_CRL,
@@ -133,6 +135,8 @@ typedef struct ovpn_cconf {
 	int enable;
 // Tunnel options
 	char addr[128];	//remote server address
+	int did_resolv_addr;
+	char resolv_addr[1024];
 	int retry;	//retry resolve hostname
 	char proto[8];
 	int port;
@@ -158,8 +162,8 @@ typedef struct ovpn_cconf {
 
 //TLS Mode Options:
 	int reneg;	//TLS Renegotiation Time
-	int tls_remote;	//(DEPRECATED)
-	char common_name[32];
+	int verify_x509_type;	//TYPE of verify-x509-name
+	char verify_x509_name[32];	//NAME of verify-x509-name
 
 //Router options and info
 	char firewall[8];	//auto
@@ -173,12 +177,22 @@ typedef struct ovpn_cconf {
 
 
 typedef enum ovpn_status{
+	OVPN_STS_ERROR = -1,
 	OVPN_STS_STOP = 0,
 	OVPN_STS_INIT,
 	OVPN_STS_RUNNING,
 	OVPN_STS_STOPPING,
 }ovpn_status_t;
 
+typedef enum ovpn_errno{
+	OVPN_ERRNO_NONE = 0,
+	OVPN_ERRNO_IP,
+	OVPN_ERRNO_ROUTE,
+	OVPN_ERRNO_SSL = 4,
+	OVPN_ERRNO_DH,
+	OVPN_ERRNO_AUTH,
+	OVPN_ERRNO_CONF,
+}ovpn_errno_t;
 
 #define OVPN_ACCNT_MAX	15
 typedef struct ovpn_accnt
@@ -206,7 +220,8 @@ extern int ovpn_key_exists(ovpn_type_t type, int unit, ovpn_key_t key_type);
 
 extern char* get_lan_cidr(char* buf, size_t len);
 extern char* get_ovpn_sconf_remote(char* buf, size_t len);
-extern void update_ovpn_status(ovpn_type_t type, int unit, ovpn_status_t status_type);
+extern void update_ovpn_status(ovpn_type_t type, int unit, ovpn_status_t status_type, ovpn_errno_t err_no);
+extern ovpn_status_t get_ovpn_status(ovpn_type_t type, int unit);
 extern void wait_time_sync(int max);
 
 extern ovpn_accnt_info_t* get_ovpn_accnt(ovpn_accnt_info_t *accnt_info);

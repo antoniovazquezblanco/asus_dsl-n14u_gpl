@@ -37,7 +37,7 @@ End if
 
 <!--Advanced_TR069_Content.asp-->
 <head>
-<meta http-equiv="X-UA-Compatible" content="IE=EmulateIE7"/>
+<meta http-equiv="X-UA-Compatible" content="IE=Edge"/>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta HTTP-EQUIV="Pragma" CONTENT="no-cache">
 <meta HTTP-EQUIV="Expires" CONTENT="-1">
@@ -327,7 +327,7 @@ function TR_pass_checked(obj){
 <tr>
 <td bgcolor="#4D595D" valign="top">
 <div>&nbsp;</div>
-		  <div class="formfonttitle"><%tcWebApi_get("String_Entry","menu5_6_adv","s")%> - TR069</div>
+		  <div class="formfonttitle"><%tcWebApi_get("String_Entry","menu5_6","s")%> - TR069</div>
 <div style="margin-left:5px;margin-top:10px;margin-bottom:10px"><img src="/images/New_ui/export/line_export.png"></div>
 		  <div class="formfontdesc">TR069 Setup</div>
 

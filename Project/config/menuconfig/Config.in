@@ -1287,6 +1287,11 @@ config TCSUPPORT_ATE11
 	help
 		Support ATE Command v1.1: Add HwId, HwVersion, DateCode, HwBom
 
+config ASUS_PUSH_EMAIL
+	bool "ASUS Push mail server"
+	help
+		Support the push mail by curl
+
 endmenu
 
 config TCSUPPORT_IPV6
