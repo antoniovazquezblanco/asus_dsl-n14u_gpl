@@ -26,7 +26,10 @@
 #include <stdio.h>
 #include <string.h>
 #include "../../lib/libtcapi.h"
+#include "tcutils.h"
+#include "ttc.h"
 
+extern int initandparserfile(void);
 /*
  * Name: read_header
  * Description: Reads data from a request socket.  Manages the current
@@ -41,12 +44,13 @@
 
 int read_header(request * req)
 {
-    int bytes, buf_bytes_left;
-    char *check, *buffer;
-		char *pstr;
-		char str_lang[6];
-		char str_type[4] = {0};
-		int	nIndex = 1;
+	int bytes, buf_bytes_left;
+	char *check, *buffer;
+	char *pstr;
+	char str_lang[6];
+	char str_type[4] = {0};
+	int	nIndex = 1;
+	char ttc[16] = {0};
 
     check = req->client_stream + req->parse_pos;
     buffer = req->client_stream;
@@ -60,6 +64,8 @@ int read_header(request * req)
                 __FILE__, __LINE__, check);
     }
 #endif
+
+	tcapi_get("SysInfo_Entry", "TerritoryCode", ttc);
 
 	/* Paul add 2013/3/7, for retrieve Language type from HTTP header */
 	tcapi_get("LanguageSwitch_Entry", "Type", str_type);
@@ -76,13 +82,11 @@ int read_header(request * req)
 			memset(str_lang, 0, sizeof(str_lang));
 			if(pstr = strstr(check,"Accept-Language:"))
 			{
-				//fprintf(stderr, "2) %s:%d - ********************** (Accept-Language: found at [%d])\n",
-	      //          __FILE__, __LINE__, pstr-check+1);
-
 				strncpy (str_lang, &check[pstr-check+17], 6);
 				str_lang[5] = '\0';
 
 				int i, len = strlen(str_lang);
+				int lang_type = 0;
 
 				for(i=0; i<len; ++i)
 				{
@@ -91,182 +95,35 @@ int read_header(request * req)
 					}
 				}
 
-				//fprintf(stderr, "6) %s:%d - ********************** (Accept-Language: converted to lower [%s])\n",
-	      //          __FILE__, __LINE__, str_lang);
+				//choose proper language type
+				lang_type = getLangType(ttc, str_lang);
+				snprintf(str_type, sizeof(str_type), "%d", lang_type);
+				tcapi_set("WebCurSet_Entry", "detected_lang_type", str_type);
 
-				if(!strcmp(str_lang, "en-us"))
-				{
-					tcapi_set("WebCurSet_Entry", "detected_lang_type", "1");
-				}
-				else if(!strcmp(str_lang, "ru-ru"))
-				{
-					tcapi_set("WebCurSet_Entry", "detected_lang_type", "14");
-				}
-				else if(!strcmp(str_lang, "fr-fr"))
-				{
-					tcapi_set("WebCurSet_Entry", "detected_lang_type", "9");
-				}
-				else if(!strcmp(str_lang, "de-at") || !strcmp(str_lang, "de-li") || !strcmp(str_lang, "de-lu") || !strcmp(str_lang, "de-de") || !strcmp(str_lang, "de-ch"))
-				{
-					tcapi_set("WebCurSet_Entry", "detected_lang_type", "6");
-				}
-				else if(!strcmp(str_lang, "cs-cz"))
-				{
-					tcapi_set("WebCurSet_Entry", "detected_lang_type", "4");
-				}
-				else if(!strcmp(str_lang, "pl-pl"))
-				{
-					tcapi_set("WebCurSet_Entry", "detected_lang_type", "13");
-				}
-				else if(!strcmp(str_lang, "zh-tw") || !strcmp(str_lang, "zh-hk") || !strcmp(str_lang, "zh-mo")) //Modify for Macau
-				{
-					tcapi_set("WebCurSet_Entry", "detected_lang_type", "18");
-				}
-				else if(!strcmp(str_lang, "zh-cn") || !strcmp(str_lang, "zh-sg")) //Modify for Singapore
-				{
-					tcapi_set("WebCurSet_Entry", "detected_lang_type", "3");
-				}
-				else if(!strcmp(str_lang, "ms-my") || !strcmp(str_lang, "ms-bn"))
-				{
-					tcapi_set("WebCurSet_Entry", "detected_lang_type", "11");
-				}
-				else if(!strcmp(str_lang, "th-th"))
-				{
-					tcapi_set("WebCurSet_Entry", "detected_lang_type", "16");
-				}
-				else if(!strcmp(str_lang, "tr-tr"))
-				{
-					tcapi_set("WebCurSet_Entry", "detected_lang_type", "17");
-				}
-				else if(!strcmp(str_lang, "da-dk"))
-				{
-					tcapi_set("WebCurSet_Entry", "detected_lang_type", "5");
-				}
-				else if(!strcmp(str_lang, "fi-fi"))
-				{
-					tcapi_set("WebCurSet_Entry", "detected_lang_type", "8");
-				}
-				else if(!strcmp(str_lang, "nb-no") || !strcmp(str_lang, "nn-no"))
-				{
-					tcapi_set("WebCurSet_Entry", "detected_lang_type", "12");
-				}
-				else if(!strcmp(str_lang, "sv-fi") || !strcmp(str_lang, "sv-se"))
-				{
-					tcapi_set("WebCurSet_Entry", "detected_lang_type", "15");
-				}
-				else if(!strcmp(str_lang, "pt-br"))
-				{
-					tcapi_set("WebCurSet_Entry", "detected_lang_type", "2");
-				}
-				else if(!strcmp(str_lang, "es-ec") || !strcmp(str_lang, "es-py") || !strcmp(str_lang, "es-pa") || !strcmp(str_lang, "es-ni") || !strcmp(str_lang, "es-gt"))
-				{
-					tcapi_set("WebCurSet_Entry", "detected_lang_type", "7");
-				}
-				else if(!strcmp(str_lang, "es-do") || !strcmp(str_lang, "es-es") || !strcmp(str_lang, "es-hn") || !strcmp(str_lang, "es-ve") || !strcmp(str_lang, "es-pr"))
-				{
-					tcapi_set("WebCurSet_Entry", "detected_lang_type", "7");
-				}
-				else if(!strcmp(str_lang, "es-ar") || !strcmp(str_lang, "es-bo") || !strcmp(str_lang, "es-us") || !strcmp(str_lang, "es-co") || !strcmp(str_lang, "es-cr"))
-				{
-					tcapi_set("WebCurSet_Entry", "detected_lang_type", "7");
-				}
-				else if(!strcmp(str_lang, "es-uy") || !strcmp(str_lang, "es-pe") || !strcmp(str_lang, "es-cl") || !strcmp(str_lang, "es-mx") || !strcmp(str_lang, "es-sv"))	
-				{
-					tcapi_set("WebCurSet_Entry", "detected_lang_type", "7");
-				}
-				else if(!strcmp(str_lang, "it-it") || !strcmp(str_lang, "it-ch"))
-				{
-					tcapi_set("WebCurSet_Entry", "detected_lang_type", "10");
-				}
-				else if(!strcmp(str_lang, "uk-ua")) /* Paul add 2013/12/4, for Ukrainian support*/
-				{
-					tcapi_set("WebCurSet_Entry", "detected_lang_type", "19");
-				}
-				else
-				{
-					/* Paul add 2013/12/10, for IE11 support */
-					str_lang[2] = '\0';
-
-					if(!strcmp(str_lang, "en"))
-					{
-						tcapi_set("WebCurSet_Entry", "detected_lang_type", "1");
-					}
-					else if(!strcmp(str_lang, "ru"))
-					{
-						tcapi_set("WebCurSet_Entry", "detected_lang_type", "14");
-					}
-					else if(!strcmp(str_lang, "fr"))
-					{
-						tcapi_set("WebCurSet_Entry", "detected_lang_type", "9");
-					}
-					else if(!strcmp(str_lang, "de"))
-					{
-						tcapi_set("WebCurSet_Entry", "detected_lang_type", "6");
-					}
-					else if(!strcmp(str_lang, "cs"))
-					{
-						tcapi_set("WebCurSet_Entry", "detected_lang_type", "4");
-					}
-					else if(!strcmp(str_lang, "pl"))
-					{
-						tcapi_set("WebCurSet_Entry", "detected_lang_type", "13");
-					}
-					else if(!strcmp(str_lang, "ms"))
-					{
-						tcapi_set("WebCurSet_Entry", "detected_lang_type", "11");
-					}
-					else if(!strcmp(str_lang, "th"))
-					{
-						tcapi_set("WebCurSet_Entry", "detected_lang_type", "16");
-					}
-					else if(!strcmp(str_lang, "tr"))
-					{
-						tcapi_set("WebCurSet_Entry", "detected_lang_type", "17");
-					}
-					else if(!strcmp(str_lang, "da"))
-					{
-						tcapi_set("WebCurSet_Entry", "detected_lang_type", "5");
-					}
-					else if(!strcmp(str_lang, "fi"))
-					{
-						tcapi_set("WebCurSet_Entry", "detected_lang_type", "8");
-					}
-					else if(!strcmp(str_lang, "nb") || !strcmp(str_lang, "nn"))
-					{
-						tcapi_set("WebCurSet_Entry", "detected_lang_type", "12");
-					}
-					else if(!strcmp(str_lang, "sv"))
-					{
-						tcapi_set("WebCurSet_Entry", "detected_lang_type", "15");
-					}
-					else if(!strcmp(str_lang, "pt"))
-					{
-						tcapi_set("WebCurSet_Entry", "detected_lang_type", "2");
-					}
-					else if(!strcmp(str_lang, "es"))
-					{
-						tcapi_set("WebCurSet_Entry", "detected_lang_type", "7");
-					}
-					else if(!strcmp(str_lang, "it"))
-					{
-						tcapi_set("WebCurSet_Entry", "detected_lang_type", "10");
-					}
-					else if(!strcmp(str_lang, "uk"))
-					{
-						tcapi_set("WebCurSet_Entry", "detected_lang_type", "19");
-					}
-					else
-					{
-						tcapi_set("WebCurSet_Entry", "detected_lang_type", "1");
-					}
-				}
 				initandparserfile();
+				if(lang_type == LANG_TYPE_CZ || lang_type == LANG_TYPE_DE)
+				{
+					int flag = 0;
+					if(tcapi_match("SysInfo_Entry", "x_Setting", "0")
+						&& tcapi_match("Adsl_Entry", "ANNEXTYPEA", "ANNEX A/I/J/L/M")
+						&& tcapi_match("Info_Adsl", "lineState", "down")
+					){
+						tcapi_set("Adsl_Entry", "ANNEXTYPEA", "ANNEX B/J/M");
+						flag = 1;
+					}
+				#ifdef TCSUPPORT_WAN_PTM
+					if(lang_type == LANG_TYPE_DE) {
+						if(tcapi_match("Adsl_Entry", "vdsl_profile", "0"))
+						{
+							tcapi_set("Adsl_Entry", "vdsl_profile", "1");
+							flag = 1;
+						}
+					}
+				#endif
+					if(flag)
+						tcapi_commit("Adsl_Entry");
+				}
 			}
-			/*else
-			{
-				fprintf(stderr, "2) %s:%d - ********************** (Accept-Language: NOT found)\n",
-	                __FILE__, __LINE__);
-			}*/
 		}
 	}
 

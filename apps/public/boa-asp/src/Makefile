@@ -20,8 +20,8 @@ GCC_FLAGS = -Wstrict-prototypes -Wpointer-arith -Wcast-align -Wcast-qual\
 srcdir = .
 VPATH = .:./../extras
 LDFLAGS =  -lcrypt
-LIBS =  -lcrypt -L ../../lib/ -lmxml -L../../shared -lshared
-CFLAGS = -pipe -Wall -I. -I./asp -I../../shared/
+LIBS =  -lcrypt -L ../../lib/ -lmxml -L../../shared -lshared -L../../utils -lutils
+CFLAGS = -pipe -Wall -I. -I./asp -I../../shared/ -I../../utils
 ifeq ($(RTCONFIG_USB),y)
 CFLAGS += -I../../libdisk/
 LIBS += -L../../libdisk -ldisk 
@@ -96,8 +96,12 @@ ASPOBJS= \
 	asp/gb-lex.o\
 	asp/http-get-utils.o\
 	asp/grammar.o\
-	asp/parsers.o\
-		
+	asp/parsers.o
+ifneq ($(RTCONFIG_OPENVPN), )
+ASPOBJS += asp/openvpn_options.o
+endif
+
+
 all: mxml_lib tcapi_lib asp_file boa boa_indexer
 
 mxml_lib:

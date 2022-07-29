@@ -553,7 +553,7 @@ function show_wans_rules(){
 
 	code +='<table width="100%" cellspacing="0" cellpadding="4" align="center" class="list_table" id="wans_RoutingRules_table">';
 	if(wans_rules_row.length == 1)
-		code +='<tr><td style="color:#FFCC00;" colspan="4"><%tcWebApi_get("String_Entry","checkbox_No","s")%> data in table.</td></tr>';
+		code +='<tr><td style="color:#FFCC00;" colspan="4"><%tcWebApi_get("String_Entry","IPC_VSList_Norule","s")%></td></tr>';
 	else{
 		for(var i = 1; i < wans_rules_row.length; i++){
 			code +='<tr id="row'+i+'">';
