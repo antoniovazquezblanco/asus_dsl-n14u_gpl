@@ -29,7 +29,7 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_CONNMARK");
 
 #include <linux/netfilter/x_tables.h>
-#include <linux/netfilter/xt_CONNMARK.h>
+#include <linux/netfilter/xt_connmark.h>
 #include <net/netfilter/nf_conntrack_ecache.h>
 
 static unsigned int
